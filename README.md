@@ -10,3 +10,9 @@ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:defaul
 ```
 
 At this point you can create the stack using logging.yml.
+
+
+## Operations logging scenario
+The logging stack can be configured to send operations logs to a second Elasticsearch cluster.  The operations logs are sourced from syslog and the openshift* and default namespaces.  In this configuration a single Fluentd pod is able to service both these clusters by specifying the location of the cluster to contain application logs (non-operations) with the environment variables ES_HOST and ES_PORT and the location of the cluster to contain operations logs with the environment variable OPS_HOST and OPS_PORT.
+
+The `ops-logging.yml` template file has been written in a way that it will create two different Elasticsearch clusters (one for application logs and one for operations logs), two Kibana clusters (one for each Elasticsearch cluster), the services for all the aformentioned clusters, and a Fluentd pod correctly configured to split up logs to both clusters.
