@@ -1,0 +1,68 @@
+cluster.name: ${CLUSTER_NAME}
+script.disable_dynamic: false
+#searchguard.key_path: .
+#searchguard.auditlog.enabled: true
+
+# If this is true (default is false) then allow all HTTP REST requests from nodes loopback (e.g. localhost)
+searchguard.allow_all_from_loopback: false
+
+############################# Search-Guard ################################
+#searchguard.check_for_root: false
+
+######################################
+# Authentication backend             #
+#                                    #
+######################################
+searchguard.authentication.authentication_backend.impl: com.floragunn.searchguard.authentication.backend.simple.SettingsBasedAuthenticationBackend
+
+######################################
+# Authorization backend (authorizer) #
+#                                    #
+######################################
+searchguard.authentication.authorizer.impl: com.floragunn.searchguard.authorization.simple.SettingsBasedAuthorizator
+
+######################################
+# HTTP authentication method         #
+#                                    #
+######################################
+searchguard.authentication.http_authenticator.impl: com.floragunn.searchguard.authentication.http.basic.HTTPBasicAuthenticator
+
+#####################################
+# HTTPS settings                    #
+#                                   #
+#####################################
+# Enable or disable rest layer security (https)
+searchguard.ssl.transport.http.enabled: true
+# JKS or PKCS12
+searchguard.ssl.transport.http.keystore_type: JKS
+# Absolute path to the keystore file (this stores the server certificates)
+searchguard.ssl.transport.http.keystore_filepath: /etc/elasticsearch/keys/key
+# Keystore password
+searchguard.ssl.transport.http.keystore_password: kspass
+# Do the clients (typically the browser or the proxy) have to authenticate themself to the http server, default is false
+searchguard.ssl.transport.http.enforce_clientauth: true
+# JKS or PKCS12
+searchguard.ssl.transport.http.truststore_type: JKS
+# Absolute path to the truststore file (this stores the client certificates)
+searchguard.ssl.transport.http.truststore_filepath: /etc/elasticsearch/keys/truststore
+# Truststore password
+searchguard.ssl.transport.http.truststore_password: tspass
+
+##### authentication
+searchguard.authentication.settingsdb.user.admin: secret
+searchguard.authentication.settingsdb.user.fluentd: changeme
+searchguard.authentication.settingsdb.user.kibana: changeme
+
+##### authorization
+searchguard.authentication.authorization.settingsdb.roles.admin: ["root"]
+searchguard.authentication.authorization.settingsdb.roles.fluentd: ["fluentd"]
+searchguard.authentication.authorization.settingsdb.roles.kibana: ["kibana"]
+
+##### roles
+# Configure the actionrequestfilter to allow or forbid action 
+searchguard.actionrequestfilter.names: ["readonly", "fluentd", "kibana"]
+searchguard.actionrequestfilter.readonly.allowed_actions: ["indices:data/read/*", "*monitor*"]
+searchguard.actionrequestfilter.readonly.forbidden_actions: ["cluster:*", "indices:admin*"]
+
+searchguard.actionrequestfilter.fluentd.allowed_actions: ["indices:data/write/*", "indices:admin/create"]
+searchguard.actionrequestfilter.kibana.allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
