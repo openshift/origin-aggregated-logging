@@ -9,6 +9,9 @@ To allow fluentd to list all pods in the cluster, you will need to update the ro
 oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:default
 ```
 
+To ready your Persistant Volume Claims, you will need to create /tmp/data01 on your host node and ensure it has permissions 777. `mkdir -p /tmp/data01; chmod -R 777 /tmp/data01`.
+Once that is created you can use the template `volume.yml` to create your Persistant Volume and then `pvc.yml` to create the Persistant Volume Claim that is used in `logging.yml`.
+
 At this point you can create the stack using logging.yml.
 
 

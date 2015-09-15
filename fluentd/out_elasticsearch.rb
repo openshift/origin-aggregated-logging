@@ -12,7 +12,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :host, :string,  :default => 'localhost'
   config_param :port, :integer, :default => 9200
   config_param :user, :string, :default => nil
-  config_param :password, :string, :default => nil
+  config_param :password, :string, :default => nil, :secret => true
   config_param :path, :string, :default => nil
   config_param :scheme, :string, :default => 'http'
   config_param :hosts, :string, :default => nil
@@ -21,7 +21,6 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :logstash_dateformat, :string, :default => "%Y.%m.%d"
   config_param :utc_index, :bool, :default => true
   config_param :type_name, :string, :default => "fluentd"
-  config_param :type_delimiter, :string, :default => nil
   config_param :index_name, :string, :default => "fluentd"
   config_param :id_key, :string, :default => nil
   config_param :parent_key, :string, :default => nil
@@ -29,8 +28,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :reload_connections, :bool, :default => true
   config_param :reload_on_failure, :bool, :default => false
   config_param :time_key, :string, :default => nil
-  config_param :ssl_verify, :bool, :default => true
-  config_param :remove_keys, :string, :default => nil
+  config_param :ssl_verify , :bool, :default => true
   config_param :client_key, :string, :default => nil
   config_param :client_cert, :string, :default => nil
   config_param :client_key_pass, :string, :default => nil
@@ -45,9 +43,6 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
 
   def configure(conf)
     super
-    if @remove_keys
-      @remove_keys = @remove_keys.split(',')
-    end
   end
 
   def start
@@ -58,17 +53,16 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
     @_es ||= begin
       excon_options = { client_key: @client_key, client_cert: @client_cert, client_key_pass: @client_key_pass }
       adapter_conf = lambda {|f| f.adapter :excon, excon_options }
-      transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(
-        get_connection_options.merge(
-          options: {
-            reload_connections: @reload_connections,
-            reload_on_failure: @reload_on_failure,
-            retry_on_failure: 5,
-            transport_options: {
-              request: { timeout: @request_timeout },
-              ssl: { verify: @ssl_verify, ca_file: @ca_file }
-            }
-          }), &adapter_conf)
+      transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(get_connection_options.merge(
+                                                                          options: {
+                                                                            reload_connections: @reload_connections,
+                                                                            reload_on_failure: @reload_on_failure,
+                                                                            retry_on_failure: 5,
+                                                                            transport_options: {
+                                                                              request: { timeout: @request_timeout },
+                                                                              ssl: { verify: @ssl_verify, ca_file: @ca_file }
+                                                                            }
+                                                                          }), &adapter_conf)
       es = Elasticsearch::Client.new transport: transport
 
       begin
@@ -145,26 +139,20 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
         else
           record.merge!({"@timestamp" => Time.at(time).to_datetime.to_s})
         end
-
-        logstash_prefix = expand_param(@logstash_prefix, tag, record)
-
         if @utc_index
-          target_index = "#{logstash_prefix}-#{Time.at(time).getutc.strftime("#{@logstash_dateformat}")}"
+          target_index = "#{@logstash_prefix}-#{Time.at(time).getutc.strftime("#{@logstash_dateformat}")}"
         else
-          target_index = "#{logstash_prefix}-#{Time.at(time).strftime("#{@logstash_dateformat}")}"
+          target_index = "#{@logstash_prefix}-#{Time.at(time).strftime("#{@logstash_dateformat}")}"
         end
       else
-        target_index = expand_param(@index_name, tag, record)
+        target_index = @index_name
       end
 
       if @include_tag_key
         record.merge!(@tag_key => tag)
       end
 
-      target_type = expand_param(@type_name, tag, record)
-      target_type = target_type.gsub! '.', @type_delimiter if @type_delimiter
-
-      meta = { "index" => {"_index" => target_index, "_type" => target_type} }
+      meta = { "index" => {"_index" => target_index, "_type" => type_name} }
       if @id_key && record[@id_key]
         meta['index']['_id'] = record[@id_key]
       end
@@ -172,8 +160,6 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
       if @parent_key && record[@parent_key]
         meta['index']['_parent'] = record[@parent_key]
       end
-
-      @remove_keys.each {|k| record.delete(k) } if @remove_keys
 
       bulk_message << meta
       bulk_message << record
@@ -198,12 +184,4 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
       raise ConnectionFailure, "Could not push logs to Elasticsearch after #{retries} retries. #{e.message}"
     end
   end
-
-  def expand_param(param, tag, record)
-    # param.gsub(/\${tag}/, tag).gsub(/(\${([a-zA-Z0-9_]+)})/, record.fetch($2, $1))
-    param.gsub(/\${tag}/, tag).gsub(/\${([a-zA-Z0-9_]+)}/) {
-      record[$1]
-    }
-  end
-
 end
