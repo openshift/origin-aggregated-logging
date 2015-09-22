@@ -60,6 +60,7 @@ bundled_plugin_ids:
  - plugins/kibana/index
  - plugins/markdown_vis/index
  - plugins/metric_vis/index
+ - plugins/origin-kibana/index
  - plugins/settings/index
  - plugins/table_vis/index
  - plugins/vis_types/index
