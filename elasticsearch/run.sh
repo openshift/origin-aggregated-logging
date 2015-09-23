@@ -6,46 +6,46 @@ echo "network.host: 127.0.0.1" >> /usr/share/elasticsearch/config/elasticsearch.
 
 nohup /usr/share/elasticsearch/bin/elasticsearch -Des.pidfile=./elasticsearch.pid &
 
-sleep 20; curl -q -XPUT 'http://localhost:9200/searchguard/ac/ac?pretty' -d '
-{"acl": [
-    {
-      "__Comment__": "Default is to deny all access",
-      "filters_bypass": [],
-      "filters_execute": []
-    },
-    {
-      "__Comment__": "This is so that fluentd can only write",
-      "users": ["fluentd"],
-      "filters_bypass": [],
-      "filters_execute": ["actionrequestfilter.fluentd"]
-    },
-    {
-      "__Comment__": "This is so that Kibana can do anything in the .kibana index",
-      "users": ["kibana"],
-      "indices": [".kibana"],
-      "filters_bypass": ["*"],
-      "filters_execute": []
-    },
-    {
-      "__Comment__": "This is so that Kibana can only read in all indices",
-      "users": ["kibana"],
-      "filters_bypass": [],
-      "filters_execute": ["actionrequestfilter.kibana"]
-    }
-]}'
+# check to see if ES has started up yet
+until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 --head http://localhost:9200); do
+  sleep 0.1;
+done
 
-# doesn't work currently
-#sleep 20; curl -q -XPUT 'http://localhost:9200/operations-2015.09.01/_mapping/kibana' -d '
-# {"kibana": {
-#    "transform": {
-#      "script" : "ctx._source['message'] = ctx._source['msg']",
-#      "lang": "groovy"
-#    }
-#  }
-#}'
+if [ -z $(curl -s -f 'http://localhost:9200/searchguard/ac/ac') ]; then
+  curl -q -XPUT 'http://localhost:9200/searchguard/ac/ac?pretty' -d '
+  {"acl": [
+      {
+        "__Comment__": "Default is to deny all access",
+        "filters_bypass": [],
+        "filters_execute": []
+      },
+      {
+        "__Comment__": "This is so that fluentd can only write",
+        "users": ["fluentd"],
+        "filters_bypass": [],
+        "filters_execute": ["actionrequestfilter.fluentd"]
+      },
+      {
+        "__Comment__": "This is so that Kibana can do anything in the .kibana index",
+        "users": ["kibana"],
+        "indices": [".kibana"],
+        "filters_bypass": ["*"],
+        "filters_execute": []
+      },
+      {
+        "__Comment__": "This is so that Kibana can only read in all indices",
+        "users": ["kibana"],
+        "filters_bypass": [],
+        "filters_execute": ["actionrequestfilter.kibana"]
+      }
+  ]}'
 
-sleep 20; kill `cat ./elasticsearch.pid`
+  # check to make sure the ACL has been persisted
+  until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 http://localhost:9200/searchguard/ac/ac); do
+    sleep 0.1;
+  done
+fi
 
+kill `cat ./elasticsearch.pid`
 mv /usr/share/elasticsearch/config/elasticsearch.yml.bak /usr/share/elasticsearch/config/elasticsearch.yml
-
 /usr/share/elasticsearch/bin/elasticsearch

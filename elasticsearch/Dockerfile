@@ -21,19 +21,17 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
   yum install -y -- setopt=tsflags=nodocs \
   java-1.8.0-openjdk \
   elasticsearch && \
-  mkdir -p ${HOME}
-
-RUN mkdir -p /usr/share/elasticsearch/config && \
-  cp /etc/elasticsearch/* /usr/share/elasticsearch/config
-
-#VOLUME /usr/share/elasticsearch/data
+  yum clean all && \
+  mkdir -p ${HOME} && \
+  mkdir -p /usr/share/elasticsearch/config && \
+  cp /etc/elasticsearch/* /usr/share/elasticsearch/config && \
+  /usr/share/elasticsearch/bin/plugin -i io.fabric8/elasticsearch-cloud-kubernetes/1.2.1 && \
+  /usr/share/elasticsearch/bin/plugin -i com.floragunn/search-guard/0.5 && \
+  chmod -R og+w /usr/share/elasticsearch && \
+  chmod -R og+w ${HOME}
 
 ADD *.sh /opt/app-root/src/
-RUN sh /opt/app-root/src/initialize.sh
 ADD *.yml /usr/share/elasticsearch/config/
-
-RUN chmod -R og+w /usr/share/elasticsearch && \
-  chmod -R og+w ${HOME}
 
 WORKDIR ${HOME}
 
