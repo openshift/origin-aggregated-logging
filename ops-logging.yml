@@ -69,11 +69,8 @@ items:
       component: "elasticsearch"
 -
   apiVersion: "v1"
-  kind: "ReplicationController"
+  kind: "DeploymentConfig"
   metadata:
-    labels:
-      provider: "openshift"
-      component: "elasticsearch-ops"
     name: "elasticsearch-ops"
   spec:
     replicas: 1
@@ -111,17 +108,20 @@ items:
               - name: certs
                 mountPath: /etc/elasticsearch/keys
                 readOnly: true
+              - name: pvc
+                mountPath: /elasticsearch
+                readOnly: false
         volumes:
           - name: certs
             secret:
               secretName: elasticsearch-ops
+          - name: pvc
+            persistentVolumeClaim:
+              claimName: pvc-001
 -
   apiVersion: "v1"
-  kind: "ReplicationController"
+  kind: "DeploymentConfig"
   metadata:
-    labels:
-      provider: "openshift"
-      component: "elasticsearch"
     name: "elasticsearch"
   spec:
     replicas: 1
@@ -159,10 +159,16 @@ items:
               - name: certs
                 mountPath: /etc/elasticsearch/keys
                 readOnly: true
+              - name: pvc
+                mountPath: /elasticsearch
+                readOnly: false
         volumes:
           - name: certs
             secret:
               secretName: elasticsearch
+          - name: pvc
+            persistentVolumeClaim:
+              claimName: pvc-001
 -
   apiVersion: v1
   kind: Pod
@@ -237,12 +243,9 @@ items:
       component: "kibana-ops"
 -
   apiVersion: "v1"
-  kind: "ReplicationController"
+  kind: "DeploymentConfig"
   metadata:
     name: "kibana-ops"
-    labels:
-      provider: openshift
-      component: "kibana-ops"
   spec:
     replicas: 1
     selector:
@@ -290,12 +293,9 @@ items:
       component: "kibana"
 -
   apiVersion: "v1"
-  kind: "ReplicationController"
+  kind: "DeploymentConfig"
   metadata:
     name: "kibana"
-    labels:
-      provider: openshift
-      component: "kibana"
   spec:
     replicas: 1
     selector:
