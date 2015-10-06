@@ -21,7 +21,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
   libcurl-devel \
   make && \
   mkdir -p ${HOME} && \
-  gem install fluentd fluent-plugin-kubernetes_metadata_filter fluent-plugin-elasticsearch fluent-plugin-flatten-hash
+  gem install --no-ri fluentd fluent-plugin-kubernetes_metadata_filter fluent-plugin-elasticsearch fluent-plugin-flatten-hash
 
 ADD out_elasticsearch*.rb /opt/app-root/src/gems/fluent-plugin-elasticsearch-1.0.0/lib/fluent/plugin/
 ADD fluent.conf /etc/fluent/fluent.conf
