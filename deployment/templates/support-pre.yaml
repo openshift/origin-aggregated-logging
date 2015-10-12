@@ -1,0 +1,125 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-support-pre-template-maker
+  annotations:
+    description: "Template to create template for creating logging service accounts"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-support-pre-template
+    annotations:
+      description: "Template for deploying logging services and service accounts."
+      tags: "infrastructure"
+    labels:
+      logging-infra: support
+  labels:
+    logging-infra: support
+    provider: openshift
+    component: support
+  objects:
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-kibana
+    secrets:
+      - name: logging-kibana
+      - name: logging-kibana-proxy
+      - name: logging-kibana-ops-proxy
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-elasticsearch
+    secrets:
+      - name: logging-elasticsearch
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-fluentd
+    secrets:
+      - name: logging-fluentd
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es"
+    spec:
+      ports:
+      -
+        port: 9200
+        targetPort: restapi
+      selector:
+        provider: "openshift"
+        component: "es"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-cluster"
+    spec:
+      portalIP: "None"
+      ports:
+      -
+        port: 9300
+        targetPort: cluster
+      selector:
+        provider: "openshift"
+        component: "es"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-ops"
+    spec:
+      ports:
+      -
+        port: 9200
+        targetPort: restapi
+      selector:
+        provider: "openshift"
+        component: "es-ops"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-ops-cluster"
+    spec:
+      portalIP: "None"
+      ports:
+      -
+        port: 9300
+        targetPort: cluster
+      selector:
+        provider: "openshift"
+        component: "es-ops"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-kibana"
+    spec:
+      ports:
+        -
+          port: 443
+          targetPort: "oaproxy"
+      selector:
+        provider: openshift
+        component: "kibana"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-kibana-ops"
+    spec:
+      ports:
+        -
+          port: 443
+          targetPort: "oaproxy"
+      selector:
+        provider: openshift
+        component: "kibana-ops"

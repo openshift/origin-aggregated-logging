@@ -1,6 +1,6 @@
 FROM centos:centos7
 
-MAINTAINER Eric Wolinetz <ewolinet@redhat.com>
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \

@@ -1,6 +1,6 @@
 FROM openshift/base-centos7 
 
-MAINTAINER Eric Wolinetz <ewolinet@redhat.com>
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 EXPOSE 5601
 

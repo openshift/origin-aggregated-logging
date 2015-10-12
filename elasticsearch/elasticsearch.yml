@@ -11,6 +11,13 @@ discovery:
     ping:
       multicast:
         enabled: false
+    minimum_master_nodes: ${NODE_QUORUM}
+gateway:
+  recover_after_nodes: ${RECOVER_AFTER_NODES}
+  expected_nodes: ${RECOVER_EXPECTED_NODES}
+  recover_after_time: ${RECOVER_AFTER_TIME}
+
+io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd"]
 
 cloud:
   k8s:
@@ -25,20 +32,19 @@ path:
   work: /elasticsearch/${CLUSTER_NAME}/work
 
 searchguard:
+  config_index_name: ${HOSTNAME}
   key_path: /elasticsearch/${CLUSTER_NAME}
   allow_all_from_loopback: false
   authentication:
     authentication_backend:
-      impl: com.floragunn.searchguard.authentication.backend.simple.SettingsBasedAuthenticationBackend
+      impl: com.floragunn.searchguard.authentication.backend.simple.AlwaysSucceedAuthenticationBackend
     authorizer:
       impl: com.floragunn.searchguard.authorization.simple.SettingsBasedAuthorizator
     http_authenticator:
-      impl: com.floragunn.searchguard.authentication.http.basic.HTTPBasicAuthenticator
-    settingsdb:
-      user:
-        admin: secret
-        fluentd: changeme
-        kibana: changeme
+      impl: io.fabric8.elasticsearch.plugin.HTTPSProxyClientCertAuthenticator
+    proxy:
+      header: X-Proxy-Remote-User
+      trusted_ips: ["*"]
     authorization:
       settingsdb:
         roles:
@@ -63,4 +69,4 @@ searchguard:
     fluentd:
       allowed_actions: ["indices:data/write/*", "indices:admin/create"]
     kibana:
-      allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
+     allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
