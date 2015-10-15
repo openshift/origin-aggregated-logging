@@ -1,0 +1,105 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-support-template-maker
+  annotations:
+    description: "Template to create template for deploying logging support entities"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-support-template
+    annotations:
+      description: "Template for deploying logging support entities: oauth, service accounts, services, routes, imagestreams."
+      tags: "infrastructure"
+    labels:
+      logging-infra: support
+  labels:
+    logging-infra: support
+    provider: openshift
+    component: support
+  objects:
+  -
+    apiVersion: v1
+    kind: OAuthClient
+    metadata:
+      name: kibana-proxy
+    secret: ${OAUTH_SECRET}
+    redirectURIs:
+    - https://${KIBANA_HOSTNAME}
+    - https://${KIBANA_OPS_HOSTNAME}
+  -
+    apiVersion: v1
+    kind: Route
+    metadata:
+      name: kibana
+    spec:
+      host: ${KIBANA_HOSTNAME}
+      to:
+        kind: Service
+        name: logging-kibana
+      tls:
+        termination: passthrough
+  -
+    apiVersion: v1
+    kind: Route
+    metadata:
+      name: kibana-ops
+    spec:
+      host: ${KIBANA_OPS_HOSTNAME}
+      to:
+        kind: Service
+        name: logging-kibana-ops
+      tls:
+        termination: passthrough
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      name: openshift-auth-proxy
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}openshift-auth-proxy:${IMAGE_VERSION}
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      name: logging-elasticsearch
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      name: logging-fluentd
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      name: logging-kibana
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}
+parameters:
+-
+  description: "A shared secret for the authentication proxy oauth client in front of Kibana"
+  name: OAUTH_SECRET
+  required: true
+-
+  description: "Hostname at which users will visit Kibana and be authenticated."
+  name: KIBANA_HOSTNAME
+  required: true
+-
+  description: "Hostname at which admins will visit the ops Kibana."
+  name: KIBANA_OPS_HOSTNAME
+  value: kibana-ops.example.com
+-
+  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
+  name: IMAGE_PREFIX
+  value: "docker.io/openshift/origin-"
+-
+  description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"'
+  name: IMAGE_VERSION
+  value: "latest"
+

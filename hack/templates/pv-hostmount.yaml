@@ -1,0 +1,36 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-pv-template
+  annotations:
+    description: "Template for deploying a test volume with a host mount for ElasticSearch to use for storage."
+    tags: "infrastructure"
+  labels:
+    logging-infra: elasticsearch-pv
+labels:
+  provider: openshift
+  component: elasticsearch-pv
+objects:
+-
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: ${NAME}
+  spec:
+    hostPath:
+      path: /opt/elasticsearch
+    capacity:
+      storage: ${SIZE}Gi
+    accessModes:
+      - ReadWriteOnce
+    persistentVolumeReclaimPolicy: Recycle
+parameters:
+-
+  description: 'Unique volume name'
+  name: NAME
+  from: 'logging-elasticsearch-pv-[a-z0-9]{8}'
+  generate: expression
+-
+  description: 'Gigabytes of storage to advertise'
+  name: SIZE
+  value: "1"

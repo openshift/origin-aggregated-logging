@@ -1,0 +1,152 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-kibana-template-maker
+  annotations:
+    description: "Template to create template for deploying Kibana"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-${KIBANA_DEPLOY_NAME}-template
+    annotations:
+      description: "Template for deploying log viewer Kibana connecting to ElasticSearch to visualize aggregated cluster logs."
+      tags: "infrastructure"
+    labels:
+      logging-infra: kibana
+  labels:
+    logging-infra: kibana
+    provider: openshift
+    component: ${KIBANA_DEPLOY_NAME}
+  objects:
+  -
+    apiVersion: "v1"
+    kind: "DeploymentConfig"
+    metadata:
+      name: "logging-${KIBANA_DEPLOY_NAME}"
+      labels:
+        provider: openshift
+        component: "${KIBANA_DEPLOY_NAME}"
+    spec:
+      replicas: 1
+      selector:
+        provider: openshift
+        component: "${KIBANA_DEPLOY_NAME}"
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - kibana
+          from:
+            kind: ImageStreamTag
+            name: logging-kibana:latest
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - kibana-proxy
+          from:
+            kind: ImageStreamTag
+            name: openshift-auth-proxy:latest
+      strategy:
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Rolling
+      template:
+        metadata:
+          name: "${KIBANA_DEPLOY_NAME}"
+          labels:
+            provider: openshift
+            component: "${KIBANA_DEPLOY_NAME}"
+        spec:
+          serviceAccountName: aggregated-logging-kibana
+          containers:
+            -
+              name: "kibana"
+              image: logging-kibana
+              imagePullPolicy: Always
+              ports:
+              env:
+                - name: "ES_HOST"
+                  value: ${ES_HOST}
+                - name: "ES_PORT"
+                  value: ${ES_PORT}
+              volumeMounts:
+                - name: kibana
+                  mountPath: /etc/kibana/keys
+                  readOnly: true
+            -
+              name: "kibana-proxy"
+              image: openshift-auth-proxy
+              imagePullPolicy: Always
+              ports:
+                -
+                  name: "oaproxy"
+                  containerPort: 3000
+              env:
+                -
+                  name: "OAP_BACKEND_URL"
+                  value: "http://localhost:5601"
+                -
+                  name: "OAP_AUTH_MODE"
+                  value: "oauth2"
+                -
+                  name: "OAP_TRANSFORM"
+                  value: "user_header,token_header"
+                -
+                  name: "OAP_OAUTH_ID"
+                  value: kibana-proxy
+                -
+                  name: "OAP_MASTER_URL"
+                  value: ${OAP_MASTER_URL}
+                -
+                  name: "OAP_PUBLIC_MASTER_URL"
+                  value: ${OAP_PUBLIC_MASTER_URL}
+                -
+                  name: "OAP_MASTER_CA_FILE"
+                  value: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                -
+                  name: "OAP_DEBUG"
+                  value: ${OAP_DEBUG}
+              volumeMounts:
+                - name: kibana-proxy
+                  mountPath: /secret
+                  readOnly: true
+          volumes:
+            - name: kibana
+              secret:
+                secretName: logging-kibana
+            - name: kibana-proxy
+              secret:
+                secretName: logging-${KIBANA_DEPLOY_NAME}-proxy
+parameters:
+-
+  name: KIBANA_DEPLOY_NAME
+  description: "Modify to differentiate regular and ops UI."
+  value: "kibana"
+-
+  description: "Internal URL for the master, for authentication retrieval"
+  name: OAP_MASTER_URL
+  value: "https://kubernetes.default.svc.cluster.local"
+-
+  description: "Public URL for the master, for sending the browser to authenticate"
+  name: OAP_PUBLIC_MASTER_URL
+  required: true
+-
+  description: "Hostname/IP for ElasticSearch backend to connect to."
+  name: ES_HOST
+  value: "logging-es"
+-
+  description: "Port to connect to for ElasticSearch backend."
+  name: ES_PORT
+  value: "9200"
+-
+  description: "Show extra proxy debug information at startup and during operations"
+  name: OAP_DEBUG
+  value: "false"

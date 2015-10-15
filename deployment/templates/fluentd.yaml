@@ -1,0 +1,161 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-fluentd-template-maker
+  annotations:
+    description: "Template to create template for fluentd"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-fluentd-template
+    annotations:
+      description: "Template for logging fluentd deployment. Currently uses terrible kludge to restrict to one per node. TODO: adapt for daemon controller"
+      tags: "infrastructure"
+    labels:
+      logging-infra: fluentd
+  labels:
+    logging-infra: fluentd
+    provider: openshift
+    component: fluentd
+  objects:
+  -
+    apiVersion: v1
+    kind: "DeploymentConfig"
+    metadata:
+      name: "logging-fluentd"
+      labels:
+        provider: openshift
+        component: "fluentd"
+    spec:
+      replicas: 0
+      selector:
+        provider: openshift
+        component: "fluentd"
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - fluentd-elasticsearch
+          from:
+            kind: ImageStreamTag
+            name: logging-fluentd:latest
+      strategy:
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Recreate
+      template:
+        metadata:
+          name: fluentd-elasticsearch
+          labels:
+            provider: openshift
+            component: "fluentd"
+        spec:
+          serviceAccountName: aggregated-logging-fluentd
+          containers:
+          - name: fluentd-elasticsearch
+            image: logging-fluentd
+            imagePullPolicy: Always
+            securityContext:
+              privileged: true
+            resources:
+              limits:
+                cpu: 100m
+            ports:
+              - containerPort: 1095
+                hostPort: 1095
+                protocol: TCP
+                purpose: "to prevent more than one per node"
+            volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: certs
+              mountPath: /etc/fluent/keys
+              readOnly: true
+            env:
+            - name: "K8S_HOST_URL"
+              value: ${MASTER_URL}
+            - name: "ES_HOST"
+              value: ${ES_HOST}
+            - name: "ES_PORT"
+              value: ${ES_PORT}
+            - name: "ES_CLIENT_CERT"
+              value: ${ES_CLIENT_CERT}
+            - name: "ES_CLIENT_KEY"
+              value: ${ES_CLIENT_KEY}
+            - name: "ES_CA"
+              value: ${ES_CA}
+            - name: "OPS_HOST"
+              value: ${OPS_HOST}
+            - name: "OPS_PORT"
+              value: ${OPS_PORT}
+            - name: "OPS_CLIENT_CERT"
+              value: ${OPS_CLIENT_CERT}
+            - name: "OPS_CLIENT_KEY"
+              value: ${OPS_CLIENT_KEY}
+            - name: "OPS_CA"
+              value: ${OPS_CA}
+          volumes:
+          - name: varlog
+            hostPath:
+              path: /var/log
+          - name: varlibdockercontainers
+            hostPath:
+              path: /var/lib/docker/containers
+          - name: certs
+            secret:
+              secretName: logging-fluentd
+parameters:
+-
+  description: "Internal url for reaching the master API to query pod labels"
+  name: MASTER_URL
+  value: "https://kubernetes.default.svc.cluster.local"
+-
+  description: "Hostname (or IP) for reaching ElasticSearch to write logs"
+  name: ES_HOST
+  value: "logging-es"
+-
+  description: "Port number for reaching ElasticSearch to write logs"
+  name: ES_PORT
+  value: "9200"
+-
+  description: "Location of client certificate for authenticating to ElasticSearch to write logs"
+  name: ES_CLIENT_CERT
+  value: "/etc/fluent/keys/cert"
+-
+  description: "Location of client key for authenticating to ElasticSearch to write logs"
+  name: ES_CLIENT_KEY
+  value: "/etc/fluent/keys/key"
+-
+  description: "Location of CA cert for validating connectiong to ElasticSearch to write logs"
+  name: ES_CA
+  value: "/etc/fluent/keys/ca"
+-
+  description: "Hostname (or IP) for reaching ElasticSearch to write cluster logs"
+  name: OPS_HOST
+  value: "logging-es"
+-
+  description: "Port number for reaching ElasticSearch to write cluster logs"
+  name: OPS_PORT
+  value: "9200"
+-
+  description: "Location of client certificate for authenticating to ElasticSearch to write cluster logs"
+  name: OPS_CLIENT_CERT
+  value: "/etc/fluent/keys/cert"
+-
+  description: "Location of client key for authenticating to ElasticSearch to write cluster logs"
+  name: OPS_CLIENT_KEY
+  value: "/etc/fluent/keys/key"
+-
+  description: "Location of CA cert for validating connectiong to ElasticSearch to write cluster logs"
+  name: OPS_CA
+  value: "/etc/fluent/keys/ca"

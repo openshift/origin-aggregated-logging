@@ -1,0 +1,45 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-pv-template
+  annotations:
+    description: "Template for deploying a test volume with an nfs mount for ElasticSearch to use for storage."
+    tags: "infrastructure"
+  labels:
+    logging-infra: elasticsearch-pv
+labels:
+  provider: openshift
+  component: elasticsearch-pv
+objects:
+-
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: ${NAME}
+  spec:
+    nfs:
+      server: ${NFS_SERVER}
+      path: ${NFS_PATH}
+    capacity:
+      storage: ${SIZE}Gi
+    accessModes:
+      - ReadWriteOnce
+    persistentVolumeReclaimPolicy: Recycle
+parameters:
+-
+  description: 'Unique volume name'
+  name: NAME
+  from: 'logging-elasticsearch-pv-[a-z0-9]{8}'
+  generate: expression
+-
+  description: 'Gigabytes of storage to advertise'
+  name: SIZE
+  required: true
+-
+  description: 'NFS server domain or IP'
+  name: NFS_SERVER
+  required: true
+-
+  description: 'NFS path (starting with /)'
+  name: NFS_PATH
+  required: true
