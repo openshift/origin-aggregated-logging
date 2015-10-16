@@ -57,13 +57,17 @@ objects:
     apiVersion: v1
     kind: ImageStream
     metadata:
-      name: openshift-auth-proxy
+      annotations:
+        openshift.io/image.insecureRepository: "true"
+      name: logging-auth-proxy
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}openshift-auth-proxy:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}
   -
     apiVersion: v1
     kind: ImageStream
     metadata:
+      annotations:
+        openshift.io/image.insecureRepository: "true"
       name: logging-elasticsearch
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
@@ -71,6 +75,8 @@ objects:
     apiVersion: v1
     kind: ImageStream
     metadata:
+      annotations:
+        openshift.io/image.insecureRepository: "true"
       name: logging-fluentd
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
@@ -78,6 +84,8 @@ objects:
     apiVersion: v1
     kind: ImageStream
     metadata:
+      annotations:
+        openshift.io/image.insecureRepository: "true"
       name: logging-kibana
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}

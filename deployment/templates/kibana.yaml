@@ -50,7 +50,7 @@ objects:
           - kibana-proxy
           from:
             kind: ImageStreamTag
-            name: openshift-auth-proxy:latest
+            name: logging-auth-proxy:latest
       strategy:
         resources: {}
         rollingParams:
