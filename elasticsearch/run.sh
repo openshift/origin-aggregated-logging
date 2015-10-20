@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
 ln -s /etc/elasticsearch/keys/searchguard.key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
@@ -14,7 +14,7 @@ sed --in-place=.bak '
 network.host: 127.0.0.1
 	' $ES_CONF
 
-nohup /usr/share/elasticsearch/bin/elasticsearch -Des.pidfile=./elasticsearch.pid &
+/usr/share/elasticsearch/bin/elasticsearch -Des.pidfile=./elasticsearch.pid -d
 until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 --head http://localhost:9200); do
     sleep 0.1;
 done
@@ -24,8 +24,8 @@ until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 --head http://localhost
   sleep 0.1;
 done
 
-if [ -z $(curl -s -f 'http://localhost:9200/searchguard/ac/ac') ]; then
-  curl -q -XPUT 'http://localhost:9200/searchguard/ac/ac?pretty' -d '
+if [ -z $(curl -s -f "http://localhost:9200/.searchguard.${HOSTNAME}/ac/ac") ]; then
+  curl -q -XPUT "http://localhost:9200/.searchguard.${HOSTNAME}/ac/ac?pretty" -d '
   {"acl": [
       {
         "__Comment__": "Default is to deny all access",
@@ -54,7 +54,7 @@ if [ -z $(curl -s -f 'http://localhost:9200/searchguard/ac/ac') ]; then
   ]}'
 
   # check to make sure the ACL has been persisted
-  until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 http://localhost:9200/searchguard/ac/ac); do
+  until $(curl -s -f -o /dev/null --connect-timeout 1 -m 1 http://localhost:9200/.searchguard.${HOSTNAME}/ac/ac); do
     sleep 0.1;
   done
 fi

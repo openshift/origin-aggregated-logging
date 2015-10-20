@@ -83,7 +83,7 @@ objects:
                   readOnly: true
             -
               name: "kibana-proxy"
-              image: openshift-auth-proxy
+              image: logging-auth-proxy
               imagePullPolicy: Always
               ports:
                 -
