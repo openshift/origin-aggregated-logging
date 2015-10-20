@@ -32,7 +32,7 @@ path:
   work: /elasticsearch/${CLUSTER_NAME}/work
 
 searchguard:
-  config_index_name: ${HOSTNAME}
+  config_index_name: ".searchguard.${HOSTNAME}"
   key_path: /elasticsearch/${CLUSTER_NAME}
   allow_all_from_loopback: false
   authentication:
