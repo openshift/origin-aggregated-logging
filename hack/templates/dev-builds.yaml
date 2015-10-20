@@ -50,8 +50,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: openshift-auth-proxy
-    name: openshift-auth-proxy
+      build: logging-auth-proxy
+    name: logging-auth-proxy
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -172,13 +172,13 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      build: openshift-auth-proxy
-    name: openshift-auth-proxy
+      build: logging-auth-proxy
+    name: logging-auth-proxy
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: openshift-auth-proxy:latest
+        name: logging-auth-proxy:latest
     resources: {}
     source:
       git:
