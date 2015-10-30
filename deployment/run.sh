@@ -201,9 +201,9 @@ if [ "${KEEP_SUPPORT}" != true ]; then
 	oc process logging-support-pre-template | oc create -f -
 fi
 
-oc delete all --selector logging-infra=kibana
-oc delete all --selector logging-infra=fluentd
-oc delete all --selector logging-infra=elasticsearch
+oc delete dc,rc,pod --selector logging-infra=kibana
+oc delete dc,rc,pod --selector logging-infra=fluentd
+oc delete dc,rc,pod --selector logging-infra=elasticsearch
 for ((n=0;n<${es_cluster_size};n++)); do
 	oc process logging-es-template | oc create -f -
 done
