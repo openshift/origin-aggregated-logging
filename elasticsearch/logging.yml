@@ -6,9 +6,8 @@ logger:
   action: WARN
   # reduce the logging for aws, too much is logged under the default INFO
   com.amazonaws: WARN
-  #io.fabric8.elasticsearch: DEBUG
-  #io.fabric8.kubernetes: DEBUG
-  #io.fabric8.elasticsearch.plugin.acl: DEBUG
+  io.fabric8.elasticsearch: ${PLUGIN_LOGLEVEL}
+  io.fabric8.kubernetes: ${PLUGIN_LOGLEVEL}
 
   # gateway
   #gateway: DEBUG

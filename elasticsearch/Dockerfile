@@ -14,7 +14,8 @@ ENV HOME=/opt/app-root/src \
   NODE_QUORUM=1 \
   RECOVER_AFTER_NODES=1 \
   RECOVER_EXPECTED_NODES=1 \
-  RECOVER_AFTER_TIME=5m
+  RECOVER_AFTER_TIME=5m \
+  PLUGIN_LOGLEVEL=INFO
 
 LABEL io.k8s.description="Elasticsearch container for allowing indexing and searching of aggregated logs" \
   io.k8s.display-name="Elasticsearch 1.5.2" \
