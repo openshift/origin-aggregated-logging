@@ -89,9 +89,6 @@ objects:
                 name: INSTANCE_RAM
                 value: ${INSTANCE_RAM}
               -
-                name: CLUSTER_SIZE
-                value: ${CLUSTER_SIZE}
-              -
                 name: NODE_QUORUM
                 value: ${NODE_QUORUM}
               -
