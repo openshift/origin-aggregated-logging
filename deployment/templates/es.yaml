@@ -42,12 +42,7 @@ objects:
             kind: ImageStreamTag
             name: logging-elasticsearch:latest
       strategy:
-        resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Rolling
+        type: Recreate
       template:
         metadata:
           labels:
