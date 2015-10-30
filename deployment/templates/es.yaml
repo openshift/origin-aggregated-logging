@@ -42,12 +42,7 @@ objects:
             kind: ImageStreamTag
             name: logging-elasticsearch:latest
       strategy:
-        resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Rolling
+        type: Recreate
       template:
         metadata:
           labels:
@@ -88,9 +83,6 @@ objects:
               -
                 name: INSTANCE_RAM
                 value: ${INSTANCE_RAM}
-              -
-                name: CLUSTER_SIZE
-                value: ${CLUSTER_SIZE}
               -
                 name: NODE_QUORUM
                 value: ${NODE_QUORUM}
