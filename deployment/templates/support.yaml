@@ -105,9 +105,9 @@ parameters:
 -
   description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
   name: IMAGE_PREFIX
-  value: "docker.io/openshift/origin-"
+  value: "registry.access.redhat.com/openshift3/"
 -
   description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"'
   name: IMAGE_VERSION
-  value: "latest"
+  value: "3.1.0"
 
