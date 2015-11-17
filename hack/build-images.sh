@@ -2,7 +2,7 @@
 
 set -ex
 
-prefix=${PREFIX:-${1:-openshift/}}
+prefix=${PREFIX:-${1:-openshift/origin-}}
 version=${VERSION:-${2:-latest}}
 docker build -t "${prefix}logging-fluentd:${version}"       ../fluentd/
 docker build -t "${prefix}logging-elasticsearch:${version}" ../elasticsearch/
