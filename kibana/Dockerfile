@@ -23,7 +23,7 @@ RUN   wget -q https://download.elastic.co/kibana/kibana/kibana-4.1.1-linux-x64.t
       cd /opt/origin-kibana/ && \
       yum install -y npm --nogpgcheck && \
       npm install --ignore-scripts && \
-      ./node_modules/bower/bin/bower install --allow-root && \
+      ./node_modules/bower/bin/bower install --allow-root --force && \
       ./node_modules/grunt-cli/bin/grunt && \
       rm -rf node_modules && \
       yum erase npm nodejs -y && \
