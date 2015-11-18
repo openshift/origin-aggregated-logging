@@ -1,4 +1,37 @@
-# Logging Deployer
+# About the Logging Components
+
+The aggregated logging subsystem consists of multiple components commonly
+abbreviated as the "ELK" stack (though modified here to be the "EFK"
+stack).
+
+## ElasticSearch
+
+ElasticSearch is a Lucene-based indexing object store into which logs
+are fed. Logs for node services and all containers in the cluster are
+fed into one deployed cluster. The ElasticSearch cluster should be deployed
+with redundancy and persistent storage for scale and high availability.
+
+## Fluentd
+
+Fluentd is responsible for gathering log entries from all nodes, enriching
+them with metadata, and feeding them into the ElasticSearch cluster.
+
+## Kibana
+
+Kibana presents a web UI for browsing and visualizing logs in ElasticSearch.
+
+## Logging auth proxy
+
+In order to authenticate the Kibana user against OpenShift's Oauth2 for
+single sign-on, a proxy is required that runs in front of Kibana.
+
+## Deployer
+
+The deployer enables the system administrator to generate all of the
+necessary key/certs/secrets and deploy all of the logging components
+in concert.
+
+# Using the Logging Deployer
 
 The deployer pod can enable deploying the full stack of the aggregated
 logging solution with just a few prerequisites:
@@ -7,6 +40,7 @@ logging solution with just a few prerequisites:
 2. A "logging-deployer" ServiceAccount with the secret and create privileges
 3. Optionally, a key and certificate for the Kibana server to be deployed.
 4. Sufficient volumes defined for ElasticSearch cluster storage.
+5. A router deployment for serving cluster-defined routes for Kibana.
 
 The deployer generates all the necessary certs/keys/etc for cluster
 communication and defines secrets and templates for all of the necessary
@@ -18,19 +52,24 @@ as a privileged pod on every node.
 ## Choose a Project
 
 You will likely want to put all logging-related entities in their own project.
-For this document we will assume the `logging` project.
+For examples in this document we will assume the `logging` project.
 
-    oc new-project logging
+    $ oc new-project logging
 
-You can use the default project if you want, but this implementation
-has no need to run in the default project.
+You can use the `default` or another project if you want. This
+implementation has no need to run in any specific project.
 
 ## Create the Deployer Secret
 
-All contents of the secret are optional, but the secret itself must always be
-created in order to run the deployer. For an empty secret:
+Security parameters for the logging infrastructure
+deployment can be supplied to the deployer in the form of a
+[secret](https://github.com/openshift/openshift-docs/blob/master/dev_guide/secrets.adoc).
 
-    oc secrets new logging-deployer nothing=/dev/null
+All contents of the secret are optional, but the secret itself must
+always be created in order to run the deployer. To supply no parameters,
+you can create an empty secret:
+
+    $ oc secrets new logging-deployer nothing=/dev/null
 
 The following files may be supplied in the deployer secret:
 
@@ -47,14 +86,14 @@ The following files may be supplied in the deployer secret:
 
 An invocation supplying a properly signed Kibana cert might be:
 
-    oc secrets new logging-deployer \
+    $ oc secrets new logging-deployer \
        kibana.crt=/path/to/cert kibana.key=/path/to/key
 
-## Create the Deployer ServiceAccount
+## Create Supporting ServiceAccounts
 
 The deployer must run under a service account defined as follows:
 
-    oc create -f - <<API
+    $ oc create -f - <<API
     apiVersion: v1
     kind: ServiceAccount
     metadata:
@@ -63,82 +102,115 @@ The deployer must run under a service account defined as follows:
     - name: logging-deployer
     API
 
-    oc policy add-role-to-user edit \
+    $ oc policy add-role-to-user edit \
               system:serviceaccount:logging:logging-deployer
 
 Note: change `:logging:` above to match the project name.
 
-## Run the Deployer
+The policy manipulation is required in order for the deployer pod to
+create secrets, templates, and deployments in the project. By default
+service accounts are not allowed to do this.
 
-You will need to specify the hostname at which Kibana should be exposed to client
-browsers, and also the master URL where client browsers will be directed for
-authenticating to OpenShift. These and other parameters are availalble:
+The fluentd deployment also requires a service account which the deployer
+will create that must be given special privileges. Edit the privileged
+security configuration with the following:
 
-* `KIBANA_HOSTNAME` (required): External hostname where web clients will reach Kibana
-* `PUBLIC_MASTER_URL` (required): External URL for the master, for OAuth purposes
-* `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"
-* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"
-* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance.
-* `ES_CLUSTER_SIZE`: How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
-* `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs.
-* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`: Parallel parameters for the ops log cluster.
-
-With example parameters:
-
-    oc process logging-deployer-template \
-               -v KIBANA_HOSTNAME=kibana.example.com,PUBLIC_MASTER_URL=https://localhost:8443 \
-               | oc create -f -
-
-Check the logs of the resulting pod (`oc logs <pod name>`) for some instructions
-to follow after deployment. More details are given below.
-
-## Deploy the templates created by the deployer
-
-### Supporting definitions
-
-Create the supporting definitions (you must be cluster admin):
-
-    oc process logging-support-template | oc create -f -
-
-Enable fluentd service account - edit SCC with the following
-
-    oc edit scc/privileged
+    $ oc edit scc/privileged
 
 Add one line as the user at the end: (note, change `:logging:` below to the project of your choice)
 
     - system:serviceaccount:logging:aggregated-logging-fluentd
 
-Give the account access to read labels from all pods:
+Give the account access to read labels from all pods (again with the correct project):
 
-    openshift admin policy add-cluster-role-to-user cluster-reader system:serviceaccount:logging:aggregated-logging-fluentd
+    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:logging:aggregated-logging-fluentd
 
+## Run the Deployer
+
+You will need to specify the hostname at which Kibana should be
+exposed to client browsers, and also the master URL where client
+browsers will be directed for authenticating to OpenShift. You should
+read the [ElasticSearch](#elasticsearch) section below before choosing
+ElasticSearch parameters for the deployer. These and other parameters
+are available:
+
+* `KIBANA_HOSTNAME` (required): External hostname where web clients will reach Kibana
+* `PUBLIC_MASTER_URL` (required): External URL for the master, for OAuth purposes
+* `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set prefix "docker.io/openshift/origin-"
+* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
+* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
+* `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
+* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`: Parallel parameters for the ops log cluster.
+
+You run the deployer by instantiating a template. Here is an example with some parameters:
+
+    $ oc process -n openshift logging-deployer-template \
+               -v KIBANA_HOSTNAME=kibana.example.com,PUBLIC_MASTER_URL=https://localhost:8443 \
+               | oc create -f -
+
+If your installation did not create templates in the `openshift`
+namespace, the `logging-deployer-template` template may not exist. In
+that case you can just process the template source:
+
+    $ oc process -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/v0.1/deployment/deployer.yaml ...
+
+This creates a deployer pod and prints its name. Wait until the pod
+is running; this can take up to a few minutes to retrieve the deployer
+image from its registry. You can watch it with:
+
+    $ oc get pod/<pod-name> -w
+
+If it seems to be taking too long, you can retrieve more details about the pod and
+any associated events with:
+
+    $ oc describe pod/<pod-name>
+
+When it runs, check the logs of the resulting pod (`oc logs -f <pod name>`)
+for some instructions to follow after deployment. More details
+are given below.
+
+## Deploy the templates created by the deployer
+
+### Supporting definitions
+
+Create the supporting definitions from template (you must be cluster admin):
+
+    $ oc process logging-support-template | oc create -f -
+
+Tip: Check the output to make sure that all objects were created
+successfully. If any were not, it is probably because one or more
+already existed from a previous deployment (potentially in a different
+project). You can delete them all before trying again:
+
+    $ oc process logging-support-template | oc delete -f -
 
 ### ElasticSearch
 
-Scaling a deployment today assumes that all pods can safely share
-any volumes specified in the deployment. This is not the case with
-ElasticSearch; each pod requires its own storage. Work is under way
-to enable specifying multiple volumes to be allocated to instances in
-a deployment, but for now multiple deployments are used in order to
-scale ElasticSearch. You can view them all with:
+The deployer creates the number of ElasticSearch instances specified by
+`ES_CLUSTER_SIZE`. The nature of ElasticSearch and current Kubernetes
+limitations require that we use a different scaling mechanism than the
+standard Kubernetes scaling.
 
-    oc get dc --selector logging-infra=elasticsearch
+Scaling a standard deployment (a Kubernetes ReplicationController)
+to multiple pods currently mounts the same volumes on all pods in the
+deployment. However, multiple ElasticSearch instances in a cluster
+cannot share storage; each pod requires its own storage. Work is under
+way to enable specifying multiple volumes to be allocated individually
+to instances in a deployment, but for now the deployer creates multiple
+deployments in order to scale ElasticSearch to multiple instances. You
+can view the deployments with:
 
-It is possible to scale your cluster up after creation by adding more
-deployments; however, when scaling up (or down), you must be aware of
-cluster parameters that vary by cluster size and adjust them accordingly
-for both new and existing deployments. Elastic [discusses these issues
-here](https://www.elastic.co/guide/en/elasticsearch/guide/current/_important_configuration_changes.html)
-and the corresponding parameters are coded into the deployments and the
-template below.
-
-The deployer defines a template which it uses to create ElasticSearch
-deployments. You can adjust and reuse it to add more:
-
-    oc process logging-es-template | oc create -f -
+    $ oc get dc --selector logging-infra=elasticsearch
 
 These deployments all have different names but will cluster with each other
 via `service/logging-es-cluster`.
+
+It is possible to scale your cluster up after creation by adding more
+deployments from a template; however, scaling up (or down) requires
+the correct procedure and an awareness of clustering parameters (to be
+described in a separate section). It is best if you can indicate the
+desired scale at first deployment.
 
 Refer to [Elastic's
 documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_disks)
@@ -156,7 +228,7 @@ deployments.
 For example, to use a local directory on the host (which is actually
 recommended by Elastic in order to take advantage of fast local disk):
 
-    oc volume dc/logging-es-rca2m9u8 \
+    $ oc volume dc/logging-es-rca2m9u8 \
               --add --overwrite --name=elasticsearch-storage \
               --type=hostPath --path=/path/to/storage
 
@@ -167,7 +239,7 @@ the privileged SCC as shown for Fluentd above.
 See `oc volume -h` for further options. E.g. if you have an NFS volume
 you would like to use, you can set it with:
 
-    oc volume dc/logging-es-rca2m9u8 \
+    $ oc volume dc/logging-es-rca2m9u8 \
               --add --overwrite --name=elasticsearch-storage \
               --source='{"nfs": {"server": "nfs.server.example.com", "path": "/exported/path"}}'
 
@@ -213,9 +285,11 @@ should be sufficient.
 
 Fluentd is deployed with no replicas. Once you have ElasticSearch
 running as desired, scale fluentd to every node to feed logs into ES.
+The example below would be for a cluster with 3 nodes; substitute the
+actual number of nodes in your cluster.
 
-    oc scale dc/logging-fluentd --replicas=3
-    oc scale rc/logging-fluentd-1 --replicas=3
+    $ oc scale dc/logging-fluentd --replicas=3
+    $ oc scale rc/logging-fluentd-1 --replicas=3
 
 Kubernetes is developing a method of scheduling a pod to dynamically run
 on every node (even as they come and go), but it is not yet available. As
@@ -231,13 +305,15 @@ is only a workaround until the proper method of deployment is available.
 
 You may scale the Kibana deployment normally for redundancy:
 
-    oc scale dc/logging-kibana --replicas=2
-    oc scale rc/logging-kibana-1 --replicas=2
+    $ oc scale dc/logging-kibana --replicas=2
+    $ oc scale rc/logging-kibana-1 --replicas=2
 
 You should be able to visit the `KIBANA_HOSTNAME` specified in the
 initial deployment to visit the UI (assuming DNS points correctly for
 this domain). You will get a certificate warning if you did not provide
-a properly signed certificate.
+a properly signed certificate in the deployer secret. You should be able
+to login with the same users that can login to the web console and have
+index patterns defined for projects the user has access to.
 
 ### Ops cluster
 
@@ -249,17 +325,284 @@ to index and access operations logs. These deployments are set apart with
 the `-ops` included in their names. The same considerations apply as
 for the main cluster.
 
+## Using Kibana
+
+The subject of using Kibana in general is covered in that [project's
+documentation](https://www.elastic.co/guide/en/kibana/4.1/discover.html).
+Here is some information specific to the aggregated logging deployment.
+
+1. Login is performed via OAuth2, as with the web console. The default certificate
+authentication used for the admin user isn't available, but you can create
+other users and make them cluster admins.
+2. Kibana and ElasticSearch have been customized to display logs only
+to users that have access to the projects the logs came from. So if you login
+and have no access to anything, be sure your user has access to at least one
+project. Cluster admin users should have access to all project logs as
+well as host logs.
+3. To do anything with ElasticSearch and Kibana, Kibana has to have
+defined some index patterns that match indices being recorded in
+ElasticSearch. This should already be done for you, but you should be
+aware how these work in case you want to customize anything. When logs
+from applications in a project are recorded, they are indexed by project
+name and date in the format `name.YYYY-MM-DD`. For matching a project's
+logs for all dates, an index pattern will be defined in Kibana for each
+project which looks like `name.*`.
+4. When first visiting Kibana, the first page directs you to create
+an index pattern.  In general this should not be necessary and you can
+just click the "Discover" tab and choose a project index pattern to see
+logs. If there are no logs yet for a project, you won't get any results;
+keep in mind also that the default time interval for retrieving logs is
+15 minutes and you will need to adjust it to find logs older than that.
+5. Unfortunately there is no way to stream logs as they are created at
+this time.
+
 ## Cleanup and removal
 
 After deployment, the deployer account and secret can be removed.
 
-    oc delete sa/logging-deployer secret/logging-deployer
+    $ oc delete sa/logging-deployer secret/logging-deployer
 
 If you wish to remove everything generated or instantiated without having
 to destroy the project:
 
-    oc delete all --selector logging-infra=kibana
-    oc delete all --selector logging-infra=fluentd
-    oc delete all --selector logging-infra=elasticsearch
-    oc delete all,sa,oauthclient --selector logging-infra=support
-    oc delete secret logging-fluentd logging-elasticsearch logging-es-proxy logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+    $ oc delete all --selector logging-infra=kibana
+    $ oc delete all --selector logging-infra=fluentd
+    $ oc delete all --selector logging-infra=elasticsearch
+    $ oc delete all,sa,oauthclient --selector logging-infra=support
+    $ oc delete secret logging-fluentd logging-elasticsearch logging-es-proxy logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+
+#### Adjusting ElasticSearch After Deployment
+
+If you need to change the ElasticSearch cluster size after deployment,
+DO NOT just scale existing deployments up or down. ElasticSearch cannot
+scale by ordinary Kubernetes mechanisms, as explained above. Each instance
+requires its own storage, and thus under current capabilities, its own
+deployment. The deployer defined a template `logging-es-template` which
+can be used to create new ElasticSearch deployments.
+
+Adjusting the scale of the ElasticSearch cluster
+typically requires adjusting cluster parameters that
+vary by cluster size. [Elastic documentation discusses these
+issues](https://www.elastic.co/guide/en/elasticsearch/guide/current/_important_configuration_changes.html)
+and the corresponding parameters are coded as environment variables
+in the existing deployments and parameters in the deployment template
+(mentioned in the [Settings](#settings) section).  The deployer chooses sensible
+defaults based on cluster size. These should be adjusted for both new
+and existing deployments when changing the cluster size.
+
+Changing cluster parameters (or any parameters/secrets, really) requires
+re-deploying the instances. In order to minimize resynchronization
+between the instances as they are restarted, we advise halting traffic to
+ElasticSearch and then taking down the entire cluster for maintenance. No
+logs will be lost; Fluentd simply blocks until the cluster returns.
+
+Halting traffic to ElasticSearch requires scaling down Fluentd and Kibana:
+
+    $ oc scale rc/logging-fluentd-1 --replicas=0
+    $ oc scale rc/logging-kibana-1 --replicas=0
+
+Next scale all of the ElasticSearch deployments to 0 similarly.
+
+    $ oc get rc --selector logging-infra=elasticsearch
+    $ oc scale rc/logging-es-... --replicas=0
+
+Now edit the existing DeploymentConfigs and modify the variables as needed:
+
+    $ oc get dc --selector logging-infra=elasticsearch
+    $ oc edit dc logging-es-...
+
+You can adjust parameters in the template (`oc edit template logging-es-template`) and reuse it to add more instances:
+
+    $ oc process logging-es-template | oc create -f -
+
+Keep in mind that these are deployed immediately and will likely need
+storage and node selectors defined. You may want to scale them down to
+0 while operating on them.
+
+Once all the deployments are properly configured, deploy them all at
+about the same time.
+
+    $ oc get dc --selector logging-infra=elasticsearch
+    $ oc deploy --latest logging-es-...
+
+The cluster parameters determine how cluster formation and recovery
+proceeds, but the default is that the cluster will wait up to five minutes
+for all instances to start up and join the cluster. After the cluster
+is formed, new instances will begin replicating data from the existing
+instances, which can take a long time and generate a lot of network
+traffic and disk activity, but the cluster is operational immediately and
+Fluentd and Kibana can be scaled back to their normal operating levels.
+
+    $ oc scale rc/logging-fluentd-1 --replicas=...
+    $ oc scale rc/logging-kibana-1 --replicas=2
+
+
+## Troubleshooting
+
+There are a number of common problems with logging deployment that have simple
+explanations but do not present useful errors for troubleshooting.
+
+### Looping login on Kibana
+
+The experience here is that when you visit Kibana, it redirects you to
+login. Then when you login successfully, you are redirected back to Kibana,
+which immediately redirects back to login again.
+
+The typical reason for this is that the OAuth2 proxy in front of Kibana
+is supposed to share a secret with the master's OAuth2 server, in order
+to identify it as a valid client. This problem likely indicates that
+the secrets do not match (unfortunately nothing reports this problem
+in a way that can be exposed). This can happen when you deploy logging
+more than once (perhaps to fix the initial deployment) and the `secret`
+used by Kibana is replaced while the master `oauthclient` entry to match
+it is not.
+
+In this case, you should be able to do the following:
+
+    $ oc delete oauthclient/kibana-proxy
+    $ oc process logging-support-template | oc create -f -
+
+This will replace the oauthclient (and then complain about the other
+things it tries to create that are already there - this is normal). Then
+your next successful login should not loop.
+
+### "error":"invalid\_request" on login
+
+When you visit Kibana directly and it redirects you to login, you instead
+receive an error in the browser like the following:
+
+     {"error":"invalid_request","error_description":"The request is missing a required parameter,
+      includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed."}
+
+The reason for this is again a mismatch between the OAuth2 client and server.
+The return address for the client has to be in a whitelist for the server to
+securely redirect back after logging in; if there is a mismatch, then this
+cryptic error message is shown.
+
+As above, this may be caused by an `oauthclient` entry lingering from a
+previous deployment, in which case you can replace it:
+
+    $ oc delete oauthclient/kibana-proxy
+    $ oc process logging-support-template | oc create -f -
+
+This will replace the `oauthclient` (and then complain about the other
+things it tries to create that are already there - this is normal).
+Return to the Kibana URL and try again.
+
+If the problem persists, then you may be accessing Kibana at
+a URL that the `oauthclient` does not list. This can happen when, for
+example, you are trying out logging on a vagrant-driven VirtualBox
+deployment of OpenShift and accessing the URL at forwarded port 1443
+instead of the standard 443 HTTPS port. Whatever the reason, you can
+adjust the server whitelist by editing its `oauthclient`:
+
+    $ oc edit oauthclient/kibana-proxy
+
+This brings up a YAML representation in your editor, and you can edit
+the redirect URIs accepted to include the address you are actually using.
+After you save and exit, this should resolve the error.
+
+### Deployment fails, RCs scaled to 0
+
+When a deployment is performed, if it does not successfully bring up an
+instance before a ten-minute timeout, it will be considered failed and
+scaled down to zero instances. `oc get pods` will show a deployer pod
+with a non-zero exit code, and no deployed pods, e.g.:
+
+    NAME                           READY     STATUS             RESTARTS   AGE
+    logging-es-2e7ut0iq-1-deploy   1/1       ExitCode:255       0          1m
+
+(In this example, the deployer pod name for an ElasticSearch deployment is shown;
+this is from ReplicationController `logging-es-2e7ut0iq-1` which is a deployment
+of DeploymentConfig `logging-es-2e7ut0iq`.)
+
+Deployment failure can happen for a number of transitory reasons, such as
+the image pull taking too long, or nodes being unresponsive. Examine the
+deployer pod logs for possible reasons; but often you can simply redeploy:
+
+    $ oc deploy --latest logging-es-2e7ut0iq
+
+Or you may be able to scale up the existing deployment:
+
+    $ oc scale --replicas=1 logging-es-2e7ut0iq-1
+
+If the problem persists, you can examine pods, events, and systemd unit
+logs to determine the source of the problem.
+
+### Image pull fails
+
+If you specify an IMAGE\_PREFIX that results in images being defined that don't exist,
+you will receive a corresponding error message, typically after creating the deployer.
+
+    NAME                     READY     STATUS                                                                                       RESTARTS   AGE
+    logging-deployer-1ub9k   0/1       Error: image registry.access.redhat.com:5000/openshift3logging-deployment:latest not found   0          1m
+
+In this example, for the intended image name
+`registry.access.redhat.com:5000/openshift3/logging-deployment:latest`
+the `IMAGE\_PREFIX` needed a trailing `/`:
+
+    $ oc process logging-deployer-template \
+               -v IMAGE_PREFIX=registry.access.redhat.com:5000/openshift3/,...
+
+You can just re-create the deployer with the proper parameters to proceed.
+
+### Can't resolve kubernetes.default.svc.cluster.local
+
+This internal alias for the master should be resolvable by the included
+DNS server on the master. Depending on your platform, you should be able
+to run the `dig` command (perhaps in a container) against the master to
+check whether this is the case:
+
+    master$ dig kubernetes.default.svc.cluster.local @localhost
+    [...]
+    ;; QUESTION SECTION:
+    ;kubernetes.default.svc.cluster.local. IN A
+    
+    ;; ANSWER SECTION:
+    kubernetes.default.svc.cluster.local. 30 IN A   172.30.0.1
+
+Older versions of OpenShift did not automatically define this internal
+alias for the master. You may need to upgrade your cluster in order to
+use aggregated logging. If your cluster is up to date, there may be
+a problem with your pods reaching the SkyDNS resolver at the master,
+or it could have been blocked from running. You should resolve this
+problem before deploying again.
+
+### Can't connect to the master or services
+
+If DNS resolution does not return at all or the address cannot be
+connected to from within a pod (e.g. the deployer pod), this generally
+indicates a system firewall/network problem and should be debugged
+as such.
+
+### Kibana access shows 503 error
+
+If everything is deployed but visiting Kibana results in a proxy
+error, then one of the following things is likely to be the issue.
+
+First, Kibana might not actually have any pods that are recognized
+as running. If ElasticSearch is slow in starting up, Kibana may
+error out trying to reach it, and won't be considered alive. You can
+check whether the relevant service has any endpoints:
+
+    $ oc describe service logging-kibana
+    Name:                   logging-kibana
+    [...]
+    Endpoints:              <none>
+
+If any Kibana pods are live, endpoints should be listed. If they are
+not, check the state of the Kibana pod(s) and deployment.
+
+Second, the named route for accessing the Kibana service may be masked.
+This tends to happen if you do a trial deployment in one project and
+then try to deploy in a different project without completely removing the first one.
+When multiple routes are declared for the same destination, the default router will route to
+the first created. You can check if the route in question is defined in multiple places with:
+
+    $ oc get route  --all-namespaces --selector logging-infra=support
+    NAMESPACE   NAME         HOST/PORT                 PATH      SERVICE
+    logging     kibana       kibana.example.com                  logging-kibana
+    logging     kibana-ops   kibana-ops.example.com              logging-kibana-ops
+
+(In this example there are no overlapping routes.)
+
