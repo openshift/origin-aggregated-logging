@@ -185,7 +185,7 @@ oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_ur
 if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 	oc process -f templates/es.yaml -v "${es_ops_params}" | oc create -f -
 	es_ops_host=logging-es-ops.${project}.svc.cluster.local
-	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},KIBANA_DEPLOY_NAME=kibana-ops" | oc create -f -
+	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
 fi
 oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host}"| oc create -f -
 
