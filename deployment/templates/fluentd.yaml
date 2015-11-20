@@ -81,6 +81,9 @@ objects:
             - name: certs
               mountPath: /etc/fluent/keys
               readOnly: true
+            - name: dockerhostname
+              mountPath: /etc/docker-hostname
+              readOnly: true
             env:
             - name: "K8S_HOST_URL"
               value: ${MASTER_URL}
@@ -114,6 +117,9 @@ objects:
           - name: certs
             secret:
               secretName: logging-fluentd
+          - name: dockerhostname
+            hostPath:
+              path: /etc/hostname
 parameters:
 -
   description: "Internal url for reaching the master API to query pod labels"
