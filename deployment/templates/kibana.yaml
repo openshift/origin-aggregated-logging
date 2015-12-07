@@ -109,6 +109,9 @@ objects:
                   name: "OAP_PUBLIC_MASTER_URL"
                   value: ${OAP_PUBLIC_MASTER_URL}
                 -
+                  name: "OAP_LOGOUT_REDIRECT"
+                  value: ${OAP_PUBLIC_MASTER_URL}/console/logout
+                -
                   name: "OAP_MASTER_CA_FILE"
                   value: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
                 -
