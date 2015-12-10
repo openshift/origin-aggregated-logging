@@ -6,7 +6,9 @@ EXPOSE 5601
 
 ENV KIBANA_VER=4.1.1 \ 
     ES_HOST=localhost \ 
-    ES_PORT=9200
+    ES_PORT=9200 \
+    AOP_KIBANA_PLUGIN_VER=v0.5.0 \
+    AOP_KIBANA_PLUGIN_REPO=https://github.com/openshift/origin-kibana
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
   io.k8s.display-name="Kibana" \
@@ -17,16 +19,12 @@ RUN   wget -q https://download.elastic.co/kibana/kibana/kibana-4.1.1-linux-x64.t
       tar -xzf kibana-4.1.1-linux-x64.tar.gz && \
       mv kibana-4.1.1-linux-x64/* /opt/app-root/src/ && \
       rm -rf kibana-4.1.1-linux-x64* && \
-      mkdir -m 755 /opt/origin-kibana && \
-      git clone --branch master --depth 1 https://github.com/openshift/origin-kibana.git /opt/origin-kibana && \
+      mkdir -p -m 755 /opt/origin-kibana/lib && \
+      cd /opt/origin-kibana/lib && \
+      wget -q ${AOP_KIBANA_PLUGIN_REPO}/releases/download/${AOP_KIBANA_PLUGIN_VER}/origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz && \
+      tar -xvzf origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz && \
+      rm origin-kibana-*.tgz && \
       ln -s /opt/origin-kibana/lib /opt/app-root/src/src/public/plugins/origin-kibana && \
-      cd /opt/origin-kibana/ && \
-      yum install -y npm --nogpgcheck && \
-      npm install --ignore-scripts && \
-      ./node_modules/bower/bin/bower install --allow-root --force && \
-      ./node_modules/grunt-cli/bin/grunt && \
-      rm -rf node_modules && \
-      yum erase npm nodejs -y && \
       chmod -R og+w /opt/app-root/src
 
 COPY kibana.yml /opt/app-root/src/config/kibana.yml
