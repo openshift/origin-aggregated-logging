@@ -259,8 +259,10 @@ the label corresponding to your desired nodes, e.g.:
     apiVersion: v1
     kind: DeploymentConfig
     spec:
-      nodeSelector:
-        nodelabel: logging-es-node-1
+      template:
+        spec:
+          nodeSelector:
+            nodelabel: logging-es-node-1
 
 Recall that the default scheduler algorithm will spread pods to different
 nodes (in the same region, if regions are defined). However this can
