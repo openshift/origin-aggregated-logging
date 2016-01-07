@@ -9,7 +9,7 @@ docker build -t "${prefix}logging-elasticsearch:${version}" ../elasticsearch/
 docker build -t "${prefix}logging-kibana:${version}"        ../kibana/
 docker build -t "${prefix}logging-deployment:${version}"    ../deployment/
 
-if [ -n ${PUSH:-$3} ]; then
+if [ -n "${PUSH:-$3}" ]; then
 	docker push "${prefix}logging-fluentd:${version}"
 	docker push "${prefix}logging-elasticsearch:${version}"
 	docker push "${prefix}logging-kibana:${version}"
