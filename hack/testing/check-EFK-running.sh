@@ -33,7 +33,7 @@ echo "Checking component installation and if pods are running:"
 # Check that we have all IS
 echo $TEST_DIVIDER
 
-FOUND_STREAMS=(`oc get is | grep 'logging-' | cut -d" " -f 1`)
+FOUND_STREAMS=(`oc get is | grep 'logging-' | grep -v 'logging-deployment' | cut -d" " -f 1`)
 IS_COUNT=${#FOUND_STREAMS[@]}
 IS_MESSAGE="[$IS_COUNT/$STREAMS_COUNT] image streams found."
 
