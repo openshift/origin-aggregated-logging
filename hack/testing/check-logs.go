@@ -24,7 +24,7 @@ func main() {
         hostname = strings.Split(hostname, ".")[0]
 
         // instead of receiving jsonStream as an Arg, we'll make the call ourselves...
-        queryCommand := `oc exec `+kibana_pod+` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://`+es_svc+`/`+index+`.*/fluentd/_search?q=hostname:`+hostname+`&fields=message&size=`+querySize+`"`
+        queryCommand := `oc exec `+kibana_pod+` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://`+es_svc+`/`+index+`.*/fluentd/_search?q=hostname:`+hostname+`*&fields=message&size=`+querySize+`"`
         queryCmdName := "bash"
         queryCmdArgs := []string{"-c", queryCommand}
 
