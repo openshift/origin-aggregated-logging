@@ -24,7 +24,9 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
   gem install --no-ri fluentd fluent-plugin-kubernetes_metadata_filter fluent-plugin-elasticsearch fluent-plugin-flatten-hash
 
 ADD fluent.conf /etc/fluent/fluent.conf
+ADD configs.d/ /etc/fluent/configs.d/
+ADD run.sh generate_throttle_configs.rb ${HOME}/
 
 WORKDIR ${HOME}
 
-CMD ["fluentd"]
+CMD ["sh", "run.sh"]

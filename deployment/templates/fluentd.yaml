@@ -107,6 +107,8 @@ objects:
               value: ${OPS_CLIENT_KEY}
             - name: "OPS_CA"
               value: ${OPS_CA}
+            - name: "THROTTLE_SETTINGS"
+              value: ${THROTTLE_SETTINGS}
           volumes:
           - name: varlog
             hostPath:
@@ -165,3 +167,7 @@ parameters:
   description: "Location of CA cert for validating connectiong to ElasticSearch to write cluster logs"
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
+-
+  description: "JSON format configuration for log throttle management"
+  name: THROTTLE_SETTINGS
+  value: "{}"
