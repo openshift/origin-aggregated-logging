@@ -6,7 +6,8 @@ ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
   FLUENTD_VERSION=0.12.6 \
-  GEM_HOME=/opt/app-root/src
+  GEM_HOME=/opt/app-root/src \
+  THROTTLE_CONF_LOCATION=/etc/throttle-settings
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
   io.k8s.display-name="Fluentd 0.12.6" \
@@ -21,10 +22,14 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
   libcurl-devel \
   make && \
   mkdir -p ${HOME} && \
-  gem install --no-ri fluentd fluent-plugin-kubernetes_metadata_filter fluent-plugin-elasticsearch fluent-plugin-flatten-hash
+  gem install --no-ri fluentd fluent-plugin-kubernetes_metadata_filter fluent-plugin-elasticsearch fluent-plugin-flatten-hash && \
+  mkdir -p ${THROTTLE_CONF_LOCATION} && \
+  touch ${THROTTLE_CONF_LOCATION}/settings
 
 ADD fluent.conf /etc/fluent/fluent.conf
+ADD configs.d/ /etc/fluent/configs.d/
+ADD run.sh generate_throttle_configs.rb ${HOME}/
 
 WORKDIR ${HOME}
 
-CMD ["fluentd"]
+CMD ["sh", "run.sh"]
