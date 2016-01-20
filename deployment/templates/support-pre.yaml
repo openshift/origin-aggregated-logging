@@ -44,6 +44,13 @@ objects:
     secrets:
       - name: logging-fluentd
   -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-curator
+    secrets:
+      - name: logging-curator
+  -
     apiVersion: "v1"
     kind: "Service"
     metadata:

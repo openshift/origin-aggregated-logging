@@ -31,6 +31,12 @@ The deployer enables the system administrator to generate all of the
 necessary key/certs/secrets and deploy all of the logging components
 in concert.
 
+## Curator
+
+Curator allows the admin to remove old data from Elasticsearch on a per-project
+basis, and is configurable on a per-project basis.  See the parent README.md
+for details.
+
 # Using the Logging Deployer
 
 The deployer pod can enable deploying the full stack of the aggregated
@@ -331,6 +337,10 @@ Thus a separate ElasticSearch cluster and a separate Kibana are deployed
 to index and access operations logs. These deployments are set apart with
 the `-ops` included in their names. The same considerations apply as
 for the main cluster.
+
+### Curator
+
+It is recommended to have one curator for each Elasticsearch cluster.
 
 ## Using Kibana
 

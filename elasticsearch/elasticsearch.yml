@@ -19,7 +19,7 @@ gateway:
   expected_nodes: ${RECOVER_EXPECTED_NODES}
   recover_after_time: ${RECOVER_AFTER_TIME}
 
-io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd"]
+io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd", "system.logging.curator"]
 
 cloud:
   k8s:
@@ -53,6 +53,7 @@ searchguard:
           admin: ["root"]
           fluentd: ["fluentd"]
           kibana: ["kibana"]
+          curator: ["curator"]
   ssl:
     transport:
       http:
@@ -64,11 +65,13 @@ searchguard:
         truststore_filepath: /etc/elasticsearch/keys/truststore
         truststore_password: tspass
   actionrequestfilter:
-    names: ["readonly", "fluentd", "kibana"]
+    names: ["readonly", "fluentd", "kibana", "curator"]
     readonly:
       allowed_actions: ["indices:data/read/*", "*monitor*"]
       forbidden_actions: ["cluster:*", "indices:admin*"]
     fluentd:
       allowed_actions: ["indices:data/write/*", "indices:admin/create"]
     kibana:
-     allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
+      allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
+    curator:
+      allowed_actions: ["indices:admin/get", "indices:admin/delete"]
