@@ -188,7 +188,7 @@ if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 	es_ops_host=logging-es-ops.${project}.svc.cluster.local
 	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
 fi
-oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host}"| oc create -f -
+oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url}"| oc create -f -
 
 if [ "${KEEP_SUPPORT}" != true ]; then
 	oc delete template --selector logging-infra=support
