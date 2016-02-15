@@ -82,7 +82,7 @@ you can get from:
     logging-deployment      172.30.90.128:5000/logs/logging-deployment
 
 In order to run a deployment with these images, you would process the
-[deployer template](deployment/deployer.yaml) with the 
+[deployer template](deployment/deployer.yaml) with the
 `IMAGE_PREFIX=172.30.90.128:5000/logs/` parameter. Proceed to the
 [deployer instructions](./deployment) to run a deployment.
 
@@ -102,3 +102,36 @@ order to create everything with the right parameters. E.g.:
 There are a number of env vars this script looks at which are useful
 when running directly; check the script headers for details.
 
+## Throttling logs in Fluentd
+
+For projects that are especially verbose, an administrator can throttle
+down the rate at which the logs are read in by Fluentd at a time before being
+processed. Note: this means that aggregated logs for the configured projects
+could fall behind and even be deleted if the pod were deleted before Fluentd
+caught up.  
+
+To tell Fluentd which projects it should be restricting you will
+need to do the following:
+
+Create a yaml file that contains project names and the desired rate at which
+logs are read in. (Default is 1000)
+```
+logging:
+  read_lines_limit: 500
+
+test-project:
+  read_lines_limit: 10
+
+.operations:
+  read_lines_limit: 100
+```
+
+Create a secret providing this file as the source
+```
+oc secrets new fluentd-throttle settings=</path/to/your/yaml>
+```
+
+Mount the created secret to your Fluentd container
+```
+oc volumes dc/logging-fluentd --add --type=secret --secret-name=fluentd-throttle --mount-path=/etc/throttle-settings --name=throttle-settings --overwrite
+```
