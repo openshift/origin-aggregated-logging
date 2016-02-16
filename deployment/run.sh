@@ -32,6 +32,29 @@ es_ops_recover_after_time=${ES_OPS_RECOVER_AFTER_TIME:-5m}
 
 function join { local IFS="$1"; shift; echo "$*"; }
 
+function extract_nodeselector() {
+  local inputstring="${1//\"/}"  # remove any errant double quotes in the inputs
+  local selectors=()
+
+  for keyvalstr in ${inputstring//\,/ }; do
+
+    keyval=( ${keyvalstr//=/ } )
+
+    if [[ -n "${keyval[0]}" && -n "${keyval[1]}" ]]; then
+      selectors=( "${selectors[@]}" "\"${keyval[0]}\": \"${keyval[1]}\"")
+    else
+      echo "Could not make a node selector label from '${keyval[*]}'"
+      exit 255
+    fi
+  done
+
+  if [[ "${#selectors[*]}" -gt 0 ]]; then
+    echo nodeSelector: "{" $(join , "${selectors[@]}") "}"
+  fi
+}
+
+fluentd_nodeselector=$(extract_nodeselector $FLUENTD_NODESELECTOR)
+
 if [ "${KEEP_SUPPORT}" != true ]; then
 	# this fails in the container, but it's useful for dev
 	rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
@@ -198,7 +221,13 @@ if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
 	oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
 fi
-oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url}"| oc create -f -
+
+if [[ -n "${FLUENTD_NODESELECTOR}" ]]; then
+  sed "/serviceAccountName/ i\
+\          $fluentd_nodeselector" templates/fluentd.yaml | oc process -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}" -f - | oc create -f -
+else
+  oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}"| oc create -f -
+fi
 
 if [ "${KEEP_SUPPORT}" != true ]; then
 	oc delete template --selector logging-infra=support
@@ -233,6 +262,7 @@ fi
 set +x
 echo 'Success!'
 saf="system:serviceaccount:${project}:aggregated-logging-fluentd"
+fns=${FLUENTD_NODESELECTOR:-logging-infra-fluentd=true}
 support_section=''
 if [ "${KEEP_SUPPORT}" != true ]; then
 	support_section="
@@ -242,11 +272,8 @@ If you are replacing a previous deployment, delete the previous objects:
 Create the supporting definitions:
     oc process logging-support-template | oc create -f -
 
-Enable fluentd service account - edit SCC with the following
-    oc edit scc/privileged
-
-Add one line as the user at the end:
-- $saf
+Enable fluentd service account - run the following
+    oadm policy add-scc-to-user hostmount-anyuid $saf
 
 Give the account access to read pod metadata:
     openshift admin policy add-cluster-role-to-user cluster-reader $saf
@@ -285,10 +312,9 @@ To attach persistent storage, you can modify each deployment through
 
 Fluentd:
 --------------
-Fluentd is deployed with no replicas. Scale it to the number of nodes:
+Fluentd is deployed to nodes via a Daemon Set. Label the nodes to deploy it to:
 
-    oc scale dc/logging-fluentd --replicas=3
-    oc scale rc/logging-fluentd-1 --replicas=3
+    oc label node/<node-name> ${fns}
 
 Kibana:
 --------------

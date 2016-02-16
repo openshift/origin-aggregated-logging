@@ -52,8 +52,8 @@ The deployer generates all the necessary certs/keys/etc for cluster
 communication and defines secrets and templates for all of the necessary
 API objects to implement aggregated logging. There are a number of
 manual steps you must run with cluster-admin privileges in order to
-create an OAuth client and modify the privileged SCC so fluentd can run
-as a privileged pod on every node.
+create an OAuth client and modify the hostmount-anyuid SCC so fluentd can mount
+host volumes on every node.
 
 ## Choose a Project
 
@@ -118,14 +118,11 @@ create secrets, templates, and deployments in the project. By default
 service accounts are not allowed to do this.
 
 The fluentd deployment also requires a service account which the deployer
-will create that must be given special privileges. Edit the privileged
-security configuration with the following:
+will create that must be given special privileges. Run the following command to
+add the aggregated-logging-fluentd service account to the hostmount-anyuid scc
+(node, change `:logging:` below to the project of your choice):
 
-    $ oc edit scc/privileged
-
-Add one line as the user at the end: (note, change `:logging:` below to the project of your choice)
-
-    - system:serviceaccount:logging:aggregated-logging-fluentd
+    $ oadm policy add-scc-to-user hostmount-anyuid system:serviceaccount:logging:aggregated-logging-fluentd
 
 Give the account access to read labels from all pods (again with the correct project):
 
@@ -146,6 +143,7 @@ are available:
 * `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
 * `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
 * `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `FLUENTD_NODESELECTOR`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
 * `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
 * `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`: Parallel parameters for the ops log cluster.
 
@@ -297,22 +295,15 @@ should be sufficient.
 ### Fluentd
 
 Fluentd is deployed with no replicas. Once you have ElasticSearch
-running as desired, scale fluentd to every node to feed logs into ES.
-The example below would be for a cluster with 3 nodes; substitute the
-actual number of nodes in your cluster.
+running as desired, label the nodes to deploy Fluentd to in order to feed logs
+into ES. The example below would be to label a node named
+'ip-172-18-2-170.ec2.internal' using the default Fluentd nodeselector.
 
-    $ oc scale dc/logging-fluentd --replicas=3
-    $ oc scale rc/logging-fluentd-1 --replicas=3
+    $ oc label node/ip-172-18-2-170.ec2.internal logging-infra-fluentd=true
 
-Kubernetes is developing a method of scheduling a pod to dynamically run
-on every node (even as they come and go), but it is not yet available. As
-a workaround in the mean time, this implementation simply deploys an
-ordinary replication controller that should be manually scaled up or
-down as nodes come and go. The pod reserves a host port (1095 - which it
-does not actually listen on) in order to prevent multiple instances from
-running on the same node. However any pods that cannot be scheduled are
-still defined in the list of pods and may be perceived as clutter. This
-is only a workaround until the proper method of deployment is available.
+Alternatively, you can label all nodes with the following:
+
+    $ oc label node --all logging-infra-fluentd=true
 
 ### Kibana
 
@@ -387,6 +378,7 @@ to destroy the project:
     $ oc delete all --selector logging-infra=elasticsearch
     $ oc delete all,sa,oauthclient --selector logging-infra=support
     $ oc delete secret logging-fluentd logging-elasticsearch logging-es-proxy logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+    $ oc delete daemonset logging-fluentd
 
 #### Adjusting ElasticSearch After Deployment
 
@@ -413,9 +405,9 @@ between the instances as they are restarted, we advise halting traffic to
 ElasticSearch and then taking down the entire cluster for maintenance. No
 logs will be lost; Fluentd simply blocks until the cluster returns.
 
-Halting traffic to ElasticSearch requires scaling down Fluentd and Kibana:
+Halting traffic to ElasticSearch requires scaling down Kibana and removing node labels for Fluentd:
 
-    $ oc scale rc/logging-fluentd-1 --replicas=0
+    $ oc label node --all logging-infra-
     $ oc scale rc/logging-kibana-1 --replicas=0
 
 Next scale all of the ElasticSearch deployments to 0 similarly.
@@ -448,9 +440,10 @@ for all instances to start up and join the cluster. After the cluster
 is formed, new instances will begin replicating data from the existing
 instances, which can take a long time and generate a lot of network
 traffic and disk activity, but the cluster is operational immediately and
-Fluentd and Kibana can be scaled back to their normal operating levels.
+Kibana can be scaled back to its normal operating levels and nodes can be re-labeled
+for Fluentd.
 
-    $ oc scale rc/logging-fluentd-1 --replicas=...
+    $ oc label node --all logging-infra-fluentd=true
     $ oc scale rc/logging-kibana-1 --replicas=2
 
 
