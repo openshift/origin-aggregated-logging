@@ -1,5 +1,7 @@
 searchguard.ssl.transport.http.enabled: true
 
+kibana.version: 4.1.2
+
 cluster:
   name: ${CLUSTER_NAME}
 

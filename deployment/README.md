@@ -234,7 +234,7 @@ recommended by Elastic in order to take advantage of fast local disk):
 
 Note: In order to allow the pods to mount host volumes, you would usually
 need to add the `aggregated-logging-elasticsearch` service account to
-the privileged SCC as shown for Fluentd above.
+the `hostmount-anyuid` SCC similar to Fluentd as shown above.
 
 See `oc volume -h` for further options. E.g. if you have an NFS volume
 you would like to use, you can set it with:
@@ -559,7 +559,7 @@ check whether this is the case:
     [...]
     ;; QUESTION SECTION:
     ;kubernetes.default.svc.cluster.local. IN A
-    
+
     ;; ANSWER SECTION:
     kubernetes.default.svc.cluster.local. 30 IN A   172.30.0.1
 
@@ -607,4 +607,3 @@ the first created. You can check if the route in question is defined in multiple
     logging     kibana-ops   kibana-ops.example.com              logging-kibana-ops
 
 (In this example there are no overlapping routes.)
-
