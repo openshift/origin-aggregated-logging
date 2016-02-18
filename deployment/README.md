@@ -264,6 +264,11 @@ the label corresponding to your desired nodes, e.g.:
           nodeSelector:
             nodelabel: logging-es-node-1
 
+Alternatively, you can use `oc patch` to do this as well:
+```
+oc patch dc/logging-es-{unique name} -p '{"spec":{"template":{"spec":{"nodeSelector":{"nodelabel":"logging-es-node-1"}}}}}'
+```
+
 Recall that the default scheduler algorithm will spread pods to different
 nodes (in the same region, if regions are defined). However this can
 have unexpected consequences in several scenarios and you will most
@@ -559,7 +564,7 @@ check whether this is the case:
     [...]
     ;; QUESTION SECTION:
     ;kubernetes.default.svc.cluster.local. IN A
-    
+
     ;; ANSWER SECTION:
     kubernetes.default.svc.cluster.local. 30 IN A   172.30.0.1
 
@@ -607,4 +612,3 @@ the first created. You can check if the route in question is defined in multiple
     logging     kibana-ops   kibana-ops.example.com              logging-kibana-ops
 
 (In this example there are no overlapping routes.)
-
