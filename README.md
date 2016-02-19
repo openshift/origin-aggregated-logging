@@ -341,3 +341,90 @@ script will need to connect to it to make changes.
 Note: This only impacts non-operations logs, operations logs will appear the
 same as in previous versions. There should be minimal performance impact to ES
 while running this and it will not perform an install.
+
+## EFK Health
+
+Determining the health of an EFK deployment and if it is running can be assessed
+by running the `check-EFK-running.sh` and `check-logs.sh` [e2e tests](hack/testing/).
+Additionally, you can do the following:
+
+### Fluentd
+
+Check Fluentd logs for the message that it has read in its config file:
+```
+2016-02-19 20:40:44 +0000 [info]: reading config file path="/etc/fluent/fluent.conf"
+```
+
+After that, you can verify that fluentd has been able to start reading in log files
+by checking the contents of `/var/log/node.log.pos` and `/var/log/es-containers.log.pos`.
+node.log.pos will keep track of the placement in syslog log files and es-containers.log.pos
+will keep track of the placement in the docker log files (/var/log/containers).
+
+### Elasticsearch
+
+Elasticsearch will have more logs upon start up than Fluentd and it will give you
+more information such as how many indices it recovered upon starting up.
+```
+[2016-02-19 20:40:42,983][INFO ][node                     ] [Volcana] version[1.5.2], pid[7], build[62ff986/2015-04-27T09:21:06Z]
+[2016-02-19 20:40:42,983][INFO ][node                     ] [Volcana] initializing ...
+[2016-02-19 20:40:43,546][INFO ][plugins                  ] [Volcana] loaded [searchguard, openshift-elasticsearch-plugin, cloud-kubernetes], sites []
+[2016-02-19 20:40:46,749][INFO ][node                     ] [Volcana] initialized
+[2016-02-19 20:40:46,767][INFO ][node                     ] [Volcana] starting ...
+[2016-02-19 20:40:46,834][INFO ][transport                ] [Volcana] bound_address {inet[/0:0:0:0:0:0:0:0:9300]}, publish_address {inet[/172.17.0.1:9300]}
+[2016-02-19 20:40:46,843][INFO ][discovery                ] [Volcana] logging-es/WJSOLSgsRuSe183-LE0WwA
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/usr/share/elasticsearch/plugins/openshift-elasticsearch-plugin/slf4j-log4j12-1.7.7.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/usr/share/elasticsearch/plugins/cloud-kubernetes/slf4j-log4j12-1.7.7.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+[2016-02-19 20:40:49,980][INFO ][cluster.service          ] [Volcana] new_master [Volcana][WJSOLSgsRuSe183-LE0WwA][logging-es-4sbwcpvw-1-d5j4y][inet[/172.17.0.1:9300]], reason: zen-disco-join (elected_as_master)
+[2016-02-19 20:40:50,005][INFO ][http                     ] [Volcana] bound_address {inet[/0:0:0:0:0:0:0:0:9200]}, publish_address {inet[/172.17.0.1:9200]}
+[2016-02-19 20:40:50,005][INFO ][node                     ] [Volcana] started
+[2016-02-19 20:40:50,384][INFO ][gateway                  ] [Volcana] recovered [0] indices into cluster_state
+```
+At this point, you know that ES is currently up and running.
+
+If you see a stack trace like the following from `com.floragunn.searchguard.service.SearchGuardConfigService` you can ignore it.  This is due
+to the Search Guard plugin not gracefully handling the ES service not being up and ready at the time Search Guard is querying for its configurations.
+While you can ignore stack traces from Search Guard it is important to still review them to determine why may ES may not have started up,
+especially if the Search Guard stack trace is repeated multiple times:
+```
+[2016-01-19 19:30:48,980][ERROR][com.floragunn.searchguard.service.SearchGuardConfigService] [Topspin] Try to refresh security configuration but it failed due to org.elasticsearch.action.NoShardAvailableActionException: [.searchguard.logging-es-0ydecq1l-2-o0z5s][4] null
+org.elasticsearch.action.NoShardAvailableActionException: [.searchguard.logging-es-0ydecq1l-2-o0z5s][4] null
+	at org.elasticsearch.action.support.single.shard.TransportShardSingleOperationAction$AsyncSingleAction.perform(TransportShardSingleOperationAction.java:175)
+
+	...
+
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+```
+
+Since Fluentd and Kibana both talk to Elasticsearch, the Elasticsearch logs are a good place to go for
+verifying that connections are active.
+
+You can see what indices have been created by Fluentd pushing logs to Elasticsearch:
+```
+[2016-02-19 21:01:53,867][INFO ][cluster.metadata         ] [M-Twins] [logging.2016.02.19] creating index, cause [auto(bulk api)], templates [], shards [5]/[1], mappings [fluentd]
+[2016-02-19 21:02:20,593][INFO ][cluster.metadata         ] [M-Twins] [.operations.2016.02.19] creating index, cause [auto(bulk api)], templates [], shards [5]/[1], mappings [fluentd]
+```
+
+After a user first signs into Kibana their Kibana profile will be created and saved in the index `.kibana.{user-name sha hash}`.
+
+### Kibana
+
+The Kibana pod contains two containers.  One container is `kibana-proxy`, and the other is `kibana` itself.
+
+Kibana-proxy will print out this line to state that it has started up:
+```
+Starting up the proxy with auth mode "oauth2" and proxy transform "user_header,token_header".
+```
+
+Kibana will print out lines until it has successfully connected to its configured Elasticsearch. It is important to note that Kibana will not be
+available until it has connected to ES.
+```
+{"name":"Kibana","hostname":"logging-kibana-3-1menz","pid":8,"level":30,"msg":"No existing kibana index found","time":"2016-02-19T21:14:02.723Z","v":0}
+{"name":"Kibana","hostname":"logging-kibana-3-1menz","pid":8,"level":30,"msg":"Listening on 0.0.0.0:5601","time":"2016-02-19T21:14:02.743Z","v":0}
+```
+
+Currently Kibana is very verbose in its logs and will actually print every http request/response made.  As of 4.2 there is a means to set
+log levels, however we are currently using 4.1.2 due to compatibility with the version of ES we are using (1.5.2).
