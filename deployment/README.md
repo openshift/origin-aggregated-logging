@@ -264,6 +264,11 @@ the label corresponding to your desired nodes, e.g.:
           nodeSelector:
             nodelabel: logging-es-node-1
 
+Alternatively, you can use `oc patch` to do this as well:
+```
+oc patch dc/logging-es-{unique name} -p '{"spec":{"template":{"spec":{"nodeSelector":{"nodelabel":"logging-es-node-1"}}}}}'
+```
+
 Recall that the default scheduler algorithm will spread pods to different
 nodes (in the same region, if regions are defined). However this can
 have unexpected consequences in several scenarios and you will most
