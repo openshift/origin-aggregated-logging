@@ -53,7 +53,14 @@ function extract_nodeselector() {
   fi
 }
 
+# node selectors
 fluentd_nodeselector=$(extract_nodeselector $FLUENTD_NODESELECTOR)
+es_nodeselectory=$(extract_nodeselector $ES_NODESELECTOR)
+es_ops_nodeselector=$(extract_nodeselector $ES_OPS_NODESELECTOR)
+kibana_nodeselector=$(extract_nodeselector $KIBANA_NODESELECTOR)
+kibana_ops_nodeselector=$(extract_nodeselector $KIBANA_OPS_NODESELECTOR)
+curator_nodeselector=$(extract_nodeselector $CURATOR_NODESELECTOR)
+curator_ops_nodeselector=$(extract_nodeselector $CURATOR_OPS_NODESELECTOR)
 
 if [ "${KEEP_SUPPORT}" != true ]; then
 	# this fails in the container, but it's useful for dev
@@ -210,16 +217,55 @@ es_ops_params=$(join , \
 	ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
 	)
 
-oc process -f templates/es.yaml -v "${es_params}" | oc create -f -
+if [[ -n "${ES_NODESELECTOR}" ]]; then
+	sed "/serviceAccountName/ i\
+\          $es_nodeselector" templates/es.yaml | oc process -v "${es_params}" -f - | oc create -f -
+else
+	oc process -f templates/es.yaml -v "${es_params}" | oc create -f -
+fi
+
 es_host=logging-es
 es_ops_host=${es_host}
-oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
-oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
+
+if [[ -n "${KIBANA_NODESELECTOR}" ]]; then
+	sed "/serviceAccountName/ i\
+\          ${kibana_nodeselecto}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
+else
+	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
+fi
+
+if [[ -n "${CURATOR_NODESELECTOR}" ]]; then
+	sed "/serviceAccountName/ i\
+\          ${curator_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
+else
+	oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
+fi
+
 if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
-	oc process -f templates/es.yaml -v "${es_ops_params}" | oc create -f -
+
+	if [[ -n "${ES_OPS_NODESELECTOR}" ]]; then
+	sed "/serviceAccountName/ i\
+\          ${es_ops_nodeselector}" templates/es.yaml | oc process -v "${es_ops_params}" -f - | oc create -f -
+	else
+		oc process -f templates/es.yaml -v "${es_ops_params}" | oc create -f -
+	fi
+
 	es_ops_host=logging-es-ops
-	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" | oc create -f -
-	oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
+
+	if [[ -n "${KIBANA_OPS_NODESELECTOR}" ]]; then
+	sed "/serviceAccountName/ i\
+\          ${kibana_ops_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" | oc create -f -
+	else
+		oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
+	fi
+
+	if [[ -n "${CURATOR_OPS_NODESELECTOR}" ]]; then
+		sed "/serviceAccountName/ i\
+\          ${curator_ops_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
+	else
+		oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
+	fi
+
 fi
 
 if [[ -n "${FLUENTD_NODESELECTOR}" ]]; then
