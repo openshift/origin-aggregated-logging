@@ -9,6 +9,12 @@ Origin deployment, follow directions below.
 To deploy the components from built or supplied images, see the
 [deployer](./deployment).
 
+NOTE: If you are running OpenShift Origin using the
+[All-In-One docker container](https://docs.openshift.org/latest/getting_started/administrators.html#running-in-a-docker-container)
+method, you MUST add `-v /var/log:/var/log` to the `docker` command line.
+OpenShift must have access to the container logs in order for Fluentd to read
+and process them.
+
 ## Components
 
 The logging subsystem consists of multiple components commonly abbreviated
