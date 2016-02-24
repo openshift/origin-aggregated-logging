@@ -188,14 +188,14 @@ es_ops_params=$(join , \
 	)
 
 oc process -f templates/es.yaml -v "${es_params}" | oc create -f -
-es_host=logging-es.${project}.svc.cluster.local
+es_host=logging-es
 es_ops_host=${es_host}
 oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
 oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
 if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 	oc process -f templates/es.yaml -v "${es_ops_params}" | oc create -f -
-	es_ops_host=logging-es-ops.${project}.svc.cluster.local
-	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
+	es_ops_host=logging-es-ops
+	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" | oc create -f -
 	oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
 fi
 oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url}"| oc create -f -
