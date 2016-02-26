@@ -19,13 +19,13 @@ else
 fi
 
 if [[ "$CLUSTER" == "true" ]]; then
-  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0")
+  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0" "logging-curator0")
 else
-  NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0")
+  NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-curator0")
 fi
 
 TEST_DIVIDER="-------------------------------------------------------"
-NEEDED_STREAMS=("logging-fluentd" "logging-elasticsearch" "logging-auth-proxy" "logging-kibana")
+NEEDED_STREAMS=("logging-fluentd" "logging-elasticsearch" "logging-auth-proxy" "logging-kibana" "logging-curator")
 COMPONENTS_COUNT=${#NEEDED_COMPONENTS[@]}
 STREAMS_COUNT=${#NEEDED_STREAMS[@]}
 
@@ -41,7 +41,7 @@ if [[ $IS_COUNT -ne $STREAMS_COUNT ]]; then
   echo "Error - $IS_MESSAGE"
   EXIT_CODE=1
 
-  # check for elasticsearch, kibana, auth-proxy, and kibana images
+  # check for elasticsearch, kibana, auth-proxy, kibana, and curator images
   for stream in "${NEEDED_STREAMS[@]}"; do
     if [[ ! ( ${FOUND_STREAMS[@]} =~ $stream ) ]]; then
       echo " ! image stream $stream is missing..."

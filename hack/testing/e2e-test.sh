@@ -21,3 +21,10 @@ if [[ $? -eq 0 ]]; then
 else
   echo "Errors found when checking installation of the EFK stack -- not checking log entry matches. Please resolve errors and retest."
 fi
+
+if [[ $? -eq 0 ]]; then
+  echo "Checking curator ..."
+  KIBANA_CLUSTER_SIZE=$KIBANA_CLUSTER_SIZE KIBANA_OPS_CLUSTER_SIZE=$KIBANA_OPS_CLUSTER_SIZE ES_CLUSTER_SIZE=$ES_CLUSTER_SIZE ES_OPS_CLUSTER_SIZE=$ES_OPS_CLUSTER_SIZE ./check-curator.sh "$CLUSTER"
+else
+  echo "Errors found when checking installation of the EFK stack or checking log matches -- not checking curator. Please resolve errors and retest."
+fi

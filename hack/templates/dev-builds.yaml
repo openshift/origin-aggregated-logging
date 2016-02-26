@@ -50,6 +50,13 @@ objects:
   kind: ImageStream
   metadata:
     labels:
+      build: logging-curator
+    name: logging-curator
+  spec: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
       build: logging-auth-proxy
     name: logging-auth-proxy
   spec: {}
@@ -156,6 +163,32 @@ objects:
     resources: {}
     source:
       contextDir: kibana
+      git:
+        uri: ${LOGGING_FORK_URL}
+        ref: ${LOGGING_FORK_BRANCH}
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: DockerImage
+          name: openshift/base-centos7
+      type: Docker
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: logging-curator
+    name: logging-curator
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: logging-curator:latest
+    resources: {}
+    source:
+      contextDir: curator
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}

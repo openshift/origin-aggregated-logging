@@ -89,6 +89,15 @@ objects:
       name: logging-kibana
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}
+  -
+    apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        openshift.io/image.insecureRepository: "true"
+      name: logging-curator
+    spec:
+      dockerImageRepository: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
 parameters:
 -
   description: "A shared secret for the authentication proxy oauth client in front of Kibana"

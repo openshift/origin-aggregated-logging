@@ -1,0 +1,129 @@
+apiVersion: "v1"
+kind: "Template"
+metadata:
+  name: logging-curator-template-maker
+  annotations:
+    description: "Template to create template for deploying curator"
+    tags: "infrastructure"
+objects:
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-${CURATOR_DEPLOY_NAME}-template
+    annotations:
+      description: "Template for logging curator deployment."
+      tags: "infrastructure"
+    labels:
+      logging-infra: curator
+  labels:
+    logging-infra: curator
+    provider: openshift
+    component: ${CURATOR_DEPLOY_NAME}
+  objects:
+  -
+    apiVersion: v1
+    kind: "DeploymentConfig"
+    metadata:
+      name: "logging-${CURATOR_DEPLOY_NAME}"
+      labels:
+        provider: openshift
+        component: "${CURATOR_DEPLOY_NAME}"
+    spec:
+      replicas: 1
+      selector:
+        provider: openshift
+        component: "${CURATOR_DEPLOY_NAME}"
+      triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+          - curator
+          from:
+            kind: ImageStreamTag
+            name: logging-curator:latest
+      strategy:
+        resources: {}
+        rollingParams:
+          intervalSeconds: 1
+          timeoutSeconds: 600
+          updatePeriodSeconds: 1
+        type: Recreate
+      template:
+        metadata:
+          name: ${CURATOR_DEPLOY_NAME}
+          labels:
+            provider: openshift
+            component: "${CURATOR_DEPLOY_NAME}"
+        spec:
+          serviceAccountName: aggregated-logging-curator
+          containers:
+          - name: curator
+            image: logging-curator
+            imagePullPolicy: Always
+            resources:
+              limits:
+                cpu: 100m
+            volumeMounts:
+            - name: certs
+              mountPath: /etc/curator/keys
+              readOnly: true
+            env:
+            - name: "K8S_HOST_URL"
+              value: ${MASTER_URL}
+            - name: "ES_HOST"
+              value: ${ES_HOST}
+            - name: "ES_PORT"
+              value: ${ES_PORT}
+            - name: "ES_CLIENT_CERT"
+              value: ${ES_CLIENT_CERT}
+            - name: "ES_CLIENT_KEY"
+              value: ${ES_CLIENT_KEY}
+            - name: "ES_CA"
+              value: ${ES_CA}
+            - name: "DEFAULT_DAYS"
+              value: ${DEFAULT_DAYS}
+            - name: "CURATOR_CONF_LOCATION"
+              value: ${CURATOR_CONF_LOCATION}
+          volumes:
+          - name: certs
+            secret:
+              secretName: logging-${CURATOR_DEPLOY_NAME}
+parameters:
+-
+  name: CURATOR_DEPLOY_NAME
+  description: "Modify to differentiate regular and ops Curator."
+  value: "curator"
+-
+  description: "Internal url for reaching the master API to query pod labels"
+  name: MASTER_URL
+  value: "https://kubernetes.default.svc.cluster.local"
+-
+  description: "Hostname (or IP) for reaching ElasticSearch"
+  name: ES_HOST
+  value: "logging-es"
+-
+  description: "Port number for reaching ElasticSearch"
+  name: ES_PORT
+  value: "9200"
+-
+  description: "Location of client certificate for authenticating to ElasticSearch"
+  name: ES_CLIENT_CERT
+  value: "/etc/curator/keys/cert"
+-
+  description: "Location of client key for authenticating to ElasticSearch"
+  name: ES_CLIENT_KEY
+  value: "/etc/curator/keys/key"
+-
+  description: "Location of CA cert for validating connecting to ElasticSearch"
+  name: ES_CA
+  value: "/etc/curator/keys/ca"
+-
+  description: "The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
+  name: DEFAULT_DAYS
+  value: "30"
+-
+  description: "Location of the directory containing the yaml settings file"
+  name: CURATOR_CONF_LOCATION
+  value: "/etc/curator"

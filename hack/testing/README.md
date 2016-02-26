@@ -38,6 +38,31 @@ to have been created (based on the logs of the Elasticsearch pods).
 This Go script will query the appropriate ES pod (if an OPS cluster was used)
 and check the local log files for the each result message.
 
+## check-curator.sh
+
+The purpose of this script is to verify the curator pod is working.  It will
+add curator configs for the following projects and trimming parameters:
+
+* project "project-dev" logs should be deleted if they are more than a day old
+* project "project-qe" logs should be deleted if they are more than a week old
+* project "project-prod" logs should be deleted if they are more than 4 weeks old
+* project ".operations" logs should be deleted if they are more than 2 months
+old
+
+The script will create ES indices for these projects using the fluentd user
+credentials (which is allowed to create ES indices and records).  One index per
+project will be for "today", and one will be for outside of the time window for
+the project as described above.
+
+The script will redeploy the curator pod using the trimming parameters as
+described above and wait for the new curator pod with the new config to be
+running.
+
+The script will then use the curator credentials to run curator to list the
+indices afterwards, and verify that the indices created for "today" are still
+present, and the indices created outside of the time window for each project
+have been removed.
+
 ## Environment values for testing
 
 In addition to providing the argument `true` to `e2e-test.sh` to indicate that
