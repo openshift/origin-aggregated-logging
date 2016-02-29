@@ -38,6 +38,12 @@ def seed_file(file_name, project, isSyslog)
     path = get_project_pattern(project)
   end
 
+
+  excluded = Array.new
+  for ex_path in path.split(',') do
+    excluded.push("#{ex_path}.gz")
+  end
+
   File.open(file_name, 'w') { |file|
     file.write(<<-CONF)
 <source>
@@ -45,6 +51,7 @@ def seed_file(file_name, project, isSyslog)
   @label @INGRESS
   path #{path}
   pos_file #{pos_file}
+  exclude_path #{excluded}
     CONF
   }
 end
@@ -129,6 +136,7 @@ def create_default_syslog()
   @type tail
   @label @INGRESS
   path /var/log/messages*
+  exclude_path ["/var/log/messages*.gz"]
   pos_file /var/log/node.log.pos
   tag system.*
   format multiline
