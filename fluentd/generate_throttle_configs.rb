@@ -71,6 +71,7 @@ def close_file(project, isSyslog)
   if isSyslog
     File.open(file_name, 'a') { |file|
       file.write(<<-CONF)
+  exclude_path ["/var/log/messages*.gz"]
   tag system.*
   format multiline
   # Begin possible multiline match: "Mmm DD HH:MM:SS "
@@ -129,6 +130,7 @@ def create_default_syslog()
   @type tail
   @label @INGRESS
   path /var/log/messages*
+  exclude_path ["/var/log/messages*.gz"]
   pos_file /var/log/node.log.pos
   tag system.*
   format multiline
