@@ -27,16 +27,28 @@ curator_settings = {'delete': {}}
 
 filename = os.getenv('CURATOR_CONF_LOCATION', '/etc/curator') + '/settings'
 
-decoded = []
+decoded = {}
 with open(filename, 'r') as stream:
-    decoded = yaml.load(stream) or []
+    decoded = yaml.load(stream) or {}
 
 connection_info = '--host ' + os.getenv('ES_HOST') + ' --port ' + os.getenv('ES_PORT') + ' --use_ssl --certificate ' + os.getenv('ES_CA') + ' --client-cert ' + os.getenv('ES_CLIENT_CERT') + ' --client-key ' + os.getenv('ES_CLIENT_KEY')
 
+defaults = {'delete': {'days': int(os.getenv('CURATOR_DEFAULT_DAYS', 30))}}
+deldefaults = defaults['delete']
+
+default_time_unit = decoded.get('.defaults', defaults).get('delete', deldefaults).keys()[0]
+if not default_time_unit in allowed_units:
+    logger.error('an unknown time unit of ' + default_time_unit + ' was provided... using days')
+    default_time_unit = 'days'
+
+default_value = int(decoded.get('.defaults', defaults).get('delete', deldefaults)[default_time_unit])
+
 base_default_cmd = '/usr/bin/curator --loglevel ERROR ' + connection_info + ' delete indices --timestring %Y.%m.%d'
-default_command = base_default_cmd + ' --older-than ' + os.getenv('DEFAULT_DAYS') + ' --time-unit days' + ' --exclude .searchguard*' + ' --exclude .kibana*'
+default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard*' + ' --exclude .kibana*'
 
 for project in decoded:
+    if project == '.defaults':
+        continue
     for operation in decoded[project]:
         if operation in allowed_operations:
             for unit in decoded[project][operation]:
@@ -90,13 +102,30 @@ def run_all_jobs(joblist):
 # run jobs now
 run_all_jobs(my_cron)
 
-thehour = int(os.environ.get('CURATOR_CRON_HOUR', 0))
-theminute = int(os.environ.get('CURATOR_CRON_MINUTE', 0))
+thehour = decoded.get('.defaults', {}).get('runhour', None)
+if not thehour:
+    thehour = os.getenv('CURATOR_RUN_HOUR', None)
+if not thehour:
+    thehour = defaults.get('runhour', 0)
 
+theminute = decoded.get('.defaults', {}).get('runminute', None)
+if not theminute:
+    theminute = os.getenv('CURATOR_RUN_MINUTE', None)
+if not theminute:
+    theminute = defaults.get('runminute', 0)
+
+thehour = int(thehour)
+theminute = int(theminute)
 while True:
     # get time when next run should happen
     nextruntime = time.mktime(datetime.now().replace(hour=thehour, minute=theminute,
-                                                     second=0, microsecond=0).timetuple())+86400
+                                                     second=0, microsecond=0).timetuple())
+    timenow = time.time()
+    if nextruntime < timenow:
+        # the next runtime is less than now, so run a day from now
+        nextruntime = nextruntime + 86400
+        # else run later today
+    logger.debug("logging-curator hour [%d] minute [%d] nextruntime [%d] now [%d]" % (thehour, theminute, nextruntime, time.time()))
     # sleep until then
     time.sleep(nextruntime - time.time())
     run_all_jobs(my_cron)

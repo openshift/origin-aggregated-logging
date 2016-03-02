@@ -19,7 +19,7 @@ else
 fi
 
 if [[ "$CLUSTER" == "true" ]]; then
-  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0" "logging-curator0")
+  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0" "logging-curator-ops0")
 else
   NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-curator0")
 fi
