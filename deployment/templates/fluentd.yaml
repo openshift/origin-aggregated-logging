@@ -20,36 +20,22 @@ objects:
     provider: openshift
     component: fluentd
   objects:
-  -
-    apiVersion: v1
-    kind: "DeploymentConfig"
+  - apiVersion: extensions/v1beta1
+    kind: "DaemonSet"
     metadata:
       name: "logging-fluentd"
       labels:
         provider: openshift
         component: "fluentd"
     spec:
-      replicas: 0
       selector:
-        provider: openshift
-        component: "fluentd"
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - fluentd-elasticsearch
-          from:
-            kind: ImageStreamTag
-            name: logging-fluentd:latest
-      strategy:
-        resources: {}
-        rollingParams:
-          intervalSeconds: 1
-          timeoutSeconds: 600
-          updatePeriodSeconds: 1
-        type: Recreate
+        matchLabels:
+          provider: openshift
+          component: "fluentd"
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          minReadySeconds: 600
       template:
         metadata:
           name: fluentd-elasticsearch
@@ -60,18 +46,11 @@ objects:
           serviceAccountName: aggregated-logging-fluentd
           containers:
           - name: fluentd-elasticsearch
-            image: logging-fluentd
+            image: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
             imagePullPolicy: Always
-            securityContext:
-              privileged: true
             resources:
               limits:
                 cpu: 100m
-            ports:
-              - containerPort: 1095
-                hostPort: 1095
-                protocol: TCP
-                purpose: "to prevent more than one per node"
             volumeMounts:
             - name: varlog
               mountPath: /var/log
@@ -165,3 +144,11 @@ parameters:
   description: "Location of CA cert for validating connectiong to ElasticSearch to write cluster logs"
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
+-
+  description: "The image prefix for the Fluentd image to use"
+  name: IMAGE_PREFIX
+  value: ""
+-
+  description: "The image version for the Fluentd image to use"
+  name: IMAGE_VERSION
+  value: ""
