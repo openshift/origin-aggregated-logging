@@ -86,6 +86,40 @@ objects:
               value: ${OPS_CLIENT_KEY}
             - name: "OPS_CA"
               value: ${OPS_CA}
+            - name: "ES_COPY"
+              value: ${ES_COPY}
+            - name: "ES_COPY_HOST"
+              value: ${ES_COPY_HOST}
+            - name: "ES_COPY_PORT"
+              value: ${ES_COPY_PORT}
+            - name: "ES_COPY_SCHEME"
+              value: ${ES_COPY_SCHEME}
+            - name: "ES_COPY_CLIENT_CERT"
+              value: ${ES_COPY_CLIENT_CERT}
+            - name: "ES_COPY_CLIENT_KEY"
+              value: ${ES_COPY_CLIENT_KEY}
+            - name: "ES_COPY_CA"
+              value: ${ES_COPY_CA}
+            - name: "ES_COPY_USERNAME"
+              value: ${ES_COPY_USERNAME}
+            - name: "ES_COPY_PASSWORD"
+              value: ${ES_COPY_PASSWORD}
+            - name: "OPS_COPY_HOST"
+              value: ${OPS_COPY_HOST}
+            - name: "OPS_COPY_PORT"
+              value: ${OPS_COPY_PORT}
+            - name: "OPS_COPY_SCHEME"
+              value: ${OPS_COPY_SCHEME}
+            - name: "OPS_COPY_CLIENT_CERT"
+              value: ${OPS_COPY_CLIENT_CERT}
+            - name: "OPS_COPY_CLIENT_KEY"
+              value: ${OPS_COPY_CLIENT_KEY}
+            - name: "OPS_COPY_CA"
+              value: ${OPS_COPY_CA}
+            - name: "OPS_COPY_USERNAME"
+              value: ${OPS_COPY_USERNAME}
+            - name: "OPS_COPY_PASSWORD"
+              value: ${OPS_COPY_PASSWORD}
           volumes:
           - name: varlog
             hostPath:
@@ -121,7 +155,7 @@ parameters:
   name: ES_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connectiong to ElasticSearch to write logs"
+  description: "Location of CA cert for validating connection to ElasticSearch to write logs"
   name: ES_CA
   value: "/etc/fluent/keys/ca"
 -
@@ -141,7 +175,7 @@ parameters:
   name: OPS_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connectiong to ElasticSearch to write cluster logs"
+  description: "Location of CA cert for validating connection to ElasticSearch to write cluster logs"
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
 -
@@ -151,4 +185,72 @@ parameters:
 -
   description: "The image version for the Fluentd image to use"
   name: IMAGE_VERSION
+  value: ""
+-
+  description: "Send a copy of the logs to an additional Elasticsearch instance."
+  name: ES_COPY
+  value: "false"
+-
+  description: "Hostname (or IP) for additional ElasticSearch"
+  name: ES_COPY_HOST
+  value: ""
+-
+  description: "Port number for additional ElasticSearch"
+  name: ES_COPY_PORT
+  value: ""
+-
+  description: "URL scheme for additional ElasticSearch - http or https - default is https"
+  name: ES_COPY_SCHEME
+  value: "https"
+-
+  description: "Location of client certificate for authenticating to additional ElasticSearch"
+  name: ES_COPY_CLIENT_CERT
+  value: ""
+-
+  description: "Location of client key for authenticating to additional ElasticSearch"
+  name: ES_COPY_CLIENT_KEY
+  value: ""
+-
+  description: "Location of CA cert for validating connection to additional ElasticSearch"
+  name: ES_COPY_CA
+  value: ""
+-
+  description: "Username for username/password auth to connection to additional ElasticSearch"
+  name: ES_COPY_USERNAME
+  value: ""
+-
+  description: "Password for username/password auth to connection to additional ElasticSearch"
+  name: ES_COPY_PASSWORD
+  value: ""
+-
+  description: "Hostname (or IP) for additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_HOST
+  value: ""
+-
+  description: "Port number for additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_PORT
+  value: ""
+-
+  description: "URL scheme for additional ElasticSearch to write cluster logs - http or https - default is https"
+  name: OPS_COPY_SCHEME
+  value: "https"
+-
+  description: "Location of client certificate for authenticating to additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_CLIENT_CERT
+  value: ""
+-
+  description: "Location of client key for authenticating to additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_CLIENT_KEY
+  value: ""
+-
+  description: "Location of CA cert for validating connectiong to additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_CA
+  value: ""
+-
+  description: "Username for username/password auth to connection to additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_USERNAME
+  value: ""
+-
+  description: "Password for username/password auth to connection to additional ElasticSearch to write cluster logs"
+  name: OPS_COPY_PASSWORD
   value: ""
