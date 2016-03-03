@@ -101,10 +101,10 @@ To create the curator configuration, do the following:
 
 Create a yaml file with your configuration settings using your favorite editor.
 Next create a secret from your created yaml file:
-`oc secrets new index_management settings=</path/to/your/yaml/file>`
+`oc secrets new index-management settings=</path/to/your/yaml/file>`
 
 Then mount your created secret as a volume in your Curator DC:
-`oc volumes dc/logging-curator --add --type=secret --secret-name=index_management --mount-path=/etc/curator --name=index_management --overwrite`
+`oc volumes dc/logging-curator --add --type=secret --secret-name=index-management --mount-path=/etc/curator --name=index-management --overwrite`
 
 The mount-path value e.g. `/etc/curator` must match the `CURATOR_CONF_LOCATION`
 in the environment.
