@@ -82,10 +82,14 @@ objects:
               value: ${ES_CLIENT_KEY}
             - name: "ES_CA"
               value: ${ES_CA}
-            - name: "DEFAULT_DAYS"
-              value: ${DEFAULT_DAYS}
+            - name: "CURATOR_DEFAULT_DAYS"
+              value: ${CURATOR_DEFAULT_DAYS}
             - name: "CURATOR_CONF_LOCATION"
               value: ${CURATOR_CONF_LOCATION}
+            - name: "CURATOR_RUN_HOUR"
+              value: ${CURATOR_RUN_HOUR}
+            - name: "CURATOR_RUN_MINUTE"
+              value: ${CURATOR_RUN_MINUTE}
           volumes:
           - name: certs
             secret:
@@ -121,9 +125,17 @@ parameters:
   value: "/etc/curator/keys/ca"
 -
   description: "The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
-  name: DEFAULT_DAYS
+  name: CURATOR_DEFAULT_DAYS
   value: "30"
 -
   description: "Location of the directory containing the yaml settings file"
   name: CURATOR_CONF_LOCATION
   value: "/etc/curator"
+-
+  description: "The hour of the day (24 hour format) at which to run the curator jobs."
+  name: CURATOR_RUN_HOUR
+  value: "0"
+-
+  description: "The minute of the hour at which to run the curator jobs."
+  name: CURATOR_RUN_MINUTE
+  value: "0"

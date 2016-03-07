@@ -12,7 +12,10 @@ ENV HOME=/opt/app-root/src \
     ES_CA=/etc/curator/keys/ca \
     ES_CLIENT_CERT=/etc/curator/keys/cert \
     ES_CLIENT_KEY=/etc/curator/keys/key \
-    CURATOR_CONF_LOCATION=/etc/curator
+    CURATOR_CONF_LOCATION=/etc/curator \
+    CURATOR_DEFAULT_DAYS=30 \
+    CURATOR_RUN_HOUR=0 \
+    CURATOR_RUN_MINUTE=0
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
   io.k8s.display-name="Curator 3.4" \

@@ -65,6 +65,11 @@ is structured like this:
 * $ACTION - the action to take - currently only "delete"
 * $UNIT - one of "days", "weeks", or "months"
 * $VALUE - an integer for the number of units
+* `.defaults` - use `.defaults` as the $PROJECT_NAME to set the defaults for
+projects that are not specified
+** runhour: NUMBER - hour of the day in 24 hour format at which to run the
+curator jobs
+** runminute: NUMBER - minute of the hour at which to run the curator jobs
 
 For example, using::
 
@@ -79,11 +84,18 @@ For example, using::
     .operations:
       delete:
         weeks: 8
-     ...
+
+    .defaults:
+      delete:
+        days: 30
+      runhour: 0
+      runminute: 0
+    ...
 
 Every day, curator will run, and will delete indices in the myapp-dev
 project older than 1 day, and indices in the myapp-qe project older than 1
-week.
+week.  All other projects will have their indices deleted after they are 30
+days old.  The curator jobs will run at midnight every day.
 
 *WARNING*: Using `months` as the unit
 
@@ -109,10 +121,10 @@ Then mount your created secret as a volume in your Curator DC:
 The mount-path value e.g. `/etc/curator` must match the `CURATOR_CONF_LOCATION`
 in the environment.
 
-By default curator will run at midnight and deletes logs older than 30 days.
-The environment variables `CURATOR_CRON_HOUR` AND `CURATOR_CRON_MINUTE` can be
-used to define another hour and minute while `DEFAULT_DAYS` will change the
-default number of days logs will be kept for.
+You can also specify default values for the run hour, run minute, and age in
+days of the indices when processing the curator template.  Use
+`CURATOR_RUN_HOUR` and `CURATOR_RUN_MINUTE` to set the default runhour and
+runminute, and use `CURATOR_DEFAULT_DAYS` to set the default index age.
 
 # Defining local builds
 
