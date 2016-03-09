@@ -42,6 +42,12 @@ if not default_time_unit in allowed_units:
     default_time_unit = 'days'
 
 default_value = int(decoded.get('.defaults', defaults).get('delete', deldefaults)[default_time_unit])
+if default_time_unit.lower() == "weeks":
+    # because our timestring is %Y.%m.%d and does not contain weeks,
+    # curator doesn't like asking for trimming in weeks, so convert
+    # weeks to days
+    default_time_unit = "days"
+    default_value = default_value * 7
 
 base_default_cmd = '/usr/bin/curator --loglevel ERROR ' + connection_info + ' delete indices --timestring %Y.%m.%d'
 default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard*' + ' --exclude .kibana*'
@@ -57,10 +63,9 @@ for project in decoded:
                 if unit in allowed_units:
                     default_command = default_command + " --exclude " + project + '.*'
 
-                    if unit.lower() == "days":
-                        if value%7 == 0:
-                            unit = "weeks"
-                            value = value/7
+                    if unit.lower() == "weeks":
+                        unit = "days"
+                        value = value * 7
 
                     curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(project)
                 else:
