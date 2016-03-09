@@ -6,7 +6,9 @@ else
   set -e
 fi
 
-ADDITIONAL_PODS=$((KIBANA_CLUSTER_SIZE + ES_CLUSTER_SIZE - 2))
+# add one since fluentd will be deployed via a daemonset
+# keeping as -2 + 1 for readibilty
+ADDITIONAL_PODS=$((KIBANA_CLUSTER_SIZE + ES_CLUSTER_SIZE - 2 + 1))
 
 EXIT_CODE=0
 
@@ -19,9 +21,9 @@ else
 fi
 
 if [[ "$CLUSTER" == "true" ]]; then
-  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0" "logging-curator-ops0")
+  NEEDED_COMPONENTS=("logging-es-[a-ZA-Z0-9]+?0" "logging-kibana0" "logging-curator0" "logging-es-ops-[a-zA-Z0-9]+?0" "logging-kibana-ops0" "logging-curator-ops0")
 else
-  NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-fluentd0" "logging-curator0")
+  NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-curator0")
 fi
 
 TEST_DIVIDER="-------------------------------------------------------"
@@ -56,7 +58,7 @@ fi
 echo $TEST_DIVIDER
 # Check that we have DC
 
-FOUND_DC=(`oc get dc | grep 'logging-' | awk '{print $1 "0"}'`)
+FOUND_DC=(`oc get dc -o jsonpath='{.items[?(@.metadata.labels.logging-infra)].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
 DC_COUNT=${#FOUND_DC[@]}
 DC_MESSAGE="[$DC_COUNT/$COMPONENTS_COUNT] deployment configs found."
 
@@ -81,7 +83,7 @@ fi
 echo $TEST_DIVIDER
 # Check that we have RC
 
-FOUND_RC=(`oc get rc | grep 'component' | grep 'logging-' | cut -d" " -f 1 | rev | cut -d"-" -f 2- | rev | sort | uniq | awk '{print $1 "0"}'`)
+FOUND_RC=(`oc get rc -o jsonpath='{.items[?(@.metadata.labels.logging-infra)].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
 RC_COUNT=${#FOUND_RC[@]}
 RC_MESSAGE="[$RC_COUNT/$COMPONENTS_COUNT] unique replication controllers found."
 
@@ -108,7 +110,7 @@ echo $TEST_DIVIDER
 
 # we add a '0' to deal with false positives of 'kibana' matching 'kibana' and 'kibana-ops' when checking what is found
 NEEDED_ROUTES=("kibana0" "kibana-ops0")
-FOUND_ROUTES=(`oc get routes | grep 'kibana' | awk '{print $1 "0"}'`)
+FOUND_ROUTES=(`oc get routes -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 ROUTE_COUNT=${#FOUND_ROUTES[@]}
 NEEDED_ROUTE_COUNT=${#NEEDED_ROUTES[@]}
 ROUTE_MESSAGE="[$ROUTE_COUNT/$NEEDED_ROUTE_COUNT] routes found."
@@ -133,7 +135,7 @@ echo $TEST_DIVIDER
 
 # we add a '0' to deal with false positives of when checking what is found, similar to what we do for routes
 NEEDED_SERVICE=("logging-es0" "logging-es-cluster0" "logging-es-ops0" "logging-es-ops-cluster0" "logging-kibana0" "logging-kibana-ops0")
-FOUND_SERVICE=(`oc get svc | grep 'logging-' | awk '{print $1 "0"}'`)
+FOUND_SERVICE=(`oc get svc -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 SERVICE_COUNT=${#FOUND_SERVICE[@]}
 NEEDED_SERVICE_COUNT=${#NEEDED_SERVICE[@]}
 SERVICE_MESSAGE="[$SERVICE_COUNT/$NEEDED_SERVICE_COUNT] services found."
@@ -156,7 +158,7 @@ fi
 echo $TEST_DIVIDER
 # Check that we have Oauth Client
 
-FOUND_OAUTH=(`oc get oauthclient | grep 'kibana-proxy' | cut -d" " -f 1`)
+FOUND_OAUTH=(`oc get oauthclient -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 OAUTH_COUNT=${#FOUND_OAUTH[@]}
 NEEDED_OAUTH_COUNT=1
 OAUTH_MESSAGE="[$OAUTH_COUNT/$NEEDED_OAUTH_COUNT] oauth clients found."
@@ -172,10 +174,29 @@ else
 fi
 
 echo $TEST_DIVIDER
+# Check that we have the fluentd DaemonSet
+
+FOUND_DAEMONSET=(`oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}'`)
+DAEMONSET_COUNT=${#FOUND_DAEMONSET[@]}
+NEEDED_DAEMONSET_COUNT=1
+DAEMONSET_MESSAGE="[$DAEMONSET_COUNT/$NEEDED_DAEMONSET_COUNT] daemonsets found."
+
+if [[ $DAEMONSET_COUNT -ne $NEEDED_DAEMONSET_COUNT ]]; then
+  echo "Error - $DAEMONSET_MESSAGE"
+  echo " ! daemonset logging-fluentd is missing..."
+  EXIT_CODE=1
+
+  echo "* Please rerun \`oc process logging-fluentd-template | oc create -f -\` to generate missing daemonset."
+else
+  echo "Success - $DAEMONSET_MESSAGE"
+fi
+
+echo $TEST_DIVIDER
 # Check that Pods are running
 
 # we want to only look for currently running pods
-FOUND_PODS=(`oc get pods | grep 'Running' | grep 'logging' | cut -d" " -f 1 | rev | cut -d"-" -f 3- | rev | awk '{print $1 "0"}'`)
+NEEDED_PODS=("${NEEDED_COMPONENTS[@]}" logging-fluentd)
+FOUND_PODS=(`oc get pods -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | xargs -n1 | grep 'logging' | xargs`)
 POD_COUNT=${#FOUND_PODS[@]}
 POD_MESSAGE="[$POD_COUNT/$((COMPONENTS_COUNT + ADDITIONAL_PODS))] running pods found."
 
@@ -184,7 +205,7 @@ if [[ $POD_COUNT -ne $((COMPONENTS_COUNT + ADDITIONAL_PODS)) ]]; then
   EXIT_CODE=1
 
   # check which pods are missing
-  for pod in "${NEEDED_COMPONENTS[@]}"; do
+  for pod in "${NEEDED_PODS[@]}"; do
     if [[ ! ( ${FOUND_PODS[@]} =~ $pod ) ]]; then
       PRINTED_POD=`echo $pod | cut -d"[" -f 1 | rev | cut -c 2- | rev`
       echo " ! pod for $PRINTED_POD is not currently running..."
@@ -192,6 +213,7 @@ if [[ $POD_COUNT -ne $((COMPONENTS_COUNT + ADDITIONAL_PODS)) ]]; then
   done
 
   echo "* Please ensure the number of replicas for your DC and RC are at least 1."
+  echo "* If the fluentd pod is missing, please ensure your node is tagged appropriately."
 else
   echo "Success - $POD_MESSAGE"
 fi
