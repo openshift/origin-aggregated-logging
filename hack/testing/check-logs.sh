@@ -77,7 +77,9 @@ for pod in "${PODS[@]}"; do
       done
 
       if [[ $READY -eq 1 ]]; then
-        go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
+        # this needs to read from the system log files, so use sudo, and use -E and set PATH
+        # because it needs to use the oc commands  
+        sudo -E env PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
         echo $TEST_DIVIDER
       else
         echo "$ES_NAME not ready to be queried within $TIMES attempts..."

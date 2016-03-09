@@ -24,7 +24,7 @@ func main() {
         hostname = strings.Split(hostname, ".")[0]
 
         // instead of receiving jsonStream as an Arg, we'll make the call ourselves...
-        queryCommand := `oc exec `+kibana_pod+` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://`+es_svc+`/`+index+`.*/fluentd/_search?q=hostname:`+hostname+`*&fields=message&size=`+querySize+`"`
+        queryCommand := `oc exec `+kibana_pod+` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://`+es_svc+`/`+index+`.*/fluentd/_search?q=hostname:`+hostname+`&fields=message&size=`+querySize+`"`
         queryCmdName := "bash"
         queryCmdArgs := []string{"-c", queryCommand}
 
@@ -104,7 +104,11 @@ func main() {
         }
 
         if foundEntries == totalEntries {
-              fmt.Printf("Success - [%v/%v] log entries found in %s\n", foundEntries, totalEntries, filePath)
+               if totalEntries == 0 {
+                       fmt.Printf("Failure - no log entries found in Elasticsearch %s for index %s\n", es_svc, index)
+               } else {
+                       fmt.Printf("Success - [%v/%v] log entries found in %s\n", foundEntries, totalEntries, filePath)
+               }
         } else {
               fmt.Printf("Failure - [%v/%v] log entries found in %s\n%s", foundEntries, totalEntries, filePath, missesBuffer.String())
         }

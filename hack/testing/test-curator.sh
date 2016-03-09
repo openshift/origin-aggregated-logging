@@ -4,7 +4,11 @@ if [[ $VERBOSE ]]; then
   set -ex
 else
   set -e
+  # to make nounset happy
+  VERBOSE=
 fi
+set -o nounset
+set -o pipefail
 
 if [[ $# -ne 1 || "$1" = "false" ]]; then
   # assuming not using OPS cluster
@@ -14,22 +18,23 @@ else
   OPS="-ops"
 fi
 
+ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging}
+if [ ! -d $ARTIFACT_DIR ] ; then
+    mkdir -p $ARTIFACT_DIR
+fi
+
 add_message_to_index() {
     # index is $1
     # message is $2
     # ops is $3
-    message=${2:-"curatortest message"}
-    if [ -z "$3" ] ; then
-        host=logging-es
-    else
-        host=logging-es-ops
-    fi
+    message=${2:-"curatortest message"}${3:-""}
+    host=logging-es${3:-""}
     ca=/etc/fluent/keys/ca
     cert=/etc/fluent/keys/cert
     key=/etc/fluent/keys/key
     url="https://${host}:9200/$1/curatortest/"
     oc exec $fpod -- curl -s --cacert $ca --cert $cert --key $key -XPOST "$url" -d '{
-    "message" : "'"$message $3"'"
+    "message" : "'"$message"'"
 }' > /dev/null
 }
 
@@ -69,15 +74,16 @@ wait_for_pod_ACTION() {
     done
     if [ $ii -le 0 ] ; then
         echo ERROR: pod $2 not in state $1 after 2 minutes
+        oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
         return 1
     fi
     return 0
 }
 
 create_indices() {
-    myops="$1"
+    myops=${1:-""}
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago"
-    while [ -n "$1" ] ; do
+    while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
         add_message_to_index "${proj}.$1" "$proj $1 message" $myops
         shift
@@ -85,14 +91,15 @@ create_indices() {
 }
 
 verify_indices() {
-    myops=$2
+    mycuratorpod=$1
+    myops=${2:-""}
     curout=`mktemp`
     oc exec $1 -- curator --host logging-es${myops} --use_ssl --certificate /etc/curator/keys/ca \
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices > $curout 2>&1
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago"
     rc=0
-    while [ -n "$1" ] ; do
+    while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
         idx="${proj}.$1"
         if [ "$1" = "$today" ] ; then
@@ -117,6 +124,7 @@ verify_indices() {
     if [ $rc -ne 0 ] ; then
         echo ERROR: The index list is:
         cat $curout
+        oc logs $mycuratorpod > $ARTIFACT_DIR/$mycuratorpod.log 2>&1
     fi
     rm -f $curout
     return $rc
@@ -166,7 +174,7 @@ TEST_DIVIDER="------------------------------------------"
 
 
 basictest() {
-    ops="$1"
+    ops=${1:-""}
     create_indices "$ops"
 
     # get current curator pod
