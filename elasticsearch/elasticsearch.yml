@@ -75,3 +75,20 @@ searchguard:
       allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
     curator:
       allowed_actions: ["indices:admin/get", "indices:admin/delete"]
+
+openshift:
+  acl:
+    users:
+      names: ["system.logging.fluentd", "system.logging.kibana", "system.logging.curator"]
+      system.logging.fluentd:
+        execute: ["actionrequestfilter.fluentd"]
+        actionrequestfilter.fluentd.comment: "Fluentd can only write"
+      system.logging.kibana:
+        bypass: ["*"]
+        execute: ["actionrequestfilter.kibana"]
+        actionrequestfilter.kibana.comment: "Kibana can only read from every other index"
+      system.logging.kibana.*.comment: "Kibana can do anything in the kibana index"
+      system.logging.kibana.*.indices: [".kibana.*"]
+      system.logging.curator:
+        execute: ["actionrequestfilter.curator"]
+        actionrequestfilter.curator.comment: "Curator can list all indices and delete them"
