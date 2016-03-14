@@ -55,7 +55,7 @@ function extract_nodeselector() {
 
 # node selectors
 fluentd_nodeselector=$(extract_nodeselector $FLUENTD_NODESELECTOR)
-es_nodeselectory=$(extract_nodeselector $ES_NODESELECTOR)
+es_nodeselector=$(extract_nodeselector $ES_NODESELECTOR)
 es_ops_nodeselector=$(extract_nodeselector $ES_OPS_NODESELECTOR)
 kibana_nodeselector=$(extract_nodeselector $KIBANA_NODESELECTOR)
 kibana_ops_nodeselector=$(extract_nodeselector $KIBANA_OPS_NODESELECTOR)
@@ -219,7 +219,7 @@ es_ops_params=$(join , \
 
 if [[ -n "${ES_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          $es_nodeselector" templates/es.yaml | oc process -v "${es_params}" -f - | oc create -f -
+\          ${es_nodeselector}" templates/es.yaml | oc process -v "${es_params}" -f - | oc create -f -
 else
 	oc process -f templates/es.yaml -v "${es_params}" | oc create -f -
 fi
@@ -229,7 +229,7 @@ es_ops_host=${es_host}
 
 if [[ -n "${KIBANA_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${kibana_nodeselecto}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
+\          ${kibana_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
 else
 	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
 fi
@@ -270,7 +270,7 @@ fi
 
 if [[ -n "${FLUENTD_NODESELECTOR}" ]]; then
   sed "/serviceAccountName/ i\
-\          $fluentd_nodeselector" templates/fluentd.yaml | oc process -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}" -f - | oc create -f -
+\          ${fluentd_nodeselector}" templates/fluentd.yaml | oc process -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}" -f - | oc create -f -
 else
   oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}"| oc create -f -
 fi
