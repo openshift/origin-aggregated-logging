@@ -144,8 +144,11 @@ are available:
 * `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
 * `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
 * `FLUENTD_NODESELECTOR`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
+* `ES_NODESELECTOR`: Specify the nodeSelector that Elasticsearch should be use (label=value)
+* `KIBANA_NODESELECTOR`: Specify the nodeSelector that Kibana should be use (label=value)
+* `CURATOR_NODESELECTOR`: Specify the nodeSelector that Curator should be use (label=value)
 * `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
-* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`: Parallel parameters for the ops log cluster.
+* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`, `ES_OPS_NODESELECTOR`, `KIBANA_OPS_NODESELECTOR`, `CURATOR_OPS_NODESELECTOR`: Parallel parameters for the ops log cluster.
 
 You run the deployer by instantiating a template. Here is an example with some parameters:
 
@@ -255,6 +258,10 @@ all members of the cluster should have low latency network connections
 to each other.  You will likely want to direct the instances to dedicated
 nodes, or a dedicated region in your cluster. You can do this by supplying
 a node selector in each deployment.
+
+The deployer has options to specify a nodeSelector label for Elasticsearch, Kibana
+and curator. If you have already deployed the EFK stack or would like to change
+your current nodeSelector labels, see below.
 
 There is no helpful command for adding a node selector. You will need to
 `oc edit` each DeploymentConfig and add the `nodeSelector` element to specify

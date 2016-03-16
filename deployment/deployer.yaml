@@ -71,6 +71,18 @@ objects:
           value: ${ES_OPS_RECOVER_AFTER_TIME}
         - name: FLUENTD_NODESELECTOR
           value: ${FLUENTD_NODESELECTOR}
+        - name: ES_NODESELECTOR
+          value: ${ES_NODESELECTOR}
+        - name: ES_OPS_NODESELECTOR
+          value: ${ES_OPS_NODESELECTOR}
+        - name: KIBANA_NODESELECTOR
+          value: ${KIBANA_NODESELECTOR}
+        - name: KIBANA_OPS_NODESELECTOR
+          value: ${KIBANA_OPS_NODESELECTOR}
+        - name: CURATOR_NODESELECTOR
+          value: ${CURATOR_NODESELECTOR}
+        - name: CURATOR_OPS_NODESELECTOR
+          value: ${CURATOR_OPS_NODESELECTOR}
     dnsPolicy: ClusterFirst
     restartPolicy: Never
     serviceAccount: logging-deployer
@@ -154,3 +166,27 @@ parameters:
   description: "The nodeSelector used for the Fluentd DaemonSet."
   name: FLUENTD_NODESELECTOR
   value: "logging-infra-fluentd=true"
+-
+  description: "Node selector Elasticsearch cluster (label=value)."
+  name: ES_NODESELECTOR
+  value: ""
+-
+  description: "Node selector Elasticsearch operations cluster (label=value)."
+  name: ES_OPS_NODESELECTOR
+  value: ""
+-
+  description: "Node selector Kibana cluster (label=value)."
+  name: KIBANA_NODESELECTOR
+  value: ""
+-
+  description: "Node selector Kibana operations cluster (label=value)."
+  name: KIBANA_OPS_NODESELECTOR
+  value: ""
+-
+  description: "Node selector Curator (label=value)."
+  name: CURATOR_NODESELECTOR
+  value: ""
+-
+  description: "Node selector operations Curator (label=value)."
+  name: CURATOR_OPS_NODESELECTOR
+  value: ""
