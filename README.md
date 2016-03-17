@@ -223,6 +223,42 @@ Mount the created secret to your Fluentd container
 oc volumes dc/logging-fluentd --add --type=secret --secret-name=fluentd-throttle --mount-path=/etc/throttle-settings --name=throttle-settings --overwrite
 ```
 
+## Have Fluentd send logs to another Elasticsearch
+
+You can configure Fluentd to send a copy of each log message to both the
+Elasticsearch instance included with OpenShift aggregated logging, _and_ to an
+external Elasticsearch instance.  For example, if you already have an
+Elasticsearch instance set up for auditing purposes, or data warehousing, you
+can send a copy of each log message to that Elasticsearch, in addition to the
+the Elasticsearch hosted with OpenShift aggregated logging.
+
+If the environment variable `ES_COPY` is `"true"`, Fluentd will send a copy of
+the logs to another Elasticsearch. The settings for the copy are just like the
+current `ES_HOST`, etc. and `OPS_HOST`, etc. settings, except that they add
+`_COPY`: `ES_COPY_HOST`, `OPS_COPY_HOST`, etc.  There are some additional
+parameters added:
+* `ES_COPY_SCHEME`, `OPS_COPY_SCHEME` - can use either http or https - defaults
+  to https
+* `ES_COPY_USERNAME`, `OPS_COPY_USERNAME` - user name to use to authenticate to
+  elasticsearch using username/password auth
+* `ES_COPY_PASSWORD`, `OPS_COPY_PASSWORD` - password to use to authenticate to
+  elasticsearch using username/password auth
+
+To set the parameters::
+
+    oc edit -n logging template logging-fluentd-template
+    # add/edit ES_COPY to have the value "true" - with the quotes
+    # add or edit the COPY parameters listed above
+    # automated:
+    #   oc get -n logging template logging-fluentd-template -o yaml > file
+    #   edit the file with sed/perl/whatever
+    #   oc replace -n logging -f file
+    oc delete daemonset logging-fluentd
+    # wait for fluentd to stop
+    oc process -n logging logging-fluentd-template | \
+      oc create -n logging -f -
+    # this creates the daemonset and starts fluentd with the new params
+
 ## Upgrading your EFK stack
 
 If you need to upgrade your EFK stack with new images, you'll need to take the
