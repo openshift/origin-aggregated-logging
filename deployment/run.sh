@@ -229,14 +229,14 @@ es_ops_host=${es_host}
 
 if [[ -n "${KIBANA_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${kibana_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
+\          ${kibana_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" -f - | oc create -f -
 else
 	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
 fi
 
 if [[ -n "${CURATOR_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${curator_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
+\          ${curator_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator" -f - | oc create -f -
 else
 	oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
 fi
@@ -254,14 +254,14 @@ if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 
 	if [[ -n "${KIBANA_OPS_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${kibana_ops_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" | oc create -f -
+\          ${kibana_ops_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" -f - | oc create -f -
 	else
 		oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
 	fi
 
 	if [[ -n "${CURATOR_OPS_NODESELECTOR}" ]]; then
 		sed "/serviceAccountName/ i\
-\          ${curator_ops_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
+\          ${curator_ops_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops" -f - | oc create -f -
 	else
 		oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
 	fi
