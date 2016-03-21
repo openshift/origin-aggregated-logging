@@ -5,13 +5,34 @@ metadata:
   annotations:
     description: "Template to create template for deploying logging support entities"
     tags: "infrastructure"
+parameters:
+-
+  description: "A shared secret for the authentication proxy oauth client in front of Kibana"
+  name: OAUTH_SECRET
+  required: true
+-
+  description: "Hostname at which users will visit Kibana and be authenticated."
+  name: KIBANA_HOSTNAME
+  required: true
+-
+  description: "Hostname at which admins will visit the ops Kibana."
+  name: KIBANA_OPS_HOSTNAME
+  value: kibana-ops.example.com
+-
+  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
+  name: IMAGE_PREFIX
+  value: "docker.io/openshift/origin-"
+-
+  description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"'
+  name: IMAGE_VERSION
+  value: "latest"
 objects:
 - apiVersion: "v1"
   kind: "Template"
   metadata:
     name: logging-support-template
     annotations:
-      description: "Template for deploying logging support entities: oauth, service accounts, services, routes, imagestreams."
+      description: "Template for deploying logging services, service accounts, and oauthclient."
       tags: "infrastructure"
     labels:
       logging-infra: support
@@ -22,6 +43,114 @@ objects:
   objects:
   -
     apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-kibana
+    secrets:
+      - name: logging-kibana
+      - name: logging-kibana-proxy
+      - name: logging-kibana-ops-proxy
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-elasticsearch
+    secrets:
+      - name: logging-elasticsearch
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-fluentd
+    secrets:
+      - name: logging-fluentd
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-curator
+    secrets:
+      - name: logging-curator
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es"
+    spec:
+      ports:
+      -
+        port: 9200
+        targetPort: restapi
+      selector:
+        provider: "openshift"
+        component: "es"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-cluster"
+    spec:
+      portalIP: "None"
+      ports:
+      -
+        port: 9300
+      selector:
+        provider: "openshift"
+        component: "es"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-ops"
+    spec:
+      ports:
+      -
+        port: 9200
+        targetPort: restapi
+      selector:
+        provider: "openshift"
+        component: "es-ops"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-es-ops-cluster"
+    spec:
+      portalIP: "None"
+      ports:
+      -
+        port: 9300
+      selector:
+        provider: "openshift"
+        component: "es-ops"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-kibana"
+    spec:
+      ports:
+        -
+          port: 443
+          targetPort: "oaproxy"
+      selector:
+        provider: openshift
+        component: "kibana"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-kibana-ops"
+    spec:
+      ports:
+        -
+          port: 443
+          targetPort: "oaproxy"
+      selector:
+        provider: openshift
+        component: "kibana-ops"
+  -
+    apiVersion: v1
     kind: OAuthClient
     metadata:
       name: kibana-proxy
@@ -29,30 +158,20 @@ objects:
     redirectURIs:
     - https://${KIBANA_HOSTNAME}
     - https://${KIBANA_OPS_HOSTNAME}
-  -
-    apiVersion: v1
-    kind: Route
-    metadata:
-      name: kibana
-    spec:
-      host: ${KIBANA_HOSTNAME}
-      to:
-        kind: Service
-        name: logging-kibana
-      tls:
-        termination: passthrough
-  -
-    apiVersion: v1
-    kind: Route
-    metadata:
-      name: kibana-ops
-    spec:
-      host: ${KIBANA_OPS_HOSTNAME}
-      to:
-        kind: Service
-        name: logging-kibana-ops
-      tls:
-        termination: passthrough
+- apiVersion: "v1"
+  kind: "Template"
+  metadata:
+    name: logging-imagestream-template
+    annotations:
+      description: "Template for deploying logging support entities: imagestreams."
+      tags: "infrastructure"
+    labels:
+      logging-infra: support
+  labels:
+    logging-infra: support
+    provider: openshift
+    component: support
+  objects:
   -
     apiVersion: v1
     kind: ImageStream
@@ -98,25 +217,4 @@ objects:
       name: logging-curator
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
-parameters:
--
-  description: "A shared secret for the authentication proxy oauth client in front of Kibana"
-  name: OAUTH_SECRET
-  required: true
--
-  description: "Hostname at which users will visit Kibana and be authenticated."
-  name: KIBANA_HOSTNAME
-  required: true
--
-  description: "Hostname at which admins will visit the ops Kibana."
-  name: KIBANA_OPS_HOSTNAME
-  value: kibana-ops.example.com
--
-  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
-  name: IMAGE_PREFIX
-  value: "docker.io/openshift/origin-"
--
-  description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"'
-  name: IMAGE_VERSION
-  value: "latest"
 

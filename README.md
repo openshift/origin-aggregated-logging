@@ -268,6 +268,11 @@ Scale down your Fluentd instances to 0.
 
     $ oc scale dc/logging-fluentd --replicas=0
 
+Or if your Fluentd is being deployed using the daemonset controller unlabel all
+your nodes.
+
+    $ oc label nodes --all logging-infra-fluentd-
+
 Wait until they have properly terminated, this gives them time to properly
 flush their current buffer and send any logs they were processing to
 Elasticsearch. This helps prevent loss of data.
@@ -287,8 +292,17 @@ Once your ES pods are confirmed to be terminated we can now pull in the latest
 EFK images to use as described [here](https://docs.openshift.org/latest/install_config/upgrading/manual_upgrades.html#importing-the-latest-images),
 replacing the default namespace with the namespace where logging was installed.
 
-With the latest images in your repository we can now begin to scale back up.
-We want to scale ES back up incrementally so that the cluster has time to rebuild.
+With the latest images in your repository we can now rerun the deployer to generate
+any missing or changed features.
+
+Be sure to delete your oauth client
+
+    $ oc delete oauthclient --selector logging-infra=support
+
+Then proceed to follow the same steps as done previously for using the deployer.
+After the deployer completes, re-attach your persistent volumes you were using
+previously.  Next, we want to scale ES back up incrementally so that the cluster
+has time to rebuild.
 
     $ oc scale dc/logging-es-{unique_name} --replicas=1
 
@@ -304,4 +318,26 @@ recovered.
 We can now scale Kibana and Fluentd back up to their previous state.  Since Fluentd
 was shut down and allowed to push its remaining records to ES in the previous
 steps it can now pick back up from where it left off with no loss of logs -- so long
-as the log files that were not read in are still available on the node.
+as the log files that were not read in are still available on the node.  
+
+Note:
+If your previous deployment did not use a daemonset to schedule Fluentd pods you
+will now need to label your nodes to deploy Fluentd to.
+
+    $ oc label nodes <node_name> logging-infra-fluentd=true
+
+Or to deploy Fluentd to all your nodes.
+
+    $ oc label nodes --all logging-infra-fluentd=true
+
+With this latest version, Kibana will display indices differently now in order
+to prevent users from being able to access the logs of previously created
+projects that have been deleted.
+
+Due to this change your old logs will not appear automatically. To migrate your
+old indices to the new format, rerun the deployer with `-v MODE=migrate` in addition
+to your prior flags. This should be run while your ES cluster is running as the
+script will need to connect to it to make changes.
+Note: This only impacts non-operations logs, operations logs will appear the
+same as in previous versions. There should be minimal performance impact to ES
+while running this and it will not perform an install.

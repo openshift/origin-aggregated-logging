@@ -165,14 +165,11 @@ masterurlhack=",MASTER_URL=https://172.30.0.1:443"
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
 os::cmd::expect_success "oc new-project logging"
 os::cmd::expect_success "oc secrets new logging-deployer nothing=/dev/null"
-os::cmd::expect_success "echo 'apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: logging-deployer
-secrets:
-- name: logging-deployer
-' | oc create -f -"
-os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin system:serviceaccount:logging:logging-deployer"
+os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployment/deployer.yaml"
+os::cmd::expect_success "oc process logging-deployer-account-template | oc create -f -"
+os::cmd::expect_success "oc policy add-role-to-user edit system:serviceaccount:logging:logging-deployer"
+os::cmd::expect_success "oc policy add-role-to-user daemonset-admin system:serviceaccount:logging:logging-deployer"
+os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
 elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
@@ -227,7 +224,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader \
 sleep 5
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
     os::cmd::expect_success "oc process \
-                          -f $OS_O_A_L_DIR/deployment/deployer.yaml \
+                          logging-deployer-template \
                           -v ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER,IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
                           | oc create -f -"
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
@@ -243,8 +240,6 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     os::cmd::try_until_text "oc get pods -l component=curator-ops" "Running" "$(( 3 * TIME_MIN ))"
 fi
 
-# this fails because the imagestreams already exist
-os::cmd::expect_failure_and_text "oc process logging-support-template | oc create -f -" "already exists"
 if [ -n "$ES_VOLUME" ] ; then
     if [ ! -d $ES_VOLUME ] ; then
         sudo mkdir -p $ES_VOLUME
@@ -357,6 +352,28 @@ for test in test-*.sh ; do
         ./$test $USE_CLUSTER
     fi
 done
+
+#run a migration here to ensure that it is able to work
+# delete old deployer pod
+os::cmd::expect_success "oc delete pods -l component=deployer"
+
+#this does not do what i think it does...
+#os::cmd::try_until_text "oc get pods -l component=deployer -o jsonpath='{.items[*].metadata.name}'" "" "$(( 3 * TIME_MIN ))"
+
+if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
+    os::cmd::expect_success "oc process \
+                          logging-deployer-template \
+                          -v MODE=migrate,IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                          | oc create -f -"
+    os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
+
+    MIGRATE_POD=$(oc get pod -l component=deployer -o jsonpath='{.items[*].metadata.name}')
+    # adding grep to cut down on log output noise
+    os::cmd::try_until_text "oc logs $MIGRATE_POD | grep 'Migration for project'" "Migration for project test: {\"acknowledged\":true}" "$(( 3 * TIME_MIN ))"
+    os::cmd::try_until_text "oc logs $MIGRATE_POD | grep 'Migration for project'" "Migration for project logging: {\"acknowledged\":true}" "$(( 3 * TIME_MIN ))"
+    os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
+fi
+
 popd
 ### finished logging e2e tests ###
 
