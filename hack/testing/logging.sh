@@ -110,7 +110,11 @@ function wait_for_builds_complete()
             # if we are here and needbuild=1, there were no running or complete builds
             if [ $needbuild = "1" ] ; then
                 # start a new build
-                oc start-build $bc
+                if [ "$bc" = "logging-auth-proxy" -o "$USE_LOCAL_SOURCE" = false ] ; then
+                    oc start-build $bc
+                else
+                    oc start-build --from-repo $OS_O_A_L_DIR $bc
+                fi
             fi
         done
         sleep $interval
