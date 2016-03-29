@@ -161,7 +161,7 @@ metadata:
 secrets:
 - name: logging-deployer
 ' | oc create -f -"
-os::cmd::expect_success "oc policy add-role-to-user edit system:serviceaccount:logging:logging-deployer"
+os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin system:serviceaccount:logging:logging-deployer"
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
 elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
