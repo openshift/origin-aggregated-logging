@@ -33,6 +33,8 @@ USE_LOGGING_DEPLOYER_SCRIPT=
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-false}
 DEBUG_FAILURES=${DEBUG_FAILURES:-false}
 USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
+ES_VOLUME=${ES_VOLUME:-/var/lib/es}
+ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 
 # includes util.sh and text.sh
 source "${OS_ROOT}/hack/cmd_util.sh"
@@ -126,6 +128,11 @@ function wait_for_builds_complete()
         return 1
     fi
     return 0
+}
+
+function get_running_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
 }
 
 trap "exit" INT TERM
@@ -238,6 +245,49 @@ fi
 
 # this fails because the imagestreams already exist
 os::cmd::expect_failure_and_text "oc process logging-support-template | oc create -f -" "already exists"
+if [ -n "$ES_VOLUME" ] ; then
+    if [ ! -d $ES_VOLUME ] ; then
+        sudo mkdir -p $ES_VOLUME
+        sudo chown 1000:1000 $ES_VOLUME
+    fi
+    # allow es and es-ops to mount volumes from the host
+    os::cmd::expect_success "oadm policy add-scc-to-user hostmount-anyuid \
+         system:serviceaccount:logging:aggregated-logging-elasticsearch"
+    # get es dc
+    esdc=`oc get dc -l component=es -o jsonpath='{.items[0].metadata.name}'`
+    # shutdown es
+    espod=`get_running_pod es`
+    os::cmd::expect_success "oc scale dc $esdc --replicas=0"
+    os::cmd::try_until_failure "oc describe pod $espod > /dev/null" "$(( 3 * TIME_MIN ))"
+    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
+        if [ ! -d $ES_OPS_VOLUME ] ; then
+            sudo mkdir -p $ES_OPS_VOLUME
+            sudo chown 1000:1000 $ES_OPS_VOLUME
+        fi
+        # get es-ops dc
+        esopsdc=`oc get dc -l component=es-ops -o jsonpath='{.items[0].metadata.name}'`
+        # shutdown es-ops
+        esopspod=`get_running_pod es-ops`
+        os::cmd::expect_success "oc scale dc $esopsdc --replicas=0"
+        os::cmd::try_until_failure "oc describe pod $esopspod > /dev/null" "$(( 3 * TIME_MIN ))"
+    fi
+    # mount volume
+    os::cmd::expect_success "oc volume dc/$esdc \
+                             --add --overwrite --name=elasticsearch-storage \
+                             --type=hostPath --path=$ES_VOLUME"
+    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
+        os::cmd::expect_success "oc volume dc/$esopsdc \
+                                 --add --overwrite --name=elasticsearch-storage \
+                                 --type=hostPath --path=$ES_OPS_VOLUME"
+    fi
+    # start up es
+    os::cmd::expect_success "oc scale dc $esdc --replicas=1"
+    os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
+    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
+        os::cmd::expect_success "oc scale dc $esopsdc --replicas=1"
+        os::cmd::try_until_text "oc get pods -l component=es-ops" "Running" "$(( 3 * TIME_MIN ))"
+    fi
+fi
 
 # start fluentd
 os::cmd::try_until_success "oc get daemonset logging-fluentd" "$(( 1 * TIME_MIN ))"
