@@ -141,16 +141,18 @@ are available:
 
 * `KIBANA_HOSTNAME` (required): External hostname where web clients will reach Kibana
 * `PUBLIC_MASTER_URL` (required): External URL for the master, for OAuth purposes
-* `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set prefix "docker.io/openshift/origin-"
-* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
-* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
 * `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
+* `ES_PVC_SIZE`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead.
+* `ES_PVC_PREFIX`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `ES_PVC_SIZE`.
 * `FLUENTD_NODESELECTOR`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
 * `ES_NODESELECTOR`: Specify the nodeSelector that Elasticsearch should be use (label=value)
 * `KIBANA_NODESELECTOR`: Specify the nodeSelector that Kibana should be use (label=value)
 * `CURATOR_NODESELECTOR`: Specify the nodeSelector that Curator should be use (label=value)
 * `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
-* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_CLUSTER_SIZE`, `ES_OPS_NODESELECTOR`, `KIBANA_OPS_NODESELECTOR`, `CURATOR_OPS_NODESELECTOR`: Parallel parameters for the ops log cluster.
+* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_PVC_SIZE`, `ES_OPS_PVC_PREFIX`, `ES_OPS_CLUSTER_SIZE`, `ES_OPS_NODESELECTOR`, `KIBANA_OPS_NODESELECTOR`, `CURATOR_OPS_NODESELECTOR`: Parallel parameters for the ops log cluster.
+* `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set prefix "docker.io/openshift/origin-"
+* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
 
 You run the deployer by instantiating a template. Here is an example with some parameters:
 
@@ -209,14 +211,21 @@ as directed below.
 
 #### Storage
 
-The deployer initially creates an ephemeral deployment in which all
+By default, the deployer creates an ephemeral deployment in which all
 of a pod's data will be lost any time it is restarted. For production
 use you should specify a persistent storage volume for each deployment
-of ElasticSearch. Use the `oc volume` command for adding volumes to
-deployments.
+of ElasticSearch. The deployer parameters with `PVC` in the name should
+be used for this. You can either use a pre-existing set of PVCs (specify
+a common prefix for their names and append numbers starting at 1, for
+example with default prefix `logging-es-` supply PVCs `logging-es-1`,
+`logging-es-2`, etc.), or the deployer can create them with a request
+for a specified size. This is the recommended method of supplying
+persistent storage.
 
-For example, to use a local directory on the host (which is actually
-recommended by Elastic in order to take advantage of fast local disk):
+You may instead choose to add volumes manually to deployments with the
+`oc volume` command. For example, to use a local directory on the host
+(which is actually recommended by Elastic in order to take advantage of
+local disk performance):
 
     $ oc volume dc/logging-es-rca2m9u8 \
               --add --overwrite --name=elasticsearch-storage \
@@ -224,9 +233,11 @@ recommended by Elastic in order to take advantage of fast local disk):
 
 Note: In order to allow the pods to mount host volumes, you would usually
 need to add the `aggregated-logging-elasticsearch` service account to
-the `hostmount-anyuid` SCC similar to Fluentd as shown above.
+the `hostmount-anyuid` SCC similar to Fluentd as shown above. Use node
+selectors and node labels carefully to ensure that pods land on nodes
+with the storage you intend.
 
-See `oc volume -h` for further options. E.g. if you have an NFS volume
+See `oc volume -h` for further options. E.g. if you have a specific NFS volume
 you would like to use, you can set it with:
 
     $ oc volume dc/logging-es-rca2m9u8 \

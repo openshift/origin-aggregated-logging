@@ -96,6 +96,10 @@ items:
             value: ${MASTER_URL}
           - name: ES_INSTANCE_RAM
             value: ${ES_INSTANCE_RAM}
+          - name: ES_PVC_SIZE
+            value: ${ES_PVC_SIZE}
+          - name: ES_PVC_PREFIX
+            value: ${ES_PVC_PREFIX}
           - name: ES_CLUSTER_SIZE
             value: ${ES_CLUSTER_SIZE}
           - name: ES_NODE_QUORUM
@@ -108,6 +112,10 @@ items:
             value: ${ES_RECOVER_AFTER_TIME}
           - name: ES_OPS_INSTANCE_RAM
             value: ${ES_OPS_INSTANCE_RAM}
+          - name: ES_OPS_PVC_SIZE
+            value: ${ES_OPS_PVC_SIZE}
+          - name: ES_OPS_PVC_PREFIX
+            value: ${ES_OPS_PVC_PREFIX}
           - name: ES_OPS_CLUSTER_SIZE
             value: ${ES_OPS_CLUSTER_SIZE}
           - name: ES_OPS_NODE_QUORUM
@@ -173,13 +181,20 @@ items:
     name: MASTER_URL
     value: "https://kubernetes.default.svc.cluster.local"
   -
+    description: "How many instances of ElasticSearch to deploy."
+    name: ES_CLUSTER_SIZE
+    required: true
+  -
     description: "Amount of RAM to reserve per ElasticSearch instance."
     name: ES_INSTANCE_RAM
     value: "8G"
   -
-    description: "How many instances of ElasticSearch to deploy."
-    name: ES_CLUSTER_SIZE
-    required: true
+    description: "Size of the PersistentVolumeClaim to create per ElasticSearch instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
+    name: ES_PVC_SIZE
+  -
+    description: "Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size ES_PVC_SIZE."
+    name: ES_PVC_PREFIX
+    value: "logging-es-"
   -
     description: "Number of nodes required to elect a master (ES minimum_master_nodes). By default, derived from ES_CLUSTER_SIZE / 2 + 1."
     name: ES_NODE_QUORUM
@@ -194,12 +209,19 @@ items:
     name: ES_RECOVER_AFTER_TIME
     value: "5m"
   -
+    description: "How many ops instances of ElasticSearch to deploy. By default, ES_CLUSTER_SIZE."
+    name: ES_OPS_CLUSTER_SIZE
+  -
     description: "Amount of RAM to reserve per ops ElasticSearch instance."
     name: ES_OPS_INSTANCE_RAM
     value: "8G"
   -
-    description: "How many ops instances of ElasticSearch to deploy. By default, ES_CLUSTER_SIZE."
-    name: ES_OPS_CLUSTER_SIZE
+    description: "Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
+    name: ES_OPS_PVC_SIZE
+  -
+    description: "Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size ES_OPS_PVC_SIZE."
+    name: ES_OPS_PVC_PREFIX
+    value: "logging-es-ops-"
   -
     description: "Number of ops nodes required to elect a master (ES minimum_master_nodes). By default, derived from ES_CLUSTER_SIZE / 2 + 1."
     name: ES_OPS_NODE_QUORUM
