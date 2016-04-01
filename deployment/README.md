@@ -65,6 +65,14 @@ For examples in this document we will assume the `logging` project.
 You can use the `default` or another project if you want. This
 implementation has no need to run in any specific project.
 
+## Create missing templates
+
+If your installation did not create templates in the `openshift`
+namespace, the `logging-deployer-template` and `logging-deployer-account-template`
+templates may not exist. In that case you can create them with the following:
+
+    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/v0.2/deployment/deployer.yaml ...
+
 ## Create the Deployer Secret
 
 Security parameters for the logging infrastructure
@@ -98,20 +106,14 @@ An invocation supplying a properly signed Kibana cert might be:
 ## Create Supporting ServiceAccounts
 
 The deployer must run under a service account defined as follows:
+(Note: change `:logging:` below to match the project name.)
 
-    $ oc create -f - <<API
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: logging-deployer
-    secrets:
-    - name: logging-deployer
-    API
-
-    $ oc policy add-role-to-user edit \
+    $ oc process -n openshift logging-deployer-account-template | oc create -f -
+    $ oc policy add-role-to-user edit --serviceaccount logging-deployer
+    $ oc policy add-role-to-user daemonset-admin --serviceaccount logging-deployer
+    $ oadm policy add-cluster-role-to-user oauth-editor \
               system:serviceaccount:logging:logging-deployer
 
-Note: change `:logging:` above to match the project name.
 
 The policy manipulation is required in order for the deployer pod to
 create secrets, templates, and deployments in the project. By default
@@ -156,12 +158,6 @@ You run the deployer by instantiating a template. Here is an example with some p
                -v KIBANA_HOSTNAME=kibana.example.com,PUBLIC_MASTER_URL=https://localhost:8443 \
                | oc create -f -
 
-If your installation did not create templates in the `openshift`
-namespace, the `logging-deployer-template` template may not exist. In
-that case you can just process the template source:
-
-    $ oc process -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/v0.1/deployment/deployer.yaml ...
-
 This creates a deployer pod and prints its name. Wait until the pod
 is running; this can take up to a few minutes to retrieve the deployer
 image from its registry. You can watch it with:
@@ -178,19 +174,6 @@ for some instructions to follow after deployment. More details
 are given below.
 
 ## Deploy the templates created by the deployer
-
-### Supporting definitions
-
-Create the supporting definitions from template (you must be cluster admin):
-
-    $ oc process logging-support-template | oc create -f -
-
-Tip: Check the output to make sure that all objects were created
-successfully. If any were not, it is probably because one or more
-already existed from a previous deployment (potentially in a different
-project). You can delete them all before trying again:
-
-    $ oc process logging-support-template | oc delete -f -
 
 ### ElasticSearch
 

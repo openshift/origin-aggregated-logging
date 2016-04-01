@@ -19,7 +19,7 @@ gateway:
   expected_nodes: ${RECOVER_EXPECTED_NODES}
   recover_after_time: ${RECOVER_AFTER_TIME}
 
-io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd", "system.logging.curator"]
+io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd", "system.logging.curator", "system.admin"]
 
 cloud:
   k8s:
@@ -50,7 +50,7 @@ searchguard:
     authorization:
       settingsdb:
         roles:
-          admin: ["root"]
+          admin: ["admin"]
           fluentd: ["fluentd"]
           kibana: ["kibana"]
           curator: ["curator"]
@@ -65,7 +65,7 @@ searchguard:
         truststore_filepath: /etc/elasticsearch/keys/truststore
         truststore_password: tspass
   actionrequestfilter:
-    names: ["readonly", "fluentd", "kibana", "curator"]
+    names: ["readonly", "fluentd", "kibana", "curator", "admin"]
     readonly:
       allowed_actions: ["indices:data/read/*", "*monitor*"]
       forbidden_actions: ["cluster:*", "indices:admin*"]
@@ -79,7 +79,7 @@ searchguard:
 openshift:
   acl:
     users:
-      names: ["system.logging.fluentd", "system.logging.kibana", "system.logging.curator"]
+      names: ["system.logging.fluentd", "system.logging.kibana", "system.logging.curator", "system.admin"]
       system.logging.fluentd:
         execute: ["actionrequestfilter.fluentd"]
         actionrequestfilter.fluentd.comment: "Fluentd can only write"
@@ -92,3 +92,6 @@ openshift:
       system.logging.curator:
         execute: ["actionrequestfilter.curator"]
         actionrequestfilter.curator.comment: "Curator can list all indices and delete them"
+      system.admin:
+        bypass: ["*"]
+      system.admin.*.comment: "Admin user can do anything"
