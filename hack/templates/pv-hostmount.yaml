@@ -18,7 +18,7 @@ objects:
     name: ${NAME}
   spec:
     hostPath:
-      path: /opt/elasticsearch
+      path: ${PATH}
     capacity:
       storage: ${SIZE}Gi
     accessModes:
@@ -34,3 +34,7 @@ parameters:
   description: 'Gigabytes of storage to advertise'
   name: SIZE
   value: "1"
+-
+  description: 'Path to mount on the host'
+  name: PATH
+  value: /opt/elasticsearch
