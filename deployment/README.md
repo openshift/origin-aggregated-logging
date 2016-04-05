@@ -52,7 +52,7 @@ The deployer generates all the necessary certs/keys/etc for cluster
 communication and defines secrets and templates for all of the necessary
 API objects to implement aggregated logging. There are a number of
 manual steps you must run with cluster-admin privileges in order to
-create an OAuth client and modify the hostmount-anyuid SCC so fluentd can mount
+create an OAuth client and update the privileged SCC membership so fluentd can mount
 host volumes on every node.
 
 ## Choose a Project
@@ -121,10 +121,10 @@ service accounts are not allowed to do this.
 
 The fluentd deployment also requires a service account which the deployer
 will create that must be given special privileges. Run the following command to
-add the aggregated-logging-fluentd service account to the hostmount-anyuid scc
+add the aggregated-logging-fluentd service account to the privileged SCC
 (node, change `:logging:` below to the project of your choice):
 
-    $ oadm policy add-scc-to-user hostmount-anyuid system:serviceaccount:logging:aggregated-logging-fluentd
+    $ oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd
 
 Give the account access to read labels from all pods (again with the correct project):
 
