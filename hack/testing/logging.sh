@@ -212,12 +212,9 @@ else
     sleep 5
 fi
 
-# # old way
-# log_priv_user=$(create_valid_file add-hostmount-anyuid-logging-user.yml)
-# os::cmd::expect_success "oc get scc/hostmount-anyuid -o yaml > $log_priv_user"
-# os::cmd::expect_success "echo '- system:serviceaccount:logging:aggregated-logging-fluentd' >> $log_priv_user"
-# os::cmd::expect_success "oc replace -f $log_priv_user"
-os::cmd::expect_success "oadm policy add-scc-to-user hostmount-anyuid system:serviceaccount:logging:aggregated-logging-fluentd"
+# TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
+# https://github.com/openshift/origin-aggregated-logging/issues/89
+os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd"
 sleep 5
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader \
                       system:serviceaccount:logging:aggregated-logging-fluentd"
