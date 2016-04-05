@@ -1,14 +1,35 @@
 #!/bin/bash
 
-set -ex
+set -o errexit
+set -o nounset
+set -o pipefail
 
-prefix=${PREFIX:-${1:-openshift/origin-}}
-version=${VERSION:-${2:-latest}}
-for component in fluentd elasticsearch kibana deployment curator ; do
-    docker build -t "${prefix}logging-${component}:${version}"       ../$component/
+STARTTIME=$(date +%s)
+
+prefix="${PREFIX:-openshift/origin-}"
+version="${OS_TAG:-latest}" 
+
+source_root=$(dirname "${0}")/..
+
+#################################
+for component in deployment fluentd elasticsearch kibana curator ; do
+  BUILD_STARTTIME=$(date +%s)
+  comp_path=$source_root/$component/
+  docker_tag=${prefix}logging-${component}:${version}
+  echo
+  echo
+  echo "--- Building component '$comp_path' with docker tag '$docker_tag' ---"
+  docker build -t $docker_tag       $comp_path
+  BUILD_ENDTIME=$(date +%s); echo "--- $docker_tag took $(($BUILD_ENDTIME - $BUILD_STARTTIME)) seconds ---"
+  echo
+  echo
 done
-if [ -n "${PUSH:-$3}" ]; then
-    for component in fluentd elasticsearch kibana deployment curator ; do
-	    docker push "${prefix}logging-${component}:${version}"
-    done
-fi
+
+echo
+echo
+echo "++ Active images"
+docker images | grep ${prefix}logging | grep ${version} | sort
+echo
+
+
+ret=$?; ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"; exit "$ret"
