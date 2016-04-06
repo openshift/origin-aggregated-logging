@@ -19,13 +19,9 @@ parameters:
   name: KIBANA_OPS_HOSTNAME
   value: kibana-ops.example.com
 -
-  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
-  name: IMAGE_PREFIX
+  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployment:v1.1", set prefix "openshift/origin-"'
+  name: IMAGE_PREFIX_DEFAULT
   value: "docker.io/openshift/origin-"
--
-  description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set version "v1.1"'
-  name: IMAGE_VERSION
-  value: "latest"
 objects:
 - apiVersion: "v1"
   kind: "Template"
@@ -171,6 +167,11 @@ objects:
     logging-infra: support
     provider: openshift
     component: support
+  parameters:
+  -
+    description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
   objects:
   -
     apiVersion: v1
@@ -180,7 +181,7 @@ objects:
         openshift.io/image.insecureRepository: "true"
       name: logging-auth-proxy
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-auth-proxy
   -
     apiVersion: v1
     kind: ImageStream
@@ -189,7 +190,7 @@ objects:
         openshift.io/image.insecureRepository: "true"
       name: logging-elasticsearch
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch
   -
     apiVersion: v1
     kind: ImageStream
@@ -198,7 +199,7 @@ objects:
         openshift.io/image.insecureRepository: "true"
       name: logging-fluentd
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd
   -
     apiVersion: v1
     kind: ImageStream
@@ -207,7 +208,7 @@ objects:
         openshift.io/image.insecureRepository: "true"
       name: logging-kibana
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-kibana
   -
     apiVersion: v1
     kind: ImageStream
@@ -216,5 +217,5 @@ objects:
         openshift.io/image.insecureRepository: "true"
       name: logging-curator
     spec:
-      dockerImageRepository: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
+      dockerImageRepository: ${IMAGE_PREFIX}logging-curator
 

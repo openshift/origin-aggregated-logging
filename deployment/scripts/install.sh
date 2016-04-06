@@ -196,6 +196,7 @@ es_params=$(join , \
 	ES_RECOVER_AFTER_NODES=${es_recover_after_nodes} \
 	ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
 	ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
+        IMAGE_VERSION_DEFAULT=${image_version} \
 	)
 
 es_ops_params=$(join , \
@@ -205,6 +206,7 @@ es_ops_params=$(join , \
 	ES_RECOVER_AFTER_NODES=${es_ops_recover_after_nodes} \
 	ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
 	ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
+        IMAGE_VERSION_DEFAULT=${image_version} \
 	)
 
 if [[ -n "${ES_NODESELECTOR}" ]]; then
@@ -219,22 +221,22 @@ es_ops_host=${es_host}
 
 if [[ -n "${KIBANA_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${kibana_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" -f - | oc create -f -
+\          ${kibana_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},IMAGE_VERSION_DEFAULT=${image_version}" -f - | oc create -f -
 else
-	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url}" | oc create -f -
+	oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},IMAGE_VERSION_DEFAULT=${image_version}" | oc create -f -
 fi
 
 if [[ -n "${CURATOR_NODESELECTOR}" ]]; then
 	sed "/serviceAccountName/ i\
-\          ${curator_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator" -f - | oc create -f -
+\          ${curator_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator,IMAGE_VERSION_DEFAULT=${image_version}" -f - | oc create -f -
 else
-	oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator"| oc create -f -
+	oc process -f templates/curator.yaml -v "ES_HOST=${es_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator,IMAGE_VERSION_DEFAULT=${image_version}"| oc create -f -
 fi
 
 if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 
 	if [[ -n "${ES_OPS_NODESELECTOR}" ]]; then
-	sed "/serviceAccountName/ i\
+          sed "/serviceAccountName/ i\
 \          ${es_ops_nodeselector}" templates/es.yaml | oc process -v "${es_ops_params}" -f - | oc create -f -
 	else
 		oc process -f templates/es.yaml -v "${es_ops_params}" | oc create -f -
@@ -243,31 +245,31 @@ if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
 	es_ops_host=logging-es-ops
 
 	if [[ -n "${KIBANA_OPS_NODESELECTOR}" ]]; then
-	sed "/serviceAccountName/ i\
-\          ${kibana_ops_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host}" -f - | oc create -f -
+          sed "/serviceAccountName/ i\
+\          ${kibana_ops_nodeselector}" templates/kibana.yaml | oc process -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=${es_ops_host},IMAGE_VERSION_DEFAULT=${image_version}" -f - | oc create -f -
 	else
-		oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops" | oc create -f -
+		oc process -f templates/kibana.yaml -v "OAP_PUBLIC_MASTER_URL=${public_master_url},OAP_MASTER_URL=${master_url},KIBANA_DEPLOY_NAME=kibana-ops,ES_HOST=logging-es-ops,IMAGE_VERSION_DEFAULT=${image_version}" | oc create -f -
 	fi
 
 	if [[ -n "${CURATOR_OPS_NODESELECTOR}" ]]; then
-		sed "/serviceAccountName/ i\
-\          ${curator_ops_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops" -f - | oc create -f -
+          sed "/serviceAccountName/ i\
+\          ${curator_ops_nodeselector}" templates/curator.yaml | oc process -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops,IMAGE_VERSION_DEFAULT=${image_version}" -f - | oc create -f -
 	else
-		oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops"| oc create -f -
+		oc process -f templates/curator.yaml -v "ES_HOST=${es_ops_host},MASTER_URL=${master_url},CURATOR_DEPLOY_NAME=curator-ops,IMAGE_VERSION_DEFAULT=${image_version}"| oc create -f -
 	fi
 
 fi
 
 if [[ -n "${FLUENTD_NODESELECTOR}" ]]; then
   sed "/serviceAccountName/ i\
-\          ${fluentd_nodeselector}" templates/fluentd.yaml | oc process -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}" -f - | oc create -f -
+\          ${fluentd_nodeselector}" templates/fluentd.yaml | oc process -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX_DEFAULT=${image_prefix},IMAGE_VERSION_DEFAULT=${image_version}" -f - | oc create -f -
 else
-  oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}"| oc create -f -
+  oc process -f templates/fluentd.yaml -v "ES_HOST=${es_host},OPS_HOST=${es_ops_host},MASTER_URL=${master_url},IMAGE_PREFIX_DEFAULT=${image_prefix},IMAGE_VERSION_DEFAULT=${image_version}"| oc create -f -
 fi
 
 if [ "${KEEP_SUPPORT}" != true ]; then
 	oc delete template --selector logging-infra=support
-	oc process -f templates/support.yaml -v "OAUTH_SECRET=$(cat $dir/oauth-secret),KIBANA_HOSTNAME=${hostname},KIBANA_OPS_HOSTNAME=${ops_hostname},IMAGE_PREFIX=${image_prefix},IMAGE_VERSION=${image_version}" | oc create -f -
+	oc process -f templates/support.yaml -v "OAUTH_SECRET=$(cat $dir/oauth-secret),KIBANA_HOSTNAME=${hostname},KIBANA_OPS_HOSTNAME=${ops_hostname},IMAGE_PREFIX_DEFAULT=${image_prefix}" | oc create -f -
 fi
 
 ######################################
