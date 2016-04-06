@@ -19,6 +19,15 @@ objects:
     logging-infra: fluentd
     provider: openshift
     component: fluentd
+  parameters:
+  -
+    description: "The image prefix for the Fluentd image to use"
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
+  -
+    description: "The image version for the Fluentd image to use"
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
   objects:
   - apiVersion: extensions/v1beta1
     kind: "DaemonSet"
@@ -179,14 +188,6 @@ parameters:
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
 -
-  description: "The image prefix for the Fluentd image to use"
-  name: IMAGE_PREFIX
-  value: ""
--
-  description: "The image version for the Fluentd image to use"
-  name: IMAGE_VERSION
-  value: ""
--
   description: "Send a copy of the logs to an additional Elasticsearch instance."
   name: ES_COPY
   value: "false"
@@ -254,3 +255,11 @@ parameters:
   description: "Password for username/password auth to connection to additional ElasticSearch to write cluster logs"
   name: OPS_COPY_PASSWORD
   value: ""
+-
+  description: "The prefix of the image to use."
+  name: IMAGE_PREFIX_DEFAULT
+  value: "openshift/origin-"
+-
+  description: "The version tag of the image to use."
+  name: IMAGE_VERSION_DEFAULT
+  value: latest

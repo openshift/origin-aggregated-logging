@@ -40,7 +40,7 @@ objects:
           - elasticsearch
           from:
             kind: ImageStreamTag
-            name: logging-elasticsearch:latest
+            name: logging-elasticsearch:${IMAGE_VERSION}
       strategy:
         type: Recreate
       template:
@@ -133,7 +133,10 @@ objects:
     description: "Timeout for *expected* nodes to be present when cluster is recovering from a full restart."
     name: RECOVER_AFTER_TIME
     value: ${ES_RECOVER_AFTER_TIME}
-
+  -
+    description: "The version tag of the image to use."
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
 parameters:
 - name: ES_CLUSTER_NAME
 - name: ES_INSTANCE_RAM
@@ -141,3 +144,5 @@ parameters:
 - name: ES_RECOVER_AFTER_NODES
 - name: ES_RECOVER_EXPECTED_NODES
 - name: ES_RECOVER_AFTER_TIME
+- name: IMAGE_VERSION_DEFAULT
+  value: "latest"

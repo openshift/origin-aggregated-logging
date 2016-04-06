@@ -19,6 +19,11 @@ objects:
     logging-infra: kibana
     provider: openshift
     component: ${KIBANA_DEPLOY_NAME}
+  parameters:
+  -
+    description: "The version tag of the image to use."
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
   objects:
   -
     apiVersion: "v1"
@@ -42,7 +47,7 @@ objects:
           - kibana
           from:
             kind: ImageStreamTag
-            name: logging-kibana:latest
+            name: logging-kibana:${IMAGE_VERSION}
       - type: ImageChange
         imageChangeParams:
           automatic: true
@@ -50,7 +55,7 @@ objects:
           - kibana-proxy
           from:
             kind: ImageStreamTag
-            name: logging-auth-proxy:latest
+            name: logging-auth-proxy:${IMAGE_VERSION}
       strategy:
         resources: {}
         rollingParams:
@@ -153,3 +158,7 @@ parameters:
   description: "Show extra proxy debug information at startup and during operations"
   name: OAP_DEBUG
   value: "false"
+-
+  description: "The version tag of the image to use."
+  name: IMAGE_VERSION_DEFAULT
+  value: "latest"
