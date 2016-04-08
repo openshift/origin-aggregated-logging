@@ -179,8 +179,8 @@ basictest() {
 
     # get current curator pod
     curpod=`get_running_pod curator${ops}`
-    # show current indices
-    echo current indices are:
+    # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
+    echo current indices before 1st deletion are:
     oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices
@@ -221,14 +221,29 @@ EOF
     wait_for_pod_ACTION start curator${ops}
     # query ES
     curpod=`get_running_pod curator${ops}`
+    # show current indices
+    echo current indices after 1st deletion are:
+    oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices
     verify_indices $curpod $ops
 
     # now, add back the same messages/indices and see if runhour and runminute are working
     create_indices $ops
+    # show current indices
+    echo current indices before 2nd deletion are:
+    oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices
 
     echo sleeping 5 minutes to see if runhour and runminute are working . . .
     sleep 300 # 5 minutes
     echo verify indices deletion again
+    # show current indices
+    echo current indices after 2nd deletion are:
+    oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices
     verify_indices $curpod $ops
 
     return 0
