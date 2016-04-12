@@ -50,7 +50,7 @@ if default_time_unit.lower() == "weeks":
     default_value = default_value * 7
 
 base_default_cmd = '/usr/bin/curator --loglevel ERROR ' + connection_info + ' delete indices --timestring %Y.%m.%d'
-default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard*' + ' --exclude .kibana*'
+default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana* --exclude .apiman_*'
 
 for project in decoded:
     if project == '.defaults':
