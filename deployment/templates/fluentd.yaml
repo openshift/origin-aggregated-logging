@@ -57,6 +57,8 @@ objects:
           - name: fluentd-elasticsearch
             image: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
             imagePullPolicy: Always
+            securityContext:
+              privileged: true
             resources:
               limits:
                 cpu: 100m
