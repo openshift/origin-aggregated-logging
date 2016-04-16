@@ -103,12 +103,12 @@ An invocation supplying a properly signed Kibana cert might be:
     $ oc secrets new logging-deployer \
        kibana.crt=/path/to/cert kibana.key=/path/to/key
 
-## Create Supporting ServiceAccounts
+## Create Supporting ServiceAccount and Permissions
 
 The deployer must run under a service account defined as follows:
 (Note: change `:logging:` below to match the project name.)
 
-    $ oc process -n openshift logging-deployer-account-template | oc create -f -
+    $ oc new-app logging-deployer-account-template
     $ oc policy add-role-to-user edit --serviceaccount logging-deployer
     $ oc policy add-role-to-user daemonset-admin --serviceaccount logging-deployer
     $ oadm policy add-cluster-role-to-user oauth-editor \
@@ -126,7 +126,7 @@ add the aggregated-logging-fluentd service account to the privileged SCC
 
     $ oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd
 
-Give the account access to read labels from all pods (again with the correct project):
+Also give the account access to read labels from all pods (again with the correct project):
 
     $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:logging:aggregated-logging-fluentd
 
@@ -156,9 +156,11 @@ are available:
 
 You run the deployer by instantiating a template. Here is an example with some parameters:
 
-    $ oc process -n openshift logging-deployer-template \
-               -v KIBANA_HOSTNAME=kibana.example.com,PUBLIC_MASTER_URL=https://localhost:8443 \
-               | oc create -f -
+    $ oc new-app logging-deployer-template \
+               -p KIBANA_HOSTNAME=kibana.example.com \
+               -p ES_CLUSTER_SIZE=1 \
+               -p ES_INSTANCE_RAM=1G \
+               -p PUBLIC_MASTER_URL=https://localhost:8443
 
 This creates a deployer pod and prints its name. Wait until the pod
 is running; this can take up to a few minutes to retrieve the deployer
@@ -254,7 +256,7 @@ nodes, or a dedicated region in your cluster. You can do this by supplying
 a node selector in each deployment.
 
 The deployer has options to specify a nodeSelector label for Elasticsearch, Kibana
-and curator. If you have already deployed the EFK stack or would like to change
+and Curator. If you have already deployed the EFK stack or would like to change
 your current nodeSelector labels, see below.
 
 There is no helpful command for adding a node selector. You will need to

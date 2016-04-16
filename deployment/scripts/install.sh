@@ -185,6 +185,16 @@ CONF
 	oc secrets new logging-curator-ops \
 	    ca=$dir/ca.crt \
 	    key=$dir/${curator_user}.key cert=$dir/${curator_user}.crt
+	echo "Attaching secrets to service accounts"
+        oc secrets add serviceaccount/aggregated-logging-kibana \
+                       logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+        oc secrets add serviceaccount/aggregated-logging-elasticsearch \
+                       logging-elasticsearch
+        oc secrets add serviceaccount/aggregated-logging-fluentd \
+                       logging-fluentd
+        oc secrets add serviceaccount/aggregated-logging-curator \
+                       logging-curator
+                       
 
 fi # supporting infrastructure - secrets
 
@@ -365,9 +375,9 @@ cat <<EOF
 
 =================================
 
-The deployer has created secrets, service accounts, templates, and
-component deployments required for logging. You now have a few steps to
-run manually. Consult the deployer docs for more detail.
+The deployer has created secrets, templates, and component deployments
+required for logging. You now have a few more steps to run manually.
+Consult the deployer docs for more detail.
 
 ElasticSearch:
 --------------
