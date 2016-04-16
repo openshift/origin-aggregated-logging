@@ -211,7 +211,15 @@ else
     imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
     sleep 5
 fi
-
+pvc_params=""
+if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
+    if [ ! -d $ES_OPS_VOLUME ] ; then
+        sudo mkdir -p $ES_OPS_VOLUME
+        sudo chown 1000:1000 $ES_OPS_VOLUME
+    fi
+    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -v SIZE=10,PATH=${ES_OPS_VOLUME} | oc create -f -"
+    pvc_params=",ES_OPS_PVC_SIZE=10,ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
+fi
 # TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
 # https://github.com/openshift/origin-aggregated-logging/issues/89
 os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd"
@@ -222,16 +230,30 @@ sleep 5
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
     os::cmd::expect_success "oc process \
                           logging-deployer-template \
-                          -v ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER,IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                          -v ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER${pvc_params},IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
                           | oc create -f -"
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
     os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
+fi
+if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    # TODO: this shouldn't be necessary once SELinux problems are worked out
+    # leave this at hostmount-anyuid once we've resolved the SELinux problem with that
+    # https://github.com/openshift/origin-aggregated-logging/issues/89
+    os::cmd::expect_success "oadm policy add-scc-to-user privileged \
+         system:serviceaccount:logging:aggregated-logging-elasticsearch"
+    # update the ES_OPS DC to be in the privileged context
+    # TODO: should not have to do this - should work the same as regular hostmount
+    os::cmd::expect_success "oc patch $(oc get dc -o name -l component=es-ops) \
+       -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
 fi
 # see if expected pods are running
 os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
 os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
 os::cmd::try_until_text "oc get pods -l component=curator" "Running" "$(( 3 * TIME_MIN ))"
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    # make sure the expected PVC was created and bound
+    os::cmd::try_until_text "oc get persistentvolumeclaim es-ops-pvc-1" "Bound" "$(( 1 * TIME_MIN ))"
+    # make sure the expected pods are running
     os::cmd::try_until_text "oc get pods -l component=es-ops" "Running" "$(( 3 * TIME_MIN ))"
     os::cmd::try_until_text "oc get pods -l component=kibana-ops" "Running" "$(( 3 * TIME_MIN ))"
     os::cmd::try_until_text "oc get pods -l component=curator-ops" "Running" "$(( 3 * TIME_MIN ))"
@@ -251,34 +273,13 @@ if [ -n "$ES_VOLUME" ] ; then
     espod=`get_running_pod es`
     os::cmd::expect_success "oc scale dc $esdc --replicas=0"
     os::cmd::try_until_failure "oc describe pod $espod > /dev/null" "$(( 3 * TIME_MIN ))"
-    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
-        if [ ! -d $ES_OPS_VOLUME ] ; then
-            sudo mkdir -p $ES_OPS_VOLUME
-            sudo chown 1000:1000 $ES_OPS_VOLUME
-        fi
-        # get es-ops dc
-        esopsdc=`oc get dc -l component=es-ops -o jsonpath='{.items[0].metadata.name}'`
-        # shutdown es-ops
-        esopspod=`get_running_pod es-ops`
-        os::cmd::expect_success "oc scale dc $esopsdc --replicas=0"
-        os::cmd::try_until_failure "oc describe pod $esopspod > /dev/null" "$(( 3 * TIME_MIN ))"
-    fi
-    # mount volume
+    # mount volume manually on ordinary cluster
     os::cmd::expect_success "oc volume dc/$esdc \
                              --add --overwrite --name=elasticsearch-storage \
                              --type=hostPath --path=$ES_VOLUME"
-    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
-        os::cmd::expect_success "oc volume dc/$esopsdc \
-                                 --add --overwrite --name=elasticsearch-storage \
-                                 --type=hostPath --path=$ES_OPS_VOLUME"
-    fi
     # start up es
     os::cmd::expect_success "oc scale dc $esdc --replicas=1"
     os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
-    if [ "$ENABLE_OPS_CLUSTER" = "true" -a -n "$ES_OPS_VOLUME" ] ; then
-        os::cmd::expect_success "oc scale dc $esopsdc --replicas=1"
-        os::cmd::try_until_text "oc get pods -l component=es-ops" "Running" "$(( 3 * TIME_MIN ))"
-    fi
 fi
 
 # start fluentd

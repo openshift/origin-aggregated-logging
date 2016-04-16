@@ -218,4 +218,37 @@ objects:
       name: logging-curator
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-curator
-
+- apiVersion: "v1"
+  kind: "Template"
+  parameters:
+  -
+    description: "The name for the PVC"
+    name: NAME
+    required: true
+  -
+    description: "The size for the PVC"
+    name: SIZE
+    required: true
+  metadata:
+    name: logging-pvc-template
+    annotations:
+      description: "Template for deploying logging support entities: persistentvolumeclaims."
+      tags: "infrastructure"
+    labels:
+      logging-infra: support
+  labels:
+    logging-infra: support
+    provider: openshift
+    component: support
+  objects:
+  -
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: ${NAME}
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: ${SIZE}

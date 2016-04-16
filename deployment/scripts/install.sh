@@ -1,5 +1,10 @@
 #!/bin/bash
 set -ex
+
+######################################
+#
+# initialize a lot of variables from env
+#
 dir=${SCRATCH_DIR:-_output}  # for writing files to bundle into secrets
 project=${PROJECT:-default}
 image_prefix=${IMAGE_PREFIX:-openshift/}
@@ -10,12 +15,16 @@ public_master_url=${PUBLIC_MASTER_URL:-https://kubernetes.default.svc.cluster.lo
 master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
 # ES cluster parameters:
 es_instance_ram=${ES_INSTANCE_RAM:-512M}
+es_pvc_size=${ES_PVC_SIZE:-}
+es_pvc_prefix=${ES_PVC_PREFIX:-}
 es_cluster_size=${ES_CLUSTER_SIZE:-1}
 es_node_quorum=${ES_NODE_QUORUM:-$((es_cluster_size/2+1))}
 es_recover_after_nodes=${ES_RECOVER_AFTER_NODES:-$((es_cluster_size-1))}
 es_recover_expected_nodes=${ES_RECOVER_EXPECTED_NODES:-$es_cluster_size}
 es_recover_after_time=${ES_RECOVER_AFTER_TIME:-5m}
 es_ops_instance_ram=${ES_OPS_INSTANCE_RAM:-512M}
+es_ops_pvc_size=${ES_OPS_PVC_SIZE:-}
+es_ops_pvc_prefix=${ES_OPS_PVC_PREFIX:-}
 es_ops_cluster_size=${ES_OPS_CLUSTER_SIZE:-$es_cluster_size}
 es_ops_node_quorum=${ES_OPS_NODE_QUORUM:-$((es_ops_cluster_size/2+1))}
 es_ops_recover_after_nodes=${ES_OPS_RECOVER_AFTER_NODES:-$((es_ops_cluster_size-1))}
@@ -177,7 +186,7 @@ CONF
 	    ca=$dir/ca.crt \
 	    key=$dir/${curator_user}.key cert=$dir/${curator_user}.crt
 
-fi # supporting infrastructure
+fi # supporting infrastructure - secrets
 
 ######################################
 #
@@ -280,6 +289,7 @@ echo "(Re-)Creating deployed objects"
 if [ "${KEEP_SUPPORT}" != true ]; then
 	oc process logging-support-template | oc delete -f - || :
 	oc delete serviceaccount,service,route --selector logging-infra=support
+	# note: no automatic deletion of persistentvolumeclaim; didn't seem wise
 	oc process logging-support-template | oc create -f -
 	oc create route passthrough --service="logging-kibana" --hostname="${hostname}"
 	oc create route passthrough --service="logging-kibana-ops" --hostname="${ops_hostname}"
@@ -291,19 +301,50 @@ oc delete dc,rc,pod --selector logging-infra=kibana
 oc delete dc,rc,pod,daemonset --selector logging-infra=fluentd
 oc delete dc,rc,pod --selector logging-infra=elasticsearch
 
-for ((n=0;n<${es_cluster_size};n++)); do
-	oc process logging-es-template | oc create -f -
+declare -A pvcs=()
+for pvc in $(oc get persistentvolumeclaim --template='{{range .items}}{{.metadata.name}} {{end}}' 2>/dev/null); do
+  pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting
 done
-oc process logging-fluentd-template | oc create -f -
+for ((n=1;n<=${es_cluster_size};n++)); do
+        pvc="${ES_PVC_PREFIX}$n"
+        if [ "${pvcs[$pvc]}" != 1 -a "${ES_PVC_SIZE}" != "" ]; then # doesn't exist, create it
+          oc process logging-pvc-template -v "NAME=$pvc,SIZE=${ES_PVC_SIZE}" | oc create -f -
+          pvcs["$pvc"]=1
+        fi
+        if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
+          oc process logging-es-template | oc volume -f - \
+                    --add --overwrite --name=elasticsearch-storage \
+                    --type=persistentVolumeClaim --claim-name="$pvc"
+        else
+          oc process logging-es-template | oc create -f -
+        fi
+done
 oc process logging-kibana-template | oc create -f -
 oc process logging-curator-template | oc create -f -
 if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
-	for ((n=0;n<${es_ops_cluster_size};n++)); do
-		oc process logging-es-ops-template | oc create -f -
+	for ((n=1;n<=${es_ops_cluster_size};n++)); do
+          pvc="${ES_OPS_PVC_PREFIX}$n"
+          if [ "${pvcs[$pvc]}" != 1 -a "${ES_OPS_PVC_SIZE}" != "" ]; then # doesn't exist, create it
+            oc process logging-pvc-template -v "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}" | oc create -f -
+            pvcs["$pvc"]=1
+          fi
+          if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
+                oc process logging-es-ops-template | oc volume -f - \
+                      --add --overwrite --name=elasticsearch-storage \
+                      --type=persistentVolumeClaim --claim-name="$pvc"
+          else
+                oc process logging-es-ops-template | oc create -f -
+          fi
 	done
 	oc process logging-kibana-ops-template | oc create -f -
 	oc process logging-curator-ops-template | oc create -f -
 fi
+oc process logging-fluentd-template | oc create -f -
+
+######################################
+#
+# Give the user some helpful output
+#
 
 set +x
 echo 'Success!'
