@@ -6,8 +6,9 @@ set -ex
 # initialize a lot of variables from env
 #
 dir=${SCRATCH_DIR:-_output}  # for writing files to bundle into secrets
+secret_dir=${SECRET_DIR:-_secret}  # for writing files to bundle into secrets
 project=${PROJECT:-default}
-image_prefix=${IMAGE_PREFIX:-openshift/}
+image_prefix=${IMAGE_PREFIX:-openshift/origin-}
 image_version=${IMAGE_VERSION:-latest}
 hostname=${KIBANA_HOSTNAME:-kibana.example.com}
 ops_hostname=${KIBANA_OPS_HOSTNAME:-kibana-ops.example.com}
@@ -68,6 +69,21 @@ kibana_ops_nodeselector=$(extract_nodeselector $KIBANA_OPS_NODESELECTOR)
 curator_nodeselector=$(extract_nodeselector $CURATOR_NODESELECTOR)
 curator_ops_nodeselector=$(extract_nodeselector $CURATOR_OPS_NODESELECTOR)
 
+function procure_server_cert() {
+	local file=$1 hostnames=${2:-}
+	if [ -s $secret_dir/$file.crt ]; then
+		# use files from secret if present
+		cp {$secret_dir,$dir}/$file.key
+		cp {$secret_dir,$dir}/$file.crt
+	elif [ -n "${hostnames:-}" ]; then  #fallback to creating one
+	    openshift admin ca create-server-cert  \
+	      --key=$dir/$file.key \
+	      --cert=$dir/$file.crt \
+	      --hostnames=${hostnames} \
+	      --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
+	fi
+}
+
 ######################################
 #
 # generate secret contents and secrets
@@ -75,11 +91,12 @@ curator_ops_nodeselector=$(extract_nodeselector $CURATOR_OPS_NODESELECTOR)
 if [ "${KEEP_SUPPORT}" != true ]; then
 	# this fails in the container, but it's useful for dev
 	rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
+	mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
 	# cp/generate CA
-	if [ -s /secret/ca.key ]; then
-		cp {/secret,$dir}/ca.key
-		cp {/secret,$dir}/ca.crt
+	if [ -s $secret_dir/ca.key ]; then
+		cp {$secret_dir,$dir}/ca.key
+		cp {$secret_dir,$dir}/ca.crt
 		echo "01" > $dir/ca.serial.txt
 	else
 	    openshift admin ca create-signer-cert  \
@@ -90,30 +107,10 @@ if [ "${KEEP_SUPPORT}" != true ]; then
 	fi
 
 	# use or generate Kibana proxy certs
-	if [ -n "${KIBANA_KEY}" ]; then
-		echo "${KIBANA_KEY}" | base64 -d > $dir/kibana.key
-		echo "${KIBANA_CERT}" | base64 -d > $dir/kibana.crt
-	elif [ -s /secret/kibana.crt ]; then
-		# use files from secret if present
-		cp {/secret,$dir}/kibana.key
-		cp {/secret,$dir}/kibana.crt
-	else #fallback to creating one
-	    openshift admin ca create-server-cert  \
-	      --key=$dir/kibana.key \
-	      --cert=$dir/kibana.crt \
-	      --hostnames=kibana,${hostname},${ops_hostname} \
-	      --signer-cert="$dir/ca.crt" --signer-key="$dir/ca.key" --signer-serial="$dir/ca.serial.txt"
-	fi
-	if [ -s /secret/kibana-ops.crt ]; then
-		# use files from secret if present
-		cp {/secret,$dir}/kibana-ops.key
-		cp {/secret,$dir}/kibana-ops.crt
-	else # just reuse the regular kibana cert
-		cp $dir/kibana{,-ops}.key
-		cp $dir/kibana{,-ops}.crt
-	fi
+        procure_server_cert kibana       # external cert, use router cert if not present
+        procure_server_cert kibana-ops   # second external cert
+        procure_server_cert kibana-internal kibana,kibana-ops,${hostname},${ops_hostname}
 
-	echo 03 > $dir/ca.serial.txt  # otherwise openssl chokes on the file
 	echo Generating signing configuration file
 	cat - conf/signing.conf > $dir/signing.conf <<CONF
 [ default ]
@@ -121,10 +118,8 @@ dir                     = ${dir}               # Top dir
 CONF
 
 	# use or copy proxy TLS configuration file
-	if [ -n "${SERVER_TLS_JSON}" ]; then
-		echo "${SERVER_TLS_JSON}" | base64 -d > $dir/server-tls.json
-	elif [ -s /secret/server-tls.json ]; then
-		cp /secret/server-tls.json $dir
+	if [ -s $secret_dir/server-tls.json ]; then
+		cp $secret_dir/server-tls.json $dir
 	else
 		cp conf/server-tls.json $dir
 	fi
@@ -167,14 +162,8 @@ CONF
 	oc secrets new logging-kibana-proxy \
 	    oauth-secret=$dir/oauth-secret \
 	    session-secret=$dir/session-secret \
-	    server-key=$dir/kibana.key \
-	    server-cert=$dir/kibana.crt \
-	    server-tls.json=$dir/server-tls.json
-	oc secrets new logging-kibana-ops-proxy \
-	    oauth-secret=$dir/oauth-secret \
-	    session-secret=$dir/session-secret \
-	    server-key=$dir/kibana-ops.key \
-	    server-cert=$dir/kibana-ops.crt \
+	    server-key=$dir/kibana-internal.key \
+	    server-cert=$dir/kibana-internal.crt \
 	    server-tls.json=$dir/server-tls.json
 	oc secrets new logging-fluentd \
 	    ca=$dir/ca.crt \
@@ -187,14 +176,13 @@ CONF
 	    key=$dir/${curator_user}.key cert=$dir/${curator_user}.crt
 	echo "Attaching secrets to service accounts"
         oc secrets add serviceaccount/aggregated-logging-kibana \
-                       logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+                       logging-kibana logging-kibana-proxy
         oc secrets add serviceaccount/aggregated-logging-elasticsearch \
                        logging-elasticsearch
         oc secrets add serviceaccount/aggregated-logging-fluentd \
                        logging-fluentd
         oc secrets add serviceaccount/aggregated-logging-curator \
                        logging-curator
-                       
 
 fi # supporting infrastructure - secrets
 
@@ -298,13 +286,23 @@ fi
 echo "(Re-)Creating deployed objects"
 if [ "${KEEP_SUPPORT}" != true ]; then
 	oc process logging-support-template | oc delete -f - || :
-	oc delete serviceaccount,service,route --selector logging-infra=support
+	oc delete imagestream,service,route --selector logging-infra=support
+        # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
 	# note: no automatic deletion of persistentvolumeclaim; didn't seem wise
 	oc process logging-support-template | oc create -f -
-	oc create route passthrough --service="logging-kibana" --hostname="${hostname}"
-	oc create route passthrough --service="logging-kibana-ops" --hostname="${ops_hostname}"
+	kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert='$dir/kibana.crt' --key='$dir/kibana.key'"
+	oc create route reencrypt --service="logging-kibana" \
+	                          --hostname="${hostname}" \
+	                          --{dest-,}ca-cert="$dir/ca.crt" \
+                                  $kibana_keys
+	kibana_keys=""; [ -e "$dir/kibana-ops.crt" ] && kibana_keys="--cert='$dir/kibana-ops.crt' --key='$dir/kibana-ops.key'"
+	oc create route reencrypt --service="logging-kibana-ops" \
+	                          --hostname="${ops_hostname}" \
+	                          --{dest-,}ca-cert="$dir/ca.crt" \
+                                  $kibana_keys
+	# note: route labels are copied from service, no need to add
 fi
-oc process logging-imagestream-template | oc create -f - || : # these may fail if already created; that's ok
+oc process logging-imagestream-template | oc create -f - || : # these may fail if created independently; that's ok
 
 oc delete dc,rc,pod --selector logging-infra=curator
 oc delete dc,rc,pod --selector logging-infra=kibana

@@ -132,7 +132,7 @@ objects:
                 secretName: logging-kibana
             - name: kibana-proxy
               secret:
-                secretName: logging-${KIBANA_DEPLOY_NAME}-proxy
+                secretName: logging-kibana-proxy
 parameters:
 -
   name: KIBANA_DEPLOY_NAME
