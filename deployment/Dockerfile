@@ -4,6 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV BIN_DIR=/opt/deploy \
     SCRATCH_DIR=/etc/deploy \
+    SECRET_DIR=/secret \
     HOME=/etc/deploy \
     KUBECONFIG=/etc/deploy/.kubeconfig \
     WRITE_KUBECONFIG=1

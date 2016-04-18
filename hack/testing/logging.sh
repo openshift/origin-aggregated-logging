@@ -166,7 +166,7 @@ OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
 os::cmd::expect_success "oc new-project logging"
 os::cmd::expect_success "oc secrets new logging-deployer nothing=/dev/null"
 os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployment/deployer.yaml"
-os::cmd::expect_success "oc process logging-deployer-account-template | oc create -f -"
+os::cmd::expect_success "oc new-app logging-deployer-account-template"
 os::cmd::expect_success "oc policy add-role-to-user edit system:serviceaccount:logging:logging-deployer"
 os::cmd::expect_success "oc policy add-role-to-user daemonset-admin system:serviceaccount:logging:logging-deployer"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
@@ -218,7 +218,7 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
         sudo chown 1000:1000 $ES_OPS_VOLUME
     fi
     os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -v SIZE=10,PATH=${ES_OPS_VOLUME} | oc create -f -"
-    pvc_params=",ES_OPS_PVC_SIZE=10,ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
+    pvc_params="-p ES_OPS_PVC_SIZE=10 -p ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
 fi
 # TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
 # https://github.com/openshift/origin-aggregated-logging/issues/89
@@ -228,10 +228,14 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader \
                       system:serviceaccount:logging:aggregated-logging-fluentd"
 sleep 5
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
-    os::cmd::expect_success "oc process \
+    os::cmd::expect_success "oc new-app \
                           logging-deployer-template \
-                          -v ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER${pvc_params},IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
-                          | oc create -f -"
+                          -p ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER \
+                          ${pvc_params} \
+                          -p IMAGE_PREFIX=$imageprefix \
+                          -p KIBANA_HOSTNAME=kibana.example.com \
+                          -p ES_CLUSTER_SIZE=1 \
+                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} "
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
     os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
 fi
@@ -359,10 +363,13 @@ os::cmd::expect_success "oc delete pods -l component=deployer"
 #os::cmd::try_until_text "oc get pods -l component=deployer -o jsonpath='{.items[*].metadata.name}'" "" "$(( 3 * TIME_MIN ))"
 
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
-    os::cmd::expect_success "oc process \
+    os::cmd::expect_success "oc new-app \
                           logging-deployer-template \
-                          -v MODE=migrate,IMAGE_PREFIX=$imageprefix,KIBANA_HOSTNAME=kibana.example.com,ES_CLUSTER_SIZE=1,PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
-                          | oc create -f -"
+                          -p MODE=migrate \
+                          -p IMAGE_PREFIX=$imageprefix \
+                          -p KIBANA_HOSTNAME=kibana.example.com \
+                          -p ES_CLUSTER_SIZE=1 \
+                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} "
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
 
     MIGRATE_POD=$(oc get pod -l component=deployer -o jsonpath='{.items[*].metadata.name}')

@@ -20,6 +20,27 @@ items:
         provider: openshift
         component: deployer
     secrets:
+    - name: logging-deployer
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-kibana
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-elasticsearch
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-fluentd
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: aggregated-logging-curator
   - apiVersion: v1
     kind: ClusterRole
     metadata:

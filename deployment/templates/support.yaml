@@ -38,36 +38,6 @@ objects:
     component: support
   objects:
   -
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: aggregated-logging-kibana
-    secrets:
-      - name: logging-kibana
-      - name: logging-kibana-proxy
-      - name: logging-kibana-ops-proxy
-  -
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: aggregated-logging-elasticsearch
-    secrets:
-      - name: logging-elasticsearch
-  -
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: aggregated-logging-fluentd
-    secrets:
-      - name: logging-fluentd
-  -
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: aggregated-logging-curator
-    secrets:
-      - name: logging-curator
-  -
     apiVersion: "v1"
     kind: "Service"
     metadata:
