@@ -1,17 +1,22 @@
 #! /bin/bash
 
-set -exuo pipefail
+function uuid_migrate() {
+  set -exuo pipefail
+  initialize_uuid_vars
+  recreate_admin_certs
+  create_context
+  run_uuid_migration
+}
 
-dir=${SCRATCH_DIR:-_output}  # for writing files to bundle into secrets
-project=${PROJECT:-default}
-OPS_PROJECTS=("default" "openshift" "openshift-infra")
-CA=$dir/admin-ca.crt
-KEY=$dir/admin-key.key
-CERT=$dir/admin-cert.crt
+function initialize_uuid_vars() {
+  OPS_PROJECTS=("default" "openshift" "openshift-infra")
+  CA=$dir/admin-ca.crt
+  KEY=$dir/admin-key.key
+  CERT=$dir/admin-cert.crt
 
-es_host=${ES_HOST:-logging-es}
-es_port=${ES_PORT:-9200}
-project=${PROJECT:-default}
+  es_host=${ES_HOST:-logging-es}
+  es_port=${ES_PORT:-9200}
+}
 
 function create_alias() {
     output=`curl -s --cacert $CA --key $KEY --cert $CERT -XPOST "https://$es_host:$es_port/_aliases" -d "{ \"actions\": [ { \"add\": { \"index\": \"${1}.*\", \"alias\": \"${1}.${2}.reference\"}} ] }"`
@@ -21,7 +26,7 @@ function create_alias() {
 
 function create_context() {
 
-# there's no good way for oc to filter the list of secrets; and there can be several token secrets per SA.
+  # there's no good way for oc to filter the list of secrets; and there can be several token secrets per SA.
   # following template prints all tokens for aggregated-logging-fluentd; --sort-by will order them earliest to latest, we will use the last.
   local sa_token_secret_template='{{range .items}}{{if eq .type "kubernetes.io/service-account-token"}}{{if eq "aggregated-logging-fluentd" (index .metadata.annotations "kubernetes.io/service-account.name")}}{{.data.token}}
 {{end}}{{end}}{{end}}'
@@ -62,24 +67,23 @@ function recreate_admin_certs(){
 
 }
 
-recreate_admin_certs
-create_context
+function run_uuid_migration() {
+  PROJECTS=(`oc get project -o jsonpath='{.items[*].metadata.name}'`)
+  ES_PODS=$(oc get pods -l component=es | awk -e 'es ~ sel && $3 == "Running" {print $1}')
+  ES_POD=`echo $ES_PODS | cut -d' ' -f 1`
 
-PROJECTS=(`oc get project -o jsonpath='{.items[*].metadata.name}'`)
-ES_PODS=$(oc get pods -l component=es | awk -e 'es ~ sel && $3 == "Running" {print $1}')
-ES_POD=`echo $ES_PODS | cut -d' ' -f 1`
-
-if [[ -z "$ES_POD" ]]; then
-  echo "No Elasticsearch pods found running.  Cannot migrate."
-  echo "Scale up ES prior to running with MODE=migrate"
-  exit 1
-fi
-
-for index in "${PROJECTS[@]}"; do
-
-  if [[ ! ( ${OPS_PROJECTS[@]} =~ $index ) ]]; then
-    uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}')
-    create_alias $index $uid
+  if [[ -z "$ES_POD" ]]; then
+    echo "No Elasticsearch pods found running.  Cannot migrate."
+    echo "Scale up ES prior to running with MODE=migrate"
+    exit 1
   fi
 
-done
+  for index in "${PROJECTS[@]}"; do
+
+    if [[ ! ( ${OPS_PROJECTS[@]} =~ $index ) ]]; then
+      uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}')
+      create_alias $index $uid
+    fi
+
+  done
+}

@@ -2,6 +2,8 @@
 set -ex
 project=${PROJECT:-default}
 mode=${MODE:-install}
+dir=${SCRATCH_DIR:-_output}  # for writing files to bundle into secrets
+secret_dir=${SECRET_DIR:-_secret}  # for reading files from the secret
 # only needed for writing a kubeconfig:
 master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
 master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
@@ -23,12 +25,13 @@ if [ -n "${WRITE_KUBECONFIG}" ]; then
     oc config use-context current
 fi
 
+for file in scripts/*.sh; do source $file; done
 case "${mode}" in
   install)
-	  scripts/install.sh
+    install_logging
     ;;
   migrate)
-    scripts/uuid_migrate.sh
+    uuid_migrate
     ;;
   *)
     echo "Invalid mode provided. One of ['install'|'migrate'] was expected";
