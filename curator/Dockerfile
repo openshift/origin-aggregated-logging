@@ -18,7 +18,7 @@ ENV HOME=/opt/app-root/src \
     CURATOR_RUN_MINUTE=0
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator 3.4" \
+  io.k8s.display-name="Curator 3.5.1" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
 ADD run.sh install.sh run_cron.py ${HOME}/
