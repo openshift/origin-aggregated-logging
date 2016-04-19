@@ -38,6 +38,7 @@ ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 
 # includes util.sh and text.sh
 source "${OS_ROOT}/hack/cmd_util.sh"
+source "${OS_ROOT}/hack/lib/test/junit.sh"
 source "${OS_ROOT}/hack/common.sh"
 source "${OS_ROOT}/hack/lib/log.sh"
 os::log::install_errexit
@@ -48,6 +49,8 @@ os::util::environment::setup_time_vars
 cd "${OS_ROOT}"
 
 os::build::setup_env
+
+os::test::junit::declare_suite_start 'logging'
 
 function cleanup()
 {
@@ -60,6 +63,8 @@ function cleanup()
     fi
     echo
 
+    os::test::junit::declare_suite_end
+    os::test::junit::reconcile_output
     if [ "$DEBUG_FAILURES" = "true" ] ; then
         echo debug failures
         sleep 54321 || echo debugging done - continuing
