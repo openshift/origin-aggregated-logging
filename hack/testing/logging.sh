@@ -168,7 +168,8 @@ wait_for_registry
 ### create and deploy the logging component pods ###
 masterurlhack=",MASTER_URL=https://172.30.0.1:443"
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
-os::cmd::expect_success "oc new-project logging"
+os::cmd::expect_success "oadm new-project logging --node-selector=''"
+os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oc secrets new logging-deployer nothing=/dev/null"
 os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployment/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
