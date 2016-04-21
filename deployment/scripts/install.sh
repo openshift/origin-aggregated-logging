@@ -261,16 +261,20 @@ function generate_objects() {
     # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
     # note: no automatic deletion of persistentvolumeclaim; didn't seem wise
     oc process logging-support-template | oc create -f -
-    kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert='$dir/kibana.crt' --key='$dir/kibana.key'"
+    kibana_cert=""; [ -e "$dir/kibana.crt" ] && kibana_cert="$dir/kibana.crt"
+    kibana_key=""; [ -e "$dir/kibana.key" ] && kibana_key="$dir/kibana.key"
     oc create route reencrypt --service="logging-kibana" \
                               --hostname="${hostname}" \
                               --{dest-,}ca-cert="$dir/ca.crt" \
-                                    $kibana_keys
-    kibana_keys=""; [ -e "$dir/kibana-ops.crt" ] && kibana_keys="--cert='$dir/kibana-ops.crt' --key='$dir/kibana-ops.key'"
+                              --cert="${kibana_cert}" \
+                              --key="${kibana_key}"
+    kibana_cert=""; [ -e "$dir/kibana-ops.crt" ] && kibana_cert="$dir/kibana-ops.crt"
+    kibana_key=""; [ -e "$dir/kibana-ops.key" ] && kibana_key="$dir/kibana-ops.key"
     oc create route reencrypt --service="logging-kibana-ops" \
                               --hostname="${ops_hostname}" \
                               --{dest-,}ca-cert="$dir/ca.crt" \
-                                    $kibana_keys
+                              --cert="${kibana_cert}" \
+                              --key="${kibana_key}"
     # note: route labels are copied from service, no need to add
   fi
   oc new-app logging-imagestream-template || : # these may fail if created independently; that's ok
