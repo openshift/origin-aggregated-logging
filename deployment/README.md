@@ -627,4 +627,3 @@ by repeated deployer runs, remove the `logging-infra=support` label
 from them:
 
     oc label imagestream --all logging-infra-
-

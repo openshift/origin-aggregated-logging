@@ -86,39 +86,43 @@ function generate_support_objects() {
    # note: route labels are copied from service, no need to add
 }
 
+function generate_signer_cert_and_conf() {
+  # this fails in the container, but it's useful for dev
+  rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
+  mkdir -p $secret_dir && chmod 700 $secret_dir || :
+
+  # cp/generate CA
+  if [ -s $secret_dir/ca.key ]; then
+    cp {$secret_dir,$dir}/ca.key
+    cp {$secret_dir,$dir}/ca.crt
+    echo "01" > $dir/ca.serial.txt
+  else
+    openshift admin ca create-signer-cert  \
+      --key="${dir}/ca.key" \
+      --cert="${dir}/ca.crt" \
+      --serial="${dir}/ca.serial.txt" \
+      --name="logging-signer-$(date +%Y%m%d%H%M%S)"
+  fi
+
+  echo Generating signing configuration file
+  cat - conf/signing.conf > $dir/signing.conf <<CONF
+[ default ]
+dir                     = ${dir}               # Top dir
+CONF
+}
+
 ######################################
 #
 # generate secret contents and secrets
 #
 function generate_secrets() {
   if [ "${KEEP_SUPPORT}" != true ]; then
-    # this fails in the container, but it's useful for dev
-    rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
-    mkdir -p $secret_dir && chmod 700 $secret_dir || :
-
-    # cp/generate CA
-    if [ -s $secret_dir/ca.key ]; then
-      cp {$secret_dir,$dir}/ca.key
-      cp {$secret_dir,$dir}/ca.crt
-      echo "01" > $dir/ca.serial.txt
-    else
-      openshift admin ca create-signer-cert  \
-        --key="${dir}/ca.key" \
-        --cert="${dir}/ca.crt" \
-        --serial="${dir}/ca.serial.txt" \
-        --name="logging-signer-$(date +%Y%m%d%H%M%S)"
-    fi
+    generate_signer_cert_and_conf
 
     # use or generate Kibana proxy certs
     procure_server_cert kibana       # external cert, use router cert if not present
     procure_server_cert kibana-ops   # second external cert
     procure_server_cert kibana-internal kibana,kibana-ops,${hostname},${ops_hostname}
-
-    echo Generating signing configuration file
-    cat - conf/signing.conf > $dir/signing.conf <<CONF
-[ default ]
-dir                     = ${dir}               # Top dir
-CONF
 
     # use or copy proxy TLS configuration file
     if [ -s $secret_dir/server-tls.json ]; then

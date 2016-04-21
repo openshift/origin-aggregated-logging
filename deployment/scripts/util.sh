@@ -83,7 +83,7 @@ function generate_PEM_cert() {
 
   echo Generating keystore and certificate for node ${NODE_NAME}
 
-  openssl req -out "$dir/$NODE_NAME.csr" -new -newkey rsa:2048 -keyout "$dir/$NODE_NAME.key" -subj "/CN=$NODE_NAME/OU=OpenShift/O=Logging/L=Test/C=DE" -days 712 -nodes 
+  openssl req -out "$dir/$NODE_NAME.csr" -new -newkey rsa:2048 -keyout "$dir/$NODE_NAME.key" -subj "/CN=$NODE_NAME/OU=OpenShift/O=Logging/L=Test/C=DE" -days 712 -nodes
 
   echo Sign certificate request with CA
   openssl ca \
@@ -107,7 +107,7 @@ function extract_nodeselector() {
     keyval=( ${keyvalstr//=/ } )
 
     if [[ -n "${keyval[0]}" && -n "${keyval[1]}" ]]; then
-      selectors=( "${selectors[@]}" "\"${keyval[0]}\": \"${keyval[1]}\"")
+      selectors+=( "\"${keyval[0]}\": \"${keyval[1]}\"")
     else
       echo "Could not make a node selector label from '${keyval[*]}'"
       exit 255
@@ -118,5 +118,3 @@ function extract_nodeselector() {
     echo nodeSelector: "{" $(join , "${selectors[@]}") "}"
   fi
 }
-
-

@@ -33,8 +33,11 @@ case "${mode}" in
   migrate)
     uuid_migrate
     ;;
+  upgrade)
+    upgrade_logging
+    ;;
   *)
-    echo "Invalid mode provided. One of ['install'|'migrate'] was expected";
+    echo "Invalid mode provided. One of ['install'|'migrate'|'upgrade'] was expected";
     exit 1
     ;;
 esac

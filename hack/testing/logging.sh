@@ -140,6 +140,16 @@ function get_running_pod() {
     oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
 }
 
+function get_latest_pod() {
+
+  label=$1
+
+  local times=(`oc get pods -l $label -o jsonpath='{.items[*].metadata.creationTimestamp}' | xargs -n1 | sort -r | xargs`)
+  local pod=$(oc get pods -l $label -o jsonpath="{.items[?(@.metadata.creationTimestamp==\"${times[0]}\")].metadata.name}")
+
+  echo $pod
+}
+
 trap "exit" INT TERM
 trap "cleanup" EXIT
 
@@ -362,12 +372,6 @@ for test in test-*.sh ; do
 done
 
 #run a migration here to ensure that it is able to work
-# delete old deployer pod
-os::cmd::expect_success "oc delete pods -l component=deployer"
-
-#this does not do what i think it does...
-#os::cmd::try_until_text "oc get pods -l component=deployer -o jsonpath='{.items[*].metadata.name}'" "" "$(( 3 * TIME_MIN ))"
-
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
     os::cmd::expect_success "oc new-app \
                           logging-deployer-template \
@@ -378,12 +382,110 @@ if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
                           -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} "
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
 
-    MIGRATE_POD=$(oc get pod -l component=deployer -o jsonpath='{.items[*].metadata.name}')
+    MIGRATE_POD=$(get_latest_pod "component=deployer")
     # adding grep to cut down on log output noise
     os::cmd::try_until_text "oc logs $MIGRATE_POD | grep 'Migration for project'" "Migration for project test: {\"acknowledged\":true}" "$(( 3 * TIME_MIN ))"
     os::cmd::try_until_text "oc logs $MIGRATE_POD | grep 'Migration for project'" "Migration for project logging: {\"acknowledged\":true}" "$(( 3 * TIME_MIN ))"
-    os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
+    os::cmd::try_until_text "oc get pod $MIGRATE_POD" "Completed" "$(( 3 * TIME_MIN ))"
 fi
+
+#upgrade-test
+function removeCurator() {
+  echo "removing curator"
+  for curator_dc in $(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}'); do
+    os::cmd::expect_success "oc delete dc $curator_dc"
+  done
+
+  # we don't want to actually delete the IS since we are using a dev build... otherwise curator won't start
+  #os::cmd::expect_success "oc delete is logging-curator"
+
+  curatorpod=$(oc get pod -l component=curator -o jsonpath='{.items[*].metadata.name}')
+  os::cmd::try_until_failure "oc describe pod $curatorpod > /dev/null" "$(( 3 * TIME_MIN ))"
+}
+
+function useFluentdDC() {
+  echo "installing fluentd DC"
+
+  fluentdpod=$(oc get pod -l component=fluentd -o jsonpath='{.items[*].metadata.name}')
+  ops_host=$(oc get pod $fluentdpod -o jsonpath='{.spec.containers[*].env[?(@.name=="OPS_HOST")].value}')
+  ops_port=$(oc get pod $fluentdpod -o jsonpath='{.spec.containers[*].env[?(@.name=="OPS_PORT")].value}')
+
+  os::cmd::expect_success "oc delete daemonset logging-fluentd"
+  os::cmd::expect_success "oc delete template logging-fluentd-template"
+
+  os::cmd::try_until_failure "oc describe pod $fluentdpod > /dev/null" "$(( 3 * TIME_MIN ))"
+
+  os::cmd::expect_success "oc process -f templates/fluentd_dc.yaml \
+     -v IMAGE_PREFIX_DEFAULT=$imageprefix,OPS_HOST=$ops_host,OPS_PORT=$ops_port | oc create -f -"
+
+  os::cmd::expect_success "oc new-app logging-fluentd-template"
+
+  os::cmd::expect_success "oc scale dc logging-fluentd --replicas=1"
+  os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
+}
+
+function removeAdminCert() {
+  echo "removing admin cert"
+
+  # the upgrade script looks for
+  # $(oc get secrets -o jsonpath='{.items[?(@.data.admin-cert)].metadata.name}')
+  # to exist
+
+  os::cmd::expect_success "oc patch secret logging-elasticsearch -p '{\"data\":{\"admin-cert\": null}}'"
+}
+
+function upgrade() {
+  echo "running with upgrade mode"
+
+  os::cmd::expect_success "oc new-app \
+                        logging-deployer-template \
+                        -p ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER \
+                        ${pvc_params} \
+                        -p IMAGE_PREFIX=$imageprefix \
+                        -p KIBANA_HOSTNAME=kibana.example.com \
+                        -p ES_CLUSTER_SIZE=1 \
+                        -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                        -p MODE=upgrade"
+
+  UPGRADE_POD=$(get_latest_pod "component=deployer")
+  #os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
+
+  # Giving the upgrade process a bit more time to run to completion... failed last time at 3 minutes
+  os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 10 * TIME_MIN ))"
+
+  os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=curator" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
+}
+
+TEST_DIVIDER="------------------------------------------"
+
+echo $TEST_DIVIDER
+# test from base install
+removeCurator
+useFluentdDC
+removeAdminCert
+upgrade
+./e2e-test.sh  $USE_CLUSTER
+
+echo $TEST_DIVIDER
+# test from first upgrade
+removeCurator
+useFluentdDC
+upgrade
+./e2e-test.sh $USE_CLUSTER
+
+echo $TEST_DIVIDER
+# test from half upgrade
+removeCurator
+upgrade
+./e2e-test.sh  $USE_CLUSTER
+
+echo $TEST_DIVIDER
+useFluentdDC
+upgrade
+./e2e-test.sh  $USE_CLUSTER
 
 popd
 ### finished logging e2e tests ###
