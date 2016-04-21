@@ -12,7 +12,7 @@ source "${OS_ROOT}/hack/common.sh"
 # Go to the top of the tree.
 cd "${OS_ROOT}"
 
-if [[ -z "${OS_TAG}" ]]; then
+if [[ -z "${OS_TAG-}" ]]; then
   echo "You must specify the OS_TAG variable as the name of the tag to create, e.g. 'v1.0.1'."
   exit 1
 fi
@@ -46,7 +46,7 @@ docker pull centos:centos7
 
 hack/build-release.sh
 OS_TAG=${tag} hack/build-images.sh
-OS_PUSH_TAG="${tag}" OS_TAG="" OS_PUSH_LOCAL="1" hack/push-release.sh
+OS_PUSH_TAG="${tag}" OS_TAG="${tag}" OS_PUSH_LOCAL="1" hack/push-release.sh
 
 echo
 echo "Pushed ${tag} to DockerHub"
