@@ -7,9 +7,7 @@ TIMES=300
 fluentd_nodes=""
 fluentd_nodeselector="logging-infra-fluentd=true"
 
-# this should be updated to get the lowest found version
-function getSvcVersion() {
-
+function getDeploymentVersion() {
   #base this on what isn't installed
   local version=0
 
@@ -218,7 +216,6 @@ function scaleDown() {
   done
 
   # probably can refactor this out into a function...
-  # TODO: keep track of number of instances we had deployed before?
   local kibana_dc=(`oc get dc -l logging-infra=kibana -o jsonpath='{.items[*].metadata.name}'`)
   for dc in "${kibana_dc[@]}"; do
     oc scale --replicas=0 dc $dc
@@ -276,7 +273,9 @@ function updateImages() {
 function add_curator() {
 
   echo "Adding curator..."
-  # generate the template
+  # this may fail otherwise if there was only a partial upgrade previously
+  oc delete dc,rc,template --selector logging-infra=curator || :
+
   generate_curator_template
   generate_curator
 }
@@ -284,7 +283,9 @@ function add_curator() {
 function fluentd_daemonset() {
   echo "Updating Fluentd to use Daemonset..."
 
-  # Delete old deployment and create new one
+  # this may fail otherwise if there was only a partial upgrade previously
+  oc delete dc,rc,template,daemonset --selector logging-infra=fluentd || :
+
   generate_fluentd_template
   generate_fluentd
 }
@@ -292,22 +293,41 @@ function fluentd_daemonset() {
 function upgrade_notify() {
   set +x
   echo "Upgrade complete!"
+  cat <<EOF
 
-  # this should just be scaling up fluentd to whichever nodes it was already deployed on
-  # TODO: make this a little bit smarter?  if fluentd was already deployed with daemonsets the nodes should still be labelled...
-  if [[ -n "${fluentd_nodes:-}" ]]; then
-      echo "As a cluster-admin user run the following to schedule Fluentd to your previously deployed nodes"
-      echo $ oc label nodes $(join , "${fluentd_nodes[@]}") $fluentd_nodeselector
-  else
-      echo "Your Fluentd now uses a Daemonset to schedule pod deployment."
-      echo "You can deploy Fluentd to all your nodes with"
-      echo "$ oc label nodes --all $fluentd_nodeselector"
-  fi
+=================================
+
+The deployer has created additional secrets, templates, and component deployments
+as part of the upgrade process. You may now have a few more steps to run manually.
+Consult the deployer docs for more detail.
+
+Fluentd:
+--------------
+Fluentd is deployed to nodes via a DaemonSet. If this is new for your deployment:
+as a cluster admin label the nodes you'd like to deploy it to:
+    oc label node/<node-name> ${fluentd_nodeselector}
+
+To label all nodes at once:
+    oc label nodes --all ${fluentd_nodeselector}
+
+Note: if your previous deployment used a DaemonSet for Fluentd, there should be
+no additional actions to deploy your pods -- the deployer did not unlabel any nodes.
+EOF
+}
+
+function regenerate_secrets_and_support_objects() {
+  oc process logging-support-template | oc delete -f - || :
+  oc delete imagestream,service,route,template --selector logging-infra=support
+  # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
+  # note: no automatic deletion of persistentvolumeclaim; didn't seem wise
+
+  generate_secrets
+  generate_support_objects
 }
 
 function upgrade_logging() {
 
-  installedVersion=$(getSvcVersion)
+  installedVersion=$(getDeploymentVersion)
   local migrate=
 
   # VERSIONS
@@ -323,7 +343,7 @@ function upgrade_logging() {
     initialize_install_vars
 
     # Does it make sense to just do this always?
-    generate_secrets
+    regenerate_secrets_and_support_objects
     # This needs to happen before the uuid_migrate....
     updateImages
 

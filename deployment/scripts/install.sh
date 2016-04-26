@@ -1,9 +1,18 @@
 #!/bin/bash
 set -ex
 
+function delete_logging() {
+  initialize_install_vars
+  echo "Attempting to delete supporting objects (may fail)"
+  # delete oauthclient created in template; we can't search for it by label. the rest is incidental.
+  oc process logging-support-template | oc delete -f - || :
+  oc delete all,templates,secrets,daemonset --selector logging-infra
+}
+
 function install_logging() {
   initialize_install_vars
   generate_secrets
+  generate_support_objects
   generate_templates
   generate_objects
   notify_user
@@ -61,17 +70,12 @@ function procure_server_cert() {
 
 function generate_support_objects() {
 
-  oc delete template --selector logging-infra=support
   oc new-app -f templates/support.yaml \
      --param OAUTH_SECRET=$(cat $dir/oauth-secret) \
      --param KIBANA_HOSTNAME=${hostname} \
      --param KIBANA_OPS_HOSTNAME=${ops_hostname} \
      --param IMAGE_PREFIX_DEFAULT=${image_prefix}
 
-  oc process logging-support-template | oc delete -f - || :
-  oc delete imagestream,service,route --selector logging-infra=support
-  # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
-  # note: no automatic deletion of persistentvolumeclaim; didn't seem wise
   oc new-app logging-support-template
   kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert=$dir/kibana.crt --key=$dir/kibana.key"
   oc create route reencrypt --service="logging-kibana" \
@@ -154,7 +158,7 @@ function generate_secrets() {
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1 > "$dir/oauth-secret"
 
     # (re)generate secrets
-    echo "Deleting existing secrets"
+    echo "Deleting secrets"
     oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-kibana-ops-proxy logging-curator logging-curator-ops || :
 
     echo "Creating secrets"
@@ -191,11 +195,6 @@ function generate_secrets() {
     oc secrets add serviceaccount/aggregated-logging-curator \
                    logging-curator
 
-    # this does seem a little out of place for the scope of this function
-    # but this is being placed here to avoid the support template being out of sync
-    # with a la carte installations
-    # if we are regenerating certificates we *need* to rebuild our support template/objects
-    generate_support_objects
   fi # supporting infrastructure - secrets
 }
 
@@ -210,8 +209,6 @@ function create_template_optional_nodeselector(){
 }
 
 function generate_es_template(){
-  oc delete template --selector logging-infra=elasticsearch
-
   create_template_optional_nodeselector "${ES_NODESELECTOR}" es \
     --param ES_CLUSTER_NAME=es \
     --param ES_INSTANCE_RAM=${es_instance_ram} \
@@ -234,8 +231,6 @@ function generate_es_template(){
 }
 
 function generate_kibana_template(){
-  oc delete template --selector logging-infra=kibana
-
   create_template_optional_nodeselector "${KIBANA_NODESELECTOR}" kibana \
     --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
     --param OAP_MASTER_URL=${master_url} \
@@ -252,8 +247,6 @@ function generate_kibana_template(){
 }
 
 function generate_curator_template(){
-  oc delete template --selector logging-infra=curator
-
   create_template_optional_nodeselector "${CURATOR_NODESELECTOR}" curator \
     --param ES_HOST=logging-es \
     --param MASTER_URL=${master_url} \
@@ -270,8 +263,6 @@ function generate_curator_template(){
 }
 
 function generate_fluentd_template(){
-  oc delete template --selector logging-infra=fluentd
-
   es_host=logging-es
   es_ops_host=${es_host}
   if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
@@ -299,8 +290,6 @@ function generate_templates() {
 } #generate_templates()
 
 function generate_curator() {
-  oc delete dc,rc,pod --selector logging-infra=curator
-
   oc new-app logging-curator-template
   if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
     oc new-app logging-curator-ops-template
@@ -308,8 +297,6 @@ function generate_curator() {
 }
 
 function generate_kibana() {
-  oc delete dc,rc,pod --selector logging-infra=kibana
-
   oc new-app logging-kibana-template
   if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
     oc new-app logging-kibana-ops-template
@@ -317,14 +304,10 @@ function generate_kibana() {
 }
 
 function generate_fluentd() {
-  oc delete dc,rc,pod,daemonset --selector logging-infra=fluentd
-
   oc new-app logging-fluentd-template
 }
 
 function generate_es() {
-  oc delete dc,rc,pod --selector logging-infra=elasticsearch
-
   declare -A pvcs=()
   for pvc in $(oc get persistentvolumeclaim --template='{{range .items}}{{.metadata.name}} {{end}}' 2>/dev/null); do
     pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting

@@ -30,6 +30,13 @@ case "${mode}" in
   install)
     install_logging
     ;;
+  uninstall)
+    delete_logging
+    ;;
+  reinstall)
+    delete_logging
+    install_logging
+    ;;
   migrate)
     uuid_migrate
     ;;
@@ -37,7 +44,7 @@ case "${mode}" in
     upgrade_logging
     ;;
   *)
-    echo "Invalid mode provided. One of ['install'|'migrate'|'upgrade'] was expected";
+    echo "Invalid mode provided. One of ['install'|'uninstall'|'reinstall'|'migrate'|'upgrade'] was expected";
     exit 1
     ;;
 esac
