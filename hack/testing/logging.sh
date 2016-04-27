@@ -251,7 +251,8 @@ if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
                           -p IMAGE_PREFIX=$imageprefix \
                           -p KIBANA_HOSTNAME=kibana.example.com \
                           -p ES_CLUSTER_SIZE=1 \
-                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} "
+                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack}"
+
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
     os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
 fi
@@ -379,7 +380,8 @@ if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
                           -p IMAGE_PREFIX=$imageprefix \
                           -p KIBANA_HOSTNAME=kibana.example.com \
                           -p ES_CLUSTER_SIZE=1 \
-                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} "
+                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack}"
+
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
 
     MIGRATE_POD=$(get_latest_pod "component=deployer")
@@ -395,9 +397,6 @@ function removeCurator() {
   for curator_dc in $(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}'); do
     os::cmd::expect_success "oc delete dc $curator_dc"
   done
-
-  # we don't want to actually delete the IS since we are using a dev build... otherwise curator won't start
-  #os::cmd::expect_success "oc delete is logging-curator"
 
   curatorpod=$(oc get pod -l component=curator -o jsonpath='{.items[*].metadata.name}')
   os::cmd::try_until_failure "oc describe pod $curatorpod > /dev/null" "$(( 3 * TIME_MIN ))"
@@ -448,10 +447,36 @@ function upgrade() {
                         -p MODE=upgrade"
 
   UPGRADE_POD=$(get_latest_pod "component=deployer")
-  #os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
 
-  # Giving the upgrade process a bit more time to run to completion... failed last time at 3 minutes
-  os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 10 * TIME_MIN ))"
+  # Giving the upgrade process a bit more time to run to completion... failed last time at 10 minutes
+  os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 5 * TIME_MIN ))"
+
+  os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=curator" "Running" "$(( 3 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
+
+  # sleep for a short period of time to let change configs trigger
+  sleep 120
+}
+
+function reinstall() {
+  echo "running with reinstall mode"
+
+  os::cmd::expect_success "oc new-app \
+                        logging-deployer-template \
+                        -p ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER \
+                        ${pvc_params} \
+                        -p IMAGE_PREFIX=$imageprefix \
+                        -p KIBANA_HOSTNAME=kibana.example.com \
+                        -p ES_CLUSTER_SIZE=1 \
+                        -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                        -p MODE=reinstall"
+
+  REINSTALL_POD=$(get_latest_pod "component=deployer")
+
+  # Giving the upgrade process a bit more time to run to completion... failed last time at 10 minutes
+  os::cmd::try_until_text "oc get pods $REINSTALL_POD" "Completed" "$(( 5 * TIME_MIN ))"
 
   os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
   os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
@@ -467,7 +492,7 @@ removeCurator
 useFluentdDC
 removeAdminCert
 upgrade
-./e2e-test.sh  $USE_CLUSTER
+./e2e-test.sh $USE_CLUSTER
 
 echo $TEST_DIVIDER
 # test from first upgrade
@@ -480,12 +505,20 @@ echo $TEST_DIVIDER
 # test from half upgrade
 removeCurator
 upgrade
-./e2e-test.sh  $USE_CLUSTER
+./e2e-test.sh $USE_CLUSTER
 
 echo $TEST_DIVIDER
 useFluentdDC
 upgrade
-./e2e-test.sh  $USE_CLUSTER
+./e2e-test.sh $USE_CLUSTER
+
+echo $TEST_DIVIDER
+upgrade
+./e2e-test.sh $USE_CLUSTER
+
+echo $TEST_DIVIDER
+reinstall
+./e2e-test.sh $USE_CLUSTER
 
 popd
 ### finished logging e2e tests ###

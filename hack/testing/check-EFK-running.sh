@@ -6,6 +6,18 @@ else
   set -e
 fi
 
+TIMES=300
+
+function waitFor() {
+
+  local statement=$1
+  for (( i=1; i<=$TIMES; i++ )); do
+    eval "$statement" && return 0
+    sleep 1
+  done
+  return 1
+}
+
 # add one since fluentd will be deployed via a daemonset
 # keeping as -2 + 1 for readibilty
 ADDITIONAL_PODS=$((KIBANA_CLUSTER_SIZE + ES_CLUSTER_SIZE - 2 + 1))
@@ -58,7 +70,7 @@ fi
 echo $TEST_DIVIDER
 # Check that we have DC
 
-FOUND_DC=(`oc get dc -o jsonpath='{.items[?(@.metadata.labels.logging-infra)].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
+FOUND_DC=(`oc get dc -l logging-infra -o jsonpath='{.items[*].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
 DC_COUNT=${#FOUND_DC[@]}
 DC_MESSAGE="[$DC_COUNT/$COMPONENTS_COUNT] deployment configs found."
 
@@ -83,7 +95,7 @@ fi
 echo $TEST_DIVIDER
 # Check that we have RC
 
-FOUND_RC=(`oc get rc -o jsonpath='{.items[?(@.metadata.labels.logging-infra)].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
+FOUND_RC=(`oc get rc -l logging-infra -o jsonpath='{.items[*].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
 RC_COUNT=${#FOUND_RC[@]}
 RC_MESSAGE="[$RC_COUNT/$COMPONENTS_COUNT] unique replication controllers found."
 
@@ -193,10 +205,15 @@ fi
 
 echo $TEST_DIVIDER
 # Check that Pods are running
-
 # we want to only look for currently running pods
+waitFor "[[ ${#NEEDED_COMPONENTS[@]} -eq \$(oc get pods -o jsonpath='{.items[*].metadata.labels.deployment}' | wc -w) ]]"
+if [[ $? -ne 0 ]]; then
+  echo "Timed out waiting for triggered deployments to complete..."
+  # should this exit?
+fi
+
 NEEDED_PODS=("${NEEDED_COMPONENTS[@]}" logging-fluentd)
-FOUND_PODS=(`oc get pods -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | xargs -n1 | grep 'logging' | xargs`)
+FOUND_PODS=(`oc get pods -l component -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}'`)
 POD_COUNT=${#FOUND_PODS[@]}
 POD_MESSAGE="[$POD_COUNT/$((COMPONENTS_COUNT + ADDITIONAL_PODS))] running pods found."
 

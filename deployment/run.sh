@@ -43,8 +43,14 @@ case "${mode}" in
   upgrade)
     upgrade_logging
     ;;
+  stop)
+    scaleDown
+    ;;
+  start)
+    scaleUp
+    ;;
   *)
-    echo "Invalid mode provided. One of ['install'|'uninstall'|'reinstall'|'migrate'|'upgrade'] was expected";
+    echo "Invalid mode provided. One of ['install'|'uninstall'|'reinstall'|'migrate'|'upgrade'|'start'|'stop'] was expected";
     exit 1
     ;;
 esac

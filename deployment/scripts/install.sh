@@ -3,10 +3,12 @@ set -ex
 
 function delete_logging() {
   initialize_install_vars
-  echo "Attempting to delete supporting objects (may fail)"
-  # delete oauthclient created in template; we can't search for it by label. the rest is incidental.
+  echo "Deleting all other logging objects"
   oc process logging-support-template | oc delete -f - || :
-  oc delete all,templates,secrets,daemonset --selector logging-infra
+  oc delete dc,rc,svc,routes,templates,daemonset --selector logging-infra
+  oc delete is -l logging-infra=support
+  # secrets don't have label selectors
+  oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-kibana-ops-proxy logging-curator logging-curator-ops || :
 }
 
 function install_logging() {
@@ -336,7 +338,8 @@ function generate_es() {
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
-            oc process logging-es-ops-template | oc volume -f - \
+            oc process logging-es-ops-template | \
+              oc volume -f - \
                   --add --overwrite --name=elasticsearch-storage \
                   --type=persistentVolumeClaim --claim-name="$pvc"
       else

@@ -3,31 +3,48 @@
 set -ex
 
 TIMES=300
-
-fluentd_nodes=""
 fluentd_nodeselector="logging-infra-fluentd=true"
 
 function getDeploymentVersion() {
   #base this on what isn't installed
-  local version=0
 
   # Check for the admin cert
-  if [[ -n "$(oc get secrets -o jsonpath='{.items[?(@.data.admin-cert)].metadata.name}')" ]]; then
-    version=1
-  else
-    echo "$version"
+  if [[ -z "$(oc get secrets -o jsonpath='{.items[?(@.data.admin-cert)].metadata.name}')" ]]; then
+    echo 0
     return
   fi
 
   # Check for fluentd daemonset and curator
-  if [[ -n "$(oc get daemonset -o jsonpath='{.items[?(@.metadata.name=="logging-fluentd")].metadata.name}')" && -n "$(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}')" ]]; then
-    version=2
-  else
-    echo "$version"
+  if [[ -z "$(oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}')" || -z "$(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}')" ]]; then
+    echo 1
     return
   fi
 
-  echo "$version"
+  echo "$LOGGING_VERSION"
+}
+
+function waitFor() {
+
+  local statement=$1
+  for (( i=1; i<=$TIMES; i++ )); do
+    eval "$statement" && return 0
+    sleep 1
+  done
+  return 1
+}
+
+function waitForValue() {
+
+  local value=$1
+
+  waitFor "[[ -n \$($value) ]]"
+  if [[ $? -ne 0 ]]; then
+    echo "$value not found within $TIMES seconds"
+    return 1
+  else
+    eval $value
+    return 0
+  fi
 }
 
 function waitForStop() {
@@ -35,17 +52,8 @@ function waitForStop() {
   local pod_name=$1
   local label=$2
 
-  STOPPED=0
-  for i in $(seq 1 $TIMES); do
-    if [[ -n $(oc get pods -l $label -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}') ]]; then
-      sleep 1
-    else
-      STOPPED=1
-      break
-    fi
-  done
-
-  if [[ $STOPPED -eq 0 ]]; then
+  waitFor "[[ -z \$(oc get pods -l $label -o jsonpath='{.items[?(@.status.phase==\"Running\")].metadata.name}') ]]"
+  if [[ $? -ne 0 ]]; then
     echo "$pod_name not stopped within $TIMES seconds"
     return 1
   else
@@ -56,19 +64,9 @@ function waitForStop() {
 function waitForStart() {
 
   local pod_name=$1
-  #local label=$2
 
-  STARTED=0
-  for i in $(seq 1 $TIMES); do
-    if [[ "Running" == "$(oc get pod $pod_name -o jsonpath='{.status.phase}')" ]]; then
-      sleep 1
-    else
-      STARTED=1
-      break
-    fi
-  done
-
-  if [[ $STARTED -eq 0 ]]; then
+  waitFor "[[ \"Running\" == \"\$(oc get pod $pod_name -o jsonpath='{.status.phase}')\" ]]"
+  if [[ $? -ne 0 ]]; then
     echo "$pod_name not started within $TIMES seconds"
     return 1
   else
@@ -80,19 +78,10 @@ function waitForStart() {
 function getPodName() {
 
   local dc=$1
+  local pod
 
-  FOUND=0
-  for i in $(seq 1 $TIMES); do
-    local pod=$(oc get pod -l deploymentconfig=$dc -o jsonpath="{.items[?(.metadata.labels.deploymentconfig==\"$dc\")].metadata.name}")
-    if [[ -z "$pod" ]]; then
-      sleep 1
-    else
-      FOUND=1
-      break
-    fi
-  done
-
-  if [[ $FOUND -eq 0 ]]; then
+  pod=$(waitForValue "oc get pod -l deploymentconfig=$dc -o jsonpath='{.items[?(.metadata.labels.deploymentconfig==\"$dc\")].metadata.name}'")
+  if [[ $? -ne 0 ]]; then
     return 1
   else
     echo "$pod"
@@ -102,18 +91,10 @@ function getPodName() {
 function checkESStarted() {
 
   local pod=$1
+  local cluster_service
 
-  FOUND=0
-  for i in $(seq 1 $TIMES); do
-    local cluster_service=$(oc logs $1 | grep "\[cluster\.service[[:space:]]*\]")
-    if [[ -z "$cluster_service" ]]; then
-      sleep 1
-    else
-      FOUND=1
-      break
-    fi
-  done
-  if [[ $FOUND -eq 0 ]]; then
+  cluster_service=$(waitForValue "oc logs $pod | grep '\[cluster\.service[[:space:]]*\]'")
+  if [[ $? -ne 0 ]]; then
     echo "Unable to find log message from cluster.service within $TIMES seconds"
     return 1
   fi
@@ -128,16 +109,9 @@ function checkESStarted() {
 
   # Check that we started
   #  check for output from "[node " with "] started"
-  FOUND=0
-  for i in $(seq 1 $TIMES); do
-    if [[ -z $(oc logs $1 | grep "\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started") ]]; then
-      sleep 1
-    else
-      FOUND=1
-      break
-    fi
-  done
-  if [[ $FOUND -eq 0 ]]; then
+
+  waitFor "[[ -n \"\$(oc logs $pod | grep '\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started')\" ]]"
+  if [[ $? -ne 0 ]]; then
     echo "Unable to find log message from node that ES started within $TIMES seconds"
     return 1
   fi
@@ -145,23 +119,13 @@ function checkESStarted() {
   # Check that it recovered its indices after starting if we're a master
   #  check for output from "[gateway" with "] recovered[:num:] indices into cluster state"
   if [[ -n "$master" ]]; then
-    FOUND=0
-    for i in $(seq 1 $TIMES); do
-      # node names are as complicated as "Lilith, the Daughter of Dracula" so we'll just match .*
-      if [[ -z $(oc logs $1 | grep "\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state") ]]; then
-        sleep 1
-      else
-        FOUND=1
-        break
-      fi
-    done
-    if [[ $FOUND -eq 0 ]]; then
+    waitFor "[[ -n \"\$(oc logs $pod | grep '\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state')\" ]]"
+    if [[ $? -ne 0 ]]; then
       echo "Unable to find log message from gateway that ES recovered its indices within $TIMES seconds"
       return 1
     fi
   else
-    # Does this check make sense to happen after we check if the node started?
-    # TODO: verify the order that a non-master node does its checks...
+    # if we aren't master we should be started by now and should have detected a master
     if [[ -z "$non_master" ]]; then
       echo "Node isn't master and was unable to detect master"
       return 1
@@ -173,19 +137,47 @@ function checkKibanaStarted() {
 
   local pod=$1
 
-  #TODO: this looping logic can probably be refactored into a function
-  FOUND=0
-  for i in $(seq 1 $TIMES); do
-    if [[ -z $(oc logs $1 -c kibana | grep "Listening on 0.0.0.0:5601") ]]; then
-      sleep 1
-    else
-      FOUND=1
-      break
-    fi
-  done
-  if [[ $FOUND -eq 0 ]]; then
+  waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Listening on 0.0.0.0:5601') ]]"
+  if [[ $? -ne 0 ]]; then
     echo "Kibana was not able to start up within $TIMES seconds"
-    return 0
+    return 1
+  fi
+}
+
+# This function looks for the annotation "previousReplicas" and returns that value
+# if it exists, otherwise it returns "1"
+function getPreviousReplicas() {
+
+  local dc=$1
+  # no easy way to test if previousReplicas already exist; throws error if they don't and cant do a label pull for a specific DC on a DC
+  # e.g. no `oc get dc -l deploymentconfig=$dc -o jsonpath='{.items[?(@.metadata.annotations.previousReplicas)].metadata.annotations.previousReplicas}'`
+  if [[ -n $(oc get dc/$dc -o jsonpath='{.metadata.annotations}' | grep 'previousReplicas') ]]; then
+    oc get dc/${dc} -o jsonpath='{.metadata.annotations.previousReplicas}'
+  else
+    echo "1"
+  fi
+}
+
+function scaleDownDCsAndWait() {
+
+  local infra=$1
+  local component=${2:-$infra}
+  local ops=${3:-true}
+
+  local dcs=$(oc get dc -l logging-infra=$infra -o jsonpath='{.items[*].metadata.name}')
+  for dc in $dcs; do
+    oc annotate dc/${dc} previousReplicas=$(oc get dc/${dc} -o jsonpath='{.spec.replicas}') --overwrite
+    oc scale --replicas=0 dc $dc
+  done
+
+  for pod in $(oc get pods -l component=$component -o jsonpath='{.items[*].metadata.name}'); do
+    waitForStop $pod "component=$component"
+  done
+
+  if $ops; then
+    for pod in $(oc get pods -l component=${component}-ops -o jsonpath='{.items[*].metadata.name}'); do
+      waitForStop $pod "component=${component}-ops"
+    done
   fi
 }
 
@@ -194,10 +186,7 @@ function scaleDown() {
   # check for a fluentd dc, if there isn't one it was either deleted or using a daemonset
   local fluentd_dc=(`oc get dc -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}'`)
 
-  # find what nodes fluentd is currently deployed to
-  fluentd_nodes=(`oc get pods -l component=fluentd -o jsonpath='{.items[*].spec.nodeName}'`)
   if [[ -z "$fluentd_dc" ]]; then
-    # oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}'
     local selector=$(oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].spec.template.spec.nodeSelector}')
     if [[ -n "$selector" ]]; then
       fluentd_nodeselector=$(echo ${selector:4:-1} | sed 's/:/=/g')
@@ -206,55 +195,180 @@ function scaleDown() {
     fi
   else
     # we are using a deployment config, scale down here
+    # annotate in case we aren't upgrading, only stopping and starting
     for dc in "${fluentd_dc[@]}"; do
+      oc annotate dc/${dc} previousReplicas=$(oc get dc/${dc} -o jsonpath='{.spec.replicas}') --overwrite
       oc scale --replicas=0 dc $dc
     done
   fi
-
   for pod in $(oc get pods -l component=fluentd -o jsonpath='{.items[*].metadata.name}'); do
     waitForStop $pod "component=fluentd"
   done
 
-  # probably can refactor this out into a function...
-  local kibana_dc=(`oc get dc -l logging-infra=kibana -o jsonpath='{.items[*].metadata.name}'`)
-  for dc in "${kibana_dc[@]}"; do
-    oc scale --replicas=0 dc $dc
-  done
-  for pod in $(oc get pods -l component=kibana -o jsonpath='{.items[*].metadata.name}'); do
-    waitForStop $pod "component=kibana"
-  done
+# Curator
+  scaleDownDCsAndWait "curator"
 
-  local elasticsearch_dc=(`oc get dc -l logging-infra=elasticsearch -o jsonpath='{.items[*].metadata.name}'`)
-  for dc in "${elasticsearch_dc[@]}"; do
-    oc scale --replicas=0 dc $dc
+# Kibana
+  scaleDownDCsAndWait "kibana"
+
+# Elasticsearch
+  scaleDownDCsAndWait "elasticsearch" "es"
+}
+
+function scaleUpDCsAndCheck() {
+
+  local component=$1
+  local extraCheck=$2
+
+  local dcs=$(oc get dc -l logging-infra=$component -o jsonpath='{.items[*].metadata.name}')
+
+  for dc in $dcs; do
+    oc scale --replicas=$(getPreviousReplicas "$dc") dc $dc
   done
-  for pod in $(oc get pods -l component=es -o jsonpath='{.items[*].metadata.name}'); do
-    waitForStop $pod "component=es"
+  # scale them all up first and then check that they started up
+  for dc in $dcs; do
+    if [[ $(getPreviousReplicas "$dc") -gt 0 ]]; then
+      for pod in $(getPodName $dc); do
+        waitForStart $pod
+
+        if [[ -n $extraCheck ]]; then
+          eval $extraCheck $pod
+        fi
+      done
+    fi
   done
 }
 
 function scaleUp() {
 
-  # scale up ES slowly -- we want to wait for each instance to recover its indices first
-  local elasticsearch_dc=(`oc get dc -l logging-infra=elasticsearch -o jsonpath='{.items[*].metadata.name}'`)
-  for dc in "${elasticsearch_dc[@]}"; do
-    oc scale --replicas=1 dc $dc
+# Elasticsearch
+  scaleUpDCsAndCheck "elasticsearch" "checkESStarted"
 
-    pod=$(getPodName $dc)
-    waitForStart $pod
+# Curator
+  scaleUpDCsAndCheck "curator"
 
-    # the first one we start gets to be the master
-    checkESStarted $pod
+# Kibana
+  scaleUpDCsAndCheck "kibana" "checkKibanaStarted"
+
+# Fluentd
+  # check for fluentd DC first -- we may not have done an upgrade so we won't have a daemonset to create
+  local fluentd_dc=(`oc get dc -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}'`)
+
+  if [[ -z "$fluentd_dc" ]]; then
+    if [[ -z $(oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}') ]]; then
+      # if the daemonset doesn't exist, recreate it here
+      if [[ -z $(oc get template -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}') ]]; then
+        #  if the template doesn't exist, recreate it
+        generate_fluentd_template
+      fi
+
+      generate_fluentd
+    fi
+  else
+    # we are using a deployment config, scale up here
+    # we don't need to make sure fluentd started up...?
+    for dc in "${fluentd_dc[@]}"; do
+      oc scale --replicas=$(getPreviousReplicas "$dc") dc $dc
+    done
+  fi
+}
+
+function getArrayIndex() {
+
+  local object=$1
+  local path=$2
+  local name=$3
+  local to_match=$4
+
+  local length=$(oc get $object -o jsonpath="{$path[*].$name}" | xargs -n1 | wc -l)
+
+  local matched_indices=()
+
+  for index in $(seq 0 $((length - 1)) ); do
+    if [[ "$to_match" == $(oc get $object -o jsonpath="{$path[$index].$name}") ]]; then
+      matched_indices+=( $index)
+    fi
   done
 
-  local kibana_dc=(`oc get dc -l logging-infra=kibana -o jsonpath='{.items[*].metadata.name}'`)
-  for dc in "${kibana_dc[@]}"; do
-    oc scale --replicas=1 dc $dc
+  if [[ -z "${matched_indices[@]}" ]]; then
+    echo "-1"
+  else
+    echo "${matched_indices[@]}"
+  fi
+}
 
-    pod=$(getPodName $dc)
-    waitForStart $pod
-    checkKibanaStarted $pod
+# this is to go through and update a template with the latest image version
+function patchTemplateParameter() {
+  local template=$1
+  local index=$(getArrayIndex "template/$template" ".parameters" "name" "IMAGE_VERSION")
+
+  if [[ $index -gt -1 ]]; then
+    oc patch template/$template --type=json -p="[{\"op\":\"replace\", \"path\":\"/parameters/$index/value\", \"value\":\"$IMAGE_VERSION\"}]"
+
+    if [[ $? -ne 0 ]]; then
+      echo "Did not patch template/$template successfully"
+      return 1
+    else
+      return 0
+    fi
+  fi
+}
+
+# this is to go through and update a DC with the latest image versions
+# patch image and update the imagechange tag
+# wait for new .status.latestversion to be -gt previous one
+function patchDCImage() {
+
+  local dc=$1
+  local image=$2
+  local kibana=$3
+  local version=$(oc get dc/$dc -o jsonpath='{.status.latestVersion}')
+  local indices=$(getArrayIndex "dc/$dc" ".spec.triggers" "Type" "ImageChange")
+  local authProxy_patch=
+
+  # find the index that authproxy
+  for index in ${indices[@]}; do
+    if [[ "$(oc get dc/$dc -o jsonpath="{.spec.triggers[$index].imageChangeParams.from.name}")" =~ "logging-auth-proxy" ]]; then
+      auth_proxy_index=$index
+    fi
+    if [[ "$(oc get dc/$dc -o jsonpath="{.spec.triggers[$index].imageChangeParams.from.name}")" =~ "$image" ]]; then
+      trigger_index=$index
+    fi
   done
+
+  if $kibana; then
+    authProxy_patch=",{\"op\":\"replace\", \"path\":\"/spec/template/spec/containers/1/image\", \"value\":\"${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}\"} \
+                     ,{\"op\":\"replace\", \"path\":\"/spec/triggers/$auth_proxy_index/imageChangeParams/from/name\", \"value\":\"logging-auth-proxy:${IMAGE_VERSION}\"}"
+  fi
+
+  oc patch dc/$dc --type=json -p="[{\"op\":\"replace\", \"path\":\"/spec/template/spec/containers/0/image\", \"value\":\"${IMAGE_PREFIX}${image}:${IMAGE_VERSION}\"} \
+                                  ,{\"op\":\"replace\", \"path\":\"/spec/triggers/$trigger_index/imageChangeParams/from/name\", \"value\":\"${image}:${IMAGE_VERSION}\"} \
+                                  ${authProxy_patch}]"
+
+  if [[ $? -ne 0 ]]; then
+    echo "Did not patch dc/$dc successfully"
+    return 1
+  else
+    return 0
+  fi
+}
+
+# this is to go through and update the DCs and templates with the latest image versions
+function patchImageVersion() {
+
+  local label=$1
+  local image=$2
+  local is_kibana=${3:-false}
+  local template_only=${4:-false}
+
+  for template in $(oc get templates -l $label -o jsonpath='{.items[*].metadata.name}'); do
+    patchTemplateParameter $template
+  done
+  if ! $template_only; then
+    for dc in $(oc get dc -l $label -o jsonpath='{.items[*].metadata.name}'); do
+      patchDCImage $dc $image $is_kibana
+    done
+  fi
 }
 
 function updateImages() {
@@ -262,11 +376,22 @@ function updateImages() {
   # create any missing imagestreams and then update them all
   oc new-app logging-imagestream-template || : # these may fail if created independently; that's ok
 
-  # TODO: update these to fail if we can't import?
   oc import-image logging-elasticsearch || :
   oc import-image logging-fluentd || :
   oc import-image logging-kibana || :
   oc import-image logging-curator || :
+
+  # patch all es
+  patchImageVersion "logging-infra=elasticsearch" "logging-elasticsearch"
+
+  # patch all Kibana
+  patchImageVersion "logging-infra=kibana" "logging-kibana" true
+
+  # patch all curator
+  patchImageVersion "logging-infra=curator" "logging-curator"
+
+  # patch fluentd -- or just recreate template?
+  patchImageVersion "logging-infra=fluentd" "logging-fluentd" false true
 }
 
 # we can just specify to regenerate our certs
@@ -292,7 +417,6 @@ function fluentd_daemonset() {
 
 function upgrade_notify() {
   set +x
-  echo "Upgrade complete!"
   cat <<EOF
 
 =================================
@@ -317,7 +441,7 @@ EOF
 
 function regenerate_secrets_and_support_objects() {
   oc process logging-support-template | oc delete -f - || :
-  oc delete imagestream,service,route,template --selector logging-infra=support
+  oc delete service,route,template --selector logging-infra=support
   # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
   # note: no automatic deletion of persistentvolumeclaim; didn't seem wise
 
@@ -335,17 +459,19 @@ function upgrade_logging() {
   # 1 -- admin cert
   # 2 -- curator & daemonset
 
-  # start with installed version and go until we're at $LOGGING_VERSION
-  if [[ $installedVersion -eq $LOGGING_VERSION ]]; then
-    echo "Already at latest version. No upgrade will be done at this time."
-  else
-    scaleDown
-    initialize_install_vars
+  initialize_install_vars
 
-    # Does it make sense to just do this always?
+  scaleDown
+  updateImages
+
+  # start with installed version and go until we're at $LOGGING_VERSION
+
+  # this means that we don't have any infrastructure changes... we should still
+  # scale down, update images (patch dc if needed), and scale back up
+  if [[ $installedVersion -eq $LOGGING_VERSION ]]; then
+    echo "No infrastructure changes required for Aggregated Logging."
+  else
     regenerate_secrets_and_support_objects
-    # This needs to happen before the uuid_migrate....
-    updateImages
 
     for version in $(seq $installedVersion $LOGGING_VERSION); do
       case "${version}" in
@@ -359,15 +485,22 @@ function upgrade_logging() {
           fluentd_daemonset
           ;;
         $LOGGING_VERSION)
-          scaleUp
-
-          if [[ -n "$migrate" ]]; then
-            uuid_migrate
-          fi
-
-          upgrade_notify
+          echo "Infrastructure changes for Aggregated Logging complete..."
           ;;
       esac
     done
   fi
+
+  scaleUp
+
+  if [[ $installedVersion -ne $LOGGING_VERSION ]]; then
+    if [[ -n "$migrate" ]]; then
+      uuid_migrate
+    fi
+
+    upgrade_notify
+  fi
+
+  set +x
+  echo "Upgrade complete!"
 }
