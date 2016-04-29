@@ -33,6 +33,7 @@ USE_LOGGING_DEPLOYER_SCRIPT=
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-false}
 DEBUG_FAILURES=${DEBUG_FAILURES:-false}
 USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
+TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 
@@ -341,7 +342,7 @@ os::build:wait_for_end "test"
 wait_for_app "test"
 ### test app added ###
 
-### run logging e2e tests ###
+### run logging tests ###
 os::cmd::expect_success "oc login -u 'system:admin'"
 os::cmd::expect_success "oc project logging"
 pushd $OS_O_A_L_DIR/hack/testing
@@ -350,16 +351,27 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
 else
     USE_CLUSTER=
 fi
-# e2e-test runs checks which do not modify any data - safe to use
-# in production environments
-./e2e-test.sh $USE_CLUSTER
-# test-* tests modify data and are not generally safe to use
-# in production environments
-for test in test-*.sh ; do
-    if [ -x ./$test ] ; then
-        ./$test $USE_CLUSTER
-    fi
-done
+
+if [ "$TEST_PERF" = "true" ] ; then
+    echo "Running performance tests"
+    for test in perf-*.sh ; do
+        if [ -x ./$test ] ; then
+            ./$test $USE_CLUSTER
+        fi
+    done
+else
+    echo "Running e2e tests"
+    # e2e-test runs checks which do not modify any data - safe to use
+    # in production environments
+    ./e2e-test.sh $USE_CLUSTER
+    # test-* tests modify data and are not generally safe to use
+    # in production environments
+    for test in test-*.sh ; do
+        if [ -x ./$test ] ; then
+            ./$test $USE_CLUSTER
+        fi
+    done
+fi
 
 #run a migration here to ensure that it is able to work
 # delete old deployer pod
@@ -386,6 +398,6 @@ if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
 fi
 
 popd
-### finished logging e2e tests ###
+### finished logging tests ###
 
 ### END ###

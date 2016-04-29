@@ -81,3 +81,24 @@ ES_OPS_CLUSTER_SIZE     | The num of Elasticsearch Ops pod replicas if OPS clust
 TIMES                   | The maximum number of attempts to try for checking if ES is ready for queries | default: 10
 QUERY_SIZE              | The maximum number of query results returned for an index | default: 500
 ```
+
+# About the performance testing
+
+All scripts starting with `perf-` prefix are considered performance tests.
+Performance tests are different from other (non-performance) tests in that
+they may run for a long time and they output performance metrics in the end
+that are gathered and stored into benchmark repository.
+
+Note: performance test results gathering to central repository is WIP.
+The results stay on the Jenkins server for now. For status on central
+ benchmark repository implementation please check
+ [relevant trello card](https://trello.com/c/Xi1uCZiA/255-performance-test-results-ui-visualization-logging). 
+
+Performance tests are run via two means:
+
+- by adding comment containing "`[testperf]`" string to individual pull request
+- on a regular basis performance tests are run by Jenkins
+
+## perf-test-operations.sh
+
+This is initial example of performance test.
