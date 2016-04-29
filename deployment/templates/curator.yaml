@@ -24,6 +24,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
   objects:
   -
     apiVersion: v1
@@ -65,7 +68,7 @@ objects:
           serviceAccountName: aggregated-logging-curator
           containers:
           - name: curator
-            image: logging-curator
+            image: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
             imagePullPolicy: Always
             resources:
               limits:
@@ -148,3 +151,4 @@ parameters:
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
   value: "latest"
+- name: IMAGE_PREFIX_DEFAULT

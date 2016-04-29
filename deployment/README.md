@@ -154,6 +154,8 @@ are available:
 * `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_PVC_SIZE`, `ES_OPS_PVC_PREFIX`, `ES_OPS_CLUSTER_SIZE`, `ES_OPS_NODESELECTOR`, `KIBANA_OPS_NODESELECTOR`, `CURATOR_OPS_NODESELECTOR`: Parallel parameters for the ops log cluster.
 * `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set prefix "docker.io/openshift/origin-"
 * `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
+* `IMAGE_PULL_SECRET`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
+* `INSECURE_REGISTRY`: Allow the registry for logging component images to be non-secure (not secured with a certificate signed by a known CA)
 
 You run the deployer by instantiating a template. Here is an example with some parameters:
 

@@ -27,6 +27,7 @@ function install_logging() {
 function initialize_install_vars() {
   image_prefix=${IMAGE_PREFIX:-openshift/origin-}
   image_version=${IMAGE_VERSION:-latest}
+  insecure_registry=${INSECURE_REGISTRY:-false}
   hostname=${KIBANA_HOSTNAME:-kibana.example.com}
   ops_hostname=${KIBANA_OPS_HOSTNAME:-kibana-ops.example.com}
   public_master_url=${PUBLIC_MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
@@ -53,6 +54,10 @@ function initialize_install_vars() {
   # *_NODESELECTOR
   # other env vars used (expect base64 encoding):
   # KIBANA_KEY, KIBANA_CERT, SERVER_TLS_JSON
+
+  # special-casing this as it's required anywhere we create a DC,
+  # including both installs and upgrades. so ensure it's always set.
+  image_params="IMAGE_VERSION_DEFAULT=${image_version},IMAGE_PREFIX_DEFAULT=${image_prefix}"
 } #initialize_install_vars()
 
 function procure_server_cert() {
@@ -76,7 +81,8 @@ function generate_support_objects() {
      --param OAUTH_SECRET=$(cat $dir/oauth-secret) \
      --param KIBANA_HOSTNAME=${hostname} \
      --param KIBANA_OPS_HOSTNAME=${ops_hostname} \
-     --param IMAGE_PREFIX_DEFAULT=${image_prefix}
+     --param IMAGE_PREFIX_DEFAULT=${image_prefix} \
+     --param INSECURE_REGISTRY=${insecure_registry}
 
   oc new-app logging-support-template
   kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert=$dir/kibana.crt --key=$dir/kibana.key"
@@ -196,6 +202,11 @@ function generate_secrets() {
                    logging-fluentd
     oc secrets add serviceaccount/aggregated-logging-curator \
                    logging-curator
+    if [ -n "$IMAGE_PULL_SECRET" ]; then
+      for account in default aggregated-logging-{elasticsearch,fluentd,kibana,curator}; do
+        oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET" 
+      done
+    fi
 
   fi # supporting infrastructure - secrets
 }
@@ -211,6 +222,7 @@ function create_template_optional_nodeselector(){
 }
 
 function generate_es_template(){
+
   create_template_optional_nodeselector "${ES_NODESELECTOR}" es \
     --param ES_CLUSTER_NAME=es \
     --param ES_INSTANCE_RAM=${es_instance_ram} \
@@ -218,7 +230,7 @@ function generate_es_template(){
     --param ES_RECOVER_AFTER_NODES=${es_recover_after_nodes} \
     --param ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
-    --param IMAGE_VERSION_DEFAULT=${image_version}
+    --param "$image_params"
 
     if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
       create_template_optional_nodeselector "${ES_OPS_NODESELECTOR}" es \
@@ -228,7 +240,7 @@ function generate_es_template(){
         --param ES_RECOVER_AFTER_NODES=${es_ops_recover_after_nodes} \
         --param ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
         --param ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
-        --param IMAGE_VERSION_DEFAULT=${image_version}
+        --param "$image_params"
     fi
 }
 
@@ -236,7 +248,7 @@ function generate_kibana_template(){
   create_template_optional_nodeselector "${KIBANA_NODESELECTOR}" kibana \
     --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
     --param OAP_MASTER_URL=${master_url} \
-    --param IMAGE_VERSION_DEFAULT=${image_version}
+    --param "$image_params"
 
     if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
       create_template_optional_nodeselector "${KIBANA_OPS_HOSTNAME_OPS_NODESELECTOR}" kibana \
@@ -244,7 +256,7 @@ function generate_kibana_template(){
         --param OAP_MASTER_URL=${master_url} \
         --param KIBANA_DEPLOY_NAME=kibana-ops \
         --param ES_HOST=logging-es-ops \
-        --param IMAGE_VERSION_DEFAULT=${image_version}
+        --param "$image_params"
     fi
 }
 
@@ -253,14 +265,14 @@ function generate_curator_template(){
     --param ES_HOST=logging-es \
     --param MASTER_URL=${master_url} \
     --param CURATOR_DEPLOY_NAME=curator \
-    --param IMAGE_VERSION_DEFAULT=${image_version}
+    --param "$image_params"
 
   if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
     create_template_optional_nodeselector "${CURATOR_OPS_NODESELECTOR}" curator \
       --param ES_HOST=logging-es-ops \
       --param MASTER_URL=${master_url} \
       --param CURATOR_DEPLOY_NAME=curator-ops \
-      --param IMAGE_VERSION_DEFAULT=${image_version}
+      --param "$image_params"
   fi
 }
 
@@ -275,9 +287,8 @@ function generate_fluentd_template(){
     --param ES_HOST=${es_host} \
     --param OPS_HOST=${es_ops_host} \
     --param MASTER_URL=${master_url} \
-    --param IMAGE_PREFIX_DEFAULT=${image_prefix} \
-    --param IMAGE_VERSION_DEFAULT=${image_version}
-}
+    --param "$image_params"
+} #generate_fluentd_template()
 
 ######################################
 #

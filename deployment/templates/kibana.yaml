@@ -24,6 +24,9 @@ objects:
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
+  -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
   objects:
   -
     apiVersion: "v1"
@@ -74,7 +77,7 @@ objects:
           containers:
             -
               name: "kibana"
-              image: logging-kibana
+              image: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}
               imagePullPolicy: Always
               ports:
               env:
@@ -162,3 +165,4 @@ parameters:
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
   value: "latest"
+- name: IMAGE_PREFIX_DEFAULT
