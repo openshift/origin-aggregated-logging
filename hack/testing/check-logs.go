@@ -18,6 +18,11 @@ func main() {
 	index := args[2]
 	filePath := args[3]
 	querySize := args[4]
+	journal := os.Getenv("USE_JOURNAL")
+	verbose := false
+	if os.Getenv("VERBOSE") != "" {
+		verbose = true
+	}
 
 	//we want the hostname witout a domain for the most generic search
 	hostname, _ := os.Hostname()
@@ -25,6 +30,9 @@ func main() {
 
 	// instead of receiving jsonStream as an Arg, we'll make the call ourselves...
 	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://` + es_svc + `/` + index + `.*/fluentd/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
+	if verbose {
+		fmt.Printf("Executing command [%s]\n", queryCommand)
+	}
 	queryCmdName := "bash"
 	queryCmdArgs := []string{"-c", queryCommand}
 
@@ -81,15 +89,25 @@ func main() {
 		// for each message, we need to check the logs
 		message := record.Fields.Message[0]
 
-		// escape certain characters that were being interpreted by grep -e ""
-		message = strings.Replace(message, `\`, `\\\\`, -1)
-		message = strings.Replace(message, `[`, `\[`, -1)
-		message = strings.Replace(message, `]`, `\]`, -1)
-		message = strings.Replace(message, `*`, `\*`, -1)
-		message = strings.Replace(message, `"`, `\"`, -1)
-		message = strings.Replace(message, "`", `\`+"`", -1)
-
-		searchCmd := `grep "` + message + `" ` + filePath
+		searchCmd := ""
+		if journal == "true" {
+			// escape certain characters that were being interpreted by bash
+			message = strings.Replace(message, `\`, `\\`, -1)
+			message = strings.Replace(message, `"`, `\"`, -1)
+			message = strings.Replace(message, "`", `\`+"`", -1)
+			message = strings.Replace(message, `$`, `\$`, -1)
+			searchCmd = `journalctl MESSAGE="` + message + `"`
+		} else {
+			// escape certain characters that were being interpreted by grep -e "" or bash
+			message = strings.Replace(message, `\`, `\\\\`, -1)
+			message = strings.Replace(message, `[`, `\[`, -1)
+			message = strings.Replace(message, `]`, `\]`, -1)
+			message = strings.Replace(message, `*`, `\*`, -1)
+			message = strings.Replace(message, `"`, `\"`, -1)
+			message = strings.Replace(message, "`", `\`+"`", -1)
+			message = strings.Replace(message, `$`, `\$`, -1)
+			searchCmd = `grep "` + message + `" ` + filePath
+		}
 		cmdName := "bash"
 		cmdArgs := []string{"-c", searchCmd}
 

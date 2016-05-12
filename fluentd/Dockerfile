@@ -28,7 +28,10 @@ RUN mkdir -p ${HOME} && \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \
       fluent-plugin-elasticsearch \
-      fluent-plugin-flatten-hash
+      fluent-plugin-flatten-hash \
+      fluent-plugin-systemd \
+      systemd-journal \
+      fluent-plugin-rewrite-tag-filter
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/

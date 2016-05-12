@@ -8,6 +8,41 @@ else
   fluentdargs=  
 fi
 
+docker_uses_journal() {
+    # need to be able to handle cases like
+    # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
+    if grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker ; then
+        export USE_JOURNAL=true
+    else
+        export USE_JOURNAL=false
+    fi
+    # the problem with this method is - how do we know that the information in this
+    # log message is still applicable for the currently running docker?
+    # if docker is using journal, the journal entries for containers will
+    # come from _COMM=docker-current, and will have a _CMDLINE like this
+    # _CMDLINE=/usr/bin/docker-current daemon --exec-opt native.cgroupdriver=systemd --selinux-enabled --log-driver=journald ...
+    # test -d $JOURNAL_SOURCE && \
+    #     journalctl -o export -n1 --all -D $JOURNAL_SOURCE _COMM=docker-current | \
+    #         grep -q '_CMDLINE=.*--log-driver=journald' 2> /dev/null
+}
+
+if [ "${USE_JOURNAL:-}" != false ] ; then
+    if [ -z "${JOURNAL_SOURCE:-}" ] ; then
+        if [ -d /var/log/journal ] ; then
+            export JOURNAL_SOURCE=/var/log/journal
+        else
+            export JOURNAL_SOURCE=/run/log/journal
+        fi
+    fi
+    if [ -z "${USE_JOURNAL:-}" ] ; then
+        if docker_uses_journal ; then
+            export USE_JOURNAL=true
+        else
+            export USE_JOURNAL=false
+        fi
+    fi
+fi
+
 CFG_DIR=/etc/fluent/configs.d
 ruby generate_throttle_configs.rb
 

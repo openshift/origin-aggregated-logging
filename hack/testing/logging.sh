@@ -37,16 +37,15 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
-# default CI image uses journal by default - allow to control if logging uses it or not
-USE_JOURNAL=${USE_JOURNAL:-false}
 
-if [ $USE_JOURNAL = false ] ; then
+# if USE_JOURNAL is empty, fluentd will use whatever docker is using
+if [ "${USE_JOURNAL:-}" = false ] ; then
     # see if docker is using the journal log driver - if so, change it to json-file
     if grep -q -- '--log-driver=journald' /etc/sysconfig/docker ; then
         sudo sed -i.bak 's/--log-driver=journald/--log-driver=json-file/' /etc/sysconfig/docker
         sudo systemctl restart docker
     fi
-else
+elif [ "${USE_JOURNAL:-}" = true ] ; then
     # see if docker is explicitly configured to use the json-file log driver
     if grep -q -- '--log-driver=json-file' /etc/sysconfig/docker ; then
         sudo sed -i.bak 's/--log-driver=json-file/--log-driver=journald/' /etc/sysconfig/docker
@@ -271,7 +270,11 @@ os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
-os::cmd::expect_success "oc create configmap logging-deployer --from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER}"
+os::cmd::expect_success "oc create configmap logging-deployer \
+    --from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER} \
+    --from-literal use-journal=${USE_JOURNAL:-} \
+    --from-literal journal-source=${JOURNAL_SOURCE:-} \
+    --from-literal journal-read-from-head=${JOURNAL_READ_FROM_HEAD:-false}"
 
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"

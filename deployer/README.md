@@ -149,6 +149,25 @@ are available:
 * `enable-ops-cluster`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
 * `kibana-ops-hostname`, `es-ops-instance-ram`, `es-ops-pvc-size`, `es-ops-pvc-prefix`, `es-ops-cluster-size`, `es-ops-nodeselector`, `kibana-ops-nodeselector`, `curator-ops-nodeselector`: Parallel parameters for the ops log cluster.
 * `image-pull-secret`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
+* `use-journal`: By default, fluentd will use `/var/log/messages*` and
+`/var/log/containers/*.log` for system logs and container logs, respectively.
+Setting `use-journal=true` will cause fluentd to use the systemd journal for
+the logging source.  This requires docker 1.10 or later, and docker must be configured to
+use `--log-driver=journald`.  Fluentd will first look for `/var/log/journal`,
+and if that is not available, will use `/run/log/journal` as the journal
+source.
+* `journal-source`:  You can override the source that fluentd uses for the
+ journal.  For example, if you want fluentd to always use the transient
+ in-memory journal, set `journal-source=/run/log/journal`.
+* `journal-read-from-head=[false|true]`: If this setting is `false`,
+fluentd will start reading from the end of the journal - no historical logs.
+If this setting is `true`, fluentd will start reading logs from the beginning.
+*NOTE*: It may require several minutes, or
+hours, depending on the size of your journal, before any new log entries are
+available in Elasticsearch, when using `journal-read-from-head=true`.
+*NOTE*: DO NOT USE `journal-read-from-head=true` IF YOU HAVE PREVIOUSLY USED
+`journal-read-from-head=false` - you will fill up your Elasticsearch with
+duplicate records.
 
 An invocation supplying the most important parameters might be:
 
@@ -385,6 +404,14 @@ processed. Note: this means that aggregated logs for the configured
 projects could fall behind and even be lost if the pod were deleted
 before Fluentd caught up.
 
+*NOTE* Throttling does not work when using the systemd journal as the log
+source.  The throttling implementation depends on being able to throttle the
+reading of the individual log files for each project.  When reading from the
+journal, there is only a single log source, no log files, so no file-based
+throttling is available, and there isn't a method of restricting which log
+entries are read into the fluentd process _before_ they get into the fluentd
+process address space.
+
 To tell Fluentd which projects it should be restricting you will need
 to edit the throttle configuration in its configmap after deployment:
 
@@ -461,6 +488,35 @@ To set the parameters:
     oc process -n logging logging-fluentd-template | \
       oc create -n logging -f -
     # this creates the daemonset and starts fluentd with the new params
+
+#### Have Fluentd use the systemd journal as the log source
+
+By default, fluentd will read from `/var/log/messages*` and
+`/var/log/containers/*.log` for system logs and container logs, respectively.
+You can use the systemd journal instead as the log source.  There are three
+deployer configuration parameters set in the deployer configmap: `use-journal`,
+`journal-source`, and `journal-read-from-head`.
+* `use-journal=[false|true]` - default is empty.  This tells the
+deployer/fluentd to see which log driver docker is using - if docker is using
+`--log-driver=journald`, this means `use-journal=true`, and fluentd will read
+from the systemd journal, otherwise, it will assume docker is using the
+`json-file` log driver and read from the `/var/log` file sources. Using the
+systemd journal requires docker 1.10 or later, and docker must be configured to
+use `--log-driver=journald`.  If using the systemd journal, Fluentd will first
+look for `/var/log/journal`, and if that is not available, will use
+`/run/log/journal` as the journal source.
+* `journal-source=/path/to/journal` - default is empty.  This is the location
+of the journal to use.  For example, if you want fluentd to always read logs
+from the transient in-memory journal, set `journal-source=/run/log/journal`.
+* `journal-read-from-head=[false|true]` - If this setting is `false`, fluentd
+will start reading from the end of the journal - no historical logs.  If this
+setting is `true`, fluentd will start reading logs from the beginning.
+*NOTE*: It may require several minutes, or hours, depending on the size of your
+journal, before any new log entries are available in Elasticsearch, when using
+`journal-read-from-head=true`.
+*NOTE*: DO NOT USE `journal-read-from-head=true` IF YOU HAVE PREVIOUSLY USED
+`journal-read-from-head=false` - you will fill up your Elasticsearch with
+duplicate records.
 
 ### Kibana
 
@@ -815,7 +871,8 @@ Check Fluentd logs for the message that it has read in its config file:
 After that, you can verify that fluentd has been able to start reading in log files
 by checking the contents of `/var/log/node.log.pos` and `/var/log/es-containers.log.pos`.
 node.log.pos will keep track of the placement in syslog log files and es-containers.log.pos
-will keep track of the placement in the docker log files (/var/log/containers).
+will keep track of the placement in the docker log files (/var/log/containers).  Or, if you
+are using the systemd journal as the log source, look in `/var/log/journal.pos`.
 
 ### Elasticsearch
 

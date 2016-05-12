@@ -123,6 +123,18 @@ write_and_verify_logs() {
     return $rc
 }
 
+if [ -z "${USE_JOURNAL:-}" ] ; then
+    docker_uses_journal() {
+        # need to be able to handle cases like
+        # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
+        grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker
+    }
+else
+    docker_uses_journal() {
+        test $USE_JOURNAL = true
+    }
+fi
+
 TEST_DIVIDER="------------------------------------------"
 
 # make sure the host/node TZ is the same as the fluentd pod
@@ -136,7 +148,7 @@ else
     exit 1
 fi
 
-if [ "${USE_JOURNAL:-false}" = "true" ] ; then
+if docker_uses_journal ; then
     # don't need to test the /var/log/messages code
     echo The rest of the test is not applicable when using the journal - skipping
     exit 0
