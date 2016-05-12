@@ -2,13 +2,13 @@
 
 function uuid_migrate() {
   set -exuo pipefail
-  initialize_uuid_vars
+  initialize_es_vars
   recreate_admin_certs
   create_context
   run_uuid_migration
 }
 
-function initialize_uuid_vars() {
+function initialize_es_vars() {
   OPS_PROJECTS=("default" "openshift" "openshift-infra")
   CA=$dir/admin-ca.crt
   KEY=$dir/admin-key.key
@@ -50,7 +50,11 @@ function create_context() {
 }
 
 function recreate_admin_certs(){
-
+  # lets not broadcast what our keys are for security reasons...
+  usingx=$(echo $- | grep x) || :
+  if [[ -n "$usingx" ]]; then
+    set +x
+  fi
 # note: following mess is because we want the error output from the first failure, not a pipeline
   secret_ca=$(oc get secret/logging-elasticsearch --template='{{index .data "admin-ca"}}' 2>&1)
   secret_ca=$(echo -e "$secret_ca" | base64 -d 2>&1)
@@ -65,14 +69,16 @@ function recreate_admin_certs(){
   echo -e "$secret_cert" > $dir/admin-cert.crt
   echo -e "$secret_ca" > $dir/admin-ca.crt
 
+  if [[ -n "$usingx" ]]; then
+    set -x
+  fi
 }
 
 function run_uuid_migration() {
   PROJECTS=(`oc get project -o jsonpath='{.items[*].metadata.name}'`)
-  ES_PODS=$(oc get pods -l component=es | awk -e 'es ~ sel && $3 == "Running" {print $1}')
-  ES_POD=`echo $ES_PODS | cut -d' ' -f 1`
+  ES_PODS=$(oc get pods -l component=es -o jsonpath='{.items[?(@.status.phase == "Running")].metadata.name}')
 
-  if [[ -z "$ES_POD" ]]; then
+  if [[ -z "$ES_PODS" ]]; then
     echo "No Elasticsearch pods found running.  Cannot migrate."
     echo "Scale up ES prior to running with MODE=migrate"
     exit 1
