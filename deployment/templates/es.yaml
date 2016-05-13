@@ -61,7 +61,7 @@ objects:
           containers:
             -
               name: "elasticsearch"
-              image: logging-elasticsearch
+              image: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
               imagePullPolicy: Always
               ports:
               -
@@ -134,6 +134,9 @@ objects:
     name: RECOVER_AFTER_TIME
     value: ${ES_RECOVER_AFTER_TIME}
   -
+    name: IMAGE_PREFIX
+    value: ${IMAGE_PREFIX_DEFAULT}
+  -
     description: "The version tag of the image to use."
     name: IMAGE_VERSION
     value: ${IMAGE_VERSION_DEFAULT}
@@ -144,5 +147,6 @@ parameters:
 - name: ES_RECOVER_AFTER_NODES
 - name: ES_RECOVER_EXPECTED_NODES
 - name: ES_RECOVER_AFTER_TIME
+- name: IMAGE_PREFIX_DEFAULT
 - name: IMAGE_VERSION_DEFAULT
   value: "latest"

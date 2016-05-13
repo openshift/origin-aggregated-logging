@@ -22,6 +22,10 @@ parameters:
   description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployment:v1.1", set prefix "openshift/origin-"'
   name: IMAGE_PREFIX_DEFAULT
   value: "docker.io/openshift/origin-"
+-
+  description: 'Set to "true" if the image registry is not secured with a properly-signed certificate.'
+  name: INSECURE_REGISTRY
+  value: "false"
 objects:
 - apiVersion: "v1"
   kind: "Template"
@@ -148,7 +152,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: "${INSECURE_REGISTRY}"
       name: logging-auth-proxy
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-auth-proxy
@@ -157,7 +161,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: "${INSECURE_REGISTRY}"
       name: logging-elasticsearch
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch
@@ -166,7 +170,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: "${INSECURE_REGISTRY}"
       name: logging-fluentd
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd
@@ -175,7 +179,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: "${INSECURE_REGISTRY}"
       name: logging-kibana
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-kibana
@@ -184,7 +188,7 @@ objects:
     kind: ImageStream
     metadata:
       annotations:
-        openshift.io/image.insecureRepository: "true"
+        openshift.io/image.insecureRepository: "${INSECURE_REGISTRY}"
       name: logging-curator
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-curator
