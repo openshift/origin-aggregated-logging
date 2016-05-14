@@ -215,8 +215,9 @@ objects:
     resources: {}
     source:
       git:
-        uri: ${PROXY_FORK_URL}
-        ref: ${PROXY_FORK_BRANCH}
+        uri: ${LOGGING_FORK_URL}
+        ref: ${LOGGING_FORK_BRANCH}
+      contextDir: deployer/common/openshift-auth-proxy
       type: Git
     strategy:
       dockerStrategy:
@@ -234,12 +235,4 @@ parameters:
 -
   description: 'branch for origin-aggregated-logging fork'
   name: LOGGING_FORK_BRANCH
-  value: master
--
-  description: 'URL for origin-auth-proxy fork'
-  name: PROXY_FORK_URL
-  value: https://github.com/fabric8io/openshift-auth-proxy
--
-  description: 'branch for origin-auth-proxy fork'
-  name: PROXY_FORK_BRANCH
   value: master

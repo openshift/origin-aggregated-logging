@@ -118,7 +118,7 @@ function wait_for_builds_complete()
             # if we are here and needbuild=1, there were no running or complete builds
             if [ $needbuild = "1" ] ; then
                 # start a new build
-                if [ "$bc" = "logging-auth-proxy" -o "$USE_LOCAL_SOURCE" = false ] ; then
+                if [ "$USE_LOCAL_SOURCE" = false ] ; then
                     oc start-build $bc
                 else
                     oc start-build --from-repo $OS_O_A_L_DIR $bc
@@ -203,11 +203,7 @@ else
         post_build() {
             os::cmd::try_until_success "oc get imagestreamtag origin:latest" "$(( 1 * TIME_MIN ))"
             for bc in `oc get bc -o jsonpath='{.items[*].metadata.name}'` ; do
-                if [ "$bc" = "logging-auth-proxy" ] ; then
-                    oc start-build $bc
-                else
-                    oc start-build --from-repo $OS_O_A_L_DIR $bc
-                fi
+                oc start-build --from-repo $OS_O_A_L_DIR $bc
             done
         }
     else
