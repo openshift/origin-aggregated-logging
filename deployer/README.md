@@ -70,7 +70,7 @@ If your installation did not create templates in the `openshift`
 namespace, the `logging-deployer-template` and `logging-deployer-account-template`
 templates may not exist. In that case you can create them with the following:
 
-    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/master/deployment/deployer.yaml ...
+    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/master/deployer/deployer.yaml ...
 
 ## Create the Deployer Secret
 

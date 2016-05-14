@@ -81,7 +81,7 @@ objects:
         name: logging-deployment:latest
     resources: {}
     source:
-      contextDir: deployment
+      contextDir: deployer
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}

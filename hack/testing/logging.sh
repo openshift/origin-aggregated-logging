@@ -182,7 +182,7 @@ OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
 os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oc secrets new logging-deployer nothing=/dev/null"
-os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployment/deployer.yaml"
+os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
 os::cmd::expect_success "oc policy add-role-to-user edit system:serviceaccount:logging:logging-deployer"
 os::cmd::expect_success "oc policy add-role-to-user daemonset-admin system:serviceaccount:logging:logging-deployer"
@@ -190,7 +190,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor syste
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
 elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
-    pushd $OS_O_A_L_DIR/deployment
+    pushd $OS_O_A_L_DIR/deployer
     IMAGE_PREFIX="openshift/origin-" PROJECT=logging ./run.sh
     popd
     imageprefix=

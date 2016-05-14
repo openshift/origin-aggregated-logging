@@ -7,7 +7,7 @@ To generate the necessary images from github source in your OpenShift
 Origin deployment, follow directions below.
 
 To deploy the components from built or supplied images, see the
-[deployer](./deployment).
+[deployer](./deployer).
 
 NOTE: If you are running OpenShift Origin using the
 [All-In-One docker container](https://docs.openshift.org/latest/getting_started/administrators.html#running-in-a-docker-container)
@@ -172,9 +172,9 @@ you can get from:
     logging-deployment      172.30.90.128:5000/logs/logging-deployment
 
 In order to run a deployment with these images, you would process the
-[deployer template](deployment/deployer.yaml) with the
+[deployer template](deployer/deployer.yaml) with the
 `IMAGE_PREFIX=172.30.90.128:5000/logs/` parameter. Proceed to the
-[deployer instructions](./deployment) to run a deployment.
+[deployer instructions](./deployer) to run a deployment.
 
 ## Running the deployer script locally
 
@@ -186,7 +186,7 @@ run directly, it will use your current client context to create all
 the objects, but you must still specify at least the PROJECT env var in
 order to create everything with the right parameters. E.g.:
 
-    cd deployment
+    cd deployer
     PROJECT=logging ./run.sh
 
 There are a number of env vars this script looks at which are useful
