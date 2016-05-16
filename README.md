@@ -92,7 +92,7 @@ For example, using::
       runminute: 0
     ...
 
-Every day, curator will run, and will delete indices in the myapp-dev
+Every day, curator will run and will delete indices in the myapp-dev
 project older than 1 day, and indices in the myapp-qe project older than 1
 week.  All other projects will have their indices deleted after they are 30
 days old.  The curator jobs will run at midnight every day.
