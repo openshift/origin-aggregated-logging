@@ -294,6 +294,32 @@ Upgrade mode will take care of the following for you:
   same as in previous versions. There should be minimal performance impact to ES
   while running this and it will not perform an install.
 
+## Adding Elasticsearch replicas
+
+If you need to scale up the number of Elasticsearch instances your cluster uses
+it is not as simple as changing the number of replicas. This is due to the nature
+of Persistent volumes and how Elasticsearch is configured to store its data.
+
+Instead, you will need to create a Deployment Configuration for each replica.
+
+The Deployer created templates during installation with the Elasticsearch
+configurations provided to it: `logging-es-template` and `logging-es-ops-template`
+if the Deployer was run with `ENABLE_OPS_CLUSTER=true`.
+
+To create an additional Deployment Configuration, run the `oc new-app` command
+against the cluster you'd like to scale up for (`logging-es-template` or
+`logging-es-ops-template`).
+
+#### Note
+  With the above command, your Deployment Configuration will be created without
+  a Persistent Volume. If you would like to create a replica with a Persistent
+  Volume attached to it upon creation you can instead run the following command
+  to create your DC with a PVC attached.
+
+    $ oc process {your_es_cluster_template} | oc volume -f - \
+       --add --overwrite --name=elasticsearch-storage \
+       --type=persistentVolumeClaim --claim-name={your_pvc}`
+
 ## EFK Health
 
 Determining the health of an EFK deployment and if it is running can be assessed
