@@ -121,7 +121,7 @@ function wait_for_builds_complete()
                 if [ "$USE_LOCAL_SOURCE" = false ] ; then
                     oc start-build $bc
                 else
-                    oc start-build --from-repo $OS_O_A_L_DIR $bc
+                    oc start-build --from-dir $OS_O_A_L_DIR $bc
                 fi
             fi
         done
@@ -203,7 +203,7 @@ else
         post_build() {
             os::cmd::try_until_success "oc get imagestreamtag origin:latest" "$(( 1 * TIME_MIN ))"
             for bc in `oc get bc -o jsonpath='{.items[*].metadata.name}'` ; do
-                oc start-build --from-repo $OS_O_A_L_DIR $bc
+                oc start-build --from-dir $OS_O_A_L_DIR $bc
             done
         }
     else
