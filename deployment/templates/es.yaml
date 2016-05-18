@@ -51,18 +51,16 @@ objects:
             deployment: ${ES_DEPLOYMENT_NAME}
         spec:
           serviceAccountName: aggregated-logging-elasticsearch
-          limits:
-          -
-            type: Pod
-            max:
-              memory: "${INSTANCE_RAM}i"
-            min:
-              memory: "512Mi"
           containers:
             -
               name: "elasticsearch"
               image: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
               imagePullPolicy: Always
+              resources:
+                limits:
+                  memory: "${INSTANCE_RAM}i"
+                requests:
+                  memory: "512Mi"
               ports:
               -
                 containerPort: 9200
