@@ -5,6 +5,8 @@ set -ex
 TIMES=300
 fluentd_nodeselector="logging-infra-fluentd=true"
 
+patchPIDs=()
+
 function getDeploymentVersion() {
   #base this on what isn't installed
 
@@ -278,20 +280,105 @@ function getArrayIndex() {
   fi
 }
 
+# This function will wait until the latestVersion changes
+function waitForChange() {
+
+  local currentVersion=$1
+  local dc=$2
+
+  waitFor "[[ $currentVersion -lt \$(oc get $dc -o jsonpath='{.status.latestVersion}') ]]" && return 0
+
+  return 1
+}
+
+# This function will tell us if the proposed patches are different than the current values
+function isValidChange() {
+
+  local object=$1; shift
+
+  for patch in $@; do
+    path="$(echo $patch | cut -d"=" -f 1)"
+    value="$(echo $patch | cut -d"=" -f 2)"
+    result="$(oc get $object -o jsonpath="$path")"
+
+    # we want to do a conversion of the image tag to the sha256 when checking images
+    # if path contains "containers" then we're doing an image patch
+    # the IS is between a "/" and ":" in value
+    if [[ "$path" =~ "containers" ]]; then
+      #we want to check if the tag or the sha256 match
+      image=$(echo $value | sed 's/^.*\///')
+
+      is=$(echo $image | cut -d":" -f 1)
+      tag=$(echo $image | cut -d":" -f 2)
+
+      shaValue=$(echo $value | grep -o '^.*:')
+      # drop last ":" and replace with "@"
+      shaValue=$(echo ${shaValue:0:-1}@)
+      shaValue+=$(oc get is $is -o jsonpath="{.status.tags[?(@.tag==\"$tag\")].items[0].image}")
+
+      [[ "$result" != "$value" ]] && \
+      [[ "$result" != "$shaValue" ]] && return 0
+    else
+      [[ "$result" != "$value" ]] && return 0
+    fi
+  done
+
+  echo "Same values as intended patches for $object"
+  return 1
+}
+
+function patchIfValid() {
+
+  local object=$1; shift
+  local isDC=false
+  local currentVersion
+  local actualPatch=()
+
+  [[ -n $(echo $object | grep '^dc\/') ]] && isDC=true
+
+  if [ $isDC = true ]; then
+    currentVersion=$(oc get $object -o jsonpath='{.status.latestVersion}')
+  fi
+
+  if ! isValidChange "$object" "$@"; then
+    return 0
+  fi
+
+  for patch in $@; do
+    # delimeter is '='
+
+    # we're changing the format of path from "{.status.tags[0].items[0].image}" to
+    # "/status/tags/0/items/0/image"  so we can oc patch using --type json
+    path=$(echo $patch | cut -d"=" -f 1 | sed 's/[\.[]/\//g ; s/[]}{]//g')
+    value=$(echo $patch | cut -d"=" -f 2)
+
+    actualPatch+=( '{"op":"replace","path":"'$path'","value":"'$value'"}"')
+  done
+
+  if oc patch $object --type=json -p="[$(join , "${actualPatch[@]}")]"; then
+    if [[ $isDC = true ]]; then
+      oc deploy $object --latest
+      waitForChange $currentVersion $object &
+      patchPIDs+=( $!)
+    fi
+
+    return 0
+  fi
+
+  return 1
+}
+
 # this is to go through and update a template with the latest image version
 function patchTemplateParameter() {
   local template=$1
   local index=$(getArrayIndex "template/$template" ".parameters" "name" "IMAGE_VERSION")
 
   if [[ $index -gt -1 ]]; then
-    oc patch template/$template --type=json -p="[{\"op\":\"replace\", \"path\":\"/parameters/$index/value\", \"value\":\"$IMAGE_VERSION\"}]"
 
-    if [[ $? -ne 0 ]]; then
-      echo "Did not patch template/$template successfully"
-      return 1
-    else
-      return 0
-    fi
+    patchIfValid "template/$template" "{.parameters[$index].value}=$IMAGE_VERSION" && return 0
+
+    echo "Did not patch template/$template successfully"
+    return 1
   fi
 }
 
@@ -314,13 +401,14 @@ function patchDCImage() {
   done
 
   if [ "$kibana" = true ]; then
-    authProxy_patch=",{\"op\":\"replace\", \"path\":\"/spec/template/spec/containers/1/image\", \"value\":\"${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}\"} \
-                     ,{\"op\":\"replace\", \"path\":\"/spec/triggers/$auth_proxy_index/imageChangeParams/from/name\", \"value\":\"logging-auth-proxy:${IMAGE_VERSION}\"}"
+    authProxy_patch="{.spec.template.spec.containers[1].image}=${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION} \
+                     {.spec.triggers[$auth_proxy_index].imageChangeParams.from.name}=logging-auth-proxy:${IMAGE_VERSION}"
   fi
 
-  oc patch dc/$dc --type=json -p="[{\"op\":\"replace\", \"path\":\"/spec/template/spec/containers/0/image\", \"value\":\"${IMAGE_PREFIX}${image}:${IMAGE_VERSION}\"} \
-                                  ,{\"op\":\"replace\", \"path\":\"/spec/triggers/$trigger_index/imageChangeParams/from/name\", \"value\":\"${image}:${IMAGE_VERSION}\"} \
-                                  ${authProxy_patch}]" && return 0
+  patchIfValid "dc/$dc" "{.spec.template.spec.containers[0].image}=${IMAGE_PREFIX}${image}:${IMAGE_VERSION} \
+                         {.spec.triggers[$trigger_index].imageChangeParams.from.name}=${image}:${IMAGE_VERSION} \
+                         ${authProxy_patch}" && return 0
+
   echo "Did not patch dc/$dc successfully"
   return 1
 }
@@ -365,6 +453,9 @@ function updateImages() {
 
   # patch fluentd -- or just recreate template?
   patchImageVersion "logging-infra=fluentd" "logging-fluentd" false true
+
+  # wait for all the config changes we wait on to be pulled in
+  wait ${patchPIDs[@]}
 }
 
 # we can just specify to regenerate our certs
