@@ -128,6 +128,11 @@ objects:
     redirectURIs:
     - https://${KIBANA_HOSTNAME}
     - https://${KIBANA_OPS_HOSTNAME}
+    scopeRestrictions:
+    - literals:
+      - user:info
+      - user:check-access
+      - user:list-projects
 - apiVersion: "v1"
   kind: "Template"
   metadata:
