@@ -267,6 +267,19 @@ To set the parameters::
 If you need to upgrade your EFK stack with new images and new features, you can
 run the Deployer in `upgrade` mode.
 
+Before you run the Deployer you should recreate your `logging-deployer-template`
+and `logging-deployer-account-template` templates to ensure you pick up any changes
+that may have been made to them since your last installation. First, you must delete
+the templates.
+
+    $ oc delete template logging-deployer-account-template logging-deployer-template
+
+You can follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployment#create-missing-templates)
+to recreate your Deployer templates.  Then follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployment#create-supporting-serviceaccount-and-permissions)
+to ensure your service account roles are up to date.
+
+To run the Deployer to upgrade your EFK stack, specify the `MODE=upgrade` parameter.
+
     $ oc new-app logging-deployer-template \
            -p KIBANA_HOSTNAME=kibana.example.com \
            -p ES_CLUSTER_SIZE=1 \
