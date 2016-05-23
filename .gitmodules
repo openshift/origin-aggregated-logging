@@ -1,0 +1,3 @@
+[submodule "deployer/common"]
+	path = deployer/common
+	url = https://github.com/openshift/origin-integration-common
