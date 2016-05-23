@@ -348,10 +348,11 @@ function updateImages() {
   # create any missing imagestreams and then update them all
   oc new-app logging-imagestream-template || : # these may fail if created independently; that's ok
 
-  oc import-image logging-elasticsearch || :
-  oc import-image logging-fluentd || :
-  oc import-image logging-kibana || :
-  oc import-image logging-curator || :
+  oc import-image logging-elasticsearch:${IMAGE_VERSION} --from=${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION} --insecure=${INSECURE_REGISTRY} || :
+  oc import-image logging-fluentd:${IMAGE_VERSION} --from=${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION} --insecure=${INSECURE_REGISTRY} || :
+  oc import-image logging-kibana:${IMAGE_VERSION} --from=${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION} --insecure=${INSECURE_REGISTRY} || :
+  oc import-image logging-auth-proxy:${IMAGE_VERSION} --from=${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION} --insecure=${INSECURE_REGISTRY} || :
+  oc import-image logging-curator:${IMAGE_VERSION} --from=${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION} --insecure=${INSECURE_REGISTRY} || :
 
   # patch all es
   patchImageVersion "logging-infra=elasticsearch" "logging-elasticsearch"
