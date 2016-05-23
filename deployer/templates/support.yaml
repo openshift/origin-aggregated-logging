@@ -19,9 +19,13 @@ parameters:
   name: KIBANA_OPS_HOSTNAME
   value: kibana-ops.example.com
 -
-  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployment:v1.1", set prefix "openshift/origin-"'
+  description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployment:v1.2", set prefix "openshift/origin-"'
   name: IMAGE_PREFIX_DEFAULT
   value: "docker.io/openshift/origin-"
+-
+  description: 'Specify version for logging component images; e.g. for "openshift/origin-logging-deployment:v1.2", set version "v1.2"'
+  name: IMAGE_VERSION_DEFAULT
+  value: "latest"
 -
   description: 'Set to "true" if the image registry is not secured with a properly-signed certificate.'
   name: INSECURE_REGISTRY
@@ -148,9 +152,13 @@ objects:
     component: support
   parameters:
   -
-    description: 'Specify prefix for logging component images; e.g. for "openshift/origin-logging-deployer:v1.1", set prefix "openshift/origin-"'
+    description: 'Specify prefix for logging component images; e.g. for "openshift/logging-deployer:v1.2", set prefix "openshift/"'
     name: IMAGE_PREFIX
     value: ${IMAGE_PREFIX_DEFAULT}
+  -
+    description: 'Specify version for logging component images; e.g. for "openshift/logging-deployer:v1.2", set version "v1.2"'
+    name: IMAGE_VERSION
+    value: ${IMAGE_VERSION_DEFAULT}
   objects:
   -
     apiVersion: v1
@@ -161,6 +169,11 @@ objects:
       name: logging-auth-proxy
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-auth-proxy
+      tags:
+      - name: ${IMAGE_VERSION}
+        from:
+          kind: DockerImage
+          name: ${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}
   -
     apiVersion: v1
     kind: ImageStream
@@ -170,6 +183,11 @@ objects:
       name: logging-elasticsearch
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-elasticsearch
+      tags:
+      - name: ${IMAGE_VERSION}
+        from:
+          kind: DockerImage
+          name: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
   -
     apiVersion: v1
     kind: ImageStream
@@ -179,6 +197,11 @@ objects:
       name: logging-fluentd
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-fluentd
+      tags:
+      - name: ${IMAGE_VERSION}
+        from:
+          kind: DockerImage
+          name: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
   -
     apiVersion: v1
     kind: ImageStream
@@ -188,6 +211,11 @@ objects:
       name: logging-kibana
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-kibana
+      tags:
+      - name: ${IMAGE_VERSION}
+        from:
+          kind: DockerImage
+          name: ${IMAGE_PREFIX}logging-kibana:${IMAGE_VERSION}
   -
     apiVersion: v1
     kind: ImageStream
@@ -197,6 +225,11 @@ objects:
       name: logging-curator
     spec:
       dockerImageRepository: ${IMAGE_PREFIX}logging-curator
+      tags:
+      - name: ${IMAGE_VERSION}
+        from:
+          kind: DockerImage
+          name: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
 - apiVersion: "v1"
   kind: "Template"
   parameters:
