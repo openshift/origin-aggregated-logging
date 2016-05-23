@@ -8,7 +8,7 @@ ENV BIN_DIR=/opt/deploy \
     HOME=/etc/deploy \
     KUBECONFIG=/etc/deploy/.kubeconfig \
     WRITE_KUBECONFIG=1 \
-    LOGGING_VERSION=2
+    LOGGING_VERSION=3
 
 RUN yum install -y java-1.8.0-openjdk openssl && yum clean all
 

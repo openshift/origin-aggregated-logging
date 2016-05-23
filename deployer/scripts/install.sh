@@ -367,12 +367,15 @@ function generate_es() {
 #
 function generate_objects() {
   echo "(Re-)Creating deployed objects"
-  oc new-app logging-imagestream-template || : # these may fail if created independently; that's ok
 
   generate_es
   generate_kibana
   generate_curator
   generate_fluentd
+
+  for dc in $(oc get dc -l logging-infra -o name); do
+    oc deploy $dc --latest
+  done
 } #generate_objects()
 
 ######################################

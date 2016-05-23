@@ -41,24 +41,7 @@ objects:
       selector:
         provider: openshift
         component: "${KIBANA_DEPLOY_NAME}"
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - kibana
-          from:
-            kind: ImageStreamTag
-            name: logging-kibana:${IMAGE_VERSION}
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - kibana-proxy
-          from:
-            kind: ImageStreamTag
-            name: logging-auth-proxy:${IMAGE_VERSION}
+      triggers: {}
       strategy:
         resources: {}
         rollingParams:
