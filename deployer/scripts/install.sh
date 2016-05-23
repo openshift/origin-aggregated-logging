@@ -82,6 +82,7 @@ function generate_support_objects() {
      --param KIBANA_HOSTNAME=${hostname} \
      --param KIBANA_OPS_HOSTNAME=${ops_hostname} \
      --param IMAGE_PREFIX_DEFAULT=${image_prefix} \
+     --param IMAGE_VERSION_DEFAULT=${image_version} \
      --param INSECURE_REGISTRY=${insecure_registry}
 
   oc new-app logging-support-template
