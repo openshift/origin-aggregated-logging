@@ -274,8 +274,8 @@ the templates.
 
     $ oc delete template logging-deployer-account-template logging-deployer-template
 
-You can follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployment#create-missing-templates)
-to recreate your Deployer templates.  Then follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployment#create-supporting-serviceaccount-and-permissions)
+You can follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployer#create-missing-templates)
+to recreate your Deployer templates.  Then follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployer#create-supporting-serviceaccount-and-permissions)
 to ensure your service account roles are up to date.
 
 To run the Deployer to upgrade your EFK stack, specify the `MODE=upgrade` parameter.
