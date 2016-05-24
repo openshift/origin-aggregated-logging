@@ -71,7 +71,7 @@ projects that are not specified
 curator jobs
 ** runminute: NUMBER - minute of the hour at which to run the curator jobs
 
-For example, using::
+For example, using:
 
     myapp-dev:
      delete:
@@ -247,7 +247,7 @@ parameters added:
 * `ES_COPY_PASSWORD`, `OPS_COPY_PASSWORD` - password to use to authenticate to
   elasticsearch using username/password auth
 
-To set the parameters::
+To set the parameters:
 
     oc edit -n logging template logging-fluentd-template
     # add/edit ES_COPY to have the value "true" - with the quotes
