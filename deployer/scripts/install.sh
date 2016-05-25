@@ -205,7 +205,7 @@ function generate_secrets() {
                    logging-curator
     if [ -n "$IMAGE_PULL_SECRET" ]; then
       for account in default aggregated-logging-{elasticsearch,fluentd,kibana,curator}; do
-        oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET" 
+        oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET"
       done
     fi
 
