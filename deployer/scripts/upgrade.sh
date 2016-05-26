@@ -206,11 +206,17 @@ function scaleUpDCsAndCheck() {
 
   # scale them all up first
   for dc in $dcs; do
-    oc scale --replicas=$(getPreviousReplicas "$dc") dc $dc
+    replicas=$(getPreviousReplicas "$dc")
+    [[ $replicas -gt 0 ]] && oc scale --replicas=$replicas dc/$dc
   done
   # then check that they started up
   for dc in $dcs; do
-    if [[ $(getPreviousReplicas "$dc") -gt 0 ]]; then
+    replicas=$(getPreviousReplicas "$dc")
+    if [[ $replicas -gt 0 ]]; then
+      # if we're still at 0 replicas after we scaled up...
+      # possibly due to ttl failing on dc and annotation sync not being accurate; scale to 0 then scale back up
+      [[ 0 -eq $(oc get dc/$dc -o jsonpath='{.spec.replicas}') ]] && oc scale --replicas=0 dc/$dc && oc scale --replicas=$replicas dc/$dc
+
       for pod in $(getPodName $dc); do
         waitForStart $pod
 
@@ -306,7 +312,7 @@ function isValidChange() {
     # the IS is between a "/" and ":" in value
     if [[ "$path" =~ "containers" ]]; then
       #we want to check if the tag or the sha256 match
-      image=$(echo $value | sed 's/^.*\///')
+      image=$(echo $value | sed "s,$IMAGE_PREFIX,,")
 
       is=$(echo $image | cut -d":" -f 1)
       tag=$(echo $image | cut -d":" -f 2)
@@ -357,7 +363,7 @@ function patchIfValid() {
 
   if oc patch $object --type=json -p="[$(join , "${actualPatch[@]}")]"; then
     if [[ $isDC = true ]]; then
-      oc deploy $object --latest
+      #oc deploy $object --latest
       waitForChange $currentVersion $object &
       patchPIDs+=( $!)
     fi
@@ -432,6 +438,8 @@ function patchImageVersion() {
 }
 
 function updateImages() {
+
+  patchTemplateParameter "logging-imagestream-template"
 
   # create any missing imagestreams and then update them all
   oc new-app logging-imagestream-template || : # these may fail if created independently; that's ok
