@@ -58,11 +58,11 @@ searchguard:
     transport:
       http:
         keystore_type: JKS
-        keystore_filepath: /etc/elasticsearch/keys/key
+        keystore_filepath: /etc/elasticsearch/secret/key
         keystore_password: kspass
         enforce_clientauth: true
         truststore_type: JKS
-        truststore_filepath: /etc/elasticsearch/keys/truststore
+        truststore_filepath: /etc/elasticsearch/secret/truststore
         truststore_password: tspass
   actionrequestfilter:
     names: ["readonly", "fluentd", "kibana", "curator", "admin"]

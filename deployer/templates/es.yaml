@@ -86,7 +86,10 @@ objects:
                 value: ${RECOVER_AFTER_TIME}
               volumeMounts:
                 - name: elasticsearch
-                  mountPath: /etc/elasticsearch/keys
+                  mountPath: /etc/elasticsearch/secret
+                  readOnly: true
+                - name: elasticsearch-config
+                  mountPath: /usr/share/elasticsearch/config
                   readOnly: true
                 - name: elasticsearch-storage
                   mountPath: /elasticsearch/persistent
@@ -94,6 +97,9 @@ objects:
             - name: elasticsearch
               secret:
                 secretName: logging-elasticsearch
+            - name: elasticsearch-config
+              configMap:
+                name: logging-elasticsearch
             - name: elasticsearch-storage
               emptyDir: {}
   parameters:

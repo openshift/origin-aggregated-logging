@@ -128,10 +128,9 @@ CONF
 
 ######################################
 #
-# generate secret contents and secrets
+# generate secret contents, secrets, and configmaps
 #
-function generate_secrets() {
-  if [ "${KEEP_SUPPORT}" != true ]; then
+function generate_config() {
     generate_signer_cert_and_conf
 
     # use or generate Kibana proxy certs
@@ -211,7 +210,26 @@ function generate_secrets() {
       done
     fi
 
-  fi # supporting infrastructure - secrets
+    ### ConfigMaps
+    echo "Deleting configmaps"
+    oc delete configmap -l logging-infra=support
+
+    echo "Creating configmaps"
+
+    # generate elasticsearch configmap 
+    oc create configmap logging-elasticsearch \
+      --from-file=common/elasticsearch/logging.yml \
+      --from-file=conf/elasticsearch.yml
+    oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
+    
+    # generate curator configmap
+    oc create configmap logging-curator \
+      --from-file=config.yaml=conf/curator.yml
+    oc label configmap/logging-curator logging-infra=support # make easier to delete later
+
+}
+function generate_secrets() { # legacy name
+  generate_config
 }
 
 function create_template_optional_nodeselector(){
