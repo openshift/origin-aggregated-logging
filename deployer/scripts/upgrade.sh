@@ -352,7 +352,7 @@ function patchIfValid() {
     path=$(echo $patch | cut -d"=" -f 1 | sed 's/[\.[]/\//g ; s/[]}{]//g')
     value=$(echo $patch | cut -d"=" -f 2)
 
-    actualPatch+=( '{"op":"replace","path":"'$path'","value":"'$value'"}"')
+    actualPatch+=( '{"op":"replace","path":"'$path'","value":"'$value'"}')
   done
 
   if oc patch $object --type=json -p="[$(join , "${actualPatch[@]}")]"; then
