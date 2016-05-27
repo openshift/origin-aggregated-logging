@@ -37,6 +37,7 @@ images=(
   ${PREFIX}logging-fluentd
   ${PREFIX}logging-elasticsearch
   ${PREFIX}logging-kibana
+  ${PREFIX}logging-auth-proxy
   ${PREFIX}logging-deployment
 )
 
