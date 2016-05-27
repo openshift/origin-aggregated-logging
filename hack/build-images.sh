@@ -12,10 +12,18 @@ version="${OS_TAG:-latest}"
 source_root=$(dirname "${0}")/..
 
 #################################
-for component in deployment fluentd elasticsearch kibana curator ; do
+declare -A source_for=(
+  [logging-fluentd]=fluentd
+  [logging-elasticsearch]=elasticsearch
+  [logging-kibana]=kibana
+  [logging-curator]=curator
+  [logging-auth-proxy]=deployer/common/openshift-auth-proxy
+  [logging-deployment]=deployer
+)
+for component in ${!source_for[@]} ; do
   BUILD_STARTTIME=$(date +%s)
-  comp_path=$source_root/$component/
-  docker_tag=${prefix}logging-${component}:${version}
+  comp_path=$source_root/${source_for[$component]}
+  docker_tag=${prefix}${component}:${version}
   echo
   echo
   echo "--- Building component '$comp_path' with docker tag '$docker_tag' ---"
