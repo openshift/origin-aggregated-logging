@@ -28,6 +28,12 @@ function getDeploymentVersion() {
     return
   fi
 
+  # check for configmaps for ES and curator
+  if [[ -z "$(oc get configmap/logging-elasticsearch)" || -z "$(oc get configmap/logging-curator)" ]]; then
+    echo 3
+    return
+  fi
+
   echo "$LOGGING_VERSION"
 }
 
@@ -480,6 +486,27 @@ function add_fluentd_daemonset() {
   generate_fluentd
 }
 
+function add_config_maps() {
+  generate_configmaps
+  echo "Supplying Elasticsearch with a ConfigMap..."
+  local dc patch=$(join , \
+    '{"op": "replace", "path": "/spec/template/spec/containers/0/volumeMounts/0/mountPath", "value": "/etc/elasticsearch/secret"}' \
+    '{"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/1", "value": {"name": "elasticsearch-config", "mountPath": "/usr/share/elasticsearch/config", "readOnly": true}}' \
+    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "elasticsearch-config", "configMap": {"name": "elasticsearch-config"}}}' \
+  )
+  for dc in $(get_es_dcs); do
+    oc patch $dc --type=json --patch "[$patch]"
+  done
+  echo "Supplying Curator with a ConfigMap..."
+  patch=$(join , \
+    '{"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/1", "value": {"name": "config", "mountPath": "/etc/curator/settings", "readOnly": true}}' \
+    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "config", "configMap": {"name": "curator-config"}}}' \
+  )
+  for dc in $(get_curator_dcs); do
+    oc patch $dc --type=json --patch "[$patch]"
+  done
+}
+
 function upgrade_notify() {
   set +x
   cat <<EOF
@@ -504,13 +531,13 @@ no additional actions to deploy your pods -- the deployer did not unlabel any no
 EOF
 }
 
-function regenerate_secrets_and_support_objects() {
+function regenerate_config_and_support_objects() {
   oc process logging-support-template | oc delete -f - || :
   oc delete service,route,template --selector logging-infra=support
   # note: dev builds aren't labeled and won't be deleted. if you need to preserve imagestreams, you can just remove the label.
   # note: no automatic deletion of persistentvolumeclaim; didn't seem wise
 
-  generate_secrets
+  generate_config
   generate_support_objects
 }
 
@@ -533,10 +560,11 @@ function upgrade_logging() {
   local migrate=
 
   # VERSIONS
-  # 0 -- just EFK
-  # 1 -- admin cert
-  # 2 -- curator & daemonset
-  # 3 -- no change triggers
+  # 0 -- initial EFK
+  # 1 -- add admin cert
+  # 2 -- add curator & use daemonset
+  # 3 -- remove change triggers on DCs
+  # 4 -- supply ES/curator configmaps
 
   initialize_install_vars
 
@@ -550,7 +578,7 @@ function upgrade_logging() {
   if [[ $installedVersion -eq $LOGGING_VERSION ]]; then
     echo "No infrastructure changes required for Aggregated Logging."
   else
-    regenerate_secrets_and_support_objects
+    regenerate_config_and_support_objects
 
     for version in $(seq $installedVersion $LOGGING_VERSION); do
       case "${version}" in
@@ -567,8 +595,15 @@ function upgrade_logging() {
           # Remove triggers
           remove_triggers_and_IS
           ;;
+        3)
+          add_config_maps
+          ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
+          ;;
+        *)
+          echo "Something went terribly wrong."
+          exit 1
           ;;
       esac
     done

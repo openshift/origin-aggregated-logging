@@ -26,6 +26,29 @@ fi
 TEST_DIVIDER="------------------------------------------"
 UPGRADE_POD=""
 
+function removeEsCuratorConfigMaps() {
+  echo "removing configmaps from ES and Curator"
+  # construct patch for ES
+  local dc patch=$(join , \
+    '{"op": "replace", "path": "/spec/template/spec/containers/0/volumeMounts/0/mountPath", "value": "/etc/elasticsearch/keys"}' \
+    '{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/1"}' \
+    '{"op": "remove", "path": "/spec/template/spec/volumes/1"}' \
+  )
+  for dc in $(get_es_dcs); do
+    os::cmd::expect_success "oc patch $dc --type=json --patch '[$patch]'"
+  done
+  # construct patch for curator
+  patch=$(join , \
+    '{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/1"}' \
+    '{"op": "remove", "path": "/spec/template/spec/volumes/1"}' \
+  )
+  for dc in $(get_curator_dcs); do
+    os::cmd::expect_success "oc patch $dc --type=json --patch '[$patch]'"
+  done
+  # delete the actual configmaps
+  os::cmd::expect_success "oc delete configmap/logging-elasticsearch configmap/logging-curator"
+}
+
 function removeCurator() {
   echo "removing curator"
   for curator_dc in $(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}'); do
@@ -114,7 +137,7 @@ function upgrade() {
                         -p MODE=upgrade \
                         -p IMAGE_VERSION=$version"
 
-  UPGRADE_POD=$(get_latest_pod "component=deployer")
+  UPGRADE_POD=$(get_latest_pod "logging-infra=deployer")
   os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 20 * TIME_MIN ))"
 }
 
@@ -189,25 +212,24 @@ source "./logging.sh"
 
 echo $TEST_DIVIDER
 # test from base install
-removeAdminCert && \
-removeCurator && \
-useFluentdDC && \
-addTriggers && \
-rebuildVersion "upgraded" && \
-
-upgrade "upgraded" && \
-verifyUpgrade true && \
-
-./e2e-test.sh $USE_CLUSTER && \
+removeEsCuratorConfigMaps &&
+removeAdminCert &&
+removeCurator &&
+useFluentdDC &&
+addTriggers &&
+rebuildVersion "upgraded" &&
+upgrade "upgraded" &&
+verifyUpgrade true &&
+./e2e-test.sh $USE_CLUSTER
 
 echo $TEST_DIVIDER
 # test from partial upgrade
-useFluentdDC && \
-addTriggers && \
-upgrade "upgraded" && \
-verifyUpgrade && \
-
-./e2e-test.sh $USE_CLUSTER && \
+removeEsCuratorConfigMaps &&
+useFluentdDC &&
+addTriggers &&
+upgrade "upgraded" &&
+verifyUpgrade &&
+./e2e-test.sh $USE_CLUSTER &&
 exit 0
 
 oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1

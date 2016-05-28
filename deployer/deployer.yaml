@@ -78,7 +78,6 @@ items:
   labels:
     logging-infra: deployer
     provider: openshift
-    component: deployer
   objects:
   -
     apiVersion: v1
