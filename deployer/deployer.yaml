@@ -10,7 +10,8 @@ items:
       description: "Template for creating the deployer account and roles needed for the aggregated logging deployer. Create as cluster-admin."
       tags: "infrastructure"
   objects:
-  - apiVersion: v1
+  -
+    apiVersion: v1
     kind: ServiceAccount
     name: logging-deployer
     metadata:
@@ -19,8 +20,6 @@ items:
         logging-infra: deployer
         provider: openshift
         component: deployer
-    secrets:
-    - name: logging-deployer
   -
     apiVersion: v1
     kind: ServiceAccount
@@ -67,13 +66,35 @@ items:
       - watch
       - delete
       - update
+  -
+    apiVersion: v1
+    kind: RoleBinding
+    metadata:
+      name: logging-deployer-edit-role
+    roleRef:
+      kind: ClusterRole
+      name: edit
+    subjects:
+    - kind: ServiceAccount
+      name: logging-deployer
+  -
+    apiVersion: v1
+    kind: RoleBinding
+    metadata:
+      name: logging-deployer-dsadmin-role
+    roleRef:
+      kind: ClusterRole
+      name: daemonset-admin
+    subjects:
+    - kind: ServiceAccount
+      name: logging-deployer
 -
   apiVersion: "v1"
   kind: "Template"
   metadata:
     name: logging-deployer-template
     annotations:
-      description: "Template for running the aggregated logging deployer in a pod. Requires empowered 'logging-deployer' service account and 'logging-deployer' secret."
+      description: "Template for running the aggregated logging deployer in a pod. Requires empowered 'logging-deployer' service account."
       tags: "infrastructure"
   labels:
     logging-infra: deployer
@@ -90,9 +111,6 @@ items:
         imagePullPolicy: Always
         name: deployer
         volumeMounts:
-        - name: secret
-          mountPath: /secret
-          readOnly: true
         - name: empty
           mountPath: /etc/deploy
         env:
@@ -176,9 +194,6 @@ items:
       volumes:
       - name: empty
         emptyDir: {}
-      - name: secret
-        secret:
-          secretName: logging-deployer
   parameters:
   -
     description: "If true, set up to use a second ES cluster for ops logs."
@@ -187,7 +202,7 @@ items:
   -
     description: "External hostname where clients will reach kibana"
     name: KIBANA_HOSTNAME
-    required: true
+    value: "kibana.example.com"
   -
     description: "External hostname at which admins will visit the ops Kibana."
     name: KIBANA_OPS_HOSTNAME
@@ -195,7 +210,7 @@ items:
   -
     description: "External URL for the master, for OAuth purposes"
     name: PUBLIC_MASTER_URL
-    required: true
+    value: "https://localhost:8443"
   -
     description: "Internal URL for the master, for authentication retrieval"
     name: MASTER_URL
@@ -203,7 +218,7 @@ items:
   -
     description: "How many instances of ElasticSearch to deploy."
     name: ES_CLUSTER_SIZE
-    required: true
+    value: "1"
   -
     description: "Amount of RAM to reserve per ElasticSearch instance."
     name: ES_INSTANCE_RAM
