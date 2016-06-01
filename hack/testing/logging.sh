@@ -232,16 +232,14 @@ wait_for_registry
 ######### logging specific code starts here ####################
 
 ### create and deploy the logging component pods ###
-masterurlhack=",MASTER_URL=https://172.30.0.1:443"
+masterurlhack="-p MASTER_URL=https://172.30.0.1:443"
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
 os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging"
-os::cmd::expect_success "oc secrets new logging-deployer nothing=/dev/null"
 os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
-os::cmd::expect_success "oc policy add-role-to-user edit system:serviceaccount:logging:logging-deployer"
-os::cmd::expect_success "oc policy add-role-to-user daemonset-admin system:serviceaccount:logging:logging-deployer"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
+os::cmd::expect_success "oc create configmap logging-deployer --from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER}"
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
 elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
@@ -298,12 +296,8 @@ sleep 5
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
     os::cmd::expect_success "oc new-app \
                           logging-deployer-template \
-                          -p ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER \
-                          ${pvc_params} \
                           -p IMAGE_PREFIX=$imageprefix \
-                          -p KIBANA_HOSTNAME=kibana.example.com \
-                          -p ES_CLUSTER_SIZE=1 \
-                          -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack}"
+                          ${pvc_params} ${masterurlhack}"
 
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
     os::cmd::try_until_text "oc get pods -l logging-infra=deployer" "Completed" "$(( 3 * TIME_MIN ))"
@@ -445,12 +439,8 @@ function reinstall() {
 
   os::cmd::expect_success "oc new-app \
                         logging-deployer-template \
-                        -p ENABLE_OPS_CLUSTER=$ENABLE_OPS_CLUSTER \
-                        ${pvc_params} \
                         -p IMAGE_PREFIX=$imageprefix \
-                        -p KIBANA_HOSTNAME=kibana.example.com \
-                        -p ES_CLUSTER_SIZE=1 \
-                        -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                        ${masterurlhack} ${pvc_params} \
                         -p MODE=reinstall"
 
   REINSTALL_POD=$(get_latest_pod "logging-infra=deployer")
