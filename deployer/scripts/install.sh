@@ -24,39 +24,66 @@ function install_logging() {
 #
 # initialize a lot of variables from env
 #
+declare -A input_vars=()
 function initialize_install_vars() {
-  image_prefix=${IMAGE_PREFIX:-openshift/origin-}
-  image_version=${IMAGE_VERSION:-latest}
-  insecure_registry=${INSECURE_REGISTRY:-false}
-  hostname=${KIBANA_HOSTNAME:-kibana.example.com}
-  ops_hostname=${KIBANA_OPS_HOSTNAME:-kibana-ops.example.com}
-  public_master_url=${PUBLIC_MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
+  set +x
+  local configmap secret index value var
+  local index_template='{{range $index, $element :=.data}}{{println $index}}{{end}}'
+  # if configmap exists, get values from it
+  if configmap=$(oc get configmap/logging-deployer --template="$index_template"); then
+    for index in $configmap; do
+      input_vars[$index]=$(oc get configmap/logging-deployer --template="{{println (index .data \"$index\")}}")
+    done
+  fi
+  # if secret exists, get values from it
+  if secret=$(oc get secret/logging-deployer --template="$index_template"); then
+    for index in $secret; do
+      : ${input_vars[$index]:=$(oc get secret/logging-deployer --template="{{println (index .data \"$index\")}}" | base64 -d)}
+    done
+  fi
+  # if legacy variables set, use them to fill unset inputs
+  for var in KIBANA_HOSTNAME KIBANA_OPS_HOSTNAME PUBLIC_MASTER_URL ENABLE_OPS_CLUSTER IMAGE_PULL_SECRET \
+             ES{_OPS,}_{INSTANCE_RAM,PVC_SIZE,PVC_PREFIX,PVC_DYNAMIC,CLUSTER_SIZE,NODE_QUORUM,RECOVER_AFTER_NODES,RECOVER_EXPECTED_NODES,RECOVER_AFTER_TIME} \
+             {ES,ES_OPS,KIBANA,KIBANA_OPS,CURATOR,CURATOR_OPS,FLUENTD}_NODESELECTOR
+  do
+    [ ${!var+set} ] || continue
+    index=${var,,} # lowercase
+    index=${index//_/-} # underscore to hyphen
+    : ${input_vars[$index]:=${!var}}
+  done
+  set -x
+
+  insecure_registry=${input_vars[insecure-registry]:-false}
+  hostname=${input_vars[kibana-hostname]:-kibana.example.com}
+  ops_hostname=${input_vars[kibana-ops-hostname]:-kibana-ops.example.com}
+  public_master_url=${input_vars[public-master-url]:-https://kubernetes.default.svc.cluster.local:443}
   # ES cluster parameters:
-  es_instance_ram=${ES_INSTANCE_RAM:-512M}
-  es_pvc_size=${ES_PVC_SIZE:-}
-  es_pvc_prefix=${ES_PVC_PREFIX:-}
-  es_pvc_dynamic=${ES_PVC_DYNAMIC:-}
-  es_cluster_size=${ES_CLUSTER_SIZE:-1}
-  es_node_quorum=${ES_NODE_QUORUM:-$((es_cluster_size/2+1))}
-  es_recover_after_nodes=${ES_RECOVER_AFTER_NODES:-$((es_cluster_size-1))}
-  es_recover_expected_nodes=${ES_RECOVER_EXPECTED_NODES:-$es_cluster_size}
-  es_recover_after_time=${ES_RECOVER_AFTER_TIME:-5m}
-  es_ops_instance_ram=${ES_OPS_INSTANCE_RAM:-512M}
-  es_ops_pvc_size=${ES_OPS_PVC_SIZE:-}
-  es_ops_pvc_prefix=${ES_OPS_PVC_PREFIX:-}
-  es_ops_pvc_dynamic=${ES_OPS_PVC_DYNAMIC:-}
-  es_ops_cluster_size=${ES_OPS_CLUSTER_SIZE:-$es_cluster_size}
-  es_ops_node_quorum=${ES_OPS_NODE_QUORUM:-$((es_ops_cluster_size/2+1))}
-  es_ops_recover_after_nodes=${ES_OPS_RECOVER_AFTER_NODES:-$((es_ops_cluster_size-1))}
-  es_ops_recover_expected_nodes=${ES_OPS_RECOVER_EXPECTED_NODES:-$es_ops_cluster_size}
-  es_ops_recover_after_time=${ES_OPS_RECOVER_AFTER_TIME:-5m}
+  es_instance_ram=${input_vars[es-instance-ram]:-512M}
+  es_pvc_size=${input_vars[es-pvc-size]:-}
+  es_pvc_prefix=${input_vars[es-pvc-prefix]:-}
+  es_pvc_dynamic=${input_vars[es-pvc-dynamic]:-}
+  es_cluster_size=${input_vars[es-cluster-size]:-1}
+  es_node_quorum=${input_vars[es-node-quorum]:-$((es_cluster_size/2+1))}
+  es_recover_after_nodes=${input_vars[es-recover-after-nodes]:-$((es_cluster_size-1))}
+  es_recover_expected_nodes=${input_vars[es-recover-expected-nodes]:-$es_cluster_size}
+  es_recover_after_time=${input_vars[es-recover-after-time]:-5m}
+  es_ops_instance_ram=${input_vars[es-ops-instance-ram]:-512M}
+  es_ops_pvc_size=${input_vars[es-ops-pvc-size]:-}
+  es_ops_pvc_prefix=${input_vars[es-ops-pvc-prefix]:-}
+  es_ops_pvc_dynamic=${input_vars[es-ops-pvc-dynamic]:-}
+  es_ops_cluster_size=${input_vars[es-ops-cluster-size]:-$es_cluster_size}
+  es_ops_node_quorum=${input_vars[es-ops-node-quorum]:-$((es_ops_cluster_size/2+1))}
+  es_ops_recover_after_nodes=${input_vars[es-ops-recover-after-nodes]:-$((es_ops_cluster_size-1))}
+  es_ops_recover_expected_nodes=${input_vars[es-ops-recover-expected-nodes]:-$es_ops_cluster_size}
+  es_ops_recover_after_time=${input_vars[es-ops-recover-after-time]:-5m}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
   # *_NODESELECTOR
-  # other env vars used (expect base64 encoding):
-  # KIBANA_KEY, KIBANA_CERT, SERVER_TLS_JSON
 
+  image_prefix=${IMAGE_PREFIX:-openshift/origin-}
+  image_version=${IMAGE_VERSION:-latest}
+  # if env vars defined, get values from them
   # special-casing this as it's required anywhere we create a DC,
   # including both installs and upgrades. so ensure it's always set.
   image_params="IMAGE_VERSION_DEFAULT=${image_version},IMAGE_PREFIX_DEFAULT=${image_prefix}"
@@ -64,10 +91,10 @@ function initialize_install_vars() {
 
 function procure_server_cert() {
   local file=$1 hostnames=${2:-}
-  if [ -s $secret_dir/$file.crt ]; then
+  if [ ${input_vars[$file.crt]+set} ]; then
     # use files from secret if present
-    cp {$secret_dir,$dir}/$file.key
-    cp {$secret_dir,$dir}/$file.crt
+    echo -e "${input_vars[$file.key]}" > $dir/$file.key
+    echo -e "${input_vars[$file.crt]}" > $dir/$file.crt
   elif [ -n "${hostnames:-}" ]; then  #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/$file.key \
@@ -84,8 +111,7 @@ function generate_support_objects() {
      --param KIBANA_HOSTNAME=${hostname} \
      --param KIBANA_OPS_HOSTNAME=${ops_hostname} \
      --param IMAGE_PREFIX_DEFAULT=${image_prefix} \
-     --param IMAGE_VERSION_DEFAULT=${image_version} \
-     --param INSECURE_REGISTRY=${insecure_registry}
+     --param IMAGE_VERSION_DEFAULT=${image_version}
 
   oc new-app logging-support-template
   kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert=$dir/kibana.crt --key=$dir/kibana.key"
@@ -104,12 +130,11 @@ function generate_support_objects() {
 function generate_signer_cert_and_conf() {
   # this fails in the container, but it's useful for dev
   rm -rf $dir && mkdir -p $dir && chmod 700 $dir || :
-  mkdir -p $secret_dir && chmod 700 $secret_dir || :
 
   # cp/generate CA
-  if [ -s $secret_dir/ca.key ]; then
-    cp {$secret_dir,$dir}/ca.key
-    cp {$secret_dir,$dir}/ca.crt
+  if [ ${input_vars[ca.key]+set} ]; then
+    echo -e "${input_vars[ca.key]}" > $dir/ca.key
+    echo -e "${input_vars[ca.crt]}" > $dir/ca.crt
     echo "01" > $dir/ca.serial.txt
   else
     openshift admin ca create-signer-cert  \
@@ -139,8 +164,8 @@ function generate_config() {
     procure_server_cert kibana-internal kibana,kibana-ops,${hostname},${ops_hostname}
 
     # use or copy proxy TLS configuration file
-    if [ -s $secret_dir/server-tls.json ]; then
-      cp $secret_dir/server-tls.json $dir
+    if [ ${input_vars[server-tls.json]+set} ]; then
+      echo -e "${input_var[server-tls.json]}" $dir/server-tls.json 
     else
       cp conf/server-tls.json $dir
     fi
@@ -204,9 +229,9 @@ function generate_config() {
                    logging-fluentd
     oc secrets add serviceaccount/aggregated-logging-curator \
                    logging-curator
-    if [ -n "$IMAGE_PULL_SECRET" ]; then
+    if [ -n "${input_vars[image-pull-secret]}" ]; then
       for account in default aggregated-logging-{elasticsearch,fluentd,kibana,curator}; do
-        oc secrets add --for=pull "serviceaccount/$account" "secret/$IMAGE_PULL_SECRET"
+        oc secrets add --for=pull "serviceaccount/$account" "secret/${input_vars[image-pull-secret]}"
       done
     fi
 
@@ -245,7 +270,7 @@ function create_template_optional_nodeselector(){
 
 function generate_es_template(){
 
-  create_template_optional_nodeselector "${ES_NODESELECTOR}" es \
+  create_template_optional_nodeselector "${input_vars[es-nodeselector]}" es \
     --param ES_CLUSTER_NAME=es \
     --param ES_INSTANCE_RAM=${es_instance_ram} \
     --param ES_NODE_QUORUM=${es_node_quorum} \
@@ -254,8 +279,8 @@ function generate_es_template(){
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
     --param "$image_params"
 
-    if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
-      create_template_optional_nodeselector "${ES_OPS_NODESELECTOR}" es \
+    if [ "${input_vars[enable-ops-cluster]}" == true ]; then
+      create_template_optional_nodeselector "${input_vars[es-ops-nodeselector]}" es \
         --param ES_CLUSTER_NAME=es-ops \
         --param ES_INSTANCE_RAM=${es_ops_instance_ram} \
         --param ES_NODE_QUORUM=${es_ops_node_quorum} \
@@ -267,13 +292,13 @@ function generate_es_template(){
 }
 
 function generate_kibana_template(){
-  create_template_optional_nodeselector "${KIBANA_NODESELECTOR}" kibana \
+  create_template_optional_nodeselector "${input_vars[kibana-nodeselector]}" kibana \
     --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
     --param OAP_MASTER_URL=${master_url} \
     --param "$image_params"
 
-    if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
-      create_template_optional_nodeselector "${KIBANA_OPS_HOSTNAME_OPS_NODESELECTOR}" kibana \
+    if [ "${input_vars[enable-ops-cluster]}" == true ]; then
+      create_template_optional_nodeselector "${input_vars[kibana-ops-nodeselector]}" kibana \
         --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
         --param OAP_MASTER_URL=${master_url} \
         --param KIBANA_DEPLOY_NAME=kibana-ops \
@@ -283,14 +308,14 @@ function generate_kibana_template(){
 }
 
 function generate_curator_template(){
-  create_template_optional_nodeselector "${CURATOR_NODESELECTOR}" curator \
+  create_template_optional_nodeselector "${input_vars[curator-nodeselector]}" curator \
     --param ES_HOST=logging-es \
     --param MASTER_URL=${master_url} \
     --param CURATOR_DEPLOY_NAME=curator \
     --param "$image_params"
 
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
-    create_template_optional_nodeselector "${CURATOR_OPS_NODESELECTOR}" curator \
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
+    create_template_optional_nodeselector "${input_vars[curator-ops-nodeselector]}" curator \
       --param ES_HOST=logging-es-ops \
       --param MASTER_URL=${master_url} \
       --param CURATOR_DEPLOY_NAME=curator-ops \
@@ -301,11 +326,11 @@ function generate_curator_template(){
 function generate_fluentd_template(){
   es_host=logging-es
   es_ops_host=${es_host}
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     es_ops_host=logging-es-ops
   fi
 
-  create_template_optional_nodeselector "${FLUENTD_NODESELECTOR}" fluentd \
+  create_template_optional_nodeselector "${input_vars[fluentd-nodeselector]}" fluentd \
     --param ES_HOST=${es_host} \
     --param OPS_HOST=${es_ops_host} \
     --param MASTER_URL=${master_url} \
@@ -326,14 +351,14 @@ function generate_templates() {
 
 function generate_curator() {
   oc new-app logging-curator-template
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     oc new-app logging-curator-ops-template
   fi
 }
 
 function generate_kibana() {
   oc new-app logging-kibana-template
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     oc new-app logging-kibana-ops-template
   fi
 }
@@ -363,7 +388,7 @@ function generate_es() {
     fi
   done
 
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${ES_OPS_PVC_PREFIX}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${ES_OPS_PVC_SIZE}" != "" ]; then # doesn't exist, create it
@@ -406,9 +431,9 @@ function generate_objects() {
 function notify_user() {
   set +x
   echo 'Success!'
-  fns=${FLUENTD_NODESELECTOR:-logging-infra-fluentd=true}
+  fns=${input_vars[fluentd_nodeselector]:-logging-infra-fluentd=true}
   ops_cluster_section=""
-  if [ "${ENABLE_OPS_CLUSTER}" == true ]; then
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     ops_cluster_section="
 Operations logs:
 ----------------

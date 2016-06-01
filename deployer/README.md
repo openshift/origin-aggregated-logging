@@ -42,11 +42,8 @@ for details.
 The deployer pod can enable deploying the full stack of the aggregated
 logging solution with just a few prerequisites:
 
-1. A "logging-deployer" Secret
-2. A set of ServiceAccounts with the right privileges
-3. Optionally, a key and certificate for the Kibana server to be deployed.
-4. Sufficient volumes defined for ElasticSearch cluster storage.
-5. A router deployment for serving cluster-defined routes for Kibana.
+1. Sufficient volumes defined for ElasticSearch cluster storage.
+2. A router deployment for serving cluster-defined routes for Kibana.
 
 The deployer generates all the necessary certs/keys/etc for cluster
 communication and defines secrets and templates for all of the necessary
@@ -70,21 +67,90 @@ If your installation did not create templates in the `openshift`
 namespace, the `logging-deployer-template` and `logging-deployer-account-template`
 templates may not exist. In that case you can create them with the following:
 
-    $ oc create -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/master/deployer/deployer.yaml ...
+    $ oc apply -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/master/deployer/deployer.yaml
 
-## Create the Deployer Secret
+## Create Supporting Service Accounts and Permissions
+
+The deployer must run under a service account defined as follows:
+(Note: change `:logging:` below to match the project name.)
+
+    $ oc new-app logging-deployer-account-template
+    $ oadm policy add-cluster-role-to-user oauth-editor \
+              system:serviceaccount:logging:logging-deployer
+
+The policy manipulation is required in order for the deployer pod to
+create an OAuthClient for Kibana to authenticate against the master,
+normally a cluster-admin privilege.
+
+The fluentd component also requires special privileges for its service
+account. Run the following command to add the aggregated-logging-fluentd
+service account to the privileged SCC (to allow it to mount system logs)
+and give it the `cluster-reader` role to allow it to read labels from
+all pods (note, change `:logging:` below to the project of your choice):
+
+    $ oadm policy add-scc-to-user privileged \
+           system:serviceaccount:logging:aggregated-logging-fluentd
+    $ oadm policy add-cluster-role-to-user cluster-reader \
+           system:serviceaccount:logging:aggregated-logging-fluentd
+
+The remaining steps do not require cluster-admin privileges to run.
+
+## Specify Deployer Parameters
+
+Parameters for the EFK deployment may be specified in the form of a
+`[ConfigMap](https://docs.openshift.org/latest/dev_guide/configmaps.html)`,
+a `[Secret](https://docs.openshift.org/latest/dev_guide/secrets.html)`,
+or template parameters (which are passed as environment variables). The
+deployer looks for each value first in a `logging-deployer` ConfigMap,
+then a `logging-deployer` Secret, then as an environment variable. Any
+or all may be omitted if not needed.
+
+### Create Deployer ConfigMap
+
+You will need to specify the hostname at which Kibana should be
+exposed to client browsers, and also the master URL where client
+browsers will be directed for authenticating to OpenShift. You should
+read the [ElasticSearch](#elasticsearch) section below before choosing
+ElasticSearch parameters for the deployer. These and other parameters
+are available:
+
+* `kibana-hostname`: External hostname where web clients will reach Kibana
+* `public-master-url`: External URL for the master, for OAuth purposes
+* `es-cluster-size`: How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `es-instance-ram`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GiB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
+* `es-pvc-size`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead.
+* `es-pvc-prefix`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `es-pvc-size`.
+* `es-pvc-dynamic`: Set to `true` to have created PersistentVolumeClaims annotated such that their backing storage can be dynamically provisioned (if that is available for your cluster).
+* `fluentd-nodeselector`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
+* `es-nodeselector`: Specify the nodeSelector that Elasticsearch should be use (label=value)
+* `kibana-nodeselector`: Specify the nodeSelector that Kibana should be use (label=value)
+* `curator-nodeselector`: Specify the nodeSelector that Curator should be use (label=value)
+* `enable-ops-cluster`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
+* `kibana-ops-hostname`, `es-ops-instance-ram`, `es-ops-pvc-size`, `es-ops-pvc-prefix`, `es-ops-cluster-size`, `es-ops-nodeselector`, `kibana-ops-nodeselector`, `curator-ops-nodeselector`: Parallel parameters for the ops log cluster.
+* `image-pull-secret`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
+
+An invocation supplying the most important parameters might be:
+
+    $ oc create configmap logging-deployer \
+       --from-literal kibana-hostname=kibana.example.com \
+       --from-literal public-master-url=https://localhost:8443 \
+       --from-literal es-cluster-size=3
+
+It is also relatively easy to edit `ConfigMap` YAML after creating it:
+
+    $ oc edit configmap logging-deployer
+
+### Create Deployer Secret
 
 Security parameters for the logging infrastructure
 deployment can be supplied to the deployer in the form of a
-[secret](https://github.com/openshift/openshift-docs/blob/master/dev_guide/secrets.adoc).
+Most other parameters can be supplied in the form of a ConfigMap.
+Actually, the following parameters can all be supplied either way; but
+files used for security purposes are typically supplied in a secret.
 
-All contents of the secret are optional (they will be generated if not
-supplied), but the secret itself must always be created in order to run
-the deployer. To supply no parameters, you can create an empty secret:
-
-    $ oc secrets new logging-deployer nothing=/dev/null
-
-The following files may be supplied in the deployer secret:
+All contents of the secret and configmap are optional (they will be
+generated/defaulted if not supplied). The following files may be supplied
+in the `logging-deployer` secret:
 
 * `kibana.crt` - A browser-facing certificate for the Kibana route. If not supplied, the route is secured with the default router cert.
 * `kibana.key` - A key to be used with the Kibana certificate.
@@ -101,78 +167,38 @@ The following files may be supplied in the deployer secret:
 
 An invocation supplying a properly signed Kibana cert might be:
 
-    $ oc secrets new logging-deployer \
-       kibana.crt=/path/to/cert kibana.key=/path/to/key
+    $ oc create secret generic logging-deployer \
+       --from-file kibana.crt=/path/to/cert \
+       --from-file kibana.key=/path/to/key
 
-## Create Supporting ServiceAccount and Permissions
+### Choose Template Parameters
 
-The deployer must run under a service account defined as follows:
-(Note: change `:logging:` below to match the project name.)
+When running the deployer in the next step, there are a few parameters
+that are specified directly if needed:
 
-    $ oc new-app logging-deployer-account-template
-    $ oc policy add-role-to-user edit --serviceaccount logging-deployer
-    $ oc policy add-role-to-user daemonset-admin --serviceaccount logging-deployer
-    $ oadm policy add-cluster-role-to-user oauth-editor \
-              system:serviceaccount:logging:logging-deployer
-
-
-The policy manipulation is required in order for the deployer pod to
-create secrets, templates, and deployments in the project. By default
-service accounts are not allowed to do this.
-
-The fluentd deployment also requires a service account which the deployer
-will create that must be given special privileges. Run the following command to
-add the aggregated-logging-fluentd service account to the privileged SCC
-(node, change `:logging:` below to the project of your choice):
-
-    $ oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd
-
-Also give the account access to read labels from all pods (again with the correct project):
-
-    $ oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:logging:aggregated-logging-fluentd
+* `IMAGE_PREFIX`: Specify the prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.2.0", set prefix "docker.io/openshift/origin-"
+* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.2.0", set version "v1.2.0"
+* `MODE`: Mode to run the deployer in; one of `install`, `uninstall`, `reinstall`, `upgrade`, `migrate`, `start`, `stop`. `migrate` refers to the ES UUID data migration that is required for upgrading from version 1.1. `stop` and `start` can be used to safely pause the cluster for maintenance.
 
 ## Run the Deployer
 
-You will need to specify the hostname at which Kibana should be
-exposed to client browsers, and also the master URL where client
-browsers will be directed for authenticating to OpenShift. You should
-read the [ElasticSearch](#elasticsearch) section below before choosing
-ElasticSearch parameters for the deployer. These and other parameters
-are available:
-
-* `KIBANA_HOSTNAME` (required): External hostname where web clients will reach Kibana
-* `PUBLIC_MASTER_URL` (required): External URL for the master, for OAuth purposes
-* `ES_CLUSTER_SIZE` (required): How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
-* `ES_INSTANCE_RAM`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
-* `ES_PVC_SIZE`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead.
-* `ES_PVC_PREFIX`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `ES_PVC_SIZE`.
-* `FLUENTD_NODESELECTOR`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
-* `ES_NODESELECTOR`: Specify the nodeSelector that Elasticsearch should be use (label=value)
-* `KIBANA_NODESELECTOR`: Specify the nodeSelector that Kibana should be use (label=value)
-* `CURATOR_NODESELECTOR`: Specify the nodeSelector that Curator should be use (label=value)
-* `ENABLE_OPS_CLUSTER`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
-* `KIBANA_OPS_HOSTNAME`, `ES_OPS_INSTANCE_RAM`, `ES_OPS_PVC_SIZE`, `ES_OPS_PVC_PREFIX`, `ES_OPS_CLUSTER_SIZE`, `ES_OPS_NODESELECTOR`, `KIBANA_OPS_NODESELECTOR`, `CURATOR_OPS_NODESELECTOR`: Parallel parameters for the ops log cluster.
-* `IMAGE_PREFIX`: Specify prefix for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set prefix "docker.io/openshift/origin-"
-* `IMAGE_VERSION`: Specify version for logging component images; e.g. for "docker.io/openshift/origin-logging-deployer:v1.1", set version "v1.1"
-* `IMAGE_PULL_SECRET`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
-* `INSECURE_REGISTRY`: Allow the registry for logging component images to be non-secure (not secured with a certificate signed by a known CA)
-
-You run the deployer by instantiating a template. Here is an example with some parameters:
+You run the deployer by instantiating a template. Here is an example with
+some parameters (just for demonstration purposes -- none are required):
 
     $ oc new-app logging-deployer-template \
-               -p KIBANA_HOSTNAME=kibana.example.com \
-               -p ES_CLUSTER_SIZE=1 \
-               -p ES_INSTANCE_RAM=1G \
-               -p PUBLIC_MASTER_URL=https://localhost:8443
+               -p IMAGE_VERSION=v1.2.0 \
+               -p MODE=install
 
-This creates a deployer pod and prints its name. Wait until the pod
-is running; this can take up to a few minutes to retrieve the deployer
-image from its registry. You can watch it with:
+This creates a deployer pod and prints its name. As this is running in
+`install` mode (which the default), it will create a new deployment of
+the EFK stack. Wait until the pod is running; this can take up to a few
+minutes to retrieve the deployer image from its registry. You can watch
+it with:
 
     $ oc get pod/<pod-name> -w
 
-If it seems to be taking too long, you can retrieve more details about the pod and
-any associated events with:
+If it seems to be taking too long, you can retrieve more details about
+the pod and any associated events with:
 
     $ oc describe pod/<pod-name>
 
@@ -180,12 +206,15 @@ When it runs, check the logs of the resulting pod (`oc logs -f <pod name>`)
 for some instructions to follow after deployment. More details
 are given below.
 
-## Deploy the templates created by the deployer
+## Adjusting the Deployment
+
+Read on to learn about Elasticsearch parameters, how to have fluentd
+deployed, and what the Ops cluster is for.
 
 ### ElasticSearch
 
 The deployer creates the number of ElasticSearch instances specified by
-`ES_CLUSTER_SIZE`. The nature of ElasticSearch and current Kubernetes
+`es-cluster-size`. The nature of ElasticSearch and current Kubernetes
 limitations require that we use a different scaling mechanism than the
 standard Kubernetes scaling.
 
@@ -219,7 +248,7 @@ as directed below.
 By default, the deployer creates an ephemeral deployment in which all
 of a pod's data will be lost any time it is restarted. For production
 use you should specify a persistent storage volume for each deployment
-of ElasticSearch. The deployer parameters with `PVC` in the name should
+of ElasticSearch. The deployer parameters with `-pvc-` in the name should
 be used for this. You can either use a pre-existing set of PVCs (specify
 a common prefix for their names and append numbers starting at 1, for
 example with default prefix `logging-es-` supply PVCs `logging-es-1`,
@@ -259,12 +288,12 @@ nodes, or a dedicated region in your cluster. You can do this by supplying
 a node selector in each deployment.
 
 The deployer has options to specify a nodeSelector label for Elasticsearch, Kibana
-and Curator. If you have already deployed the EFK stack or would like to change
-your current nodeSelector labels, see below.
+and Curator. If you have already deployed the EFK stack or would like to customize
+your nodeSelector labels per deployment, see below.
 
-There is no helpful command for adding a node selector. You will need to
-`oc edit` each DeploymentConfig and add the `nodeSelector` element to specify
-the label corresponding to your desired nodes, e.g.:
+There is no helpful command for adding a node selector (yet). You will
+need to `oc edit` each DeploymentConfig and add or modify the `nodeSelector`
+element to specify the label corresponding to your desired nodes, e.g.:
 
     apiVersion: v1
     kind: DeploymentConfig
@@ -284,7 +313,7 @@ nodes (in the same region, if regions are defined). However this can
 have unexpected consequences in several scenarios and you will most
 likely want to label and specify designated nodes for ElasticSearch.
 
-#### Settings
+#### Cluster parameters
 
 There are some administrative settings that can be supplied (ref. [Elastic documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/_important_configuration_changes.html)).
 
@@ -294,22 +323,26 @@ There are some administrative settings that can be supplied (ref. [Elastic docum
 
 These are, respectively, the `NODE_QUORUM`, `RECOVER_AFTER_NODES`,
 `RECOVER_EXPECTED_NODES`, and `RECOVER_AFTER_TIME` parameters in the
-deployments and the ES template. The deployer also enables specifying
-these parameters (with the `ES_` prefix), however usually its defaults
-should be sufficient.
+ES deployments and the ES template. The deployer also enables specifying
+these parameters. However, usually the defaults
+should be sufficient, unless you need to scale ES after deployment.
 
 ### Fluentd
 
-Fluentd is deployed with no replicas. Once you have ElasticSearch
-running as desired, label the nodes to deploy Fluentd to in order to feed logs
-into ES. The example below would be to label a node named
-'ip-172-18-2-170.ec2.internal' using the default Fluentd nodeselector.
+Fluentd is deployed as a DaemonSet that deploys replicas according
+to a node label selector (which you can choose; the default is
+`logging-infra-fluentd`). Once you have ElasticSearch running as
+desired, label the nodes to deploy Fluentd to in order to feed
+logs into ES. The example below would label a node named
+'ip-172-18-2-170.ec2.internal' using the default Fluentd node selector.
 
     $ oc label node/ip-172-18-2-170.ec2.internal logging-infra-fluentd=true
 
 Alternatively, you can label all nodes with the following:
 
     $ oc label node --all logging-infra-fluentd=true
+
+Note: Labeling nodes requires cluster-admin capability.
 
 ### Kibana
 
@@ -616,16 +649,3 @@ the first created. You can check if the route in question is defined in multiple
     logging     kibana-ops   kibana-ops.example.com              logging-kibana-ops
 
 (In this example there are no overlapping routes.)
-
-### Working with non-secure registries
-
-You should usually be getting images from a secured registry.
-If this is not the case, consult
-[this comment](https://github.com/openshift/origin/issues/8440#issuecomment-209193623)
-for an example of how to import the tags. Normally existing ImageStreams
-are deleted at installation to enable redeployment with different
-images. To prevent your customized ImageStreams from being deleted
-by repeated deployer runs, remove the `logging-infra=support` label
-from them:
-
-    oc label imagestream --all logging-infra-
