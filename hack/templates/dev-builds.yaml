@@ -67,7 +67,12 @@ objects:
       build: logging-deployment
     name: origin
   spec:
-    dockerImageRepository: openshift/origin:latest
+    dockerImageRepository: openshift/origin
+    tags:
+    - name: v1.2.0
+      from:
+        kind: DockerImage
+        name: openshift/origin:v1.2.0
 - apiVersion: v1
   kind: BuildConfig
   metadata:
@@ -90,7 +95,7 @@ objects:
       dockerStrategy:
         from:
           kind: ImageStreamTag
-          name: origin:latest
+          name: origin:v1.2.0
       type: Docker
     triggers:
     - type: ConfigChange
