@@ -76,6 +76,58 @@ function cleanup()
     exit $out
 }
 
+function wait_for_latest_build_complete() {
+
+  interval=30
+  waittime=120
+
+  local bc=$1
+  local lastVersion=$(oc get bc $bc -o jsonpath='{.status.lastVersion}')
+  local status
+
+  for (( i = 1; i <= $waittime; i++ )); do
+    status=$(oc get build/$bc-$lastVersion -o jsonpath='{.status.phase}')
+    case $status in
+      "Complete")
+        return 0
+        ;;
+      "Failed")
+        return 1
+        ;;
+      "Pending"|"Running")
+        sleep $interval
+        ;;
+    esac
+  done
+
+  return 1
+}
+
+function wait_for_new_builds_complete() {
+
+  retries=30
+  for bc in $(oc get bc -l logging-infra -o jsonpath='{.items[*].metadata.name}'); do
+
+    for (( i = 1; i <= retries; i++ )); do
+
+      wait_for_latest_build_complete "$bc" && break
+
+      [[ $i -eq $retries ]] && return 1
+
+      oc delete builds -l buildconfig=$bc
+
+      if [ "$USE_LOCAL_SOURCE" = false ] ; then
+          oc start-build $bc
+      else
+          oc start-build --from-dir $OS_O_A_L_DIR $bc
+      fi
+    done
+
+  done
+
+  return 0
+}
+
 function wait_for_builds_complete()
 {
     waittime=1800 # seconds - 30 minutes
@@ -165,6 +217,8 @@ os::util::environment::use_sudo
 reset_tmp_dir
 
 os::log::start_system_logger
+
+export KUBELET_HOST=$(hostname)
 
 configure_os_server
 start_os_server
@@ -441,8 +495,29 @@ function removeAdminCert() {
   os::cmd::expect_success "oc patch secret logging-elasticsearch -p '{\"data\":{\"admin-cert\": null}}'"
 }
 
+function rebuildVersion() {
+  # Rebuilding images so that the sha256 and tag are different than what was installed
+  # so we can test patching
+
+  local tag=${1:-latest}
+
+  for bc in $(oc get bc -l logging-infra -o jsonpath='{.items[*].metadata.name}'); do
+    os::cmd::expect_success "oc patch bc/$bc -p='{ \"spec\" : { \"output\" : { \"to\" : { \"name\" : \"'$bc':'$tag'\" } } } }'"
+
+    if [ "$USE_LOCAL_SOURCE" = "true" ] ; then
+      oc start-build --from-dir $OS_O_A_L_DIR $bc
+    else
+      oc start-build $bc
+    fi
+  done
+
+  os::cmd::expect_success "wait_for_new_builds_complete"
+}
+
 function upgrade() {
   echo "running with upgrade mode"
+
+  local version=${1:-latest}
 
   os::cmd::expect_success "oc new-app \
                         logging-deployer-template \
@@ -452,12 +527,42 @@ function upgrade() {
                         -p KIBANA_HOSTNAME=kibana.example.com \
                         -p ES_CLUSTER_SIZE=1 \
                         -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
-                        -p MODE=upgrade"
+                        -p MODE=upgrade \
+                        -p IMAGE_VERSION=$version"
 
   UPGRADE_POD=$(get_latest_pod "component=deployer")
 
   # Giving the upgrade process a bit more time to run to completion... failed last time at 10 minutes
-  os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 5 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get pods $UPGRADE_POD" "Completed" "$(( 20 * TIME_MIN ))"
+
+  # check that our templates and DC are using $version
+  echo "Checking template IMAGE_VERSION matches deployer IMAGE_VERSION"
+  #for value in $(oc get template -l logging-infra -o jsonpath='{.items[*].parameters[?(@.name=="IMAGE_VERSION")].value}'); do
+  for template in $(oc get template -l logging-infra -o name); do
+
+    value=$(oc get $template -o jsonpath='{.parameters[?(@.name=="IMAGE_VERSION")].value}')
+
+    [[ -z "$value" ]] && continue
+
+    echo "Checking for template $template"
+    os::cmd::expect_success "[[ \"$value\" == \"$version\" ]]"
+  done
+
+  # check all images in the dc
+  # we check the readable tag and the tag's sha256
+  echo "Checking DC IMAGE_VERSION matches deployer IMAGE_VERSION"
+  for image in $(oc get dc -l logging-infra -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'); do
+    # values[0] is the image name
+    # values[1] is the tag
+    values=(`echo $image | sed 's/^.*\///g' | tr ":" " "`)
+    name=$(echo ${values[0]} | sed 's/@.*$//g')
+    value=${values[1]}
+
+    sha=$(oc get is $name -o jsonpath='{.status.tags[?(@.tag=="'$version'")].items[*].image}' | sed 's/^.*://g')
+
+    echo "Checking tag for $name"
+    os::cmd::expect_success "[[ \"$value\" == \"$version\" ]] || [[ \"$value\" == \"$sha\" ]]"
+  done
 
   os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
   os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
@@ -520,8 +625,9 @@ useFluentdDC
 upgrade
 ./e2e-test.sh $USE_CLUSTER
 
+rebuildVersion "upgraded"
 echo $TEST_DIVIDER
-upgrade
+upgrade "upgraded"
 ./e2e-test.sh $USE_CLUSTER
 
 echo $TEST_DIVIDER

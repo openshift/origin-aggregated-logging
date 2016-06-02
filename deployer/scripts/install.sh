@@ -8,7 +8,7 @@ function delete_logging() {
   oc delete dc,rc,svc,routes,templates,daemonset --selector logging-infra
   oc delete is -l logging-infra=support
   # secrets don't have label selectors
-  oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-kibana-ops-proxy logging-curator logging-curator-ops || :
+  oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-curator logging-curator-ops || :
 }
 
 function install_logging() {
@@ -168,7 +168,7 @@ function generate_secrets() {
 
     # (re)generate secrets
     echo "Deleting secrets"
-    oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-kibana-ops-proxy logging-curator logging-curator-ops || :
+    oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-curator logging-curator-ops || :
 
     echo "Creating secrets"
     oc secrets new logging-elasticsearch \
