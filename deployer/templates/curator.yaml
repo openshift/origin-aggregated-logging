@@ -41,16 +41,7 @@ objects:
       selector:
         provider: openshift
         component: "${CURATOR_DEPLOY_NAME}"
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - curator
-          from:
-            kind: ImageStreamTag
-            name: logging-curator:${IMAGE_VERSION}
+      triggers: {}
       strategy:
         resources: {}
         rollingParams:

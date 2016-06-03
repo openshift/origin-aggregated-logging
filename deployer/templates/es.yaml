@@ -31,16 +31,7 @@ objects:
         provider: "openshift"
         component: ${ES_CLUSTER_NAME}
         deployment: ${ES_DEPLOYMENT_NAME}
-      triggers:
-      - type: ConfigChange
-      - type: ImageChange
-        imageChangeParams:
-          automatic: true
-          containerNames:
-          - elasticsearch
-          from:
-            kind: ImageStreamTag
-            name: logging-elasticsearch:${IMAGE_VERSION}
+      triggers: {}
       strategy:
         type: Recreate
       template:
