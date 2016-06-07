@@ -240,6 +240,7 @@ os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
 os::cmd::expect_success "oc create configmap logging-deployer --from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER}"
+
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
 elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
@@ -417,7 +418,7 @@ if [ "$TEST_PERF" = "true" ] ; then
     echo "Running performance tests"
     for test in perf-*.sh ; do
         if [ -x ./$test ] ; then
-            ./$test $USE_CLUSTER
+            (. ./$test $USE_CLUSTER)
         fi
     done
 else
@@ -429,7 +430,7 @@ else
     # in production environments
     for test in test-*.sh ; do
         if [ -x ./$test ] ; then
-            ./$test $USE_CLUSTER
+            (. ./$test $USE_CLUSTER)
         fi
     done
 fi
