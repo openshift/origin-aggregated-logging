@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
 ln -s /etc/elasticsearch/keys/searchguard.key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
@@ -23,4 +23,4 @@ else
 fi
 
 
-/usr/share/elasticsearch/bin/elasticsearch
+exec /usr/share/elasticsearch/bin/elasticsearch
