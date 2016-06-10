@@ -35,6 +35,7 @@ function initialize_install_vars() {
   es_instance_ram=${ES_INSTANCE_RAM:-512M}
   es_pvc_size=${ES_PVC_SIZE:-}
   es_pvc_prefix=${ES_PVC_PREFIX:-}
+  es_pvc_dynamic=${ES_PVC_DYNAMIC:-}
   es_cluster_size=${ES_CLUSTER_SIZE:-1}
   es_node_quorum=${ES_NODE_QUORUM:-$((es_cluster_size/2+1))}
   es_recover_after_nodes=${ES_RECOVER_AFTER_NODES:-$((es_cluster_size-1))}
@@ -43,6 +44,7 @@ function initialize_install_vars() {
   es_ops_instance_ram=${ES_OPS_INSTANCE_RAM:-512M}
   es_ops_pvc_size=${ES_OPS_PVC_SIZE:-}
   es_ops_pvc_prefix=${ES_OPS_PVC_PREFIX:-}
+  es_ops_pvc_dynamic=${ES_OPS_PVC_DYNAMIC:-}
   es_ops_cluster_size=${ES_OPS_CLUSTER_SIZE:-$es_cluster_size}
   es_ops_node_quorum=${ES_OPS_NODE_QUORUM:-$((es_ops_cluster_size/2+1))}
   es_ops_recover_after_nodes=${ES_OPS_RECOVER_AFTER_NODES:-$((es_ops_cluster_size-1))}
@@ -329,7 +331,11 @@ function generate_es() {
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${ES_PVC_PREFIX}$n"
     if [ "${pvcs[$pvc]}" != 1 -a "${ES_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-      oc new-app logging-pvc-template -p "NAME=$pvc,SIZE=${ES_PVC_SIZE}"
+      pvc_template="logging-pvc-template"
+      if [ -n "${es_pvc_dynamic}" ]; then
+        pvc_template="logging-pvc-dynamic-template"
+      fi
+      oc new-app $pvc_template -p "NAME=$pvc,SIZE=${ES_PVC_SIZE}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -346,7 +352,11 @@ function generate_es() {
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${ES_OPS_PVC_PREFIX}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${ES_OPS_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-        oc new-app logging-pvc-template -p "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}"
+        pvc_template="logging-pvc-template"
+        if [ -n "${es_ops_pvc_dynamic}" ]; then
+          pvc_template="logging-pvc-dynamic-template"
+        fi
+        oc process $pvc-template -v "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}" | oc create -f -
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
