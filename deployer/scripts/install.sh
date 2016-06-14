@@ -331,11 +331,7 @@ function generate_es() {
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${ES_PVC_PREFIX}$n"
     if [ "${pvcs[$pvc]}" != 1 -a "${ES_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-      pvc_template="logging-pvc-template"
-      if [ -n "${es_pvc_dynamic}" ]; then
-        pvc_template="logging-pvc-dynamic-template"
-      fi
-      oc new-app $pvc_template -p "NAME=$pvc,SIZE=${ES_PVC_SIZE}"
+      oc new-app logging-pvc-${es_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${ES_PVC_SIZE}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -352,11 +348,7 @@ function generate_es() {
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${ES_OPS_PVC_PREFIX}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${ES_OPS_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-        pvc_template="logging-pvc-template"
-        if [ -n "${es_ops_pvc_dynamic}" ]; then
-          pvc_template="logging-pvc-dynamic-template"
-        fi
-        oc process $pvc-template -v "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}" | oc create -f -
+        oc new-app logging-pvc-${es_ops_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}"
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it

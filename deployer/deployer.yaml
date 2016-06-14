@@ -143,6 +143,8 @@ items:
             value: ${ES_OPS_PVC_SIZE}
           - name: ES_OPS_PVC_PREFIX
             value: ${ES_OPS_PVC_PREFIX}
+          - name: ES_OPS_PVC_DYNAMIC
+            value: ${ES_OPS_PVC_DYNAMIC}
           - name: ES_OPS_CLUSTER_SIZE
             value: ${ES_OPS_CLUSTER_SIZE}
           - name: ES_OPS_NODE_QUORUM
@@ -215,9 +217,8 @@ items:
     name: ES_PVC_PREFIX
     value: "logging-es-"
   -
-    description: "Indicator to dynamically provision PersistentVolume. Popluate if yes"
+    description: 'Set to "true" to request dynamic provisioning (if enabled for your cluster) of a PersistentVolume for the ES PVC. '
     name: ES_PVC_DYNAMIC
-    value: ""
   -
     description: "Number of nodes required to elect a master (ES minimum_master_nodes). By default, derived from ES_CLUSTER_SIZE / 2 + 1."
     name: ES_NODE_QUORUM
@@ -246,9 +247,8 @@ items:
     name: ES_OPS_PVC_PREFIX
     value: "logging-es-ops-"
   -
-    description: "Indicator to dynamically provision ops PersistentVolume. Popluate if yes"
+    description: 'Set to "true" to request dynamic provisioning (if enabled for your cluster) of a PersistentVolume for the ES ops PVC. '
     name: ES_OPS_PVC_DYNAMIC
-    value: ""
   -
     description: "Number of ops nodes required to elect a master (ES minimum_master_nodes). By default, derived from ES_CLUSTER_SIZE / 2 + 1."
     name: ES_OPS_NODE_QUORUM

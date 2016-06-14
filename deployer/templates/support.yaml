@@ -278,8 +278,9 @@ objects:
   metadata:
     name: logging-pvc-dynamic-template
     annotations:
-      description: "Template for deploying logging support entities: dynamic persistentvolumeclaims."
+      description: "Template for deploying logging support entities: dynamically provisioned persistentvolumeclaims."
       tags: "infrastructure"
+    note: "The only difference is the annotation. Only the name of the annotation matters; the value is ignored. Since templates can only fill in values, a separate template was needed to make the annotation optional."
     labels:
       logging-infra: support
   labels:
