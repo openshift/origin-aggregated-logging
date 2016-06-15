@@ -42,6 +42,12 @@ source "${OS_ROOT}/hack/cmd_util.sh"
 source "${OS_ROOT}/hack/lib/test/junit.sh"
 source "${OS_ROOT}/hack/common.sh"
 source "${OS_ROOT}/hack/lib/log.sh"
+# in case cmd_util.sh does not include util.sh and text.sh
+fn=`type -t os::log::install_errexit || :`
+if [ x"$fn" != xfunction ] ; then
+    source "${OS_ROOT}/hack/util.sh"
+    source "${OS_ROOT}/hack/text.sh"
+fi
 os::log::install_errexit
 
 source "${OS_ROOT}/hack/lib/util/environment.sh"
