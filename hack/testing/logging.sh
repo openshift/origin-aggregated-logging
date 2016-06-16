@@ -40,20 +40,12 @@ ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
-# includes util.sh and text.sh
-source "${OS_ROOT}/hack/cmd_util.sh"
-source "${OS_ROOT}/hack/lib/test/junit.sh"
-source "${OS_ROOT}/hack/common.sh"
-source "${OS_ROOT}/hack/lib/log.sh"
-# in case cmd_util.sh does not include util.sh and text.sh
-fn=`type -t os::log::install_errexit || :`
-if [ x"$fn" != xfunction ] ; then
-    source "${OS_ROOT}/hack/util.sh"
-    source "${OS_ROOT}/hack/text.sh"
-fi
-os::log::install_errexit
+# include all the origin test libs we need
+for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
+           "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
+do source "$lib"; done
 
-source "${OS_ROOT}/hack/lib/util/environment.sh"
+os::log::install_errexit
 os::util::environment::setup_time_vars
 
 cd "${OS_ROOT}"
