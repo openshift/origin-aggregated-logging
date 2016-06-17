@@ -60,9 +60,11 @@ function waitFor() {
 
   local statement=$1
   local TIMES=${2:-300}
+  local failure=${3:-false}
 
   for (( i=1; i<=$TIMES; i++ )); do
     eval "$statement" && return 0
+    eval "$failure" && return 1
     sleep 1
   done
   return 1
@@ -160,7 +162,7 @@ function upgrade() {
                         -p IMAGE_VERSION=$version
 
   UPGRADE_POD=$(get_latest_pod "logging-infra=deployer")
-  waitFor "[[ \"Succeeded\" == \"\$(oc get pod $UPGRADE_POD -o jsonpath='{.status.phase}')\" ]]" "$(( 20 * TIME_MIN ))" && return 0
+  waitFor "[[ \"Succeeded\" == \"\$(oc get pod $UPGRADE_POD -o jsonpath='{.status.phase}')\" ]]" "$(( 20 * TIME_MIN ))" "[[ \"Failed\" == \"\$(oc get pod $UPGRADE_POD -o jsonpath='{.status.phase}')\" ]]" && return 0
 
   return 1
 }

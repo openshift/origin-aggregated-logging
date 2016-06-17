@@ -165,7 +165,7 @@ function generate_config() {
 
     # use or copy proxy TLS configuration file
     if [ ${input_vars[server-tls.json]+set} ]; then
-      echo -e "${input_var[server-tls.json]}" $dir/server-tls.json 
+      echo -e "${input_var[server-tls.json]}" $dir/server-tls.json
     else
       cp conf/server-tls.json $dir
     fi
@@ -245,12 +245,12 @@ function generate_configmaps() {
 
     echo "Creating configmaps"
 
-    # generate elasticsearch configmap 
+    # generate elasticsearch configmap
     oc create configmap logging-elasticsearch \
       --from-file=common/elasticsearch/logging.yml \
       --from-file=conf/elasticsearch.yml
     oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
-    
+
     # generate curator configmap
     oc create configmap logging-curator \
       --from-file=config.yaml=conf/curator.yml

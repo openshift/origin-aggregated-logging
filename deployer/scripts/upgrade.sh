@@ -94,7 +94,7 @@ function checkESStarted() {
   local cluster_service
 
   if ! cluster_service=$(waitForValue "oc logs $pod | grep '\[cluster\.service[[:space:]]*\]'"); then
-    echo "Unable to find log message from cluster.service within $TIMES seconds"
+    echo "Unable to find log message from cluster.service from pod $pod within $TIMES seconds"
     return 1
   fi
 
@@ -110,7 +110,7 @@ function checkESStarted() {
   #  check for output from "[node " with "] started"
 
   if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started')\" ]]"; then
-    echo "Unable to find log message from node that ES started within $TIMES seconds"
+    echo "Unable to find log message from node that ES pod $pod started within $TIMES seconds"
     return 1
   fi
 
@@ -118,13 +118,13 @@ function checkESStarted() {
   #  check for output from "[gateway" with "] recovered[:num:] indices into cluster state"
   if [[ -n "$master" ]]; then
     if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state')\" ]]"; then
-      echo "Unable to find log message from gateway that ES recovered its indices within $TIMES seconds"
+      echo "Unable to find log message from gateway that ES pod $pod recovered its indices within $TIMES seconds"
       return 1
     fi
   else
     # if we aren't master we should be started by now and should have detected a master
     if [[ -z "$non_master" ]]; then
-      echo "Node isn't master and was unable to detect master"
+      echo "ES pod $pod  - node isn't master and was unable to detect master"
       return 1
     fi
   fi
@@ -135,7 +135,7 @@ function checkKibanaStarted() {
   local pod=$1
 
   if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Listening on 0.0.0.0:5601') ]]"; then
-    echo "Kibana was not able to start up within $TIMES seconds"
+    echo "Kibana pod $pod was not able to start up within $TIMES seconds"
     return 1
   fi
 }
@@ -489,22 +489,37 @@ function add_fluentd_daemonset() {
 function add_config_maps() {
   generate_configmaps
   echo "Supplying Elasticsearch with a ConfigMap..."
+  patchPIDs=()
   local dc patch=$(join , \
     '{"op": "replace", "path": "/spec/template/spec/containers/0/volumeMounts/0/mountPath", "value": "/etc/elasticsearch/secret"}' \
     '{"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/1", "value": {"name": "elasticsearch-config", "mountPath": "/usr/share/elasticsearch/config", "readOnly": true}}' \
-    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "elasticsearch-config", "configMap": {"name": "elasticsearch-config"}}}' \
+    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "elasticsearch-config", "configMap": {"name": "logging-elasticsearch"}}}' \
   )
   for dc in $(get_es_dcs); do
+    currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
     oc patch $dc --type=json --patch "[$patch]"
+
+    oc deploy $dc --latest
+    waitForChange $currentVersion $dc &
+    patchPIDs+=( $!)
   done
   echo "Supplying Curator with a ConfigMap..."
   patch=$(join , \
     '{"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/1", "value": {"name": "config", "mountPath": "/etc/curator/settings", "readOnly": true}}' \
-    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "config", "configMap": {"name": "curator-config"}}}' \
+    '{"op": "add", "path": "/spec/template/spec/volumes/1", "value": {"name": "config", "configMap": {"name": "logging-curator"}}}' \
   )
   for dc in $(get_curator_dcs); do
-    oc patch $dc --type=json --patch "[$patch]"
+    # we want to ignore a failure here for the scenario where we are installing Curator as part of this upgrade
+    # since the curator will already contain the changes oc patch provides and will fail due to duplicate volume and mountPath
+    currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
+    if oc patch $dc --type=json --patch "[$patch]"; then
+      oc deploy $dc --latest
+      waitForChange $currentVersion $dc &
+      patchPIDs+=( $!)
+    fi
   done
+
+  wait ${patchPIDs[@]}
 }
 
 function upgrade_notify() {

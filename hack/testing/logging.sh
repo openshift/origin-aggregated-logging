@@ -458,6 +458,7 @@ function reinstall() {
 TEST_DIVIDER="------------------------------------------"
 
 echo $TEST_DIVIDER
+pvc_params=""
 reinstall
 ./e2e-test.sh $USE_CLUSTER
 

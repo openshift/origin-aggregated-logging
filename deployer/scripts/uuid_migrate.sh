@@ -87,8 +87,6 @@ function run_uuid_migration() {
 
     [[ "${OPS_PROJECTS[@]}" =~ "$index" ]] && continue
 
-    #uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}' --as=system:serviceaccount:"$project":aggregated-logging-fluentd)
-    #uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}' --token="$token")
     uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}')
     create_alias $index $uid
 
