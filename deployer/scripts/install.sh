@@ -13,7 +13,7 @@ function delete_logging() {
 
 function install_logging() {
   initialize_install_vars
-  generate_secrets
+  generate_config
   generate_support_objects
   generate_templates
   generate_objects
@@ -128,10 +128,9 @@ CONF
 
 ######################################
 #
-# generate secret contents and secrets
+# generate secret contents, secrets, and configmaps
 #
-function generate_secrets() {
-  if [ "${KEEP_SUPPORT}" != true ]; then
+function generate_config() {
     generate_signer_cert_and_conf
 
     # use or generate Kibana proxy certs
@@ -211,7 +210,27 @@ function generate_secrets() {
       done
     fi
 
-  fi # supporting infrastructure - secrets
+    generate_configmaps
+}
+
+function generate_configmaps() {
+    ### ConfigMaps
+    echo "Deleting configmaps"
+    oc delete configmap -l logging-infra=support
+
+    echo "Creating configmaps"
+
+    # generate elasticsearch configmap 
+    oc create configmap logging-elasticsearch \
+      --from-file=common/elasticsearch/logging.yml \
+      --from-file=conf/elasticsearch.yml
+    oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
+    
+    # generate curator configmap
+    oc create configmap logging-curator \
+      --from-file=config.yaml=conf/curator.yml
+    oc label configmap/logging-curator logging-infra=support # make easier to delete later
+
 }
 
 function create_template_optional_nodeselector(){

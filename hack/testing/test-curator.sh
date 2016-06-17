@@ -85,7 +85,7 @@ create_indices() {
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago"
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
-        add_message_to_index "${proj}.$1" "$proj $1 message" $myops
+        add_message_to_index "${proj}.$1" "$proj $1 message" $myops || return 1
         shift
     done
 }
@@ -175,7 +175,7 @@ TEST_DIVIDER="------------------------------------------"
 
 basictest() {
     ops=${1:-""}
-    create_indices "$ops"
+    create_indices "$ops" || return 1
 
     # get current curator pod
     curpod=`get_running_pod curator${ops}`

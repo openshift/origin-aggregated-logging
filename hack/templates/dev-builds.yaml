@@ -113,7 +113,7 @@ objects:
         name: logging-elasticsearch:latest
     resources: {}
     source:
-      contextDir: elasticsearch
+      contextDir: deployer/common/elasticsearch
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}
@@ -193,7 +193,7 @@ objects:
         name: logging-curator:latest
     resources: {}
     source:
-      contextDir: curator
+      contextDir: deployer/common/curator
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}

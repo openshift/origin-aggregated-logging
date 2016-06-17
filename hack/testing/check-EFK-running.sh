@@ -39,34 +39,9 @@ else
 fi
 
 TEST_DIVIDER="-------------------------------------------------------"
-NEEDED_STREAMS=("logging-fluentd" "logging-elasticsearch" "logging-auth-proxy" "logging-kibana" "logging-curator")
 COMPONENTS_COUNT=${#NEEDED_COMPONENTS[@]}
-STREAMS_COUNT=${#NEEDED_STREAMS[@]}
 
 echo "Checking component installation and if pods are running:"
-# Check that we have all IS
-echo $TEST_DIVIDER
-
-FOUND_STREAMS=(`oc get is | grep 'logging-' | grep -v 'logging-deployment' | cut -d" " -f 1`)
-IS_COUNT=${#FOUND_STREAMS[@]}
-IS_MESSAGE="[$IS_COUNT/$STREAMS_COUNT] image streams found."
-
-if [[ $IS_COUNT -ne $STREAMS_COUNT ]]; then
-  echo "Error - $IS_MESSAGE"
-  EXIT_CODE=1
-
-  # check for elasticsearch, kibana, auth-proxy, kibana, and curator images
-  for stream in "${NEEDED_STREAMS[@]}"; do
-    if [[ ! ( ${FOUND_STREAMS[@]} =~ $stream ) ]]; then
-      echo " ! image stream $stream is missing..."
-    fi
-  done
-
-  echo "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing image streams."
-else
-  echo "Success - $IS_MESSAGE"
-fi
-
 echo $TEST_DIVIDER
 # Check that we have DC
 
@@ -213,7 +188,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 NEEDED_PODS=("${NEEDED_COMPONENTS[@]}" logging-fluentd)
-FOUND_PODS=(`oc get pods -l component -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}'`)
+FOUND_PODS=(`oc get pods -l component,provider=openshift -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}'`)
 POD_COUNT=${#FOUND_PODS[@]}
 POD_MESSAGE="[$POD_COUNT/$((COMPONENTS_COUNT + ADDITIONAL_PODS))] running pods found."
 

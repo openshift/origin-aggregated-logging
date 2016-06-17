@@ -98,6 +98,14 @@ function generate_PEM_cert() {
 
 function join { local IFS="$1"; shift; echo "$*"; }
 
+function get_es_dcs() {
+  oc get dc --selector logging-infra=elasticsearch -o name
+}
+
+function get_curator_dcs() {
+  oc get dc --selector logging-infra=curator -o name
+}
+
 function extract_nodeselector() {
   local inputstring="${1//\"/}"  # remove any errant double quotes in the inputs
   local selectors=()

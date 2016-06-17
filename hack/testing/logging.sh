@@ -37,20 +37,15 @@ TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 
-# includes util.sh and text.sh
-source "${OS_ROOT}/hack/cmd_util.sh"
-source "${OS_ROOT}/hack/lib/test/junit.sh"
-source "${OS_ROOT}/hack/common.sh"
-source "${OS_ROOT}/hack/lib/log.sh"
-# in case cmd_util.sh does not include util.sh and text.sh
-fn=`type -t os::log::install_errexit || :`
-if [ x"$fn" != xfunction ] ; then
-    source "${OS_ROOT}/hack/util.sh"
-    source "${OS_ROOT}/hack/text.sh"
-fi
-os::log::install_errexit
+# use a few tools from the deployer
+source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
-source "${OS_ROOT}/hack/lib/util/environment.sh"
+# include all the origin test libs we need
+for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
+           "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
+do source "$lib"; done
+
+os::log::install_errexit
 os::util::environment::setup_time_vars
 
 cd "${OS_ROOT}"
@@ -311,7 +306,7 @@ if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
                           -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack}"
 
     os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
-    os::cmd::try_until_text "oc get pods -l component=deployer" "Completed" "$(( 3 * TIME_MIN ))"
+    os::cmd::try_until_text "oc get pods -l logging-infra=deployer" "Completed" "$(( 3 * TIME_MIN ))"
 fi
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     # TODO: this shouldn't be necessary once SELinux problems are worked out
@@ -319,9 +314,10 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     # https://github.com/openshift/origin-aggregated-logging/issues/89
     os::cmd::expect_success "oadm policy add-scc-to-user privileged \
          system:serviceaccount:logging:aggregated-logging-elasticsearch"
-    # update the ES_OPS DC to be in the privileged context
-    # TODO: should not have to do this - should work the same as regular hostmount
-    ops_dc=$(oc get dc -o name -l component=es-ops)
+    # update the ES_OPS DC to be in the privileged context.
+    # TODO: should not have to do that - should work the same as regular hostmount
+    os::cmd::try_until_text "oc get dc -o name -l component=es-ops" "ops"
+    ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
     os::cmd::expect_success "oc patch $ops_dc \
        -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
 
@@ -457,7 +453,7 @@ function reinstall() {
                         -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
                         -p MODE=reinstall"
 
-  REINSTALL_POD=$(get_latest_pod "component=deployer")
+  REINSTALL_POD=$(get_latest_pod "logging-infra=deployer")
 
   # Giving the upgrade process a bit more time to run to completion... failed last time at 10 minutes
   os::cmd::try_until_text "oc get pods $REINSTALL_POD" "Completed" "$(( 5 * TIME_MIN ))"
