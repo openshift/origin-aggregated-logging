@@ -13,6 +13,7 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
   io.openshift.expose-services="9200:http, 9300:http" \
   io.openshift.tags="logging,elk,fluentd"
 
+ADD centos-cloud-sig.repo /etc/yum.repos.d/
 # activesupport version 5.x requires ruby 2.2
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
@@ -20,11 +21,11 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       ruby \
       ruby-devel \
       libcurl-devel \
+      fluentd \
       make && \
     yum clean all
 RUN mkdir -p ${HOME} && \
     gem install --no-rdoc --no-ri \
-      fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \
       fluent-plugin-elasticsearch \
