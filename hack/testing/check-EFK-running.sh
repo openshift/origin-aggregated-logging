@@ -18,6 +18,70 @@ function waitFor() {
   return 1
 }
 
+function waitForValue() {
+
+  local value=$1
+
+  if waitFor "[[ -n \$($value) ]]"; then
+    eval $value
+    return 0
+  fi
+  echo "$value not found within $TIMES seconds"
+  return 1
+}
+
+function checkESStarted() {
+
+  local pod=$1
+  local cluster_service
+
+  if ! cluster_service=$(waitForValue "oc logs $pod | grep '\[cluster\.service[[:space:]]*\]'"); then
+    echo "Unable to find log message from cluster.service for pod $pod within $TIMES seconds"
+    return 1
+  fi
+
+  # If this instance detects a different master, it won't recover its own indices
+  #  check for output from "[cluster.service " with "] detected_master ["
+  local non_master=$(echo $cluster_service | grep "detected_master")
+# OR
+  # instance is the master if logs have this:
+  #  check for output from "[cluster.service " with "] new_master ["
+  local master=$(echo $cluster_service | grep "new_master")
+
+  # Check that instance started.
+  #  check for output from "[node " with "] started"
+
+  if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started')\" ]]"; then
+    echo "Unable to find log message from node that ES pod $pod started within $TIMES seconds"
+    return 1
+  fi
+
+  # Check that it recovered its indices after starting if a master
+  #  check for output from "[gateway" with "] recovered[:num:] indices into cluster state"
+  if [[ -n "$master" ]]; then
+    if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state')\" ]]"; then
+      echo "Unable to find log message from gateway that ES pod $pod recovered its indices within $TIMES seconds"
+      return 1
+    fi
+  else
+    # if we aren't master we should be started by now and should have detected a master
+    if [[ -z "$non_master" ]]; then
+      echo "For ES pod $pod - node isn't master and was unable to detect master"
+      return 1
+    fi
+  fi
+}
+
+function checkKibanaStarted() {
+
+  local pod=$1
+
+  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Listening on 0.0.0.0:5601') ]]"; then
+    echo "Kibana pod $pod was not able to start up within $TIMES seconds"
+    return 1
+  fi
+}
+
 # add one since fluentd will be deployed via a daemonset
 # keeping as -2 + 1 for readibilty
 ADDITIONAL_PODS=$((KIBANA_CLUSTER_SIZE + ES_CLUSTER_SIZE - 2 + 1))
@@ -209,6 +273,23 @@ if [[ $POD_COUNT -ne $((COMPONENTS_COUNT + ADDITIONAL_PODS)) ]]; then
 else
   echo "Success - $POD_MESSAGE"
 fi
+
+echo $TEST_DIVIDER
+echo "Checking for ES and Kibana successful starts"
+## Add check to Kibana and ES that they started up correctly
+for pod in $(oc get pods -l component=es -o name); do
+  checkESStarted "$pod" || EXIT_CODE=1
+done
+for pod in $(oc get pods -l component=es-ops -o name); do
+  checkESStarted "$pod" || EXIT_CODE=1
+done
+
+for pod in $(oc get pods -l component=kibana -o name); do
+  checkKibanaStarted "$pod" || EXIT_CODE=1
+done
+for pod in $(oc get pods -l component=kibana-ops -o name); do
+  checkKibanaStarted "$pod" || EXIT_CODE=1
+done
 
 echo $TEST_DIVIDER
 exit $EXIT_CODE

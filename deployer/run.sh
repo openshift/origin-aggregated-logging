@@ -8,6 +8,8 @@ master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
 master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
 token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
 
+mkdir -p $dir
+
 # set up configuration for openshift client
 if [ -n "${WRITE_KUBECONFIG}" ]; then
     # craft a kubeconfig, usually at $KUBECONFIG location
