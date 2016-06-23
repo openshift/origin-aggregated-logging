@@ -57,6 +57,7 @@ function initialize_install_vars() {
   hostname=${input_vars[kibana-hostname]:-kibana.example.com}
   ops_hostname=${input_vars[kibana-ops-hostname]:-kibana-ops.example.com}
   public_master_url=${input_vars[public-master-url]:-https://kubernetes.default.svc.cluster.local:443}
+  storage_group=${input_vars[storage-group]:-65534}
   # ES cluster parameters:
   es_instance_ram=${input_vars[es-instance-ram]:-512M}
   es_pvc_size=${input_vars[es-pvc-size]:-}
@@ -277,6 +278,7 @@ function generate_es_template(){
     --param ES_RECOVER_AFTER_NODES=${es_recover_after_nodes} \
     --param ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
+    --param STORAGE_GROUP_DEFAULT=${storage_group} \
     --param "$image_params"
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
@@ -287,6 +289,7 @@ function generate_es_template(){
         --param ES_RECOVER_AFTER_NODES=${es_ops_recover_after_nodes} \
         --param ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
         --param ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
+        --param STORAGE_GROUP_DEFAULT=${storage_group} \
         --param "$image_params"
     fi
 }
