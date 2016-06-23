@@ -45,7 +45,7 @@ for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
            "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
 do source "$lib"; done
 
-os::log::install_errexit
+os::log::stacktrace::install
 os::util::environment::setup_time_vars
 
 cd "${OS_ROOT}"
@@ -458,8 +458,15 @@ function reinstall() {
 TEST_DIVIDER="------------------------------------------"
 
 echo $TEST_DIVIDER
-pvc_params=""
 reinstall
+
+os::cmd::try_until_text "oc get dc -o name -l component=es-ops" "ops"
+ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
+os::cmd::expect_success "oc patch $ops_dc \
+   -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
+
+os::cmd::try_until_text "oc deploy $ops_dc --latest" "Started" "$(( 3 * TIME_MIN ))"
+
 ./e2e-test.sh $USE_CLUSTER
 
 popd
