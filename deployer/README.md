@@ -209,8 +209,9 @@ are given below.
 
 ## Adjusting the Deployment
 
-Read on to learn about Elasticsearch parameters, how to have fluentd
-deployed, and what the Ops cluster is for.
+Read on to learn about Elasticsearch parameters, how to have Fluentd
+deployed, what the Ops cluster is for and explain the contents of the secrets the
+deployer creates and how to change them.
 
 ### ElasticSearch
 
@@ -372,6 +373,71 @@ for the main cluster.
 ### Curator
 
 It is recommended to have one curator for each Elasticsearch cluster.
+
+### About the Deployer generated secrets
+
+Part of the installation process that is done by the logging deployer is to generate
+certificates and keys and make them available to the logging components by means
+of secrets.
+
+The secrets that the components make use of are:
+
+    logging-curator
+    logging-curator-ops
+    logging-elasticsearch
+    logging-fluentd
+    logging-kibana
+    logging-kibana-proxy
+
+#### logging-curator, logging-kibana, logging-fluentd
+
+These three components all have a `ca`, `key` and `cert` entries.  These are what
+are used for mutual TLS communication with Elasticsearch.
+  1. `ca` contains the certificate to validate the Elasticsearch server certificate.
+  2. `key` is the generated key specific to that component.
+  3. `cert` is the client certificate created using `key`.
+
+#### logging-kibana-proxy
+
+The Kibana proxy container is used to serve requests from clients outside of the
+cluster.  It contains `oauth-secret`, `server-cert`, `server-key`, `server-tls.json`
+and `session-secret`.
+  1. `oauth-secret` is used to communicate with the oauthclient created as part of
+the aggregated logging installation to redirect requests for authentication with
+the OpenShift console.
+  2. `server-cert` is the browser-facing certificate served up by the auth proxy
+  3. `server-key` is the browser-facing key served up by the auth proxy
+  4. `server-tls.json` is the proxy TLS configuration file
+  5. `session-secret` contains the generated proxy session that is used to secure
+the user's cookie containing their auth token once obtained.
+
+#### logging-elasticsearch
+
+Elasticsearch is the central piece for aggregated logging.  It ensures that communication
+between itself and the other components is secure as well as securing communication
+between its other Elasticsearch cluster members.  It contains `admin-ca`, `admin-cert`,
+`admin-key`, `key`, `searchguard.key` and `truststore`.
+  1. `admin-ca` contains the ca to be used when doing ES operations as the admin user.
+  2. `admin-cert` is the client certificate for the admin user corresponding to `admin-key`
+  3. `admin-key` contains the generated key for the ES admin user.
+  4. `key` contains the Elasticsearch server key and certificate used by Searchguard for mutual TLS
+  5. `searchguard.key` contains the generated key used for communication with other
+Elasticsearch cluster members.
+  6. `truststore` contains the CA that validates client certificates
+
+#### Changing secret contents
+
+Disclaimer: Changing the contents of secrets may result in a non-working aggregated
+logging installation if not done correctly. As with any other changes to your
+aggregated logging cluster, you should stop your cluster prior to making any
+changes to secrets to minimize the loss of log records.
+
+The contents of secrets are base64 encoded, so when patching we need to ensure that
+the value we are replacing with is encoded. If we wanted to change the `key` value
+in `secret/logging-curator` and replace it with the contents of the file `new_key.key`
+we would use (assuming the bash shell):
+
+    $ oc patch secret/logging-curator -p='{"data":{"key": "'$(base64 -w 0 < new_key.key)'"}}'
 
 ## Using Kibana
 
