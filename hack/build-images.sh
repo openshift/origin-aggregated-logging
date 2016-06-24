@@ -18,6 +18,7 @@ declare -A source_for=(
   [logging-kibana]=kibana
   [logging-curator]=deployer/common/curator
   [logging-auth-proxy]=deployer/common/openshift-auth-proxy
+  [logging-deployer]=deployer
   [logging-deployment]=deployer
 )
 for component in ${!source_for[@]} ; do
