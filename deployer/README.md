@@ -503,6 +503,8 @@ projects that are not specified
 ** runhour: NUMBER - hour of the day in 24 hour format at which to run the
 curator jobs
 ** runminute: NUMBER - minute of the hour at which to run the curator jobs
+** timezone: STRING - String in tzselect(8) or timedatectl(1) format - the
+   default timezone is `UTC`
 
 For example, using:
 
@@ -523,12 +525,15 @@ For example, using:
         days: 30
       runhour: 0
       runminute: 0
+      timezone: America/New_York
     ...
 
-Every day, curator runs to delete indices in the myapp-dev
-project older than 1 day, and indices in the myapp-qe project older than 1
-week.  All other projects have their indices deleted after they are 30
-days old.  The curator jobs run at midnight every day.
+Every day, curator runs to delete indices in the myapp-dev project older than 1
+day, and indices in the myapp-qe project older than 1 week.  All other projects
+have their indices deleted after they are 30 days old.  The curator jobs run at
+midnight every day in the `America/New_York` timezone, regardless of
+geographical location where the pod is running, or the timezone setting of the
+pod, host, etc.
 
 *WARNING*: Using `months` as the unit
 
@@ -547,18 +552,32 @@ configuration in the deployed configmap:
 
     $ oc edit configmap/logging-curator
 
-Since it can be tricky to get YAML indentation correct in this context, you may
-prefer to create a yaml file with your configuration settings using your favorite editor.
-Next create a secret from your created yaml file:
+Then, redeploy:
 
-    $ oc create secret generic index-management \
-         --from-file config.yaml=</path/to/your/yaml/file>
-
-Then overwrite the configuration with your created secret as a volume in your Curator DC:
-
-    $ oc set volume dc/logging-curator --overwrite --name=config \
-             --type=secret --secret-name=index-management
     $ oc deploy --latest logging-curator
+
+For scripted deployments, do this:
+
+    $ create /path/to/mycuratorconfig.yaml
+    $ oc create configmap logging-curator -o yaml \
+      --from-file=config.yaml=/path/to/mycuratorconfig.yaml | \
+      oc replace -f -
+      
+Then redeploy as above.
+
+Using a configmap for the configuration is the preferred method.  There are
+also *deprecated* parameters in the curator template.  Use `CURATOR_RUN_HOUR`
+and `CURATOR_RUN_MINUTE` to set the default runhour and runminute,
+`CURATOR_RUN_TIMEZONE` to set the run timezone, and use `CURATOR_DEFAULT_DAYS`
+to set the default index age in days. These are only used if not specified in
+the configmap config file.
+
+For debugging curator, use the template parameters `CURATOR_SCRIPT_LOG_LEVEL`
+(default value `INFO` - for the curator pod cron script) and
+`CURATOR_LOG_LEVEL` (default value `ERROR` - for the curator script).  Valid
+values for both of these are `CRITICAL`, `ERROR`, `WARNING`, `INFO` or
+`DEBUG`.  Using `DEBUG` will give a lot of details but will be quite verbose,
+so be sure to set the values back to the defaults when done debugging.
 
 ### About the Deployer generated secrets
 

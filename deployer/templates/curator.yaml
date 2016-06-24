@@ -90,6 +90,12 @@ objects:
               value: ${CURATOR_RUN_HOUR}
             - name: "CURATOR_RUN_MINUTE"
               value: ${CURATOR_RUN_MINUTE}
+            - name: "CURATOR_RUN_TIMEZONE"
+              value: ${CURATOR_RUN_TIMEZONE}
+            - name: "CURATOR_SCRIPT_LOG_LEVEL"
+              value: ${CURATOR_SCRIPT_LOG_LEVEL}
+            - name: "CURATOR_LOG_LEVEL"
+              value: ${CURATOR_LOG_LEVEL}
           volumes:
           - name: certs
             secret:
@@ -127,19 +133,31 @@ parameters:
   name: ES_CA
   value: "/etc/curator/keys/ca"
 -
-  description: "The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
+  description: "(Deprecated) The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
   name: CURATOR_DEFAULT_DAYS
   value: "30"
 -
-  description: "The hour of the day (24 hour format) at which to run the curator jobs."
+  description: "(Deprecated) The hour of the day (24 hour format) at which to run the curator jobs."
   name: CURATOR_RUN_HOUR
   value: "0"
 -
-  description: "The minute of the hour at which to run the curator jobs."
+  description: "(Deprecated) The minute of the hour at which to run the curator jobs."
   name: CURATOR_RUN_MINUTE
   value: "0"
+-
+  description: "(Deprecated) The timezone of the runhour and runminute for the curator jobs."
+  name: CURATOR_RUN_TIMEZONE
+  value: "UTC"
 -
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
   value: "latest"
 - name: IMAGE_PREFIX_DEFAULT
+-
+  description: "Log level for script that runs curator - one of CRITICAL, ERROR, WARNING, INFO or DEBUG"
+  name: CURATOR_SCRIPT_LOG_LEVEL
+  value: "INFO"
+-
+  description: "Log level for curator command - one of CRITICAL, ERROR, WARNING, INFO or DEBUG"
+  name: CURATOR_LOG_LEVEL
+  value: "ERROR"

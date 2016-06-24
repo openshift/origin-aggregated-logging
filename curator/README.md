@@ -23,32 +23,37 @@ projects that are not specified
 ** runhour: NUMBER - hour of the day in 24 hour format at which to run the 
 curator jobs
 ** runminute: NUMBER - minute of the hour at which to run the curator jobs
-  
-For example, using::           
-      
+** timezone: STRING - String in tzselect(8) or timedatectl(1) format - the
+   default timezone is `UTC`
+
+For example, using::
+
     myapp-dev:
      delete:
        days: 1
     
     myapp-qe:
-      delete:                  
-        weeks: 1               
-
-    .operations:               
+      delete:
+        weeks: 1
+    
+    .operations:
       delete:
         weeks: 8
-
+    
     .defaults:
-      delete:                  
-        days: 30               
-      runhour: 0               
-      runminute: 0             
+      delete:
+        days: 30
+      runhour: 0
+      runminute: 0
+      timezone: America/New_York
     ...
 
-Every day, curator will run, and will delete indices in the myapp-dev
-project older than 1 day, and indices in the myapp-qe project older than 1
-week.  All other projects will have their indices deleted after they are 30
-days old.  The curator jobs will run at midnight every day.
+Every day, curator will run, and will delete indices in the myapp-dev project
+older than 1 day, and indices in the myapp-qe project older than 1 week.  All
+other projects will have their indices deleted after they are 30 days old.  The
+curator jobs will run every day at midnight in the `America/New_York` timezone,
+regardless of geographical location where the pod is running, or the timezone
+setting of the pod, host, etc.
 
 *WARNING*: Using `months` as the unit
 
@@ -62,18 +67,26 @@ months from that date.
 If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 30`
 [Curator issue](https://github.com/elastic/curator/issues/569)
 
-To create the curator configuration, do the following:
+To create the curator configuration, you can just edit the current
+configuration in the deployed configmap:
 
-Create a yaml file with your configuration settings using your favorite editor.
-Next create a secret from your created yaml file:
-`oc secrets new index-management config.yaml=</path/to/your/yaml/file>`
+    $ oc edit configmap/logging-curator
 
-Then mount your created secret as a volume in your Curator DC:
-`oc volumes dc/<curator dc name> --add --type=secret --secret-name=curator-config --mount-path=/etc/curator/settings --name=config --overwrite`
+If this does not redeploy automatically, redeploy manually:
+
+    $ oc deploy --latest logging-curator
+
+For scripted deployments, do this:
+
+    $ create /path/to/mycuratorconfig.yaml
+    $ oc delete configmap logging-curator ; sleep 1
+    $ oc create configmap logging-curator --from-file=config.yaml=/path/to/mycuratorconfig.yaml ; sleep 1
+
+Then redeploy as above.
 
 You can also specify default values for the run hour, run minute, and age in
 days of the indices when processing the curator template.  Use
 `CURATOR_RUN_HOUR` and `CURATOR_RUN_MINUTE` to set the default runhour and
-runminute, and use `CURATOR_DEFAULT_DAYS` to set the default index age. These
-are only used if not specified in the config file.
-
+runminute, `CURATOR_RUN_TIMEZONE` to set the run timezone, and use
+`CURATOR_DEFAULT_DAYS` to set the default index age in days. These are only
+used if not specified in the config file.
