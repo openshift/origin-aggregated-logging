@@ -7,7 +7,7 @@ EXPOSE 5601
 ENV KIBANA_VER=4.1.2 \
     ES_HOST=localhost \
     ES_PORT=9200 \
-    AOP_KIBANA_PLUGIN_VER=v0.5.0 \
+    AOP_KIBANA_PLUGIN_VER=v0.6.0 \
     AOP_KIBANA_PLUGIN_REPO=https://github.com/openshift/origin-kibana
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
