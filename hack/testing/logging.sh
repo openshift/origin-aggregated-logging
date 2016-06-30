@@ -36,6 +36,31 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
+# default CI image uses journal by default - allow to control if logging uses it or not
+USE_JOURNAL=${USE_JOURNAL:-false}
+
+if [ $USE_JOURNAL = false ] ; then
+    # see if docker is using the journal log driver - if so, change it to json-file
+    if grep -q -- '--log-driver=journald' /etc/sysconfig/docker ; then
+        sudo sed -i.bak 's/--log-driver=journald/--log-driver=json-file/' /etc/sysconfig/docker
+        sudo systemctl restart docker
+    fi
+else
+    # see if docker is explicitly configured to use the json-file log driver
+    if grep -q -- '--log-driver=json-file' /etc/sysconfig/docker ; then
+        sudo sed -i.bak 's/--log-driver=json-file/--log-driver=journald/' /etc/sysconfig/docker
+        sudo systemctl restart docker
+    elif grep -q '^OPTIONS=' /etc/sysconfig/docker ; then
+        # using default log driver - make it explicit to use journald
+        sudo sed -i.bak "/^OPTIONS=/ s/'$/ --log-driver=journald'/" /etc/sysconfig/docker
+        sudo systemctl restart docker
+    else
+        # using default log driver - make it explicit to use journald
+        sudo cp /etc/sysconfig/docker /etc/sysconfig/docker.bak
+        echo "OPTIONS=--log-driver=journald" | sudo tee -a /etc/sysconfig/docker
+        sudo systemctl restart docker
+    fi
+fi
 
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
