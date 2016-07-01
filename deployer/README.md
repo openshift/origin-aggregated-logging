@@ -36,6 +36,25 @@ The deployer enables the system administrator to generate all of the
 necessary key/certs/secrets and deploy all of the logging components
 in concert.
 
+# Contents
+
+* [Using the Logging Deployer](#using-the-logging-deployer)
+  * [Preparation](#preparation)
+  * [Specify Deployer Parameters](#specify-deployer-parameters)
+  * [Run the Deployer](#run-the-deployer)
+  * [Adjusting the Deployment](#adjusting-the-deployment)
+    * [Elasticsearch](#elasticsearch-1)
+    * [Fluentd](#fluentd-1)
+    * [Kibana](#kibana-1)
+    * [Curator](#curator-1)
+    * [About the Deployer-Generated Secrets](#about-the-deployer-generated-secrets)
+  * [Upgrading your EFK stack](#upgrading-your-efk-stack)
+  * [Cleanup and removal](#cleanup-and-removal)
+* [Using Kibana](#using-kibana)
+* [Adjusting ElasticSearch After Deployment](#adjusting-elasticsearch-after-deployment)
+* [Checking EFK Health]()
+* [Troubleshooting](#troubleshooting)
+
 # Using the Logging Deployer
 
 The deployer pod can enable deploying the full stack of the aggregated
