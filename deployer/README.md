@@ -49,7 +49,7 @@ in concert.
     * [Curator](#curator-1)
     * [About the Deployer-Generated Secrets](#about-the-deployer-generated-secrets)
   * [Upgrading your EFK stack](#upgrading-your-efk-stack)
-  * [Cleanup and removal](#cleanup-and-removal)
+  * [Uninstall and Reinstall](#uninstall-and-reinstall)
 * [Using Kibana](#using-kibana)
 * [Adjusting ElasticSearch After Deployment](#adjusting-elasticsearch-after-deployment)
 * [Checking EFK Health]()
@@ -625,13 +625,9 @@ You can follow the steps [here](https://github.com/openshift/origin-aggregated-l
 to recreate your Deployer templates.  Then follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployer#create-supporting-serviceaccount-and-permissions)
 to ensure your service account roles are up to date.
 
-To run the Deployer to upgrade your EFK stack, specify the `MODE=upgrade` parameter.
+To run the Deployer to upgrade your EFK stack, run the deployer with the `MODE=upgrade` parameter.
 
-    $ oc new-app logging-deployer-template \
-           -p KIBANA_HOSTNAME=kibana.example.com \
-           -p ES_CLUSTER_SIZE=1 \
-           -p PUBLIC_MASTER_URL=https://localhost:8443 \
-           -p MODE=upgrade
+    $ oc new-app logging-deployer-template -p MODE=upgrade
 
 Upgrade mode will take care of the following for you:
   * Scale down your EFK deployment in a manner that will have minimal disruption
@@ -646,25 +642,49 @@ Upgrade mode will take care of the following for you:
   the necessary uuid index migration for you.
 
 #### Note
-  If you had not previously done a uuid migration after a manual upgrade, you will
-  still need to perform that with `MODE=migrate` while your Elasticsearch instances
+  If you have not previously done a uuid migration after a manual upgrade, you will
+  need to perform that with `MODE=migrate` while your Elasticsearch instances
   are running.
 
   This only impacts non-operations logs, operations logs will appear the
   same as in previous versions. There should be minimal performance impact to ES
   while running this and it will not perform an install.
 
+## Stop and Start
 
-## Cleanup and removal
+If you wish to shut down in an orderly fashion, for instance prior to a system upgrade,
+there are stop and start a deployer modes:
+
+    $ oc new-app logging-deployer-template -p MODE=stop
+    $ oc new-app logging-deployer-template -p MODE=start
+
+In each case, the deployer must `Complete` state before the action can
+be considered complete.
+
+## Uninstall and Reinstall
 
 If you wish to remove everything generated or instantiated without having
-to destroy the project:
+to destroy the project, there is a deployer mode to do so cleanly:
 
-    $ oc delete all --selector logging-infra=kibana
-    $ oc delete all,daemonset --selector logging-infra=fluentd
-    $ oc delete all --selector logging-infra=elasticsearch
-    $ oc delete all,sa,oauthclient --selector logging-infra=support
-    $ oc delete secret logging-fluentd logging-elasticsearch logging-es-proxy logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
+    $ oc new-app logging-deployer-template -p MODE=uninstall
+
+You can also typically do so manually:
+
+    $ oc delete all,sa,oauthclient,daemonset,configmap --selector logging-infra=support
+    $ oc delete secret logging-fluentd logging-elasticsearch \
+                       logging-elasticsearch logging-kibana \
+                       logging-kibana-proxy
+
+Note that PersistentVolumeClaims are preserved, not deleted.
+
+There is also a reinstall mode:
+
+    $ oc new-app logging-deployer-template -p MODE=reinstall
+
+This first removes the deployment and then recreates it according to
+current parameters. Note that again, PersistentVolumeClaims are preserved,
+and may be reused by the new deployment. This is a useful way to make
+the deployment match changed parameters without losing data.
 
 # Using Kibana
 
