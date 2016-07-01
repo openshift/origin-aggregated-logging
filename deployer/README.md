@@ -143,9 +143,9 @@ are available:
 * `es-pvc-dynamic`: Set to `true` to have created PersistentVolumeClaims annotated such that their backing storage can be dynamically provisioned (if that is available for your cluster).
 * `storage-group`: Number of a supplemental group ID for access to Elasticsearch storage volumes; backing volumes should allow access by this group ID (defaults to 65534).
 * `fluentd-nodeselector`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
-* `es-nodeselector`: Specify the nodeSelector that Elasticsearch should be use (label=value)
-* `kibana-nodeselector`: Specify the nodeSelector that Kibana should be use (label=value)
-* `curator-nodeselector`: Specify the nodeSelector that Curator should be use (label=value)
+* `es-nodeselector`: Specify the nodeSelector that Elasticsearch should use (label=value)
+* `kibana-nodeselector`: Specify the nodeSelector that Kibana should use (label=value)
+* `curator-nodeselector`: Specify the nodeSelector that Curator should use (label=value)
 * `enable-ops-cluster`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
 * `kibana-ops-hostname`, `es-ops-instance-ram`, `es-ops-pvc-size`, `es-ops-pvc-prefix`, `es-ops-cluster-size`, `es-ops-nodeselector`, `kibana-ops-nodeselector`, `curator-ops-nodeselector`: Parallel parameters for the ops log cluster.
 * `image-pull-secret`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
@@ -510,14 +510,14 @@ For example, using:
       runminute: 0
     ...
 
-Every day, curator will run and will delete indices in the myapp-dev
+Every day, curator runs to delete indices in the myapp-dev
 project older than 1 day, and indices in the myapp-qe project older than 1
-week.  All other projects will have their indices deleted after they are 30
-days old.  The curator jobs will run at midnight every day.
+week.  All other projects have their indices deleted after they are 30
+days old.  The curator jobs run at midnight every day.
 
 *WARNING*: Using `months` as the unit
 
-When you use month based trimming, curator starts counting at the _first_ day of
+When you use month-based trimming, curator starts counting at the _first_ day of
 the current month, not the _current_ day of the current month.  For example, if
 today is April 15, and you want to delete indices that are 2 months older than
 today (`delete: months: 2`), curator doesn't delete indices that are dated
@@ -527,22 +527,23 @@ months from that date.
 If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 30`
 [Curator issue](https://github.com/elastic/curator/issues/569)
 
-To create the curator configuration, do the following:
+To create the curator configuration, you can just edit the current
+configuration in the deployed configmap:
 
-Create a yaml file with your configuration settings using your favorite editor.
+    $ oc edit configmap/logging-curator
+
+Since it can be tricky to get YAML indentation correct in this context, you may
+prefer to create a yaml file with your configuration settings using your favorite editor.
 Next create a secret from your created yaml file:
-`oc secrets new index-management settings=</path/to/your/yaml/file>`
 
-Then mount your created secret as a volume in your Curator DC:
-`oc volumes dc/logging-curator --add --type=secret --secret-name=index-management --mount-path=/etc/curator --name=index-management --overwrite`
+    $ oc create secret generic index-management \
+         --from-file config.yaml=</path/to/your/yaml/file>
 
-The mount-path value e.g. `/etc/curator` must match the `CURATOR_CONF_LOCATION`
-in the environment.
+Then overwrite the configuration with your created secret as a volume in your Curator DC:
 
-You can also specify default values for the run hour, run minute, and age in
-days of the indices when processing the curator template.  Use
-`CURATOR_RUN_HOUR` and `CURATOR_RUN_MINUTE` to set the default runhour and
-runminute, and use `CURATOR_DEFAULT_DAYS` to set the default index age.
+    $ oc set volume dc/logging-curator --overwrite --name=config \
+             --type=secret --secret-name=index-management
+    $ oc deploy --latest logging-curator
 
 ### About the Deployer generated secrets
 
