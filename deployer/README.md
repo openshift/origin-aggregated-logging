@@ -4,38 +4,56 @@ The aggregated logging subsystem consists of multiple components commonly
 abbreviated as the "ELK" stack (though modified here to be the "EFK"
 stack).
 
-## ElasticSearch
+### ElasticSearch
 
 ElasticSearch is a Lucene-based indexing object store into which logs
 are fed. Logs for node services and all containers in the cluster are
 fed into one deployed cluster. The ElasticSearch cluster should be deployed
 with redundancy and persistent storage for scale and high availability.
 
-## Fluentd
+### Fluentd
 
 Fluentd is responsible for gathering log entries from all nodes, enriching
 them with metadata, and feeding them into the ElasticSearch cluster.
 
-## Kibana
+### Kibana
 
 Kibana presents a web UI for browsing and visualizing logs in ElasticSearch.
 
-## Logging auth proxy
+### Logging auth proxy
 
 In order to authenticate the Kibana user against OpenShift's Oauth2 for
 single sign-on, a proxy is required that runs in front of Kibana.
 
-## Deployer
+### Curator
+
+Curator allows the admin to remove old data from Elasticsearch on a per-project
+basis.
+
+### Deployer
 
 The deployer enables the system administrator to generate all of the
 necessary key/certs/secrets and deploy all of the logging components
 in concert.
 
-## Curator
+# Contents
 
-Curator allows the admin to remove old data from Elasticsearch on a per-project
-basis, and is configurable on a per-project basis.  See the parent README.md
-for details.
+* [Using the Logging Deployer](#using-the-logging-deployer)
+  * [Preparation](#preparation)
+  * [Specify Deployer Parameters](#specify-deployer-parameters)
+  * [Run the Deployer](#run-the-deployer)
+  * [Adjusting the Deployment](#adjusting-the-deployment)
+    * [Elasticsearch](#elasticsearch-1)
+    * [Fluentd](#fluentd-1)
+    * [Kibana](#kibana-1)
+    * [Curator](#curator-1)
+    * [About the Deployer-Generated Secrets](#about-the-deployer-generated-secrets)
+  * [Upgrading your EFK stack](#upgrading-your-efk-stack)
+  * [Uninstall and Reinstall](#uninstall-and-reinstall)
+* [Using Kibana](#using-kibana)
+* [Adjusting ElasticSearch After Deployment](#adjusting-elasticsearch-after-deployment)
+* [Checking EFK Health]()
+* [Troubleshooting](#troubleshooting)
 
 # Using the Logging Deployer
 
@@ -50,7 +68,9 @@ communication and defines secrets and templates for all of the necessary
 API objects to implement aggregated logging. There are a few
 manual steps you must run with cluster-admin privileges.
 
-## Choose a Project
+## Preparation
+
+### Choose a Project
 
 You will likely want to put all logging-related entities in their own project.
 For examples in this document we will assume the `logging` project.
@@ -61,7 +81,7 @@ For examples in this document we will assume the `logging` project.
 You can use the `default` or another project if you want. This
 implementation has no need to run in any specific project.
 
-## Create missing templates
+### Create missing templates
 
 If your installation did not create templates in the `openshift`
 namespace, the `logging-deployer-template` and `logging-deployer-account-template`
@@ -69,7 +89,7 @@ templates may not exist. In that case you can create them with the following:
 
     $ oc apply -n openshift -f https://raw.githubusercontent.com/openshift/origin-aggregated-logging/master/deployer/deployer.yaml
 
-## Create Supporting Service Accounts and Permissions
+### Create Supporting Service Accounts and Permissions
 
 The deployer must run under a service account defined as follows:
 (Note: change `:logging:` below to match the project name.)
@@ -123,9 +143,9 @@ are available:
 * `es-pvc-dynamic`: Set to `true` to have created PersistentVolumeClaims annotated such that their backing storage can be dynamically provisioned (if that is available for your cluster).
 * `storage-group`: Number of a supplemental group ID for access to Elasticsearch storage volumes; backing volumes should allow access by this group ID (defaults to 65534).
 * `fluentd-nodeselector`: The nodeSelector to use for the Fluentd DaemonSet. Defaults to "logging-infra-fluentd=true".
-* `es-nodeselector`: Specify the nodeSelector that Elasticsearch should be use (label=value)
-* `kibana-nodeselector`: Specify the nodeSelector that Kibana should be use (label=value)
-* `curator-nodeselector`: Specify the nodeSelector that Curator should be use (label=value)
+* `es-nodeselector`: Specify the nodeSelector that Elasticsearch should use (label=value)
+* `kibana-nodeselector`: Specify the nodeSelector that Kibana should use (label=value)
+* `curator-nodeselector`: Specify the nodeSelector that Curator should use (label=value)
 * `enable-ops-cluster`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
 * `kibana-ops-hostname`, `es-ops-instance-ram`, `es-ops-pvc-size`, `es-ops-pvc-prefix`, `es-ops-cluster-size`, `es-ops-nodeselector`, `kibana-ops-nodeselector`, `curator-ops-nodeselector`: Parallel parameters for the ops log cluster.
 * `image-pull-secret`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
@@ -212,6 +232,17 @@ are given below.
 Read on to learn about Elasticsearch parameters, how to have Fluentd
 deployed, what the Ops cluster is for and explain the contents of the secrets the
 deployer creates and how to change them.
+
+### Ops cluster
+
+If you set `enable-ops-cluster` to `true` for the deployer, fluentd
+expects to split logs between the main ElasticSearch cluster and another
+cluster reserved for operations logs (which are defined as node system
+logs and the projects `default`, `openshift`, and `openshift-infra`). Thus
+a separate Elasticsearch cluster, a separate Kibana, and a separate
+Curator are deployed to index, access, and manage operations logs. These
+deployments are set apart with the `-ops` included in their names. Keep
+these separate deployments in mind while reading the following.
 
 ### ElasticSearch
 
@@ -346,6 +377,91 @@ Alternatively, you can label all nodes with the following:
 
 Note: Labeling nodes requires cluster-admin capability.
 
+#### Throttling logs in Fluentd
+
+For projects that are especially verbose, an administrator can throttle
+down the rate at which the logs are read in by Fluentd before being
+processed. Note: this means that aggregated logs for the configured
+projects could fall behind and even be lost if the pod were deleted
+before Fluentd caught up.
+
+To tell Fluentd which projects it should be restricting you will need
+to edit the throttle configuration in its configmap after deployment:
+
+    $ oc edit configmap/logging-fluentd
+
+The format of the throttle-config.yaml key is a yaml file that contains
+project names and the desired rate at which logs are read in on each
+node. The default is 1000 lines at a time. For example:
+
+```
+logging:
+  read_lines_limit: 500
+
+test-project:
+  read_lines_limit: 10
+
+.operations:
+  read_lines_limit: 100
+```
+
+Directly editing is the simplest method, but you may prefer maintaining
+a large file of throttle settings and just reusing the file. You can
+export and recreate the configmap as follows:
+
+```
+$ tmpdir=$(mktemp -d /tmp/fluentd-configmap.XXXXXXXX)
+$ for key in $(oc get configmap/logging-fluentd \
+               --template '{{range $key, $val := .data}}{{$key}} {{end}}')
+    do oc get configmap/logging-fluentd \
+               --template "{{index .data \"$key\"}}" > $tmpdir/$key
+  done
+[ ... modify file(s) as needed ... ]
+$ oc create configmap logging-fluentd --from-file=$tmpdir -o yaml | oc replace -f -
+```
+
+Once you have modified the configmap as needed, the fluentd pods must be
+restarted in order to recognize the change. The simplest way to do this is
+to delete them all:
+
+    $ oc delete pods -l provider=openshift,component=fluentd
+
+#### Have Fluentd send logs to another Elasticsearch
+
+You can configure Fluentd to send a copy of each log message to both the
+Elasticsearch instance included with OpenShift aggregated logging, _and_ to an
+external Elasticsearch instance.  For example, if you already have an
+Elasticsearch instance set up for auditing purposes, or data warehousing, you
+can send a copy of each log message to that Elasticsearch, in addition to the
+the Elasticsearch hosted with OpenShift aggregated logging.
+
+If the environment variable `ES_COPY` is `"true"`, Fluentd will send a copy of
+the logs to another Elasticsearch. The settings for the copy are just like the
+current `ES_HOST`, etc. and `OPS_HOST`, etc. settings, except that they add
+`_COPY`: `ES_COPY_HOST`, `OPS_COPY_HOST`, etc.  There are some additional
+parameters added:
+* `ES_COPY_SCHEME`, `OPS_COPY_SCHEME` - can use either http or https - defaults
+  to https
+* `ES_COPY_USERNAME`, `OPS_COPY_USERNAME` - user name to use to authenticate to
+  elasticsearch using username/password auth
+* `ES_COPY_PASSWORD`, `OPS_COPY_PASSWORD` - password to use to authenticate to
+  elasticsearch using username/password auth
+
+To set the parameters:
+
+    oc edit -n logging template logging-fluentd-template
+    # add/edit ES_COPY to have the value "true" - with the quotes
+    # add or edit the COPY parameters listed above
+    # automated:
+    #   oc get -n logging template logging-fluentd-template -o yaml > file
+    #   edit the file with sed/perl/whatever
+    #   oc replace -n logging -f file
+    oc delete daemonset logging-fluentd
+    # wait for fluentd to stop
+    oc process -n logging logging-fluentd-template | \
+      oc create -n logging -f -
+    # this creates the daemonset and starts fluentd with the new params
+
 ### Kibana
 
 You may scale the Kibana deployment normally for redundancy:
@@ -360,19 +476,89 @@ a properly signed certificate in the deployer secret. You should be able
 to login with the same users that can login to the web console and have
 index patterns defined for projects the user has access to.
 
-### Ops cluster
-
-If you set `ENABLE_OPS_CLUSTER` to `true` for the deployer, fluentd
-expects to split logs between the main ElasticSearch cluster and another
-cluster reserved for operations logs (node logs and `default` project).
-Thus a separate ElasticSearch cluster and a separate Kibana are deployed
-to index and access operations logs. These deployments are set apart with
-the `-ops` included in their names. The same considerations apply as
-for the main cluster.
-
 ### Curator
 
-It is recommended to have one curator for each Elasticsearch cluster.
+One curator replica is recommended for each Elasticsearch cluster.
+
+Curator allows the admin to remove old indices from Elasticsearch on a
+per-project basis. It reads its configuration from a mounted yaml file
+that is structured like this:
+
+    $PROJECT_NAME:
+      $ACTION:
+        $UNIT: $VALUE
+
+    $PROJECT_NAME:
+      $ACTION:
+        $UNIT: $VALUE
+     ...
+
+* $PROJECT\_NAME - the actual name of a project - "myapp-devel"
+** For operations logs, use the name `.operations` as the project name
+* $ACTION - the action to take - currently only "delete"
+* $UNIT - one of "days", "weeks", or "months"
+* $VALUE - an integer for the number of units
+* `.defaults` - use `.defaults` as the $PROJECT\_NAME to set the defaults for
+projects that are not specified
+** runhour: NUMBER - hour of the day in 24 hour format at which to run the
+curator jobs
+** runminute: NUMBER - minute of the hour at which to run the curator jobs
+
+For example, using:
+
+    myapp-dev:
+     delete:
+       days: 1
+
+    myapp-qe:
+      delete:
+        weeks: 1
+
+    .operations:
+      delete:
+        weeks: 8
+
+    .defaults:
+      delete:
+        days: 30
+      runhour: 0
+      runminute: 0
+    ...
+
+Every day, curator runs to delete indices in the myapp-dev
+project older than 1 day, and indices in the myapp-qe project older than 1
+week.  All other projects have their indices deleted after they are 30
+days old.  The curator jobs run at midnight every day.
+
+*WARNING*: Using `months` as the unit
+
+When you use month-based trimming, curator starts counting at the _first_ day of
+the current month, not the _current_ day of the current month.  For example, if
+today is April 15, and you want to delete indices that are 2 months older than
+today (`delete: months: 2`), curator doesn't delete indices that are dated
+older than February 15, it deletes indices older than _February 1_.  That is,
+it goes back to the first day of the current month, _then_ goes back two whole
+months from that date.
+If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 30`
+[Curator issue](https://github.com/elastic/curator/issues/569)
+
+To create the curator configuration, you can just edit the current
+configuration in the deployed configmap:
+
+    $ oc edit configmap/logging-curator
+
+Since it can be tricky to get YAML indentation correct in this context, you may
+prefer to create a yaml file with your configuration settings using your favorite editor.
+Next create a secret from your created yaml file:
+
+    $ oc create secret generic index-management \
+         --from-file config.yaml=</path/to/your/yaml/file>
+
+Then overwrite the configuration with your created secret as a volume in your Curator DC:
+
+    $ oc set volume dc/logging-curator --overwrite --name=config \
+             --type=secret --secret-name=index-management
+    $ oc deploy --latest logging-curator
 
 ### About the Deployer generated secrets
 
@@ -439,7 +625,84 @@ we would use (assuming the bash shell):
 
     $ oc patch secret/logging-curator -p='{"data":{"key": "'$(base64 -w 0 < new_key.key)'"}}'
 
-## Using Kibana
+## Upgrading your EFK stack
+
+If you need to upgrade your EFK stack with new images and new features, you can
+run the Deployer in `upgrade` mode.
+
+Before you run the Deployer you should recreate your `logging-deployer-template`
+and `logging-deployer-account-template` templates to ensure you pick up any changes
+that may have been made to them since your last installation. First, you must delete
+the templates.
+
+    $ oc delete template logging-deployer-account-template logging-deployer-template
+
+You can follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployer#create-missing-templates)
+to recreate your Deployer templates.  Then follow the steps [here](https://github.com/openshift/origin-aggregated-logging/tree/master/deployer#create-supporting-serviceaccount-and-permissions)
+to ensure your service account roles are up to date.
+
+To run the Deployer to upgrade your EFK stack, run the deployer with the `MODE=upgrade` parameter.
+
+    $ oc new-app logging-deployer-template -p MODE=upgrade
+
+Upgrade mode will take care of the following for you:
+  * Scale down your EFK deployment in a manner that will have minimal disruption
+  to your log data.
+  * Pull down the latest EFK image tags and patch your templates/DCs
+  * Perform any infrastructure changes in a non-destructive manner -- if you don't
+  yet have Curator, the upgrade won't delete your old ES instances
+  * Scale your deployment back up as best as it can -- if you are moving from
+  Fluentd being deployed with a DC to a Daemonset, the deployer can't label your
+  nodes for you but it'll inform you how to!
+  * If you did not previously have an admin-cert the upgrade will also perform
+  the necessary uuid index migration for you.
+
+#### Note
+  If you have not previously done a uuid migration after a manual upgrade, you will
+  need to perform that with `MODE=migrate` while your Elasticsearch instances
+  are running.
+
+  This only impacts non-operations logs, operations logs will appear the
+  same as in previous versions. There should be minimal performance impact to ES
+  while running this and it will not perform an install.
+
+## Stop and Start
+
+If you wish to shut down in an orderly fashion, for instance prior to a system upgrade,
+there are stop and start a deployer modes:
+
+    $ oc new-app logging-deployer-template -p MODE=stop
+    $ oc new-app logging-deployer-template -p MODE=start
+
+In each case, the deployer must `Complete` state before the action can
+be considered complete.
+
+## Uninstall and Reinstall
+
+If you wish to remove everything generated or instantiated without having
+to destroy the project, there is a deployer mode to do so cleanly:
+
+    $ oc new-app logging-deployer-template -p MODE=uninstall
+
+You can also typically do so manually:
+
+    $ oc delete all,sa,oauthclient,daemonset,configmap --selector logging-infra=support
+    $ oc delete secret logging-fluentd logging-elasticsearch \
+                       logging-elasticsearch logging-kibana \
+                       logging-kibana-proxy
+
+Note that PersistentVolumeClaims are preserved, not deleted.
+
+There is also a reinstall mode:
+
+    $ oc new-app logging-deployer-template -p MODE=reinstall
+
+This first removes the deployment and then recreates it according to
+current parameters. Note that again, PersistentVolumeClaims are preserved,
+and may be reused by the new deployment. This is a useful way to make
+the deployment match changed parameters without losing data.
+
+# Using Kibana
 
 The subject of using Kibana in general is covered in that [project's
 documentation](https://www.elastic.co/guide/en/kibana/4.1/discover.html).
@@ -470,18 +733,7 @@ keep in mind also that the default time interval for retrieving logs is
 5. Unfortunately there is no way to stream logs as they are created at
 this time.
 
-## Cleanup and removal
-
-If you wish to remove everything generated or instantiated without having
-to destroy the project:
-
-    $ oc delete all --selector logging-infra=kibana
-    $ oc delete all,daemonset --selector logging-infra=fluentd
-    $ oc delete all --selector logging-infra=elasticsearch
-    $ oc delete all,sa,oauthclient --selector logging-infra=support
-    $ oc delete secret logging-fluentd logging-elasticsearch logging-es-proxy logging-kibana logging-kibana-proxy logging-kibana-ops-proxy
-
-#### Adjusting ElasticSearch After Deployment
+# Adjusting ElasticSearch After Deployment
 
 If you need to change the ElasticSearch cluster size after deployment,
 DO NOT just scale existing deployments up or down. ElasticSearch cannot
@@ -548,7 +800,94 @@ for Fluentd.
     $ oc scale rc/logging-kibana-1 --replicas=2
 
 
-## Troubleshooting
+# Checking EFK Health
+
+Determining the health of an EFK deployment and if it is running can be assessed
+as follows.
+
+### Fluentd
+
+Check Fluentd logs for the message that it has read in its config file:
+```
+2016-02-19 20:40:44 +0000 [info]: reading config file path="/etc/fluent/fluent.conf"
+```
+
+After that, you can verify that fluentd has been able to start reading in log files
+by checking the contents of `/var/log/node.log.pos` and `/var/log/es-containers.log.pos`.
+node.log.pos will keep track of the placement in syslog log files and es-containers.log.pos
+will keep track of the placement in the docker log files (/var/log/containers).
+
+### Elasticsearch
+
+Elasticsearch will have more logs upon start up than Fluentd and it will give you
+more information such as how many indices it recovered upon starting up.
+```
+[2016-02-19 20:40:42,983][INFO ][node                     ] [Volcana] version[1.5.2], pid[7], build[62ff986/2015-04-27T09:21:06Z]
+[2016-02-19 20:40:42,983][INFO ][node                     ] [Volcana] initializing ...
+[2016-02-19 20:40:43,546][INFO ][plugins                  ] [Volcana] loaded [searchguard, openshift-elasticsearch-plugin, cloud-kubernetes], sites []
+[2016-02-19 20:40:46,749][INFO ][node                     ] [Volcana] initialized
+[2016-02-19 20:40:46,767][INFO ][node                     ] [Volcana] starting ...
+[2016-02-19 20:40:46,834][INFO ][transport                ] [Volcana] bound_address {inet[/0:0:0:0:0:0:0:0:9300]}, publish_address {inet[/172.17.0.1:9300]}
+[2016-02-19 20:40:46,843][INFO ][discovery                ] [Volcana] logging-es/WJSOLSgsRuSe183-LE0WwA
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/usr/share/elasticsearch/plugins/openshift-elasticsearch-plugin/slf4j-log4j12-1.7.7.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/usr/share/elasticsearch/plugins/cloud-kubernetes/slf4j-log4j12-1.7.7.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+[2016-02-19 20:40:49,980][INFO ][cluster.service          ] [Volcana] new_master [Volcana][WJSOLSgsRuSe183-LE0WwA][logging-es-4sbwcpvw-1-d5j4y][inet[/172.17.0.1:9300]], reason: zen-disco-join (elected_as_master)
+[2016-02-19 20:40:50,005][INFO ][http                     ] [Volcana] bound_address {inet[/0:0:0:0:0:0:0:0:9200]}, publish_address {inet[/172.17.0.1:9200]}
+[2016-02-19 20:40:50,005][INFO ][node                     ] [Volcana] started
+[2016-02-19 20:40:50,384][INFO ][gateway                  ] [Volcana] recovered [0] indices into cluster_state
+```
+At this point, you know that ES is currently up and running.
+
+If you see a stack trace like the following from `com.floragunn.searchguard.service.SearchGuardConfigService` you can ignore it.  This is due
+to the Search Guard plugin not gracefully handling the ES service not being up and ready at the time Search Guard is querying for its configurations.
+While you can ignore stack traces from Search Guard it is important to still review them to determine why may ES may not have started up,
+especially if the Search Guard stack trace is repeated multiple times:
+```
+[2016-01-19 19:30:48,980][ERROR][com.floragunn.searchguard.service.SearchGuardConfigService] [Topspin] Try to refresh security configuration but it failed due to org.elasticsearch.action.NoShardAvailableActionException: [.searchguard.logging-es-0ydecq1l-2-o0z5s][4] null
+org.elasticsearch.action.NoShardAvailableActionException: [.searchguard.logging-es-0ydecq1l-2-o0z5s][4] null
+	at org.elasticsearch.action.support.single.shard.TransportShardSingleOperationAction$AsyncSingleAction.perform(TransportShardSingleOperationAction.java:175)
+
+	...
+
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+```
+
+Since Fluentd and Kibana both talk to Elasticsearch, the Elasticsearch logs are a good place to go for
+verifying that connections are active.
+
+You can see what indices have been created by Fluentd pushing logs to Elasticsearch:
+```
+[2016-02-19 21:01:53,867][INFO ][cluster.metadata         ] [M-Twins] [logging.2016.02.19] creating index, cause [auto(bulk api)], templates [], shards [5]/[1], mappings [fluentd]
+[2016-02-19 21:02:20,593][INFO ][cluster.metadata         ] [M-Twins] [.operations.2016.02.19] creating index, cause [auto(bulk api)], templates [], shards [5]/[1], mappings [fluentd]
+```
+
+After a user first signs into Kibana their Kibana profile will be created and saved in the index `.kibana.{user-name sha hash}`.
+
+### Kibana
+
+The Kibana pod contains two containers.  One container is `kibana-proxy`, and the other is `kibana` itself.
+
+Kibana-proxy will print out this line to state that it has started up:
+```
+Starting up the proxy with auth mode "oauth2" and proxy transform "user_header,token_header".
+```
+
+Kibana will print out lines until it has successfully connected to its configured Elasticsearch. It is important to note that Kibana will not be
+available until it has connected to ES.
+```
+{"name":"Kibana","hostname":"logging-kibana-3-1menz","pid":8,"level":30,"msg":"No existing kibana index found","time":"2016-02-19T21:14:02.723Z","v":0}
+{"name":"Kibana","hostname":"logging-kibana-3-1menz","pid":8,"level":30,"msg":"Listening on 0.0.0.0:5601","time":"2016-02-19T21:14:02.743Z","v":0}
+```
+
+Currently Kibana is very verbose in its logs and will actually print every http request/response made.  As of 4.2 there is a means to set
+log levels, however EFK is currently using 4.1.2 due to compatibility with the version of ES used (1.5.2).
+
+
+# Troubleshooting
 
 There are a number of common problems with logging deployment that have simple
 explanations but do not present useful errors for troubleshooting.
