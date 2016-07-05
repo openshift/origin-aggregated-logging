@@ -10,8 +10,8 @@ require 'logger'
 def get_file_name(name, isSyslog)
   ## file_name follows pattern: gen-#{name}-YYYYMMDD.conf ##
 
-  file_name = "/etc/fluent/configs.d/input/docker/gen-" unless isSyslog
-  file_name = "/etc/fluent/configs.d/input/syslog/gen-" if isSyslog
+  file_name = "/etc/fluent/configs.d/dynamic/input-docker-" unless isSyslog
+  file_name = "/etc/fluent/configs.d/dynamic/input-syslog-" if isSyslog
   file_name << name
   file_name << "-"
   file_name << Date.today.strftime("%Y%m%d")
@@ -100,7 +100,7 @@ end
 
 def create_default_docker(excluded)
 
-  file_name = "/etc/fluent/configs.d/input/docker/default-docker.conf"
+  file_name = "/etc/fluent/configs.d/dynamic/input-docker-default-docker.conf"
 
   File.open(file_name, 'w') { |file|
     file.write(<<-CONF)
@@ -122,7 +122,7 @@ end
 
 def create_default_syslog()
 
-  file_name = "/etc/fluent/configs.d/input/syslog/default-syslog.conf"
+  file_name = "/etc/fluent/configs.d/dynamic/input-syslog-default-syslog.conf"
 
   File.open(file_name, 'w') { |file|
     file.write(<<-CONF)
@@ -181,7 +181,7 @@ def get_project_pattern(name)
   project_pattern << "_*.log"
 end
 
-filename = "#{ENV['THROTTLE_CONF_LOCATION']}/settings"
+filename = "/etc/fluent/configs.d/user/throttle-conf.yaml"
 
 parsed = ""
 parsed = YAML.load_file(filename) if File.exists?(filename)

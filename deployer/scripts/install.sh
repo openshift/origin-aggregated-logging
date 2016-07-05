@@ -255,7 +255,13 @@ function generate_configmaps() {
     # generate curator configmap
     oc create configmap logging-curator \
       --from-file=config.yaml=conf/curator.yml
-    oc label configmap/logging-curator logging-infra=support # make easier to delete later
+    oc label configmap/logging-curator logging-infra=support
+
+    # generate fluentd configmap
+    oc create configmap logging-fluentd \
+      --from-file=fluent.conf=conf/fluent.conf \
+      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml || return
+    oc label configmap/logging-fluentd logging-infra=support
 
 }
 

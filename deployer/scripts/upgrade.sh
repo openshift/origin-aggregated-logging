@@ -34,6 +34,12 @@ function getDeploymentVersion() {
     return
   fi
 
+  # check for configmap for fluentd
+  if [[ -z "$(oc get configmap/logging-fluentd)" ]]; then
+    echo 4
+    return
+  fi
+
   echo "$LOGGING_VERSION"
 }
 
@@ -528,6 +534,16 @@ function add_config_maps() {
   wait ${patchPIDs[@]}
 }
 
+function add_fluentd_configmaps() {
+  oc delete template/logging-fluentd-template
+  generate_fluentd_template
+  # the configmap may already exist from previous upgrade step add_config_maps
+  oc create configmap logging-fluentd \
+      --from-file=fluent.conf=conf/fluent.conf \
+      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml || return 0
+  oc label configmap/logging-fluentd logging-infra=support
+}
+
 function upgrade_notify() {
   set +x
   cat <<EOF
@@ -618,6 +634,9 @@ function upgrade_logging() {
           ;;
         3)
           add_config_maps
+          ;;
+        4)
+          add_fluentd_configmaps
           ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
