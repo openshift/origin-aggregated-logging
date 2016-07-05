@@ -14,10 +14,10 @@ source_root=$(dirname "${0}")/..
 #################################
 declare -A source_for=(
   [logging-fluentd]=fluentd
-  [logging-elasticsearch]=deployer/common/elasticsearch
+  [logging-elasticsearch]=elasticsearch
   [logging-kibana]=kibana
-  [logging-curator]=deployer/common/curator
-  [logging-auth-proxy]=deployer/common/openshift-auth-proxy
+  [logging-curator]=curator
+  [logging-auth-proxy]=kibana-proxy
   [logging-deployer]=deployer
   [logging-deployment]=deployer
 )

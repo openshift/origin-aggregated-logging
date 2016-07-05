@@ -1,0 +1,10 @@
+cluster:
+  name: placeholder
+
+script:
+  disable_dynamic: false
+
+path:
+  data: /elasticsearch/data/placeholder/data
+  logs: /elasticsearch/placeholder/logs
+  work: /elasticsearch/placeholder/work
