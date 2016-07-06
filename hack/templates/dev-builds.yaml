@@ -113,7 +113,7 @@ objects:
         name: logging-elasticsearch:latest
     resources: {}
     source:
-      contextDir: deployer/common/elasticsearch
+      contextDir: elasticsearch
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}
@@ -193,7 +193,7 @@ objects:
         name: logging-curator:latest
     resources: {}
     source:
-      contextDir: deployer/common/curator
+      contextDir: curator
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}
@@ -222,7 +222,7 @@ objects:
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}
-      contextDir: deployer/common/openshift-auth-proxy
+      contextDir: kibana-proxy
       type: Git
     strategy:
       dockerStrategy:

@@ -248,7 +248,7 @@ function generate_configmaps() {
 
     # generate elasticsearch configmap
     oc create configmap logging-elasticsearch \
-      --from-file=common/elasticsearch/logging.yml \
+      --from-file=logging.yml=conf/elasticsearch-logging.yml \
       --from-file=conf/elasticsearch.yml
     oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
 
