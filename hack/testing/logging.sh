@@ -493,7 +493,15 @@ ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
 os::cmd::expect_success "oc patch $ops_dc \
    -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
 
-os::cmd::try_until_text "oc deploy $ops_dc --latest" "Started" "$(( 3 * TIME_MIN ))"
+# get the deployment number
+deploynum=`oc deploy $ops_dc --latest | awk -F'[ #]+' '/^Started deployment/ {print $3}'`
+if [ -z "${deploynum:-}" ] ; then
+    echo Error attempting to deploy $ops_dc
+    exit 1
+fi
+barename=`echo $ops_dc|sed 's,deploymentconfig/,,'`
+# look for a deployment with the given deployment number
+os::cmd::try_until_text "oc get pods -l deployment=${barename}-${deploynum}" "Running"  "$(( 3 * TIME_MIN ))"
 
 ./e2e-test.sh $USE_CLUSTER
 
