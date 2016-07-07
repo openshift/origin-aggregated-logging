@@ -66,10 +66,13 @@ fi
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
 # include all the origin test libs we need
-for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
-           "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
-do source "$lib"; done
-
+if [ -f ${OS_ROOT}/hack/lib/init.sh ] ; then
+    source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
+else
+    for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
+               "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
+    do source "$lib"; done
+fi
 os::log::stacktrace::install
 os::util::environment::setup_time_vars
 
