@@ -32,6 +32,7 @@ USE_LOGGING_DEPLOYER=
 USE_LOGGING_DEPLOYER_SCRIPT=
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-false}
 DEBUG_FAILURES=${DEBUG_FAILURES:-false}
+DO_CLEANUP=${DO_CLEANUP:-true}
 USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
@@ -96,13 +97,15 @@ function cleanup()
     os::test::junit::declare_suite_end
     os::test::junit::reconcile_output
     if [ "$DEBUG_FAILURES" = "true" ] ; then
-        echo debug failures
-        sleep 54321 || echo debugging done - continuing
+        echo debug failures - when you are finished, 'ps -ef|grep 987654' then kill that sleep process
+        sleep 987654 || echo debugging done - continuing
     fi
-    cleanup_openshift
+    if [ "$DO_CLEANUP" = "true" ] ; then
+        cleanup_openshift
+    fi
     echo "[INFO] Exiting at " `date`
     ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"
-    exit $out
+    return $out
 }
 
 function wait_for_latest_build_complete() {
@@ -181,9 +184,10 @@ function wait_for_builds_complete()
             for status in $statuses ; do
                 case $status in
                 "running"|"complete"|"pending")
-                    echo build in progress for $bc - delete failed build $build
+                    echo build in progress for $bc - delete failed build $build status $status
                     # delete the failed build - otherwise it will show up in the list and
                     # the main loop will never Complete
+                    oc logs build/$build > $LOG_DIR/build-$build.log 2>&1
                     oc delete build $build
                     needbuild=0
                     break
