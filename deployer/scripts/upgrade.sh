@@ -304,7 +304,12 @@ function waitForChange() {
   local currentVersion=$1
   local dc=$2
 
-  waitFor "[[ $currentVersion -lt \$(oc get $dc -o jsonpath='{.status.latestVersion}') ]]" && return 0
+  waitFor "[[ $currentVersion -lt \$(oc get $dc -o jsonpath='{.status.latestVersion}') ]]" || return 1
+
+  local deployer=$(oc get $dc -o jsonpath='{.metadata.name}')-
+  deployer+=$(oc get dc -o jsonpath='{.status.latestVersion}')-deploy
+
+  waitFor "[[ -z \$(oc get pod $deployer -o name) ]]" && return 0
 
   return 1
 }
@@ -375,7 +380,8 @@ function patchIfValid() {
 
   if oc patch $object --type=json -p="[$(join , "${actualPatch[@]}")]"; then
     if [[ $isDC = true ]]; then
-      oc deploy $object --latest
+      [[ $installedVersion -ge 2 ]] && oc deploy $object --latest
+
       waitForChange $currentVersion $object &
       patchPIDs+=( $!)
     fi
