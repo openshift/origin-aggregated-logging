@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ $VERBOSE ]]; then
+if [ "$VERBOSE" = true ]; then
   set -ex
 else
   set -e
@@ -55,7 +55,9 @@ for pod in "${PODS[@]}"; do
 
       else
         # if index is anything else, then we check container logs (where namespace is index)
-        FILE_PATH="/var/log/containers/*_${index}_*.log"
+        # need to parse out the uuid from the index name
+        fp_index=$(echo $index | sed 's/\..*//g')
+        FILE_PATH="/var/log/containers/*_${fp_index}_*.log"
         ES="$ES_SVC"
         KIBANA="$KIBANA_POD"
       fi
@@ -78,7 +80,7 @@ for pod in "${PODS[@]}"; do
 
       if [[ $READY -eq 1 ]]; then
         # this needs to read from the system log files, so use sudo, and use -E and set PATH
-        # because it needs to use the oc commands  
+        # because it needs to use the oc commands
         sudo -E env PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
         echo $TEST_DIVIDER
       else
