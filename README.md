@@ -122,3 +122,13 @@ Determining the health of an EFK deployment and if it is running can be assessed
 by running the `check-EFK-running.sh` and `check-logs.sh` [e2e tests](hack/testing/).
 Additionally, see [Checking EFK Health](deployer/README.md#checking-efk-health).
 
+## Notes on Upgrading to Elasticsearch 2.3.x
+
+With the update to using Elasticsearch 2.3.x from Elasticsearch 1.5.2 there are
+some breaking changes that may change how your data is displayed. One such change
+is that Elasticsearch 2.x [does not allow '.' in field names](https://www.elastic.co/guide/en/elasticsearch/reference/2.3/breaking_20_mapping_changes.html#_field_names_may_not_contain_dots)
+. Because of this, Fluentd will "de-dot" the Kubernetes metadata that is fetched
+for your application containers. This most commonly impacts the Labels created
+for your deployments, builds, and pods. Fluentd will replace any occurrence of a
+'.' with a '_'.  This means that when searching in Kibana you will need to be
+aware of this change.

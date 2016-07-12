@@ -1,97 +1,77 @@
-searchguard.ssl.transport.http.enabled: true
-
-kibana.version: 4.1.11
-
 cluster:
   name: ${CLUSTER_NAME}
 
 script:
-  disable_dynamic: false
+  inline: on
+  indexed: on
+
+index:
+  number_of_shards: 1
+  number_of_replicas: 0
+  auto_expand_replicas: 0-3
+  unassigned.node_left.delayed_timeout: 2m
+  translog:
+    flush_threshold_size: 256mb
+    flush_threshold_period: 5m
+
+node:
+  master: true
+  data: true
+
+network:
+  host: 0.0.0.0
+  publish_host: ${CLUSTER_NAME}
+
+transport:
+  publish_host: ${CLUSTER_NAME}-cluster
+
+cloud:
+  kubernetes:
+    service: ${SERVICE_DNS}
+    namespace: ${NAMESPACE}
 
 discovery:
-  zen:
-    ping:
-      multicast:
-        enabled: false
-    minimum_master_nodes: ${NODE_QUORUM}
+  type: kubernetes
+  zen.ping.multicast.enabled: false
+
 gateway:
+  expected_master_nodes: ${NODE_QUORUM}
   recover_after_nodes: ${RECOVER_AFTER_NODES}
   expected_nodes: ${RECOVER_EXPECTED_NODES}
   recover_after_time: ${RECOVER_AFTER_TIME}
 
 io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd", "system.logging.curator", "system.admin"]
 
-cloud:
-  k8s:
-    servicedns: ${SERVICE_DNS}
-
-discovery:
-  type: io.fabric8.elasticsearch.discovery.k8s.K8sDiscoveryModule
+openshift.searchguard:
+  keystore.path: /etc/elasticsearch/secret/admin.jks
+  truststore.path: /etc/elasticsearch/secret/searchguard.truststore
 
 path:
   data: /elasticsearch/persistent/${CLUSTER_NAME}/data
   logs: /elasticsearch/${CLUSTER_NAME}/logs
   work: /elasticsearch/${CLUSTER_NAME}/work
+  scripts: /elasticsearch/${CLUSTER_NAME}/scripts
 
 searchguard:
+  authcz.admin_dn:
+  - CN=system.admin,OU=OpenShift,O=Logging
   config_index_name: ".searchguard.${HOSTNAME}"
-  key_path: /elasticsearch/${CLUSTER_NAME}
-  allow_all_from_loopback: false
-  authentication:
-    authentication_backend:
-      impl: com.floragunn.searchguard.authentication.backend.simple.AlwaysSucceedAuthenticationBackend
-    authorizer:
-      impl: com.floragunn.searchguard.authorization.simple.SettingsBasedAuthorizator
-    http_authenticator:
-      impl: io.fabric8.elasticsearch.plugin.HTTPSProxyClientCertAuthenticator
-    proxy:
-      header: X-Proxy-Remote-User
-      trusted_ips: ["*"]
-    authorization:
-      settingsdb:
-        roles:
-          admin: ["admin"]
-          fluentd: ["fluentd"]
-          kibana: ["kibana"]
-          curator: ["curator"]
   ssl:
     transport:
-      http:
-        keystore_type: JKS
-        keystore_filepath: /etc/elasticsearch/secret/key
-        keystore_password: kspass
-        enforce_clientauth: true
-        truststore_type: JKS
-        truststore_filepath: /etc/elasticsearch/secret/truststore
-        truststore_password: tspass
-  actionrequestfilter:
-    names: ["readonly", "fluentd", "kibana", "curator", "admin"]
-    readonly:
-      allowed_actions: ["indices:data/read/*", "*monitor*"]
-      forbidden_actions: ["cluster:*", "indices:admin*"]
-    fluentd:
-      allowed_actions: ["indices:data/write/*", "indices:admin/create"]
-    kibana:
-      allowed_actions: ["indices:data/read/*", "*monitor*", "indices:admin/read", "indices:admin/mappings/fields/get*"]
-    curator:
-      allowed_actions: ["indices:admin/get", "indices:admin/delete"]
-
-openshift:
-  acl:
-    users:
-      names: ["system.logging.fluentd", "system.logging.kibana", "system.logging.curator", "system.admin"]
-      system.logging.fluentd:
-        execute: ["actionrequestfilter.fluentd"]
-        actionrequestfilter.fluentd.comment: "Fluentd can only write"
-      system.logging.kibana:
-        bypass: ["*"]
-        execute: ["actionrequestfilter.kibana"]
-        actionrequestfilter.kibana.comment: "Kibana can only read from every other index"
-      system.logging.kibana.*.comment: "Kibana can do anything in the kibana index"
-      system.logging.kibana.*.indices: [".kibana.*"]
-      system.logging.curator:
-        execute: ["actionrequestfilter.curator"]
-        actionrequestfilter.curator.comment: "Curator can list all indices and delete them"
-      system.admin:
-        bypass: ["*"]
-      system.admin.*.comment: "Admin user can do anything"
+      enabled: true
+      enforce_hostname_verification: false
+      keystore_type: JKS
+      keystore_filepath: /etc/elasticsearch/secret/searchguard.key
+      keystore_password: kspass
+      truststore_type: JKS
+      truststore_filepath: /etc/elasticsearch/secret/searchguard.truststore
+      truststore_password: tspass
+    http:
+      enabled: true
+      keystore_type: JKS
+      keystore_filepath: /etc/elasticsearch/secret/key
+      keystore_password: kspass
+      clientauth_mode: OPTIONAL
+      truststore_type: JKS
+      truststore_filepath: /etc/elasticsearch/secret/truststore
+      truststore_password: tspass
