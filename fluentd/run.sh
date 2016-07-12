@@ -5,7 +5,7 @@ if [[ $VERBOSE ]]; then
   fluentdargs="-vv"
 else
   set -e
-  fluentdargs=  
+  fluentdargs=
 fi
 
 docker_uses_journal() {

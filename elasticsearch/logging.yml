@@ -24,7 +24,7 @@ logger:
 
   # search-guard
   # Due to search-guard issue #33 this should be set to ERROR (too verbose at WARN)
-  com.floragunn.searchguard: ERROR
+  com.floragunn.searchguard: WARN
 
 additivity:
   index.search.slowlog: false

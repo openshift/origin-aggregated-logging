@@ -63,6 +63,10 @@ objects:
                 containerPort: 9300
                 name: "cluster"
               env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
               -
                 name: "KUBERNETES_TRUST_CERT"
                 value: "true"
@@ -92,7 +96,7 @@ objects:
                   mountPath: /etc/elasticsearch/secret
                   readOnly: true
                 - name: elasticsearch-config
-                  mountPath: /usr/share/elasticsearch/config
+                  mountPath: /etc/elasticsearch/config
                   readOnly: true
                 - name: elasticsearch-storage
                   mountPath: /elasticsearch/persistent

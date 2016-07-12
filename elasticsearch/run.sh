@@ -2,12 +2,23 @@
 
 set -euo pipefail
 
-mkdir -p /elasticsearch/$CLUSTER_NAME
-secret_dir=/etc/elasticsearch/secret/
-[ -f $secret_dir/searchguard-node-key ] && ln -s $secret_dir/searchguard-node-key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
-[ -f $secret_dir/searchguard.key ] && ln -s $secret_dir/searchguard.key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
-[ -f $secret_dir/keystore.password ] && export KEYSTORE_PASSWORD=$(cat $secret_dir/keystore.password)
-[ -f $secret_dir/truststore.password ] && export TRUSTSTORE_PASSWORD=$(cat $secret_dir/truststore.password)
+secret_dir=/etc/elasticsearch/secret
+config_dir=/etc/elasticsearch/config
+
+# ES seems to be picky about its config/ dir and permissions within it -- ln -s would yield incorrect permissions...
+[ -f $secret_dir/searchguard.key ] && cp $secret_dir/searchguard.key $ES_CONF/$CLUSTER_NAME.key
+[ -f $secret_dir/searchguard.truststore ] && cp $secret_dir/searchguard.truststore $ES_CONF/$CLUSTER_NAME.truststore
+[ -f $config_dir/elasticsearch.yml ] && cp $config_dir/elasticsearch.yml $ES_CONF/elasticsearch.yml
+[ -f $config_dir/logging.yml ] && cp $config_dir/logging.yml $ES_CONF/logging.yml
+
+[ -f $secret_dir/key ] && cp $secret_dir/key $ES_CONF/key
+[ -f $secret_dir/truststore ] && cp $secret_dir/truststore $ES_CONF/truststore
+
+[ -f $secret_dir/admin-cert ] && cp $secret_dir/admin-cert $ES_CONF/admin-cert
+[ -f $secret_dir/admin-key ] && cp $secret_dir/admin-key $ES_CONF/admin-key
+[ -f $secret_dir/admin-ca ] && cp $secret_dir/admin-ca $ES_CONF/admin-ca
+
+export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 
 BYTES_PER_MEG=$((1024*1024))
 BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
@@ -60,4 +71,8 @@ else
 	exit 1
 fi
 
-exec /usr/share/elasticsearch/bin/elasticsearch
+ln -s /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore.jks
+cp /etc/elasticsearch/secret/admin-jks /usr/share/elasticsearch/config/admin.jks
+
+#TODO: update the whitelist to work instead of completely disabling security manager
+exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
