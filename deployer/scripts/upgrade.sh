@@ -307,7 +307,7 @@ function waitForChange() {
   waitFor "[[ $currentVersion -lt \$(oc get $dc -o jsonpath='{.status.latestVersion}') ]]" || return 1
 
   local deployer=$(oc get $dc -o jsonpath='{.metadata.name}')-
-  deployer+=$(oc get dc -o jsonpath='{.status.latestVersion}')-deploy
+  deployer+=$(oc get $dc -o jsonpath='{.status.latestVersion}')-deploy
 
   waitFor "[[ -z \$(oc get pod $deployer -o name) ]]" && return 0
 

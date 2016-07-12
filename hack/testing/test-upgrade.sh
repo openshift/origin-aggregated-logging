@@ -97,6 +97,7 @@ function useFluentdDC() {
   oc new-app logging-fluentd-template
 
   oc scale dc logging-fluentd --replicas=1
+  oc deploy dc/logging-fluentd --latest || :
   waitFor "[[ \"Running\" == \"\$(oc get pods -l component=fluentd -o jsonpath='{.items[*].status.phase}')\" ]]" "$(( 3 * TIME_MIN ))" && return 0
   return 1
 }
