@@ -25,6 +25,7 @@ fi
 
 TEST_DIVIDER="------------------------------------------"
 UPGRADE_POD=""
+OPS_PROJECTS=("default" "openshift" "openshift-infra" "kube-system")
 
 function dumpEvents() {
   oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
@@ -216,7 +217,7 @@ function verifyUpgrade() {
 ### check that migration was successful
   if [ $checkMigrate = true ]; then
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
-      [[ "default openshift openshift-infra" =~ $project ]] && continue
+      [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
 

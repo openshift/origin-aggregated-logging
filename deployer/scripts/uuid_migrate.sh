@@ -9,7 +9,7 @@ function uuid_migrate() {
 }
 
 function initialize_es_vars() {
-  OPS_PROJECTS=("default" "openshift" "openshift-infra")
+  OPS_PROJECTS=("default" "openshift" "openshift-infra" "kube-system")
   CA=$dir/admin-ca.crt
   KEY=$dir/admin-key.key
   CERT=$dir/admin-cert.crt
