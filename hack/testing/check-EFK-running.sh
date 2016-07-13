@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ $VERBOSE ]]; then
+if [ "$VERBOSE" = true ]; then
   set -ex
 else
   set -e
