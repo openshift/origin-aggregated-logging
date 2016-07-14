@@ -32,6 +32,18 @@ function dumpEvents() {
 }
 trap dumpEvents EXIT
 
+function removeFluentdConfigMaps() {
+  echo "removing configmaps from fluentd template"
+  # construct patch for template
+  local patch=$(join , \
+    '{"op": "remove", "path": "/objects/0/spec/template/spec/containers/0/volumeMounts/2"}' \
+    '{"op": "remove", "path": "/objects/0/spec/template/spec/volumes/2"}' \
+  )
+  oc patch template/logging-fluentd-template --type=json --patch "[$patch]" || return 1
+  oc delete configmap/logging-fluentd || return 1
+  return 0
+}
+
 function removeEsCuratorConfigMaps() {
   echo "removing configmaps from ES and Curator"
   # construct patch for ES
@@ -252,6 +264,7 @@ TIME_MIN=60
 
 echo $TEST_DIVIDER
 # test from base install
+removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 removeAdminCert
 removeCurator
@@ -266,6 +279,7 @@ verifyUpgrade "upgraded" true
 
 echo $TEST_DIVIDER
 # test from partial upgrade
+removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 useFluentdDC
 addTriggers
