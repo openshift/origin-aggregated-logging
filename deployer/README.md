@@ -380,16 +380,20 @@ Note: Labeling nodes requires cluster-admin capability.
 #### Throttling logs in Fluentd
 
 For projects that are especially verbose, an administrator can throttle
-down the rate at which the logs are read in by Fluentd at a time before being
-processed. Note: this means that aggregated logs for the configured projects
-could fall behind and even be deleted if the pod were deleted before Fluentd
-caught up.  
+down the rate at which the logs are read in by Fluentd before being
+processed. Note: this means that aggregated logs for the configured
+projects could fall behind and even be lost if the pod were deleted
+before Fluentd caught up.
 
-To tell Fluentd which projects it should be restricting you will
-need to do the following:
+To tell Fluentd which projects it should be restricting you will need
+to edit the throttle configuration in its configmap after deployment:
 
-Create a yaml file that contains project names and the desired rate at which
-logs are read in. (Default is 1000)
+    $ oc edit configmap/logging-fluentd
+
+The format of the throttle-config.yaml key is a yaml file that contains
+project names and the desired rate at which logs are read in on each
+node. The default is 1000 lines at a time. For example:
+
 ```
 logging:
   read_lines_limit: 500
@@ -401,15 +405,26 @@ test-project:
   read_lines_limit: 100
 ```
 
-Create a secret providing this file as the source
+Directly editing is the simplest method, but you may prefer maintaining
+a large file of throttle settings and just reusing the file. You can
+export and recreate the configmap as follows:
+
 ```
-oc secrets new fluentd-throttle settings=</path/to/your/yaml>
+$ tmpdir=$(mktemp -d /tmp/fluentd-configmap.XXXXXXXX)
+$ for key in $(oc get configmap/logging-fluentd \
+               --template '{{range $key, $val := .data}}{{$key}} {{end}}')
+    do oc get configmap/logging-fluentd \
+               --template "{{index .data \"$key\"}}" > $tmpdir/$key
+  done
+[ ... modify file(s) as needed ... ]
+$ oc create configmap logging-fluentd --from-file=$tmpdir -o yaml | oc replace -f -
 ```
 
-Mount the created secret to your Fluentd container
-```
-oc volumes dc/logging-fluentd --add --type=secret --secret-name=fluentd-throttle --mount-path=/etc/throttle-settings --name=throttle-settings --overwrite
-```
+Once you have modified the configmap as needed, the fluentd pods must be
+restarted in order to recognize the change. The simplest way to do this is
+to delete them all:
+
+    $ oc delete pods -l provider=openshift,component=fluentd
 
 #### Have Fluentd send logs to another Elasticsearch
 
