@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ $VERBOSE ]]; then
+if [ "${VERBOSE:-false}" = "true" ] ; then
   set -ex
 else
   set -e
@@ -78,6 +78,25 @@ wait_for_pod_ACTION() {
         return 1
     fi
     return 0
+}
+
+wait_for_curator_run() {
+    # curator pod is $1
+    # $2 is the number of times "curator run finish" must occur in the curator log
+    ii=120
+    incr=1
+    while [ $ii -gt 0 ] ; do
+        count=`oc logs $1|grep -c "curator run finish" || :`
+        if [ "$count" = $2 ] ; then
+            return 0
+        fi
+        sleep $incr
+        ii=`expr $ii - $incr`
+    done
+    echo ERROR: curator run not complete for pod $1 after 2 minutes
+    date
+    oc logs $1 > $ARTIFACT_DIR/$1.log 2>&1
+    return 1
 }
 
 create_indices() {
@@ -177,6 +196,7 @@ basictest() {
     ops=${1:-""}
     create_indices "$ops" || return 1
 
+    sleeptime=300 # seconds
     # get current curator pod
     curpod=`get_running_pod curator${ops}`
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
@@ -186,15 +206,24 @@ basictest() {
        show indices --all-indices
     # add the curator config yaml settings file
     curtest=`mktemp --suffix=.yaml`
+    # see what the current time and timezone are in the curator pod
+    oc exec $curpod -- date
     # calculate the runhour and runminute to run 5 minutes from now
-    runhour=`date -u +%H --date="5 minutes hence"`
-    runminute=`date -u +%M --date="5 minutes hence"`
+    # There is apparently a bug in el7 - this doesn't work:
+    # date +%H --date="TZ=\"Region/City\" 5 minutes hence"
+    ## date: invalid date ‘TZ="Region/City" 5 minutes hence’
+    # so for now, just use UTC
+    #tz=`timedatectl | awk '/Time zone:/ {print $3}'`
+    tz=UTC
+    runhour=`date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runminute=`date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
 .defaults:
   delete:
     days: 30
   runhour: $runhour
   runminute: $runminute
+  timezone: $tz
 project-dev:
   delete:
     days: 1
@@ -208,9 +237,19 @@ project-prod:
   delete:
     months: 2
 EOF
-    oc delete secret curator-config${ops} || echo no such secret curator-config${ops} - ignore
-    oc secrets new curator-config${ops} settings=$curtest
-    oc volumes dc/logging-curator${ops} --add --type=secret --secret-name=curator-config${ops} --mount-path=/etc/curator --name=curator-config --overwrite
+    cm=`oc get configmap logging-curator -o name`
+    if [ -n "$cm" ] ; then
+        # use configmap
+        oc delete configmap logging-curator
+        sleep 1
+        oc create configmap logging-curator --from-file=config.yaml=$curtest
+        sleep 1
+    else
+        # use secret volume mount
+        oc delete secret curator-config${ops} || echo no such secret curator-config${ops} - ignore
+        oc secrets new curator-config${ops} settings=$curtest
+        oc volumes dc/logging-curator${ops} --add --type=secret --secret-name=curator-config${ops} --mount-path=/etc/curator --name=curator-config --overwrite
+    fi
     # scale down dc
     oc scale --replicas=0 dc logging-curator${ops}
     # wait for pod to go away
@@ -221,6 +260,8 @@ EOF
     wait_for_pod_ACTION start curator${ops}
     # query ES
     curpod=`get_running_pod curator${ops}`
+    # wait for curator run 1 to finish
+    wait_for_curator_run $curpod 1
     # show current indices
     echo current indices after 1st deletion are:
     oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
@@ -236,8 +277,10 @@ EOF
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices
 
-    echo sleeping 5 minutes to see if runhour and runminute are working . . .
-    sleep 300 # 5 minutes
+    echo sleeping $sleeptime seconds to see if runhour and runminute are working . . .
+    sleep $sleeptime
+    # wait for curator run 2 to finish
+    wait_for_curator_run $curpod 2
     echo verify indices deletion again
     # show current indices
     echo current indices after 2nd deletion are:
@@ -250,8 +293,8 @@ EOF
 }
 
 # test without ops cluster first
-basictest || exit $?
+basictest
 if [ "$CLUSTER" = "true" ] ; then
-    basictest "$OPS" || exit $?
+    basictest "$OPS"
 fi
 exit 0
