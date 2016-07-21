@@ -15,6 +15,21 @@ fi
 
 TIMES=${TIMES:=10}
 QUERY_SIZE=${QUERY_SIZE:=500}
+
+docker_uses_journal() {
+    # need to be able to handle cases like
+    # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
+    grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker
+}
+
+if [ -z "${USE_JOURNAL:-}" ] ; then
+    if docker_uses_journal ; then
+        USE_JOURNAL=true
+    else
+        USE_JOURNAL=false
+    fi
+fi
+
 TEST_DIVIDER="------------------------------------------"
 
 # we need logic for ES_OPS
@@ -28,9 +43,16 @@ PODS=(`oc get pods | grep 'logging-es-' | grep 'Running' | cut -d" " -f 1`)
 
 # check each container's logs for indices created by fluentd
 for pod in "${PODS[@]}"; do
-  INDICES=(`oc logs $pod | grep 'update_mapping \[fluentd\]' | cut -d"[" -f 6 | cut -d"]" -f 1 | rev | cut -d"." -f 4- | rev | sort | uniq`)
-  INDEX_COUNT=${#INDICES[@]}
-
+  INDEX_COUNT=0
+  for i in $(seq 1 $TIMES); do
+    INDICES=(`oc logs $pod | grep 'update_mapping \[fluentd\]' | cut -d"[" -f 6 | cut -d"]" -f 1 | rev | cut -d"." -f 4- | rev | sort | uniq`)
+    INDEX_COUNT=${#INDICES[@]}
+    if [[ $INDEX_COUNT -eq 0 ]]; then
+      sleep 1
+    else
+      break
+    fi
+  done
   if [[ $INDEX_COUNT -eq 0 ]]; then
     # if we have no indices created -- we have nothing to check
     echo " ! no log indices found"
@@ -81,7 +103,7 @@ for pod in "${PODS[@]}"; do
       if [[ $READY -eq 1 ]]; then
         # this needs to read from the system log files, so use sudo, and use -E and set PATH
         # because it needs to use the oc commands
-        sudo -E env PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
+        sudo -E env USE_JOURNAL=$USE_JOURNAL PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
         echo $TEST_DIVIDER
       else
         echo "$ES_NAME not ready to be queried within $TIMES attempts..."

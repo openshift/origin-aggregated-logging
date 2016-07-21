@@ -63,6 +63,8 @@ objects:
               limits:
                 cpu: 100m
             volumeMounts:
+            - name: runlogjournal
+              mountPath: /run/log/journal
             - name: varlog
               mountPath: /var/log
             - name: varlibdockercontainers
@@ -79,6 +81,9 @@ objects:
               readOnly: true
             - name: localtime
               mountPath: /etc/localtime
+              readOnly: true
+            - name: dockercfg
+              mountPath: /etc/sysconfig/docker
               readOnly: true
             env:
             - name: "K8S_HOST_URL"
@@ -137,7 +142,16 @@ objects:
               value: ${OPS_COPY_USERNAME}
             - name: "OPS_COPY_PASSWORD"
               value: ${OPS_COPY_PASSWORD}
+            - name: "USE_JOURNAL"
+              value: ${USE_JOURNAL}
+            - name: "JOURNAL_SOURCE"
+              value: ${JOURNAL_SOURCE}
+            - name: "JOURNAL_READ_FROM_HEAD"
+              value: ${JOURNAL_READ_FROM_HEAD}
           volumes:
+          - name: runlogjournal
+            hostPath:
+              path: /run/log/journal
           - name: varlog
             hostPath:
               path: /var/log
@@ -156,6 +170,9 @@ objects:
           - name: localtime
             hostPath:
               path: /etc/localtime
+          - name: dockercfg
+            hostPath:
+              path: /etc/sysconfig/docker
 parameters:
 -
   description: "Internal url for reaching the master API to query pod labels"
@@ -277,3 +294,15 @@ parameters:
   description: "The version tag of the image to use."
   name: IMAGE_VERSION_DEFAULT
   value: latest
+-
+  description: "Use the journal as input for system logs"
+  name: USE_JOURNAL
+  value: "false"
+-
+  description: 'The journal source to use when USE_JOURNAL=true'
+  name: JOURNAL_SOURCE
+  value: ""
+-
+  description: 'Read the journal starting from the very beginning (false|true).'
+  name: JOURNAL_READ_FROM_HEAD
+  value: "false"

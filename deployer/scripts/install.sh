@@ -77,6 +77,9 @@ function initialize_install_vars() {
   es_ops_recover_after_nodes=${input_vars[es-ops-recover-after-nodes]:-$((es_ops_cluster_size-1))}
   es_ops_recover_expected_nodes=${input_vars[es-ops-recover-expected-nodes]:-$es_ops_cluster_size}
   es_ops_recover_after_time=${input_vars[es-ops-recover-after-time]:-5m}
+  use_journal=${input_vars[use-journal]:-}
+  journal_read_from_head=${input_vars[journal_read_from_head]:-false}
+  journal_source=${input_vars[journal_source]:-}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
@@ -343,6 +346,9 @@ function generate_fluentd_template(){
     --param ES_HOST=${es_host} \
     --param OPS_HOST=${es_ops_host} \
     --param MASTER_URL=${master_url} \
+    --param USE_JOURNAL=${use_journal} \
+    --param JOURNAL_READ_FROM_HEAD=${journal_read_from_head} \
+    --param JOURNAL_SOURCE=${journal_source} \
     --param "$image_params"
 } #generate_fluentd_template()
 

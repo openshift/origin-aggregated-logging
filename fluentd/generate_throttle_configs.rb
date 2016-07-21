@@ -124,8 +124,22 @@ def create_default_syslog()
 
   file_name = "/etc/fluent/configs.d/dynamic/input-syslog-default-syslog.conf"
 
-  File.open(file_name, 'w') { |file|
-    file.write(<<-CONF)
+  if ENV['USE_JOURNAL'] == "true"
+    File.open(file_name, 'w') { |file|
+      file.write(<<-CONF)
+<source>
+  @type systemd
+  @label @INGRESS
+  path "#{ENV['JOURNAL_SOURCE'] || '/run/log/journal'}"
+  pos_file /var/log/journal.pos
+  tag journal
+  read_from_head "#{ENV['JOURNAL_READ_FROM_HEAD'] || 'false'}"
+</source>
+    CONF
+    }
+  else
+    File.open(file_name, 'w') { |file|
+      file.write(<<-CONF)
 <source>
   @type tail
   @label @INGRESS
@@ -143,7 +157,8 @@ def create_default_syslog()
   keep_time_key true
 </source>
     CONF
-  }
+    }
+  end
 end
 
 def validate(key, value)
@@ -189,11 +204,18 @@ parsed = YAML.load_file(filename) if File.exists?(filename)
 excluded = Array.new
 excludeSyslog = false
 
-parsed.each { |project|
-  name = project[0]
-  options = project[1]
+# We do not yet support throttling logs read from the journal
+unless ENV['USE_JOURNAL'] == "true"
+  filename = "#{ENV['THROTTLE_CONF_LOCATION']}/settings"
 
-  options.each_pair { |k,v|
+  parsed = ""
+  parsed = YAML.load_file(filename) if File.exists?(filename)
+
+  parsed.each { |project|
+    name = project[0]
+    options = project[1]
+
+    options.each_pair { |k,v|
 
       if validate(k,v)
         write_to_file(name, k, v, false)
@@ -211,15 +233,15 @@ parsed.each { |project|
       else
         @log.warn "Invalid key/value pair {\"#{k}\":\"#{v}\"} provided -- ignoring..."
       end
-    #}
+      #}
+    } if !options.nil?
 
-  } if !options.nil?
+    # if file was created, close it here
+    close_file(name, false)
+    close_file(name, true) if name.eql?(".operations")
 
-  # if file was created, close it here
-  close_file(name, false)
-  close_file(name, true) if name.eql?(".operations")
+  } if parsed.respond_to?( :each )
+end
 
-} if parsed.respond_to?( :each )
-
-create_default_docker(excluded)
+create_default_docker(excluded) unless ENV['USE_JOURNAL'] == "true"
 create_default_syslog() unless excludeSyslog
