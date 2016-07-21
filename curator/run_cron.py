@@ -9,6 +9,16 @@ import logging
 from crontab import CronTab
 from datetime import datetime, timedelta
 from pytz import timezone, UnknownTimeZoneError
+try:
+    from shlex import quote as shellquote
+except:
+    from pipes import quote as shellquote
+import re
+
+# metadata.name: Invalid value: "F00": must be a DNS label (at most 63
+# characters, matching regex [a-z0-9]([-a-z0-9]*[a-z0-9])?): e.g. "my-name"
+projectre = re.compile(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+projectmaxlen = 63
 
 logger = logging.getLogger()
 # log at INFO by default
@@ -41,6 +51,15 @@ filename = os.getenv('CURATOR_CONF_LOCATION', '/etc/curator/settings/config.yaml
 decoded = {}
 with open(filename, 'r') as stream:
     decoded = yaml.load(stream) or {}
+for project in decoded:
+    if project == '.defaults' or project == '.operations':
+        continue
+    if len(project) > projectmaxlen:
+        logger.error('The project name length must be less than or equal to %d characters.  This is too long: [%s]' % (projectmaxlen, project))
+        sys.exit(1)
+    if not projectre.match(project):
+        logger.error('The project name must match this regex: [%s] This does not match: [%s]' % (projectre.pattern, project))
+        sys.exit(1)
 
 tzstr = decoded.get('.defaults', {}).get('timezone', os.getenv('CURATOR_RUN_TIMEZONE', 'UTC'))
 tz = None
@@ -73,7 +92,7 @@ if default_time_unit.lower() == "weeks":
     default_value = default_value * 7
 
 base_default_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' delete indices --timestring %Y.%m.%d'
-default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana* --exclude .apiman_*'
+default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana*'
 
 for project in decoded:
     if project == '.defaults':
@@ -84,7 +103,7 @@ for project in decoded:
                 value = int(decoded[project][operation][unit])
 
                 if unit in allowed_units:
-                    default_command = default_command + " --exclude " + project + '.*'
+                    default_command = default_command + " --exclude " + shellquote(re.escape(project + '.') + '*')
 
                     if unit.lower() == "weeks":
                         unit = "days"
@@ -107,13 +126,16 @@ for operation in curator_settings:
     for unit in curator_settings[operation]:
         for value in curator_settings[operation][unit]:
 
-            base_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' ' + operation + ' indices --timestring %Y.%m.%d'
-            tab_command = base_cmd + ' --older-than ' + str(value) + ' --time-unit ' + unit
-
-            for project in curator_settings[operation][unit][value]:
-                tab_command = tab_command + ' --prefix ' + project + '.'
-
-            job = my_cron.new(command=tab_command, comment='Generated job based on settings')
+            # construct regex to match all projects for this op/time/unit
+            # regex escape any regex special characters in the project name (there shouldn't be, but just in case)
+            # shellquote to protect any shell special chars in the constructed regex
+            tab_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' ' + operation + ' indices --timestring %Y.%m.%d' + \
+            ' --older-than ' + str(value) + ' --time-unit ' + unit + \
+            ' --regex ' + \
+            shellquote('(' + '|'.join(map(
+                lambda project:'^' + re.escape(project + '.'),
+                curator_settings[operation][unit][value])) + ')')
+            job = my_cron.new(command=tab_cmd, comment='Generated job based on settings')
             job.every().day()
 
 def run_all_jobs(joblist):

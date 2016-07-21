@@ -43,16 +43,25 @@ get_running_pod() {
     oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
 }
 
+get_error_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && ($3 == "Error" || $3 == "CrashLoopBackOff") {print $1}'
+}
+
 wait_for_pod_ACTION() {
     # action is $1 - start or stop
     # $2 - if action is stop, $2 is the pod name
     #    - if action is start, $2 is the component selector
+    # $3 - if present, expect error - if stop, $2 may be empty, just return - if start, no error if pod cannot be started
     ii=120
     incr=10
     if [ $1 = start ] ; then
         curpod=`get_running_pod $2`
     else
-        curpod=$2
+        curpod=${2:-}
+        if [ -z "${curpod:-}" -a -n "${3:-}" ] ; then
+            return 0 # assume not running
+        fi
     fi
     while [ $ii -gt 0 ] ; do
         if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
@@ -71,11 +80,24 @@ wait_for_pod_ACTION() {
         if [ $1 = start ] ; then
             curpod=`get_running_pod $2`
         fi
+        if [ -z "$curpod" ] ; then
+            errpod=`get_error_pod $2`
+            if [ -n "$errpod" ] ; then
+                if [ -z "${2:-}" ] ; then
+                    echo ERROR: pod $2 is in state Error
+                    oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
+                    return 1
+                fi
+                return 0
+            fi
+        fi
     done
-    if [ $ii -le 0 ] ; then
-        echo ERROR: pod $2 not in state $1 after 2 minutes
-        oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
-        return 1
+    if [ -z "${2:-}" ] ; then
+        if [ $ii -le 0 ] ; then
+            echo ERROR: pod $2 not in state $1 after 2 minutes
+            oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
+            return 1
+        fi
     fi
     return 0
 }
@@ -101,10 +123,10 @@ wait_for_curator_run() {
 
 create_indices() {
     myops=${1:-""}
-    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago"
+    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
-        add_message_to_index "${proj}.$1" "$proj $1 message" $myops || return 1
+        add_message_to_index "${proj}.$1" "$proj $1 message" $myops
         shift
     done
 }
@@ -116,7 +138,7 @@ verify_indices() {
     oc exec $1 -- curator --host logging-es${myops} --use_ssl --certificate /etc/curator/keys/ca \
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices > $curout 2>&1
-    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago"
+    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     rc=0
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
@@ -148,6 +170,68 @@ verify_indices() {
     rm -f $curout
     return $rc
 }
+
+restart_curator() {
+    # $1 - if present, expect errors
+    # scale down dc
+    oc scale --replicas=0 dc logging-curator${ops:-}
+    # wait for pod to go away
+    wait_for_pod_ACTION stop "$curpod" ${1:-}
+    # scale up dc
+    oc scale --replicas=1 dc logging-curator${ops:-}
+    # wait for pod to start
+    wait_for_pod_ACTION start curator${ops:-} ${1:-}
+    # get new pod
+    curpod=`get_running_pod curator${ops:-}`
+}
+
+uses_config_maps() {
+    oc get dc logging-curator -o yaml | grep -q -i configmap:
+}
+
+update_config_and_restart() {
+    # $1 - file holding configuration
+    # $2 - if present, expect errors
+    if uses_config_maps ; then
+        # use configmap
+        oc delete configmap logging-curator || :
+        sleep 1
+        if grep -q ^apiVersion: $1 ; then
+            oc create -f $1 || : # oc get yaml dump, not a curator config file
+        else
+            oc create configmap logging-curator --from-file=config.yaml=$1
+        fi
+        sleep 1
+    else
+        # use secret volume mount
+        oc delete secret curator-config${ops:-} || echo no such secret curator-config${ops:-} - ignore
+        oc secrets new curator-config${ops:-} settings=$1
+        oc volumes dc/logging-curator${ops:-} --add --type=secret --secret-name=curator-config${ops:-} --mount-path=/etc/curator --name=curator-config --overwrite
+    fi
+    restart_curator ${2:-}
+}
+
+if uses_config_maps ; then
+    origconfig=`mktemp`
+    oc get configmap logging-curator -o yaml > $origconfig || :
+fi
+
+cleanup() {
+    if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
+        oc delete configmap logging-curator || :
+        sleep 1
+        oc create -f $origconfig || :
+        sleep 1
+    else
+        oc delete secret curator-config || :
+        oc delete secret curator-config-ops || :
+        oc volumes dc/logging-curator --delete --type=secret --secret-name=curator-config --name=curator-config || :
+        oc volumes dc/logging-curator-ops --delete --type=secret --secret-name=curator-config-ops --name=curator-config || :
+    fi
+    rm -f $origconfig
+    restart_curator errors
+}
+trap "cleanup" INT TERM EXIT
 
 # use the fluentd credentials to add records and indices for these projects
 # oc get secret logging-fluentd --template='{{.data.ca}}' | base64 -d > ca-fluentd
@@ -191,10 +275,65 @@ twomonthsago=`date -u +"$tf" --date="$(date +%Y-%m-1) -2 months -1 day"`
 
 TEST_DIVIDER="------------------------------------------"
 
+test_project_name_errors() {
+    curpod=`get_running_pod curator`
+    curtest=`mktemp --suffix=.yaml`
+    cat > $curtest <<EOF
+this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long:
+  delete:
+    days: 1
+EOF
+    update_config_and_restart $curtest errors
+    sleep 1
+    rc=0
+    # curator pod should be in error state
+    errpod=`get_error_pod curator`
+    if [ -z "${errpod:-}" ] ; then
+        echo Error: the curator pod should be in the error state
+        get_running_pod curator
+        rc=1
+    fi
+    # see if the right message is in the log
+    if [ $rc = 0 ] && oc logs $errpod 2>&1 | grep -q "The project name length must be less than or equal to" ; then
+        : # correct
+    else
+        echo Error: did not find the correct error message
+        oc logs $errpod
+        rc=1
+    fi
+    if [ $rc = 0 ] ; then
+        cat > $curtest <<EOF
+-BOGUS^PROJECT^NAME:
+  delete:
+    days: 1
+EOF
+        update_config_and_restart $curtest errors
+        sleep 1
+        # curator pod should be in error state
+        errpod=`get_error_pod curator`
+        if [ -z "${errpod:-}" ] ; then
+            echo Error: the curator pod should be in the error state
+            get_running_pod curator
+            rc=1
+        fi
+        # see if the right message is in the log
+        if [ $rc = 0 ] && oc logs $errpod 2>&1 | grep -q "The project name must match this regex" ; then
+            : # correct
+        else
+            echo Error: did not find the correct error message
+            oc logs $errpod
+            rc=1
+        fi
+    fi
+    if [ $rc = 0 ] ; then
+        update_config_and_restart $origconfig errors
+    fi
+    return $rc
+}
 
 basictest() {
     ops=${1:-""}
-    create_indices "$ops" || return 1
+    create_indices "$ops"
 
     sleeptime=300 # seconds
     # get current curator pod
@@ -236,30 +375,14 @@ project-prod:
 .operations:
   delete:
     months: 2
+project2-qe:
+  delete:
+    days: 7
+project3-qe:
+  delete:
+    days: 7
 EOF
-    cm=`oc get configmap logging-curator -o name`
-    if [ -n "$cm" ] ; then
-        # use configmap
-        oc delete configmap logging-curator
-        sleep 1
-        oc create configmap logging-curator --from-file=config.yaml=$curtest
-        sleep 1
-    else
-        # use secret volume mount
-        oc delete secret curator-config${ops} || echo no such secret curator-config${ops} - ignore
-        oc secrets new curator-config${ops} settings=$curtest
-        oc volumes dc/logging-curator${ops} --add --type=secret --secret-name=curator-config${ops} --mount-path=/etc/curator --name=curator-config --overwrite
-    fi
-    # scale down dc
-    oc scale --replicas=0 dc logging-curator${ops}
-    # wait for pod to go away
-    wait_for_pod_ACTION stop $curpod
-    # scale up dc
-    oc scale --replicas=1 dc logging-curator${ops}
-    # wait for pod to start
-    wait_for_pod_ACTION start curator${ops}
-    # query ES
-    curpod=`get_running_pod curator${ops}`
+    update_config_and_restart $curtest
     # wait for curator run 1 to finish
     wait_for_curator_run $curpod 1
     # show current indices
@@ -293,6 +416,7 @@ EOF
 }
 
 # test without ops cluster first
+test_project_name_errors
 basictest
 if [ "$CLUSTER" = "true" ] ; then
     basictest "$OPS"
