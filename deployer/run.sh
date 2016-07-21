@@ -32,9 +32,11 @@ case "${mode}" in
     install_logging
     ;;
   uninstall)
+    scaleDown || :
     delete_logging
     ;;
   reinstall)
+    scaleDown || :
     delete_logging
     install_logging
     ;;
