@@ -31,7 +31,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
     yum clean all
 # initial boring elasticsearch.yml is just to enable plugin installation.
 # put the real config in place in a deployment with a ConfigMap.
-ADD elasticsearch.yml logging.yml /usr/share/elasticsearch/config/
+ADD elasticsearch.yml logging.yml com.redhat.viaq.template.json /usr/share/elasticsearch/config/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
