@@ -2,9 +2,22 @@
 
 set -euo pipefail
 
-secret_dir=/etc/elasticsearch/secret
-
 export KUBERNETES_AUTH_TRYKUBECONFIG="false"
+ES_REST_BASEURL=https://localhost:9200
+LOG_FILE=elasticsearch_connect_log.txt
+RETRY_COUNT=300		# how many times
+RETRY_INTERVAL=1	# how often (in sec)
+
+retry=$RETRY_COUNT
+max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
+timeouted=false
+
+mkdir -p /elasticsearch/$CLUSTER_NAME
+secret_dir=/etc/elasticsearch/secret
+[ -f $secret_dir/searchguard-node-key ] && ln -s $secret_dir/searchguard-node-key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
+[ -f $secret_dir/searchguard.key ] && ln -s $secret_dir/searchguard.key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
+[ -f $secret_dir/keystore.password ] && export KEYSTORE_PASSWORD=$(cat $secret_dir/keystore.password)
+[ -f $secret_dir/truststore.password ] && export TRUSTSTORE_PASSWORD=$(cat $secret_dir/truststore.password)
 
 BYTES_PER_MEG=$((1024*1024))
 BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
@@ -57,17 +70,76 @@ else
 	exit 1
 fi
 
-TIMES=300
-function waitForES() {
-  for (( i=1; i<=$TIMES; i++ )); do
+# Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
+wait_for_port_open() {
+	rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
-		result=$(curl --cacert $secret_dir/admin-ca --cert $secret_dir/admin-cert --key $secret_dir/admin-key -s -w "%{http_code}" -XGET "https://localhost:9200/.searchguard.${HOSTNAME}" -o /dev/null) ||:
-    [[ $result -eq 200 ]] && return 0
-    sleep 1
-  done
+	echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
+	while ! response_code=$(curl -s \
+            --cacert $secret_dir/admin-ca \
+			--cert $secret_dir/admin-cert \
+			--key  $secret_dir/admin-key \
+			--max-time $max_time \
+			-o $LOG_FILE -w '%{response_code}' \
+			"$ES_REST_BASEURL/.searchguard.${HOSTNAME}") || test $response_code != "200"
+	do
+		echo -n "."
+		sleep $RETRY_INTERVAL
+		(( retry -= 1 ))
+		if (( retry == 0 )) ; then
+			timeouted=true
+            break
+		fi
+	done
 
-  echo "Was not able to connect to Elasticearch at localhost:9200 within $TIMES attempts"
+	if [ $timeouted = true ] ; then
+		echo -n "[timeout] "
+    else
+        rm -f $LOG_FILE
+        return 0
+	fi
+	echo "failed"
+	cat $LOG_FILE
+    rm -f $LOG_FILE
+	exit 1
 }
 
-waitForES &
+verify_or_add_index_templates() {
+	wait_for_port_open
+	# Try to wait for cluster become more stable before index template being pushed in.
+	# Give up on timeout and continue...
+	curl -v -s -X GET \
+        --cacert $secret_dir/admin-ca \
+		--cert $secret_dir/admin-cert \
+		--key  $secret_dir/admin-key \
+		"$ES_REST_BASEURL/_cluster/health?wait_for_status=yellow&timeout=${max_time}s"
+
+	shopt -s failglob
+	for template_file in /usr/share/elasticsearch/index_templates/*.json
+	do
+		template=`basename $template_file`
+		# Check if index template already exists
+		response_code=$(curl -s -X HEAD \
+            --cacert $secret_dir/admin-ca \
+			--cert $secret_dir/admin-cert \
+			--key  $secret_dir/admin-key \
+			-w '%{response_code}' \
+			$ES_REST_BASEURL/_template/$template)
+		if [ $response_code == "200" ]; then
+			echo "Index template '$template' already present in ES cluster"
+		else
+			echo "Create index template '$template'"
+			curl -v -s -X PUT \
+                --cacert $secret_dir/admin-ca \
+				--cert $secret_dir/admin-cert \
+				--key  $secret_dir/admin-key \
+				-d@$template_file \
+				$ES_REST_BASEURL/_template/$template
+		fi
+	done
+	shopt -u failglob
+}
+
+verify_or_add_index_templates &
+
 exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
