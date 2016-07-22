@@ -57,4 +57,4 @@ else
 fi
 
 
-fluentd $fluentdargs
+exec fluentd $fluentdargs

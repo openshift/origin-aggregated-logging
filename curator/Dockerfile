@@ -22,9 +22,9 @@ LABEL io.k8s.description="Curator elasticsearch container for elasticsearch dele
   io.k8s.display-name="Curator 3.5.1" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-ADD run.sh install.sh run_cron.py ${HOME}/
+ADD install.sh run_cron.py ${HOME}/
 RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}
 USER nobody
-CMD ["sh", "run.sh"]
+CMD ["python", "-u", "run_cron.py"]
