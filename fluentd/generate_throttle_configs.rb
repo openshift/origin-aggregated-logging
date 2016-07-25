@@ -25,7 +25,7 @@ def seed_file(file_name, project, isSyslog)
   pos_file = "/var/log/es-containers.log.pos"
   if project.eql?(".operations")
     if isSyslog
-      path = "/var/log/messages*"
+      path = "/var/log/messages"
       pos_file = "/var/log/node.log.pos"
     else
       path = get_project_pattern("default")
@@ -71,7 +71,6 @@ def close_file(project, isSyslog)
   if isSyslog
     File.open(file_name, 'a') { |file|
       file.write(<<-CONF)
-  exclude_path ["/var/log/messages*.gz"]
   tag system.*
   format multiline
   # Begin possible multiline match: "Mmm DD HH:MM:SS "
@@ -143,8 +142,7 @@ def create_default_syslog()
 <source>
   @type tail
   @label @INGRESS
-  path /var/log/messages*
-  exclude_path ["/var/log/messages*.gz"]
+  path /var/log/messages
   pos_file /var/log/node.log.pos
   tag system.*
   format multiline
