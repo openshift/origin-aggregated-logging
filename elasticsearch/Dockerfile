@@ -33,6 +33,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
     yum clean all
 # initial boring elasticsearch.yml is just to enable plugin installation.
 # put the real config in place in a deployment with a ConfigMap.
+ADD search-guard-2-2.3.3.6.zip ${HOME}/search-guard-2-2.3.3.6.zip
 ADD elasticsearch.yml logging.yml /etc/elasticsearch/config/
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD install.sh ${HOME}/
