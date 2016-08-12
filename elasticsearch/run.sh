@@ -74,5 +74,21 @@ fi
 ln -s /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore.jks
 cp /etc/elasticsearch/secret/admin-jks /usr/share/elasticsearch/config/admin.jks
 
+TIMES=60
+function waitForES() {
+  for (( i=1; i<=$TIMES; i++ )); do
+    # test for ES to be up first
+		# don't provide a client cert since ES doesn't validate us correctly
+		result=$(curl --cacert $ES_CONF/admin-ca -s -w "%{http_code}" -XGET 'https://localhost:9200/' -o /dev/null) ||:
+		# we don't need to receive a 200 since we shouldn't be authorized -- providing no client cert
+    [[ $result -gt 200 && $result -lt 500 ]] && return 0
+    sleep 1
+  done
+
+  echo "Was not able to connect to Elasticearch at $ES_HOST:$ES_PORT within $TIMES attempts"
+  exit 255
+}
+
+waitForES &
 #TODO: update the whitelist to work instead of completely disabling security manager
 exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
