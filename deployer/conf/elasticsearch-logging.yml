@@ -23,7 +23,6 @@ logger:
   index.indexing.slowlog: TRACE, index_indexing_slow_log_file
 
   # search-guard
-  # Due to search-guard issue #33 this should be set to ERROR (too verbose at WARN)
   com.floragunn.searchguard: ERROR
 
 additivity:

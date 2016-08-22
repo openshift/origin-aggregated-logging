@@ -41,7 +41,6 @@ searchguard:
     transport:
       enabled: true
       enforce_hostname_verification: false
-      enabled_protocols: ["TLSv1", "TLSv1.1", "TLSv1.2"]
       keystore_type: JKS
       keystore_filepath: /usr/share/elasticsearch/config/${CLUSTER_NAME}.key
       keystore_password: kspass
@@ -50,7 +49,6 @@ searchguard:
       truststore_password: tspass
     http:
       enabled: true
-      enabled_protocols: ["TLSv1", "TLSv1.1", "TLSv1.2"]
       keystore_type: JKS
       keystore_filepath: /usr/share/elasticsearch/config/key
       keystore_password: kspass

@@ -191,7 +191,7 @@ function generate_config() {
     # we use a JKS chain now instead for inter-node communication
     #openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $dir/searchguard_node_key.key -pass pass:pass
     generate_JKS_chain true elasticsearch "$(join , logging-es{,-ops})"
-    mv $dir/keystore.jks $dir/searchguard_node_key.key
+    mv $dir/keystore.jks $dir/searchguard_node_key
     mv $dir/truststore.jks $dir/searchguard_node_truststore
 
     # generate java store/trust for the ES SearchGuard plugin
@@ -209,7 +209,7 @@ function generate_config() {
     echo "Creating secrets"
     oc secrets new logging-elasticsearch \
         key=$dir/keystore.jks truststore=$dir/truststore.jks \
-        searchguard.key=$dir/searchguard_node_key.key \
+        searchguard.key=$dir/searchguard_node_key \
         searchguard.truststore=$dir/searchguard_node_truststore \
         admin-key=$dir/${admin_user}.key admin-cert=$dir/${admin_user}.crt \
         admin-ca=$dir/ca.crt \

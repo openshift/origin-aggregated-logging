@@ -19,7 +19,7 @@ ENV HOME=/opt/app-root/src \
   ES_USER=elasticsearch \
   ES_GROUP=elasticsearch
 
-LABEL io.k8s.description="Elasticsearch container to serve as APIMan backend" \
+LABEL io.k8s.description="Elasticsearch container to serve as EFK aggregated logging backend" \
   io.k8s.display-name="Elasticsearch ${ES_VER}" \
   io.openshift.expose-services="9200:https, 9300:https" \
   io.openshift.tags="apiman,elasticsearch"
