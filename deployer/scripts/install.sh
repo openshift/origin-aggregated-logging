@@ -213,7 +213,7 @@ function generate_config() {
         searchguard.truststore=$dir/searchguard_node_truststore \
         admin-key=$dir/${admin_user}.key admin-cert=$dir/${admin_user}.crt \
         admin-ca=$dir/ca.crt \
-        admin-jks=$dir/${admin_user}.jks
+        admin.jks=$dir/${admin_user}.jks
     #oc secrets new logging-elasticsearch \
     #    key=$dir/keystore.jks truststore=$dir/truststore.jks \
     #    searchguard.key=$dir/searchguard_node_key.key \

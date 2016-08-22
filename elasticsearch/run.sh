@@ -3,20 +3,20 @@
 set -euo pipefail
 
 secret_dir=/etc/elasticsearch/secret
-config_dir=/etc/elasticsearch/config
+#config_dir=/etc/elasticsearch/config
 
 # ES seems to be picky about its config/ dir and permissions within it -- ln -s would yield incorrect permissions...
-[ -f $secret_dir/searchguard.key ] && cp $secret_dir/searchguard.key $ES_CONF/$CLUSTER_NAME.key
-[ -f $secret_dir/searchguard.truststore ] && cp $secret_dir/searchguard.truststore $ES_CONF/$CLUSTER_NAME.truststore
-[ -f $config_dir/elasticsearch.yml ] && cp $config_dir/elasticsearch.yml $ES_CONF/elasticsearch.yml
-[ -f $config_dir/logging.yml ] && cp $config_dir/logging.yml $ES_CONF/logging.yml
+#[ -f $secret_dir/searchguard.key ] && cp $secret_dir/searchguard.key $ES_CONF/$CLUSTER_NAME.key
+#[ -f $secret_dir/searchguard.truststore ] && cp $secret_dir/searchguard.truststore $ES_CONF/$CLUSTER_NAME.truststore
+#[ -f $config_dir/elasticsearch.yml ] && cp $config_dir/elasticsearch.yml $ES_CONF/elasticsearch.yml
+#[ -f $config_dir/logging.yml ] && cp $config_dir/logging.yml $ES_CONF/logging.yml
 
-[ -f $secret_dir/key ] && cp $secret_dir/key $ES_CONF/key
-[ -f $secret_dir/truststore ] && cp $secret_dir/truststore $ES_CONF/truststore
+#[ -f $secret_dir/key ] && cp $secret_dir/key $ES_CONF/key
+#[ -f $secret_dir/truststore ] && cp $secret_dir/truststore $ES_CONF/truststore
 
-[ -f $secret_dir/admin-cert ] && cp $secret_dir/admin-cert $ES_CONF/admin-cert
-[ -f $secret_dir/admin-key ] && cp $secret_dir/admin-key $ES_CONF/admin-key
-[ -f $secret_dir/admin-ca ] && cp $secret_dir/admin-ca $ES_CONF/admin-ca
+#[ -f $secret_dir/admin-cert ] && cp $secret_dir/admin-cert $ES_CONF/admin-cert
+#[ -f $secret_dir/admin-key ] && cp $secret_dir/admin-key $ES_CONF/admin-key
+#[ -f $secret_dir/admin-ca ] && cp $secret_dir/admin-ca $ES_CONF/admin-ca
 
 export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 
@@ -71,21 +71,21 @@ else
 	exit 1
 fi
 
-ln -s /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore.jks
-cp /etc/elasticsearch/secret/admin-jks /usr/share/elasticsearch/config/admin.jks
+#ln -s /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore.jks
+#cp /etc/elasticsearch/secret/admin-jks /usr/share/elasticsearch/config/admin.jks
 
 TIMES=60
 function waitForES() {
   for (( i=1; i<=$TIMES; i++ )); do
     # test for ES to be up first
 		# don't provide a client cert since ES doesn't validate us correctly
-		result=$(curl --cacert $ES_CONF/admin-ca -s -w "%{http_code}" -XGET 'https://localhost:9200/' -o /dev/null) ||:
+		result=$(curl --cacert $secret_dir/admin-ca -s -w "%{http_code}" -XGET "https://localhost:9200/" -o /dev/null) ||:
 		# we don't need to receive a 200 since we shouldn't be authorized -- providing no client cert
     [[ $result -gt 200 && $result -lt 500 ]] && return 0
     sleep 1
   done
 
-  echo "Was not able to connect to Elasticearch at $ES_HOST:$ES_PORT within $TIMES attempts"
+  echo "Was not able to connect to Elasticearch at localhost:9200 within $TIMES attempts"
   exit 255
 }
 

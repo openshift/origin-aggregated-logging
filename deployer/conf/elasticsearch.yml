@@ -9,6 +9,10 @@ script:
 
 network:
   host: 0.0.0.0
+  publish_host: ${CLUSTER_NAME}
+
+transport:
+  publish_host: ${CLUSTER_NAME}-cluster
 
 cloud:
   kubernetes:
@@ -27,6 +31,10 @@ gateway:
 
 io.fabric8.elasticsearch.authentication.users: ["system.logging.kibana", "system.logging.fluentd", "system.logging.curator", "system.admin"]
 
+openshift.searchguard:
+  keystore.path: /etc/elasticsearch/secret/admin.jks
+  truststore.path: /etc/elasticsearch/secret/searchguard.truststore
+
 path:
   data: /elasticsearch/persistent/${CLUSTER_NAME}/data
   logs: /elasticsearch/${CLUSTER_NAME}/logs
@@ -42,17 +50,17 @@ searchguard:
       enabled: true
       enforce_hostname_verification: false
       keystore_type: JKS
-      keystore_filepath: /usr/share/elasticsearch/config/${CLUSTER_NAME}.key
+      keystore_filepath: /etc/elasticsearch/secret/searchguard.key
       keystore_password: kspass
       truststore_type: JKS
-      truststore_filepath: /usr/share/elasticsearch/config/${CLUSTER_NAME}.truststore
+      truststore_filepath: /etc/elasticsearch/secret/searchguard.truststore
       truststore_password: tspass
     http:
       enabled: true
       keystore_type: JKS
-      keystore_filepath: /usr/share/elasticsearch/config/key
+      keystore_filepath: /etc/elasticsearch/secret/key
       keystore_password: kspass
       clientauth_mode: OPTIONAL
       truststore_type: JKS
-      truststore_filepath: /usr/share/elasticsearch/config/truststore
+      truststore_filepath: /etc/elasticsearch/secret/truststore
       truststore_password: tspass

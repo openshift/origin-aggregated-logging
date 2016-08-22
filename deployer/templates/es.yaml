@@ -96,7 +96,7 @@ objects:
                   mountPath: /etc/elasticsearch/secret
                   readOnly: true
                 - name: elasticsearch-config
-                  mountPath: /etc/elasticsearch/config
+                  mountPath: /usr/share/elasticsearch/config
                   readOnly: true
                 - name: elasticsearch-storage
                   mountPath: /elasticsearch/persistent

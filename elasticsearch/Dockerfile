@@ -22,7 +22,7 @@ ENV HOME=/opt/app-root/src \
 LABEL io.k8s.description="Elasticsearch container to serve as EFK aggregated logging backend" \
   io.k8s.display-name="Elasticsearch ${ES_VER}" \
   io.openshift.expose-services="9200:https, 9300:https" \
-  io.openshift.tags="apiman,elasticsearch"
+  io.openshift.tags="logging,elasticsearch"
 
 ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 # install the RPMs in a separate step so it can be cached
@@ -34,7 +34,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 # initial boring elasticsearch.yml is just to enable plugin installation.
 # put the real config in place in a deployment with a ConfigMap.
 ADD *.zip ${HOME}/
-ADD elasticsearch.yml logging.yml /etc/elasticsearch/config/
+#ADD elasticsearch.yml logging.yml /etc/elasticsearch/config/
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
