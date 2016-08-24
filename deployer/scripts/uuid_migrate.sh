@@ -13,6 +13,7 @@ function initialize_es_vars() {
   CA=$dir/admin-ca.crt
   KEY=$dir/admin-key.key
   CERT=$dir/admin-cert.crt
+  PROJ_PREFIX=${PROJ_PREFIX:-project.}
 
   es_host=${ES_HOST:-logging-es}
   es_port=${ES_PORT:-9200}
@@ -20,6 +21,15 @@ function initialize_es_vars() {
 
 function create_alias() {
     local output=""
+    # first, see if ${PROJ_PREFIX}$1.$2 exists - if so, assume that we do not have to create
+    # this uuid alias
+    set +o pipefail
+    if curl -s --cacert $CA --key $KEY --cert $CERT "https://$es_host:$es_port/${PROJ_PREFIX}$1.$2.*" | python -mjson.tool 2> /dev/null | grep -q '"'${PROJ_PREFIX}$1.$2'[.]' ; then
+        echo Migration skipped for project $1 - using common data model
+        set -o pipefail
+        return 0
+    fi
+    set -o pipefail
     output=$(curl -s --cacert $CA --key $KEY --cert $CERT -XPOST "https://$es_host:$es_port/_aliases" -d "{ \"actions\": [ { \"add\": { \"index\": \"${1}.*\", \"alias\": \"${1}.${2}.reference\"}} ] }")
 
     echo Migration for project $1: $output

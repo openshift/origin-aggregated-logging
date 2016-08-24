@@ -230,6 +230,7 @@ function verifyUpgrade() {
   if [ $checkMigrate = true ]; then
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
       [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
+      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && continue
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
 

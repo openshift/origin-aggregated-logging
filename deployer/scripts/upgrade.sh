@@ -46,6 +46,12 @@ function getDeploymentVersion() {
     return
   fi
 
+  # check for common data model
+  if [[ -z "$(oc get configmap/logging-elasticsearch -o yaml | grep 'use_common_data_model: true')" ]]; then
+    echo 6
+    return
+  fi
+
   echo "$LOGGING_VERSION"
 }
 
@@ -642,10 +648,54 @@ function update_es_for_235() {
   done
 }
 
+# for each index in _cat/indices
+# skip indices that begin with . - .kibana, .operations, etc.
+# get a list of unique project.uuid
+# daterx - the date regex that matches the .%Y.%m.%d at the end of the indices
+# we are interested in - the awk will strip that part off
+function get_list_of_proj_uuid_indices() {
+    curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/indices | \
+        awk -v daterx='[.]20[0-9]{2}[.][0-1]?[0-9][.][0-9]{1,2}$' \
+            '$3 !~ "^[.]" && $3 !~ "^project." && $3 ~ daterx {print gensub(daterx, "", "", $3)}' | \
+        sort -u
+}
+
+function update_for_common_data_model() {
+  if [[ -z "$(oc get pods -l component=es -o jsonpath='{.items[?(@.status.phase == "Running")].metadata.name}')" ]]; then
+    echo "No Elasticsearch pods found running.  Cannot update common data model."
+    echo "Scale up ES prior to running with MODE=migrate"
+    exit 1
+  fi
+
+  count=$(get_list_of_proj_uuid_indices | wc -l)
+  if [ $count -eq 0 ] ; then
+      echo No matching indexes found - skipping update_for_common_data_model
+      return 0
+  fi
+  echo Creating aliases for $count index patterns . . .
+  # for each index in _cat/indices
+  # skip indices that begin with . - .kibana, .operations, etc.
+  # get a list of unique project.uuid
+  # daterx - the date regex that matches the .%Y.%m.%d at the end of the indices
+  # we are interested in - the awk will strip that part off
+  {
+    echo '{"actions":['
+    get_list_of_proj_uuid_indices | \
+      while IFS=. read proj uuid ; do
+        # e.g. make project.test.uuid.* and alias of test.uuid.* so we can search for
+        # /project.test.uuid.*/_search and get both the test.uuid.* and
+        # the project.test.uuid.* indices
+        echo "{\"add\":{\"index\":\"$proj.$uuid.*\",\"alias\":\"${PROJ_PREFIX}$proj.$uuid.*\"}}"
+      done
+    echo ']}'
+  } | curl -s --cacert $CA --key $KEY --cert $CERT -XPOST -d @- "https://$es_host:$es_port/_aliases"
+}
+
 function upgrade_logging() {
 
   installedVersion=$(getDeploymentVersion)
   local migrate=
+  local common_data_model=
 
   # VERSIONS
   # 0 -- initial EFK
@@ -653,6 +703,8 @@ function upgrade_logging() {
   # 2 -- add curator & use daemonset
   # 3 -- remove change triggers on DCs
   # 4 -- supply ES/curator configmaps
+  # 5 -- update ES for 2.x
+  # 6 -- add aliases for common data model
 
   initialize_install_vars
 
@@ -693,6 +745,9 @@ function upgrade_logging() {
         5)
           update_es_for_235
           ;;
+        6)
+          common_data_model=true
+          ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
           ;;
@@ -709,6 +764,14 @@ function upgrade_logging() {
   if [[ $installedVersion -ne $LOGGING_VERSION ]]; then
     if [[ -n "$migrate" ]]; then
       uuid_migrate
+    elif [[ -n "$common_data_model" ]] ; then
+      # set these in case uuid_migrate did not
+      initialize_es_vars
+    fi
+    if [[ -n "$common_data_model" ]] ; then
+      # make sure these env. vars. are exported inside the function
+      # to be available to all pipes, subshells, etc.
+      PROJ_PREFIX=project. CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
     fi
 
     upgrade_notify

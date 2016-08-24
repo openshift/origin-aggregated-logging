@@ -18,6 +18,9 @@ else
   ops="-ops"
 fi
 
+# not used for now, but in case
+INDEX_PREFIX=
+
 ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging}
 if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
@@ -118,15 +121,19 @@ write_and_verify_logs() {
 
     rc=0
     # wait for message to show up in the ops log
-    if myhost=logging-es${ops} myproject=.operations mymessage=$uq expected=$expected myfield=ident \
+    if myhost=logging-es${ops} myproject=${INDEX_PREFIX}.operations mymessage=$uq expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
              wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
         if [ -n "$VERBOSE" ] ; then
-            echo good - found $expected records project .operations for $uq
+            echo good - found $expected records project ${INDEX_PREFIX}.operations for $uq
         fi
     else
+        echo failed - test-datetime-future.sh: not found $expected records project ${INDEX_PREFIX}.operations for $uq
         rc=1
     fi
 
+    if [ $rc -ne 0 ]; then
+        echo test-datetime-future.sh: returning $rc ...
+    fi
     return $rc
 }
 

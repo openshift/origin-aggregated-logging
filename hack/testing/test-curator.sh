@@ -85,7 +85,10 @@ wait_for_pod_ACTION() {
             if [ -n "$errpod" ] ; then
                 if [ -z "${2:-}" ] ; then
                     echo ERROR: pod $2 is in state Error
-                    oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
+                    echo ERROR: pod $2 is in state Error >> $ARTIFACT_DIR/curator-pods
+                    oc get pods >> $ARTIFACT_DIR/curator-pods 2>&1
+                    echo ERROR: pod $2 is in state Error >> $ARTIFACT_DIR/curator-errpod-log
+                    oc logs $errpod >> $ARTIFACT_DIR/curator-errpod-log 2>&1
                     return 1
                 fi
                 return 0
@@ -121,12 +124,21 @@ wait_for_curator_run() {
     return 1
 }
 
+skip_list=("^\." "^default")
+
 create_indices() {
     myops=${1:-""}
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
-        add_message_to_index "${proj}.$1" "$proj $1 message" $myops
+        this_proj="project.${proj}"
+        for skip in ${skip_list[*]} ; do
+            if [ `expr ${proj} : "$skip"` -gt 0 ]; then
+                this_proj="${proj}"
+                break
+            fi
+        done
+        add_message_to_index "${this_proj}.$1" "$this_proj $1 message" $myops
         shift
     done
 }
@@ -142,22 +154,28 @@ verify_indices() {
     rc=0
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
-        idx="${proj}.$1"
+        this_idx="project.${proj}.$1"
+        for skip in ${skip_list[*]} ; do
+            if [ `expr ${proj} : "$skip"` -gt 0 ]; then
+                this_idx="${proj}.$1"
+                break
+            fi
+        done
         if [ "$1" = "$today" ] ; then
             # index must be present
-            if grep \^"$idx"\$ $curout > /dev/null 2>&1 ; then
-                echo good - index "$idx" is present
+            if grep \^"$this_idx"\$ $curout > /dev/null 2>&1 ; then
+                echo good - index "$this_idx" is present
             else
-                echo ERROR: index "$idx" is missing
+                echo ERROR: index "$this_idx" is missing
                 rc=1
             fi
         else
             # index must be absent
-            if grep \^"$idx"\$ $curout > /dev/null 2>&1 ; then
-                echo ERROR: index "$idx" was not deleted
+            if grep \^"$this_idx"\$ $curout > /dev/null 2>&1 ; then
+                echo ERROR: index "$this_idx" was not deleted
                 rc=1
             else
-                echo good - index "$idx" is missing
+                echo good - index "$this_idx" is missing
             fi
         fi
         shift

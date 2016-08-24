@@ -98,6 +98,8 @@ if default_time_unit.lower() == "weeks":
 base_default_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' delete indices --timestring %Y.%m.%d'
 default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana*'
 
+proj_prefix = 'project.'
+
 for project in decoded:
     if project == '.defaults':
         continue
@@ -113,7 +115,11 @@ for project in decoded:
                         unit = "days"
                         value = value * 7
 
-                    curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(project)
+                    if project.startswith('.') or project.startswith(proj_prefix):
+                        this_project = project
+                    else:
+                        this_project = proj_prefix + project
+                    curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(this_project)
                 else:
                     if unit.lower() == "hours":
                         logger.error('time unit "hours" is currently not supported due to our current index level granularity is in days')
