@@ -118,8 +118,8 @@ The remaining steps do not require cluster-admin privileges to run.
 ## Specify Deployer Parameters
 
 Parameters for the EFK deployment may be specified in the form of a
-`[ConfigMap](https://docs.openshift.org/latest/dev_guide/configmaps.html)`,
-a `[Secret](https://docs.openshift.org/latest/dev_guide/secrets.html)`,
+[ConfigMap](https://docs.openshift.org/latest/dev_guide/configmaps.html),
+a [Secret](https://docs.openshift.org/latest/dev_guide/secrets.html),
 or template parameters (which are passed as environment variables). The
 deployer looks for each value first in a `logging-deployer` ConfigMap,
 then a `logging-deployer` Secret, then as an environment variable. Any
@@ -245,6 +245,9 @@ the pod and any associated events with:
 When it runs, check the logs of the resulting pod (`oc logs -f <pod name>`)
 for some instructions to follow after deployment. More details
 are given below.
+
+At this point, the logging stack is not fully functional until the Fluentd
+pods are deployed to the nodes by applying a [node label selector](#fluentd-1).
 
 ## Adjusting the Deployment
 

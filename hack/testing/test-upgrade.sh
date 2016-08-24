@@ -227,10 +227,11 @@ function verifyUpgrade() {
   [[ -z "$(oc get secret/logging-elasticsearch -o jsonpath='{.data.admin-cert}')" ]] && return 1
 
 ### check that migration was successful
+  INDEX_PREFIX=openshift_
   if [ $checkMigrate = true ]; then
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
       [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
-      [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
+      [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '${INDEX_PREFIX}$project': {"acknowledged":true}')" ]] && return 1
     done
 
   fi

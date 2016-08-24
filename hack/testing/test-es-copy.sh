@@ -149,7 +149,7 @@ write_and_verify_logs() {
 
     rc=0
     # poll for logs to show up
-    if myhost=logging-es myproject=test mymessage=$logmessage expected=$expected \
+    if myhost=logging-es myproject=openshift_test mymessage=$logmessage expected=$expected \
              wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project test for $logmessage
@@ -158,7 +158,7 @@ write_and_verify_logs() {
         rc=1
     fi
 
-    if myhost=logging-es${ops} myproject=.operations mymessage=$logmessage2 expected=$expected myfield=ident \
+    if myhost=logging-es${ops} myproject=openshift_.operations mymessage=$logmessage2 expected=$expected myfield=ident \
              wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project .operations for $logmessage2

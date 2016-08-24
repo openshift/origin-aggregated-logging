@@ -111,10 +111,10 @@ write_and_verify_logs() {
 
     rc=0
     # wait for message to show up in the ops log
-    if myhost=logging-es${ops} myproject=.operations mymessage=$uq expected=$expected myfield=ident \
+    if myhost=logging-es${ops} myproject=openshift_.operations mymessage=$uq expected=$expected myfield=ident \
              wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
         if [ -n "$VERBOSE" ] ; then
-            echo good - found $expected records project .operations for $uq
+            echo good - found $expected records project openshift_.operations for $uq
         fi
     else
         rc=1

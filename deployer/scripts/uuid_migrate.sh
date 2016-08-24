@@ -20,7 +20,7 @@ function initialize_es_vars() {
 
 function create_alias() {
     local output=""
-    output=$(curl -s --cacert $CA --key $KEY --cert $CERT -XPOST "https://$es_host:$es_port/_aliases" -d "{ \"actions\": [ { \"add\": { \"index\": \"${1}.*\", \"alias\": \"${1}.${2}.reference\"}} ] }")
+    output=$(curl -s --cacert $CA --key $KEY --cert $CERT -XPOST "https://$es_host:$es_port/_aliases" -d "{ \"actions\": [ { \"add\": { \"index\": \"${1}_*\", \"alias\": \"${1}_${2}_reference\"}} ] }")
 
     echo Migration for project $1: $output
 }
@@ -75,6 +75,9 @@ function recreate_admin_certs(){
   fi
 }
 
+# common data model index naming
+INDEX_PREFIX=openshift_
+
 function run_uuid_migration() {
 
   if [[ -z "$(oc get pods -l component=es -o jsonpath='{.items[?(@.status.phase == "Running")].metadata.name}')" ]]; then
@@ -88,7 +91,7 @@ function run_uuid_migration() {
     [[ "${OPS_PROJECTS[@]}" =~ "$index" ]] && continue
 
     uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}')
-    create_alias $index $uid
+    create_alias ${INDEX_PREFIX}$index $uid
 
   done
 }

@@ -5,7 +5,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.23 \
+  FLUENTD_VERSION=0.12.26 \
   GEM_HOME=/opt/app-root/src
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
@@ -23,7 +23,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       make && \
     yum clean all
 RUN mkdir -p ${HOME} && \
-    gem install --no-rdoc --no-ri \
+    gem install -N --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \

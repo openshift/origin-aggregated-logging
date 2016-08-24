@@ -31,6 +31,7 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
 fi
 
 TEST_DIVIDER="------------------------------------------"
+INDEX_PREFIX=openshift_
 
 # we need logic for ES_OPS
 KIBANA_POD=`oc get pods | grep 'logging-kibana-[0-9]' | grep -v -- "-build" | grep -v -- "-deploy" | cut -d" " -f 1`
@@ -63,7 +64,7 @@ for pod in "${PODS[@]}"; do
 
     for index in "${INDICES[@]}"; do
       # if index is ".operations.*" then we check syslog
-      if [[ "$index" == ".operations" ]]; then
+      if [[ "$index" == "${INDEX_PREFIX}.operations" ]]; then
         # search /var/log/messages*
         FILE_PATH="/var/log/messages*"
 
