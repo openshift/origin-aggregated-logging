@@ -94,9 +94,11 @@ else
     comparefile=$justthemessage
 fi
 
+# not used now, but in case we need it
+INDEX_PREFIX=
 count_ge_nmessages() {
     curcount=`oc exec $kpod -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
-            https://logging-es${ops}:9200/.operations*/_count\?q=message:$prefix | \
+            https://logging-es${ops}:9200/${INDEX_PREFIX}.operations*/_count\?q=message:$prefix | \
             python -c 'import json, sys; print json.loads(sys.stdin.read())["count"]'`
     # output: time count 
     echo $(date +%s) $curcount
@@ -115,7 +117,7 @@ echo duration `expr $MARKTIME - $STARTTIME`
 # search ES and extract the messages
 esmessages=`mktemp`
 oc exec $kpod -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
-   https://logging-es${ops}:9200/.operations*/_search\?q=ident:$prefix\&fields=message\&size=`expr $NMESSAGES + 1` | \
+   https://logging-es${ops}:9200/${INDEX_PREFIX}.operations*/_search\?q=ident:$prefix\&fields=message\&size=`expr $NMESSAGES + 1` | \
     python -c 'import json, sys; print "\n".join([ii["fields"]["message"][0] for ii in json.loads(sys.stdin.read())["hits"]["hits"]])' | sort -n > $esmessages
 
 diff $comparefile $esmessages

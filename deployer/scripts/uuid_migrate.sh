@@ -75,6 +75,9 @@ function recreate_admin_certs(){
   fi
 }
 
+# common data model index naming
+INDEX_PREFIX=
+PROJ_PREFIX=project.
 function run_uuid_migration() {
 
   if [[ -z "$(oc get pods -l component=es -o jsonpath='{.items[?(@.status.phase == "Running")].metadata.name}')" ]]; then
@@ -88,7 +91,7 @@ function run_uuid_migration() {
     [[ "${OPS_PROJECTS[@]}" =~ "$index" ]] && continue
 
     uid=$(oc get project "$index" -o jsonpath='{.metadata.uid}')
-    create_alias $index $uid
+    create_alias ${PROJ_PREFIX}$index $uid
 
   done
 }

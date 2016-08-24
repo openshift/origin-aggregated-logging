@@ -161,8 +161,8 @@ function wait_for_new_builds_complete() {
 
 function wait_for_builds_complete()
 {
-    waittime=1800 # seconds - 30 minutes
-    interval=30
+    waittime=3600 # seconds - 1 hour
+    interval=60
     complete=0
     while [ $waittime -gt 0 -a $complete = 0 ] ; do
         # all lines must have $4 == "Complete"

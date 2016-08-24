@@ -14,17 +14,18 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
   io.openshift.tags="logging,elk,fluentd"
 
 # activesupport version 5.x requires ruby 2.2
+# iproute needed for ip command to get ip addresses
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
       gcc-c++ \
       ruby \
       ruby-devel \
       libcurl-devel \
-      make && \
+      make \
+      iproute && \
     yum clean all
 RUN mkdir -p ${HOME} && \
-    gem install --no-rdoc --no-ri \
-      --conservative --minimal-deps \
+    gem install -N --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \

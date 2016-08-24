@@ -99,7 +99,7 @@ wait_for_pod_ACTION() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
 }
@@ -132,9 +132,7 @@ test_count_err() {
 }
 
 write_and_verify_logs() {
-    # expected number of matches
-    expected=$1
-
+    expected=1
     # write a log message to the test app
     logmessage=`uuidgen`
     curl --connect-timeout 1 -s http://$testip:$testport/$logmessage > /dev/null 2>&1 || echo will generate a 404
@@ -162,6 +160,14 @@ write_and_verify_logs() {
         rc=1
     fi
 
+    if [ $rc = "0" ] ; then
+        # get the record - verify that the "undefined" field contains the undefined
+        # members
+        # verify that there are no fields with empty values
+        curl_es_from_kibana $kpod logging-es ${PROJ_PREFIX}test _search message $logmessage | \
+            python test-undefined.py
+    fi
+
     if myhost=logging-es${ops} myproject=${INDEX_PREFIX}.operations mymessage=$logmessage2 expected=$expected myfield=ident \
              wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
@@ -171,7 +177,31 @@ write_and_verify_logs() {
         rc=1
     fi
 
+    if [ $rc = "0" ] ; then
+        # get the record - verify that the "undefined" field contains the undefined
+        # members
+        # verify that there are no fields with empty values
+        curl_es_from_kibana $kpod logging-es${ops} ${INDEX_PREFIX}.operations _search message $logmessage2 | \
+            python test-undefined.py
+    fi
+
     return $rc
+}
+
+remove_test_volume() {
+    oc get template logging-fluentd-template -o json | \
+        python -c 'import json, sys; obj = json.loads(sys.stdin.read()); vm = obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]; obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = [xx for xx in vm if xx["name"] != "undefinedtest"]; vs = obj["objects"][0]["spec"]["template"]["spec"]["volumes"]; obj["objects"][0]["spec"]["template"]["spec"]["volumes"] = [xx for xx in vs if xx["name"] != "undefinedtest"]; print json.dumps(obj, indent=2)' | \
+        oc replace -f -
+}
+
+# takes json input, removes the "undefinedtest" volume and volumeMount, returns
+# json output
+# oc get ... -o json | add_test_volume | oc replace -f -
+# $1 is the local file to use for the volume hostPath
+add_test_volume() {
+    oc get template logging-fluentd-template -o json | \
+        python -c 'import json, sys; obj = json.loads(sys.stdin.read()); obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "undefinedtest", "mountPath": "/etc/fluent/configs.d/openshift/filter-pre-undefined-test.conf", "readOnly": True}); obj["objects"][0]["spec"]["template"]["spec"]["volumes"].append({"name": "undefinedtest", "hostPath": {"path": "'$1'"}}); print json.dumps(obj, indent=2)' | \
+        oc replace -f -
 }
 
 restart_fluentd() {
@@ -191,91 +221,42 @@ TEST_DIVIDER="------------------------------------------"
 testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.portalIP }}" service frontend)
 testport=5432
 
-# configure fluentd to just use the same ES instance for the copy
-# cause messages to be written to a container - verify that ES contains
-# two copies
-# cause messages to be written to the system log - verify that OPS contains
-# two copies
+# configure fluentd with a test filter that adds undefined and empty fields/hashes
+# verify that undefined fields are stored in a top level field with a hash value
+# the hash holds all of the other top level fields that are undefined
+# also verify that the output contains no empty fields, including empty hashes
 
 fpod=`get_running_pod fluentd`
 
-# first, make sure copy is off
+# first, make sure the undefined test filter is not being used
+remove_test_volume
+# add the test volume
 cfg=`mktemp`
-oc get template logging-fluentd-template -o yaml | \
-    sed '/- name: ES_COPY/,/value:/ s/value: .*$/value: "false"/' | \
-    oc replace -f -
-restart_fluentd
-fpod=`get_running_pod fluentd`
-
-# save original template config
-origconfig=`mktemp`
-oc get template logging-fluentd-template -o yaml > $origconfig
-
-# run test to make sure fluentd is working normally - no copy
-write_and_verify_logs 1 || {
-    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
-    exit 1
-}
+cat > $cfg <<EOF
+<filter **>
+  @type record_transformer
+  <record>
+    undefined1 undefined1
+    empty1 ""
+    undefined2 {"undefined2":"undefined2","":""}
+    undefined3 {"":""}
+  </record>
+</filter>
+EOF
+add_test_volume $cfg
 
 cleanup() {
-    # may have already been cleaned up
-    if [ ! -f $origconfig ] ; then return 0 ; fi
-    # put back original configuration
-    oc replace --force -f $origconfig
-    rm -f $origconfig
+    remove_test_volume
+    rm -f $cfg
     restart_fluentd
 }
 trap "cleanup" INT TERM EXIT
 
-nocopy=`mktemp`
-# strip off the copy settings, if any
-sed '/_COPY/,/value/d' $origconfig > $nocopy
-# for every ES_ or OPS_ setting, create a copy called ES_COPY_ or OPS_COPY_
-envpatch=`mktemp`
-sed -n '/^        - env:/,/^          image:/ {
-/^          image:/d
-/^        - env:/d
-/name: K8S_HOST_URL/,/value/d
-s/ES_/ES_COPY_/
-s/OPS_/OPS_COPY_/
-p
-}' $nocopy > $envpatch
-
-# add the scheme, and turn on verbose
-cat >> $envpatch <<EOF
-          - name: ES_COPY
-            value: "true"
-          - name: ES_COPY_SCHEME
-            value: https
-          - name: OPS_COPY_SCHEME
-            value: https
-          - name: VERBOSE
-            value: "true"
-EOF
-
-# add this back to the dc config
-cat $nocopy | \
-    sed '/^        - env:/r '$envpatch | \
-    oc replace -f -
-
-rm -f $envpatch $nocopy
-
 restart_fluentd
 fpod=`get_running_pod fluentd`
 
-write_and_verify_logs 2 || {
-    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
-    exit 1
-}
-
-# put back original configuration
-oc replace --force -f $origconfig
-rm -f $origconfig
-
-restart_fluentd
-fpod=`get_running_pod fluentd`
-
-write_and_verify_logs 1 || {
+# run test to make sure fluentd is working normally
+write_and_verify_logs || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
