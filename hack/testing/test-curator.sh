@@ -341,7 +341,7 @@ basictest() {
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
     echo current indices before 1st deletion are:
     oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel DEBUG \
        show indices --all-indices
     # add the curator config yaml settings file
     curtest=`mktemp --suffix=.yaml`

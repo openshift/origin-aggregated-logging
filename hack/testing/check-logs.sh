@@ -91,9 +91,11 @@ for pod in "${PODS[@]}"; do
       READY=0
       # Before we try to get logs from $KIBANA we should make sure it has properly started up e.g. it has connected to ES successfully -> ES is up
       for i in $(seq 1 $TIMES); do
-        if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Listening on 0.0.0.0:5601'` ]]; then
-          READY=1
-          break
+        if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Server running at http://0.0.0.0:5601'` ]]; then
+          if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Kibana index ready'` ]]; then
+            READY=1
+            break
+          fi
         fi
 
         sleep 1
