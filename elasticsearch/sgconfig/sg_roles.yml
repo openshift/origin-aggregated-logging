@@ -1,7 +1,7 @@
 sg_role_kibana:
   cluster:
-      - cluster:monitor/nodes/info
-      - cluster:monitor/health
+    - cluster:monitor/nodes/info
+    - cluster:monitor/health
   indices:
     '*':
       '*':
@@ -21,10 +21,13 @@ sg_role_fluentd:
         - CREATE_INDEX
 
 sg_role_curator:
+  cluster:
+    - CLUSTER_MONITOR
   indices:
     '*':
       '*':
         - CRUD
+        - MANAGE
 
 sg_role_admin:
   indices:
