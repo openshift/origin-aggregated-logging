@@ -184,8 +184,9 @@ function generate_config() {
     generate_PEM_cert "$fluentd_user"
     generate_PEM_cert "$kibana_user"
     generate_PEM_cert "$curator_user"
-    generate_PEM_cert "$admin_user"
+
     generate_JKS_client_cert "$admin_user"
+    generate_PEM_cert "$admin_user"
 
     # generate common node key for the SearchGuard plugin
     # we use a JKS chain now instead for inter-node communication
