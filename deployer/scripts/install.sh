@@ -215,12 +215,6 @@ function generate_config() {
         admin-key=$dir/${admin_user}.key admin-cert=$dir/${admin_user}.crt \
         admin-ca=$dir/ca.crt \
         admin.jks=$dir/${admin_user}.jks
-    #oc secrets new logging-elasticsearch \
-    #    key=$dir/keystore.jks truststore=$dir/truststore.jks \
-    #    searchguard.key=$dir/searchguard_node_key.key \
-    #    searchguard.truststore=$dir/searchguard_node_truststore \
-    #    admin-key=$dir/${admin_user}.jks \
-    #    admin-ca=$dir/ca.crt
     oc secrets new logging-kibana \
         ca=$dir/ca.crt \
         key=$dir/${kibana_user}.key cert=$dir/${kibana_user}.crt

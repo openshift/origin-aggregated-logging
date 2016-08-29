@@ -46,7 +46,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
       echo "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
     fi
 
-    #determine max allowable memory 
+    #determine max allowable memory
     echo "Inspecting the maximum RAM available..."
     mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
     if [ -r "${mem_file}" ]; then
@@ -79,9 +79,9 @@ function waitForES() {
   for (( i=1; i<=$TIMES; i++ )); do
     # test for ES to be up first
 		# don't provide a client cert since ES doesn't validate us correctly
-		result=$(curl --cacert $secret_dir/admin-ca -s -w "%{http_code}" -XGET "https://localhost:9200/" -o /dev/null) ||:
+		result=$(curl --cacert $secret_dir/admin-ca --cert $secret_dir/admin-cert --key $secret_dir/admin-key -s -w "%{http_code}" -XGET "https://localhost:9200/" -o /dev/null) ||:
 		# we don't need to receive a 200 since we shouldn't be authorized -- providing no client cert
-    [[ $result -gt 200 && $result -lt 500 ]] && return 0
+    [[ $result -eq 200 ]] && return 0
     sleep 1
   done
 
