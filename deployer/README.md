@@ -963,7 +963,7 @@ available until it has connected to ES.
 ```
 
 Currently Kibana is very verbose in its logs and will actually print every http request/response made.  As of 4.2 there is a means to set
-log levels, however EFK is currently using 4.1.2 due to compatibility with the version of ES used (1.5.2).
+log levels, however EFK is currently using 4.1.11 due to compatibility with the version of ES used (1.5.2).
 
 
 # Troubleshooting

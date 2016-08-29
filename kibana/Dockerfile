@@ -4,7 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 EXPOSE 5601
 
-ENV KIBANA_VER=4.1.2 \
+ENV KIBANA_VER=4.1.11 \
     ES_HOST=localhost \
     ES_PORT=9200 \
     AOP_KIBANA_PLUGIN_VER=v0.6.0 \
