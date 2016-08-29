@@ -1,5 +1,3 @@
-kibana.version: 4.5.4
-
 cluster:
   name: ${CLUSTER_NAME}
 
