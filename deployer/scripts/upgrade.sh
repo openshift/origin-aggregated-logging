@@ -591,6 +591,17 @@ function remove_triggers_and_IS() {
   oc delete is -l logging-infra=support
 }
 
+# at some point we dropped the separate-but-equal kibana secrets
+function update_kibana_ops_proxy_secret() {
+  local dc
+  for dc in $(oc get dc -o name -l component=kibana-ops,logging-infra=kibana); do
+    oc set volume $dc --add --overwrite --name kibana-proxy \
+                      --type secret --secret-name logging-kibana-proxy
+    oc deploy --latest $dc
+  done
+  oc delete secret logging-kibana-ops-proxy || :
+}
+
 function upgrade_logging() {
 
   installedVersion=$(getDeploymentVersion)
@@ -631,6 +642,7 @@ function upgrade_logging() {
         2)
           # Remove triggers
           remove_triggers_and_IS
+          update_kibana_ops_proxy_secret
           ;;
         3)
           add_config_maps
