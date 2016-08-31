@@ -1,0 +1,5 @@
+[centos7-cloud-sig]
+name=centos7-cloud-sig
+baseurl=http://cbs.centos.org/repos/cloud7-openstack-optools-candidate/x86_64/os/
+enabled=1
+gpgcheck=0
