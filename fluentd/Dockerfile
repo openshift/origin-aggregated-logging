@@ -24,6 +24,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum clean all
 RUN mkdir -p ${HOME} && \
     gem install --no-rdoc --no-ri \
+      --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \
