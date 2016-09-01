@@ -96,7 +96,8 @@ function checkESContainsIndexTemplates() {
   echo "Checking presence of index templates: ${template_files}"
   for template in $template_files; do
     echo "  - verify ${template}"
-    if ! waitForValue "oc exec $pod -- curl -s -k -X HEAD -x '%{response_code}' --cert ${secret_dir}admin-cert --key ${secret_dir}admin-key https://localhost:9200/_template/$template"; then
+    if ! response_code=$(waitForValue "oc exec $pod -- curl -s -k -X HEAD -w '%{response_code}' --cert ${secret_dir}admin-cert --key ${secret_dir}admin-key https://localhost:9200/_template/$template") || test "$response_code" != "200" ; then
+      echo "Could not find index template https://localhost:9200/_template/$template - $response_code"
       return 1
     fi
   done
