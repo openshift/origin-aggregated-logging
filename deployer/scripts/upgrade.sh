@@ -140,7 +140,12 @@ function checkKibanaStarted() {
 
   local pod=$1
 
-  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Listening on 0.0.0.0:5601') ]]"; then
+  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Server running at http://0.0.0.0:5601') ]]"; then
+    echo "Kibana pod $pod was not able to start up within $TIMES seconds"
+    return 1
+  fi
+
+  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Kibana index ready') ]]"; then
     echo "Kibana pod $pod was not able to start up within $TIMES seconds"
     return 1
   fi

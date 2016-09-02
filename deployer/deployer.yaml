@@ -88,6 +88,17 @@ items:
     subjects:
     - kind: ServiceAccount
       name: logging-deployer
+  -
+    apiVersion: v1
+    kind: RoleBinding
+    metadata:
+      name: logging-elasticsearch-view-role
+    roleRef:
+      kind: ClusterRole
+      name: view
+    subjects:
+    - kind: ServiceAccount
+      name: aggregated-logging-elasticsearch
 -
   apiVersion: "v1"
   kind: "Template"

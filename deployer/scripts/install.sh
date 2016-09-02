@@ -184,12 +184,19 @@ function generate_config() {
     generate_PEM_cert "$fluentd_user"
     generate_PEM_cert "$kibana_user"
     generate_PEM_cert "$curator_user"
+
+    generate_JKS_client_cert "$admin_user"
     generate_PEM_cert "$admin_user"
 
-    # generate java store/trust for the ES SearchGuard plugin
-    generate_JKS_chain logging-es "$(join , logging-es{,-ops}{,-cluster}{,.${project}.svc.cluster.local})"
     # generate common node key for the SearchGuard plugin
-    openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $dir/searchguard_node_key.key -pass pass:pass
+    # we use a JKS chain now instead for inter-node communication
+    #openssl rand 16 | openssl enc -aes-128-cbc -nosalt -out $dir/searchguard_node_key.key -pass pass:pass
+    generate_JKS_chain true elasticsearch "$(join , logging-es{,-ops})"
+    mv $dir/keystore.jks $dir/searchguard_node_key
+    mv $dir/truststore.jks $dir/searchguard_node_truststore
+
+    # generate java store/trust for the ES SearchGuard plugin
+    generate_JKS_chain false logging-es "$(join , logging-es{,-ops}{,-cluster}{,.${project}.svc.cluster.local})"
 
     # generate proxy session
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 200 | head -n 1 > "$dir/session-secret"
@@ -203,9 +210,11 @@ function generate_config() {
     echo "Creating secrets"
     oc secrets new logging-elasticsearch \
         key=$dir/keystore.jks truststore=$dir/truststore.jks \
-        searchguard.key=$dir/searchguard_node_key.key \
+        searchguard.key=$dir/searchguard_node_key \
+        searchguard.truststore=$dir/searchguard_node_truststore \
         admin-key=$dir/${admin_user}.key admin-cert=$dir/${admin_user}.crt \
-        admin-ca=$dir/ca.crt
+        admin-ca=$dir/ca.crt \
+        admin.jks=$dir/${admin_user}.jks
     oc secrets new logging-kibana \
         ca=$dir/ca.crt \
         key=$dir/${kibana_user}.key cert=$dir/${kibana_user}.crt
@@ -252,7 +261,7 @@ function generate_configmaps() {
     # generate elasticsearch configmap
     oc create configmap logging-elasticsearch \
       --from-file=logging.yml=conf/elasticsearch-logging.yml \
-      --from-file=conf/elasticsearch.yml
+      --from-file=elasticsearch.yml=conf/elasticsearch.yml
     oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
 
     # generate curator configmap

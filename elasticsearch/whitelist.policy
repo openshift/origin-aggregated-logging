@@ -1,0 +1,5 @@
+# TODO: add k8s client classes here
+# TODO: add searchguard here to let it read key/truststores from anywhere?
+grant {
+    permission org.elasticsearch.script.ClassPermission "*";
+};
