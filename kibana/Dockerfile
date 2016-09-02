@@ -17,6 +17,13 @@ LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggreg
   io.openshift.expose-services="5601:http" \
   io.openshift.tags="logging,elk,kibana"
 
+ADD kibana.repo /etc/yum.repos.d/kibana.repo
+# install the RPMs in a separate step so it can be cached
+RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
+    yum install -y --setopt=tsflags=nodocs \
+                kibana-${KIBANA_VER} && \
+    yum clean all
+
 COPY kibana.yml ${KIBANA_HOME}/config/kibana.yml
 COPY run.sh install.sh ${HOME}/
 RUN sh install.sh

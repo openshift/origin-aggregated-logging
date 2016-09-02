@@ -8,7 +8,7 @@ USER 0
 
 ENV HOME=/opt/app-root/src \
   JAVA_VER=1.8.0 \
-  ES_VER=2.3.3 \
+  ES_VER=2.3.5 \
   ES_CONF=/usr/share/elasticsearch/config \
   INSTANCE_RAM=512G \
   NODE_QUORUM=1 \
@@ -31,10 +31,8 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
                 java-1.8.0-openjdk-headless \
                 elasticsearch-${ES_VER} && \
     yum clean all
-# initial boring elasticsearch.yml is just to enable plugin installation.
-# put the real config in place in a deployment with a ConfigMap.
+
 ADD *.zip ${HOME}/
-#ADD elasticsearch.yml logging.yml /etc/elasticsearch/config/
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh

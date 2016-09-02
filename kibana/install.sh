@@ -1,7 +1,7 @@
-wget -q https://download.elastic.co/kibana/kibana/kibana-${KIBANA_VER}-linux-x64.tar.gz
-tar -xzf kibana-${KIBANA_VER}-linux-x64.tar.gz
-mv kibana-${KIBANA_VER}-linux-x64/* ${HOME}/
-rm -rf kibana-${KIBANA_VER}-linux-x64*
+#wget -q https://download.elastic.co/kibana/kibana/kibana-${KIBANA_VER}-linux-x64.tar.gz
+#tar -xzf kibana-${KIBANA_VER}-linux-x64.tar.gz
+#mv kibana-${KIBANA_VER}-linux-x64/* ${HOME}/
+#rm -rf kibana-${KIBANA_VER}-linux-x64*
 
 mkdir -p -m 755 ${KIBANA_HOME}/installedPlugins/origin-kibana
 cd ${KIBANA_HOME}/installedPlugins/origin-kibana
