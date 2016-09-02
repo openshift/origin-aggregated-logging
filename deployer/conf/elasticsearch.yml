@@ -5,6 +5,19 @@ script:
   inline: on
   indexed: on
 
+index:
+  number_of_shards: 1
+  number_of_replicas: 0
+  auto_expand_replicas: 0-3
+  unassigned.node_left.delayed_timeout: 2m
+  translog:
+    flush_threshold_size: 256mb
+    flush_threshold_period: 5m
+
+node:
+  master: true
+  data: true
+
 network:
   host: 0.0.0.0
   publish_host: ${CLUSTER_NAME}
