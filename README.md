@@ -1,4 +1,4 @@
-# Origin-Aggregated-Logging [![Build Status](https://travis-ci.org/openshift/origin-aggregated-logging.svg?branch=master)](https://travis-ci.org/openshift/origin-aggregated-logging)
+# Origin-Aggregated-Logging [![Build Status](https://travis-ci.org/openshift/origin-aggregated-logging.svg?branch=es2.x)](https://travis-ci.org/openshift/origin-aggregated-logging)
 
 This repo contains the image definitions of the components of the logging
 stack as well as tools for building and deploying them.
