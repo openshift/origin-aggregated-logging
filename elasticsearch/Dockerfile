@@ -32,6 +32,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 # initial boring elasticsearch.yml is just to enable plugin installation.
 # put the real config in place in a deployment with a ConfigMap.
 ADD elasticsearch.yml logging.yml /usr/share/elasticsearch/config/
+ADD index_templates/ /usr/share/elasticsearch/index_templates/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/

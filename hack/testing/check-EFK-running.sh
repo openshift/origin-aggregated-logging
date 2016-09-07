@@ -82,6 +82,28 @@ function checkKibanaStarted() {
   fi
 }
 
+function checkESContainsIndexTemplates() {
+
+  local pod=$1
+  local template_files
+  local secret_dir=/etc/elasticsearch/secret/
+ 
+  if ! template_files=$(waitForValue "oc exec $pod -- ls -1 /usr/share/elasticsearch/index_templates"); then
+    echo "No index template files found"
+    return 1
+  fi
+
+  echo "Checking presence of index templates: ${template_files}"
+  for template in $template_files; do
+    echo "  - verify ${template}"
+    if ! response_code=$(waitForValue "oc exec $pod -- curl -s -k -X HEAD -w '%{response_code}' --cert ${secret_dir}admin-cert --key ${secret_dir}admin-key https://localhost:9200/_template/$template") || test "$response_code" != "200" ; then
+      echo "Could not find index template https://localhost:9200/_template/$template - $response_code"
+      return 1
+    fi
+  done
+
+}
+
 # add one since fluentd will be deployed via a daemonset
 # keeping as -2 + 1 for readibilty
 ADDITIONAL_PODS=$((KIBANA_CLUSTER_SIZE + ES_CLUSTER_SIZE - 2 + 1))
@@ -290,6 +312,17 @@ done
 for pod in $(oc get pods -l component=kibana-ops -o name); do
   checkKibanaStarted "$pod" || EXIT_CODE=1
 done
+
+echo $TEST_DIVIDER
+echo "Checking if ES contains common data model index templates"
+for pod in $(oc get pods -l component=es -o name | sed 's,pod/,,'); do
+  checkESContainsIndexTemplates "$pod" || EXIT_CODE=1
+done
+if [[ "$CLUSTER" == "true" ]]; then
+  for pod in $(oc get pods -l component=es-ops -o name | sed 's,pod/,,'); do
+    checkESContainsIndexTemplates "$pod" || EXIT_CODE=1
+  done
+fi
 
 echo $TEST_DIVIDER
 exit $EXIT_CODE
