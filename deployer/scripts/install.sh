@@ -388,9 +388,9 @@ function generate_es() {
     pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting
   done
   for ((n=1;n<=${es_cluster_size};n++)); do
-    pvc="${ES_PVC_PREFIX}$n"
-    if [ "${pvcs[$pvc]}" != 1 -a "${ES_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-      oc new-app logging-pvc-${es_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${ES_PVC_SIZE}"
+    pvc="${es_pvc_prefix}$n"
+    if [ "${pvcs[$pvc]}" != 1 -a "${es_pvc_size}" != "" ]; then # doesn't exist, create it
+      oc new-app logging-pvc-${es_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -405,9 +405,9 @@ function generate_es() {
 
   if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
-      pvc="${ES_OPS_PVC_PREFIX}$n"
-      if [ "${pvcs[$pvc]}" != 1 -a "${ES_OPS_PVC_SIZE}" != "" ]; then # doesn't exist, create it
-        oc new-app logging-pvc-${es_ops_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${ES_OPS_PVC_SIZE}"
+      pvc="${es_ops_pvc_prefix}$n"
+      if [ "${pvcs[$pvc]}" != 1 -a "${es_ops_pvc_size}" != "" ]; then # doesn't exist, create it
+        oc new-app logging-pvc-${es_ops_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${es_ops_pvc_size}"
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
