@@ -1,0 +1,6 @@
+[kibana-4.5]
+name=Kibana repository for 4.5.x packages
+baseurl=http://packages.elastic.co/kibana/4.5/centos
+gpgcheck=1
+gpgkey=http://packages.elastic.co/GPG-KEY-elasticsearch
+enabled=1

@@ -7,6 +7,7 @@ dir=${SCRATCH_DIR:-_output}  # for writing files to bundle into secrets
 master_url=${MASTER_URL:-https://kubernetes.default.svc.cluster.local:443}
 master_ca=${MASTER_CA:-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt}
 token_file=${TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}
+keytool=${KEYTOOL:-${JAVA_HOME}/bin/keytool}
 
 mkdir -p $dir
 

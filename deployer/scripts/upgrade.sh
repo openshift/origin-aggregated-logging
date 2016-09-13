@@ -17,7 +17,7 @@ function getDeploymentVersion() {
   fi
 
   # Check for fluentd daemonset and curator
-  if [[ -z "$(oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}')" || -z "$(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}')" ]]; then
+  if [[ ( -z "$(oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}')" && -z "$(oc get template logging-fluentd-template -o yaml | grep 'kind: DaemonSet')" ) || -z "$(oc get dc -l logging-infra=curator -o jsonpath='{.items[*].metadata.name}')" ]]; then
     echo 1
     return
   fi
@@ -37,6 +37,12 @@ function getDeploymentVersion() {
   # check for configmap for fluentd
   if [[ -z "$(oc get configmap/logging-fluentd)" ]]; then
     echo 4
+    return
+  fi
+
+  # check for ES 2.3 configmap and NAMESPACE downward API env var
+  if [[ -n "$(oc get configmap/logging-elasticsearch -o yaml | grep -a1 'openshift:' | grep 'acl:')" || -z "$(oc get dc -l logging-infra=es -o yaml | grep 'NAMESPACE')" ]]; then
+    echo 5
     return
   fi
 
@@ -140,7 +146,12 @@ function checkKibanaStarted() {
 
   local pod=$1
 
-  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Listening on 0.0.0.0:5601') ]]"; then
+  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Server running at http://0.0.0.0:5601') ]]"; then
+    echo "Kibana pod $pod was not able to start up within $TIMES seconds"
+    return 1
+  fi
+
+  if ! waitFor "[[ -n \$(oc logs $pod -c kibana | grep 'Kibana index ready') ]]"; then
     echo "Kibana pod $pod was not able to start up within $TIMES seconds"
     return 1
   fi
@@ -602,6 +613,35 @@ function update_kibana_ops_proxy_secret() {
   oc delete secret logging-kibana-ops-proxy || :
 }
 
+# this is required for the upgrade to ES 2.3.5
+function update_es_for_235() {
+
+  echo "Deleting previous ES configmap"
+  oc delete configmap/logging-elasticsearch || :
+
+  echo "Recreating ES configmap"
+  # generate elasticsearch configmap
+  oc create configmap logging-elasticsearch \
+    --from-file=logging.yml=conf/elasticsearch-logging.yml \
+    --from-file=elasticsearch.yml=conf/elasticsearch.yml
+  oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
+
+  echo "Adding downward API NAMESPACE var to ES"
+  patchPIDs=()
+  local dc patch=$(join , \
+    '{"op": "add", "path": "/spec/template/spec/containers/0/env/0", "value": { "name": "NAMESPACE", "valueFrom": { "fieldRef": { "fieldPath": "metadata.namespace" }}}}'
+  )
+
+  for dc in $(get_es_dcs); do
+    currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
+    oc patch $dc --type=json --patch "[$patch]"
+
+    oc deploy $dc --latest
+    waitForChange $currentVersion $dc &
+    patchPIDs+=( $!)
+  done
+}
+
 function upgrade_logging() {
 
   installedVersion=$(getDeploymentVersion)
@@ -649,6 +689,9 @@ function upgrade_logging() {
           ;;
         4)
           add_fluentd_configmaps
+          ;;
+        5)
+          update_es_for_235
           ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."

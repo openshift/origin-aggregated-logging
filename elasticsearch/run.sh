@@ -2,12 +2,9 @@
 
 set -euo pipefail
 
-mkdir -p /elasticsearch/$CLUSTER_NAME
-secret_dir=/etc/elasticsearch/secret/
-[ -f $secret_dir/searchguard-node-key ] && ln -s $secret_dir/searchguard-node-key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
-[ -f $secret_dir/searchguard.key ] && ln -s $secret_dir/searchguard.key /elasticsearch/$CLUSTER_NAME/searchguard_node_key.key
-[ -f $secret_dir/keystore.password ] && export KEYSTORE_PASSWORD=$(cat $secret_dir/keystore.password)
-[ -f $secret_dir/truststore.password ] && export TRUSTSTORE_PASSWORD=$(cat $secret_dir/truststore.password)
+secret_dir=/etc/elasticsearch/secret
+
+export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 
 BYTES_PER_MEG=$((1024*1024))
 BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
@@ -35,7 +32,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
       echo "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
     fi
 
-    #determine max allowable memory 
+    #determine max allowable memory
     echo "Inspecting the maximum RAM available..."
     mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
     if [ -r "${mem_file}" ]; then
@@ -60,4 +57,17 @@ else
 	exit 1
 fi
 
-exec /usr/share/elasticsearch/bin/elasticsearch
+TIMES=300
+function waitForES() {
+  for (( i=1; i<=$TIMES; i++ )); do
+    # test for ES to be up first and that our SG index has been created
+		result=$(curl --cacert $secret_dir/admin-ca --cert $secret_dir/admin-cert --key $secret_dir/admin-key -s -w "%{http_code}" -XGET "https://localhost:9200/.searchguard.${HOSTNAME}" -o /dev/null) ||:
+    [[ $result -eq 200 ]] && return 0
+    sleep 1
+  done
+
+  echo "Was not able to connect to Elasticearch at localhost:9200 within $TIMES attempts"
+}
+
+waitForES &
+exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false

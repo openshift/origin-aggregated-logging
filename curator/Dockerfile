@@ -16,13 +16,14 @@ ENV HOME=/opt/app-root/src \
     CURATOR_RUN_MINUTE=0 \
     CURATOR_RUN_TIMEZONE=UTC \
     CURATOR_LOG_LEVEL=ERROR \
-    CURATOR_SCRIPT_LOG_LEVEL=INFO
+    CURATOR_SCRIPT_LOG_LEVEL=INFO \
+    CURATOR_VER=3.5.1
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator 3.5.1" \
+  io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-ADD run.sh install.sh run_cron.py ${HOME}/
+ADD run_cron.py install.sh run.sh ${HOME}/
 RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}
