@@ -17,7 +17,7 @@ KIBANA_CLUSTER_SIZE=$KIBANA_CLUSTER_SIZE KIBANA_OPS_CLUSTER_SIZE=$KIBANA_OPS_CLU
 
 if [[ $? -eq 0 ]]; then
   echo "Checking for log entry matches between ES and their sources..."
-  KIBANA_CLUSTER_SIZE=$KIBANA_CLUSTER_SIZE KIBANA_OPS_CLUSTER_SIZE=$KIBANA_OPS_CLUSTER_SIZE ES_CLUSTER_SIZE=$ES_CLUSTER_SIZE ES_OPS_CLUSTER_SIZE=$ES_OPS_CLUSTER_SIZE ./check-logs.sh "$CLUSTER"
+  ./check-logs.sh "$CLUSTER"
 else
   echo "Errors found when checking installation of the EFK stack -- not checking log entry matches. Please resolve errors and retest."
   exit 1

@@ -3,12 +3,6 @@ sg_role_kibana:
     - cluster:monitor/nodes/info
     - cluster:monitor/health
   indices:
-    '*':
-      '*':
-        - indices:admin/mappings/fields/get*
-        - indices:admin/validate/query*
-        - indices:admin/get*
-        - READ
     '?kibana':
       '*':
         - ALL
@@ -17,7 +11,7 @@ sg_role_fluentd:
   indices:
     '*':
       '*':
-        - CRUD
+        - WRITE
         - CREATE_INDEX
 
 sg_role_curator:
@@ -26,7 +20,7 @@ sg_role_curator:
   indices:
     '*':
       '*':
-        - CRUD
+        - READ
         - MANAGE
 
 sg_role_admin:

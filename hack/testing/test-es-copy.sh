@@ -23,6 +23,12 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+oc login --username=kibtest --password=kibtest
+test_token="$(oc whoami -t)"
+test_name="$(oc whoami)"
+test_ip="127.0.0.1"
+oc login --username=system:admin
+
 # $1 - shell command or function to call to test if wait is over -
 #      this command/function should return true if the condition
 #      has been met, or false if still waiting for condition to be met
@@ -97,6 +103,7 @@ wait_for_pod_ACTION() {
 curl_es_from_kibana() {
     oc exec $1 -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+       -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
 }
 
@@ -184,7 +191,7 @@ restart_fluentd() {
 TEST_DIVIDER="------------------------------------------"
 
 # this is the OpenShift origin sample app
-testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.portalIP }}" service frontend)
+testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
 testport=5432
 
 # configure fluentd to just use the same ES instance for the copy

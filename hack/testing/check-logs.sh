@@ -30,13 +30,19 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
     fi
 fi
 
+oc login --username=kibtest --password=kibtest
+test_token="$(oc whoami -t)"
+test_name="$(oc whoami)"
+test_ip="127.0.0.1"
+oc login --username=system:admin
+
 TEST_DIVIDER="------------------------------------------"
 
 # we need logic for ES_OPS
 KIBANA_POD=`oc get pods | grep 'logging-kibana-[0-9]' | grep -v -- "-build" | grep -v -- "-deploy" | cut -d" " -f 1`
 KIBANA_OPS_POD=`oc get pods | grep 'logging-kibana-ops-[0-9]' | cut -d" " -f 1`
-ES_SVC=`oc get svc | grep '^logging-es ' | awk '{print $2 ":" $4}' | rev | cut -c 5- | rev`
-ES_OPS_SVC=`oc get svc | grep '^logging-es-ops ' | awk '{print $2 ":" $4}' | rev | cut -c 5- | rev`
+ES_SVC=`oc get svc | grep '^logging-es ' | awk '{print $1 ":" $4}' | rev | cut -c 5- | rev`
+ES_OPS_SVC=`oc get svc | grep '^logging-es-ops ' | awk '{print $1 ":" $4}' | rev | cut -c 5- | rev`
 
 # get names of the ES pods to check their logs
 PODS=(`oc get pods | grep 'logging-es-' | grep 'Running' | cut -d" " -f 1`)
@@ -105,7 +111,7 @@ for pod in "${PODS[@]}"; do
       if [[ $READY -eq 1 ]]; then
         # this needs to read from the system log files, so use sudo, and use -E and set PATH
         # because it needs to use the oc commands
-        sudo -E env USE_JOURNAL=$USE_JOURNAL PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
+        sudo -E env USE_JOURNAL=$USE_JOURNAL PATH=$PATH VERBOSE=$VERBOSE go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE" "$test_name" "$test_token" "$test_ip"
         echo $TEST_DIVIDER
       else
         echo "$ES_NAME not ready to be queried within $TIMES attempts..."
