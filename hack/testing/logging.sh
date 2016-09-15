@@ -270,11 +270,42 @@ os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
 os::cmd::expect_success "oc new-app logging-deployer-account-template"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
-os::cmd::expect_success "oc create configmap logging-deployer \
-    --from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER} \
+deployer_args="--from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER} \
     --from-literal use-journal=${USE_JOURNAL:-} \
     --from-literal journal-source=${JOURNAL_SOURCE:-} \
     --from-literal journal-read-from-head=${JOURNAL_READ_FROM_HEAD:-false}"
+if [ -n "${PUBLIC_MASTER_HOST:-}" ] ; then
+    deployer_args="$deployer_args --from-literal public-master-url=https://${PUBLIC_MASTER_HOST}:8443"
+fi
+if [ -n "${KIBANA_HOST:-}" ] ; then
+    deployer_args="$deployer_args --from-literal kibana-hostname=$KIBANA_HOST"
+    if getent hosts $KIBANA_HOST > /dev/null 2>&1 ; then
+        echo kibana host $KIBANA_HOST is `getent hosts $KIBANA_HOST` `getent ahostsv4 $KIBANA_HOST`
+    else
+        # does not resolve - add it as an alias for the external IP
+        ip=`getent hosts $PUBLIC_MASTER_HOST | awk '{print $1}'`
+        if grep -q \^$ip /etc/hosts ; then
+            sudo sed -i -e 's/^\('$ip'.*\)$/\1 '$KIBANA_HOST'/' /etc/hosts
+        else
+            echo $ip $KIBANA_HOST | sudo tee -a /etc/hosts
+        fi
+    fi
+fi
+if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
+    deployer_args="$deployer_args --from-literal kibana-ops-hostname=$KIBANA_OPS_HOST"
+    if getent hosts $KIBANA_OPS_HOST > /dev/null 2>&1 ; then
+        echo kibana host $KIBANA_OPS_HOST is `getent hosts $KIBANA_OPS_HOST` `getent ahostsv4 $KIBANA_OPS_HOST`
+    else
+        # does not resolve - add it as an alias for the external IP
+        ip=`getent hosts $PUBLIC_MASTER_HOST | awk '{print $1}'`
+        if grep -q \^$ip /etc/hosts ; then
+            sudo sed -i -e 's/^\('$ip'.*\)$/\1 '$KIBANA_OPS_HOST'/' /etc/hosts
+        else
+            echo $ip $KIBANA_OPS_HOST | sudo tee -a /etc/hosts
+        fi
+    fi
+fi
+os::cmd::expect_success "oc create configmap logging-deployer $deployer_args"
 
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
@@ -439,8 +470,21 @@ os::build:wait_for_end "test"
 wait_for_app "test"
 ### test app added ###
 
+### kibana setup - router account, router, kibana user ###
+os::cmd::expect_success "oc create serviceaccount router -n default"
+os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:default:router"
+os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:router"
+os::cmd::expect_success "oadm router --create --namespace default --service-account=router \
+     --credentials $MASTER_CONFIG_DIR/openshift-router.kubeconfig"
+os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
+os::cmd::expect_success "oc login --username=system:admin"
+os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibtest"
+
+if [ "${SETUP_ONLY:-}" = "true" ] ; then
+    exit 0
+fi
+
 ### run logging tests ###
-os::cmd::expect_success "oc login -u 'system:admin'"
 os::cmd::expect_success "oc project logging"
 pushd $OS_O_A_L_DIR/hack/testing
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
