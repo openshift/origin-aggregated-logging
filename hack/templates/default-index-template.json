@@ -1,0 +1,89 @@
+{
+  "aliases": {},
+  "template": "*",
+  "order": 1,
+  "settings": {
+    "index.refresh_interval": "5s",
+    "index.number_of_shards": 1,
+    "index.number_of_replicas": 1,
+    "index.load_fixed_bitset_filters_eagerly": "false",
+    "indices.fielddata.cache.size": "50%",
+    "indices.fielddata.cache.expire": "1h"
+  },
+  "mappings": {
+    "_default_": {
+      "_meta": {
+        "version": "2016.09.15.0"
+      },
+      "date_detection": false,
+      "dynamic_templates": [
+        {
+          "message_field": {
+            "mapping": {
+              "index": "analyzed",
+              "omit_norms": true,
+              "type": "string"
+            },
+            "match": "message",
+            "match_mapping_type": "string"
+          }
+        },
+        {
+          "string_fields": {
+            "mapping": {
+              "index": "analyzed",
+              "omit_norms": true,
+              "type": "string"
+            },
+            "match": "*",
+            "match_mapping_type": "string"
+          }
+        }
+      ],
+      "properties": {
+        "hostname": {
+          "doc_values": true,
+          "index": "not_analyzed",
+          "type": "string"
+        },
+        "level": {
+          "doc_values": true,
+          "index": "not_analyzed",
+          "type": "string"
+        },
+        "message": {
+          "doc_values": false,
+          "index": "analyzed",
+          "norms": {
+            "enabled": false
+          },
+          "type": "string"
+        },
+        "kubernetes_pod_name": {
+          "doc_values": false,
+          "index": "analyzed",
+          "norms": {
+            "enabled": false
+          },
+          "type": "string"
+        },
+        "kubernetes_namespace_name": {
+          "doc_values": false,
+          "index": "analyzed",
+          "norms": {
+            "enabled": false
+          },
+          "type": "string"
+        },
+        "kubernetes_container_name": {
+          "doc_values": false,
+          "index": "analyzed",
+          "norms": {
+            "enabled": false
+          },
+          "type": "string"
+        }
+      }
+    }
+  }
+}
