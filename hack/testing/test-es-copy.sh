@@ -95,7 +95,7 @@ wait_for_pod_ACTION() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
 }
