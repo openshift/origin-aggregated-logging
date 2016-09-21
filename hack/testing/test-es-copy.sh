@@ -95,7 +95,7 @@ wait_for_pod_ACTION() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
 }
@@ -150,7 +150,7 @@ write_and_verify_logs() {
     rc=0
     # poll for logs to show up
     if myhost=logging-es myproject=test mymessage=$logmessage expected=$expected \
-             wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project test for $logmessage
         fi
@@ -159,7 +159,7 @@ write_and_verify_logs() {
     fi
 
     if myhost=logging-es${ops} myproject=.operations mymessage=$logmessage2 expected=$expected myfield=ident \
-             wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project .operations for $logmessage2
         fi

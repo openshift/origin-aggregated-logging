@@ -17,7 +17,7 @@ objects:
       build: logging-elasticsearch
     name: centos
   spec:
-    dockerImageRepository: library/centos:7
+    dockerImageRepository: library/centos
 - apiVersion: v1
   kind: ImageStream
   metadata:
