@@ -32,7 +32,8 @@ RUN mkdir -p ${HOME} && \
       fluent-plugin-flatten-hash \
       fluent-plugin-systemd \
       systemd-journal \
-      fluent-plugin-rewrite-tag-filter
+      fluent-plugin-rewrite-tag-filter \
+      fluent-plugin-secure-forward
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/

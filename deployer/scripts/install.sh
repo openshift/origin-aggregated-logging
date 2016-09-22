@@ -271,7 +271,8 @@ function generate_configmaps() {
     # generate fluentd configmap
     oc create configmap logging-fluentd \
       --from-file=fluent.conf=conf/fluent.conf \
-      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml || return
+      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml \
+      --from-file=secure-forward.conf=conf/secure-forward.conf || return
     oc label configmap/logging-fluentd logging-infra=support
 
 }
