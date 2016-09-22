@@ -184,7 +184,7 @@ restart_fluentd() {
 TEST_DIVIDER="------------------------------------------"
 
 # this is the OpenShift origin sample app
-testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.portalIP }}" service frontend)
+testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
 testport=5432
 
 # configure fluentd to just use the same ES instance for the copy

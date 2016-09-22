@@ -35,8 +35,8 @@ TEST_DIVIDER="------------------------------------------"
 # we need logic for ES_OPS
 KIBANA_POD=`oc get pods | grep 'logging-kibana-[0-9]' | grep -v -- "-build" | grep -v -- "-deploy" | cut -d" " -f 1`
 KIBANA_OPS_POD=`oc get pods | grep 'logging-kibana-ops-[0-9]' | cut -d" " -f 1`
-ES_SVC=`oc get svc | grep '^logging-es ' | awk '{print $2 ":" $4}' | rev | cut -c 5- | rev`
-ES_OPS_SVC=`oc get svc | grep '^logging-es-ops ' | awk '{print $2 ":" $4}' | rev | cut -c 5- | rev`
+ES_SVC=`oc get svc | grep '^logging-es ' | awk '{print $1 ":" $4}' | rev | cut -c 5- | rev`
+ES_OPS_SVC=`oc get svc | grep '^logging-es-ops ' | awk '{print $1 ":" $4}' | rev | cut -c 5- | rev`
 
 # get names of the ES pods to check their logs
 PODS=(`oc get pods | grep 'logging-es-' | grep 'Running' | cut -d" " -f 1`)
