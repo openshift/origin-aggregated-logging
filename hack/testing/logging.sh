@@ -253,6 +253,14 @@ os::log::start_system_logger
 export KUBELET_HOST=$(hostname)
 
 configure_os_server
+if [ -n "${KIBANA_HOST:-}" ] ; then
+    # add loggingPublicURL so the OpenShift UI Console will include a link for Kibana
+    # this part stolen from util.sh configure_os_server()
+    cp ${SERVER_CONFIG_DIR}/master/master-config.yaml ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml
+    openshift ex config patch ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml \
+              --patch="{\"assetConfig\": {\"loggingPublicURL\": \"https://${KIBANA_HOST}\"}}" > \
+              ${SERVER_CONFIG_DIR}/master/master-config.yaml
+fi
 start_os_server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
