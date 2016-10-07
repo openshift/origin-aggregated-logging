@@ -1,0 +1,15 @@
+sg_role_kibana:
+  users:
+    - 'CN=system.logging.kibana,OU=OpenShift,O=Logging'
+
+sg_role_fluentd:
+  users:
+    - 'CN=system.logging.fluentd,OU=OpenShift,O=Logging'
+
+sg_role_curator:
+  users:
+    - 'CN=system.logging.curator,OU=OpenShift,O=Logging'
+
+sg_role_admin:
+  users:
+    - 'CN=system.admin,OU=OpenShift,O=Logging'

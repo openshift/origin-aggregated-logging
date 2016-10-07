@@ -30,6 +30,12 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
     fi
 fi
 
+oc login --username=kibtest --password=kibtest
+test_token="$(oc whoami -t)"
+test_name="$(oc whoami)"
+test_ip="127.0.0.1"
+oc login --username=system:admin
+
 TEST_DIVIDER="------------------------------------------"
 
 # we need logic for ES_OPS
@@ -91,9 +97,11 @@ for pod in "${PODS[@]}"; do
       READY=0
       # Before we try to get logs from $KIBANA we should make sure it has properly started up e.g. it has connected to ES successfully -> ES is up
       for i in $(seq 1 $TIMES); do
-        if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Listening on 0.0.0.0:5601'` ]]; then
-          READY=1
-          break
+        if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Server running at http://0.0.0.0:5601'` ]]; then
+          if [[ ! -z `oc logs $KIBANA -c kibana | grep 'Kibana index ready'` ]]; then
+            READY=1
+            break
+          fi
         fi
 
         sleep 1
@@ -103,7 +111,7 @@ for pod in "${PODS[@]}"; do
       if [[ $READY -eq 1 ]]; then
         # this needs to read from the system log files, so use sudo, and use -E and set PATH
         # because it needs to use the oc commands
-        sudo -E env USE_JOURNAL=$USE_JOURNAL PATH=$PATH go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE"
+        sudo -E env USE_JOURNAL=$USE_JOURNAL PATH=$PATH VERBOSE=$VERBOSE go run check-logs.go "$KIBANA" "$ES" "$index" "$FILE_PATH" "$QUERY_SIZE" "$test_name" "$test_token" "$test_ip"
         echo $TEST_DIVIDER
       else
         echo "$ES_NAME not ready to be queried within $TIMES attempts..."

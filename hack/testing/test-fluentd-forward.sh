@@ -1,4 +1,9 @@
-#!/bin/bash
+#! /bin/bash
+
+# test by having a fluentd forward securely to another fluentd (and not ES)
+# have that second fluentd send logs to ES
+# verify the same way we do now (for ES copy)
+# need to create a custom configmap for both fluentd?
 
 if [[ $VERBOSE ]]; then
   set -ex
@@ -55,7 +60,7 @@ get_running_pod() {
     oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
 }
 
-wait_for_pod_ACTION() {
+wait_for_pod_action() {
     # action is $1 - start or stop
     # $2 - if action is stop, $2 is the pod name
     #    - if action is start, $2 is the component selector
@@ -90,6 +95,87 @@ wait_for_pod_ACTION() {
         return 1
     fi
     return 0
+}
+
+cleanup_forward() {
+
+  # Clean up only if it's still around
+  oc delete daemonset/logging-forward-fluentd || :
+
+  # Revert configmap if we haven't yet
+  if [ -n "$(oc get configmap/logging-fluentd -o yaml | grep '<match \*\*>')" ]; then
+    oc get configmap/logging-fluentd -o yaml | sed -e '/<match \*\*>/ d' \
+        -e '/@include configs\.d\/user\/secure-forward\.conf/ d' \
+        -e '/<\/match>/ d' | oc replace -f -
+  fi
+
+  oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward.conf", "value": "\
+# @type secure_forward\n\
+# self_hostname forwarding-${HOSTNAME}\n\
+# shared_key aggregated_logging_ci_testing\n\
+#  secure no\n\
+#  <server>\n\
+#   host ${FLUENTD_FORWARD}\n\
+#   port 24284\n\
+#  </server>"}]' || :
+
+}
+
+update_current_fluentd() {
+  # this will update it so the current fluentd does not send logs to an ES host
+  # but instead forwards to the forwarding fluentd
+
+  # undeploy fluentd
+  oc label node --all logging-infra-fluentd-
+
+  wait_for_pod_action stop $fpod
+
+  # edit so we don't send to ES
+  oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+      <match **>\
+        @include configs.d/user/secure-forward.conf\
+      </match>' | oc replace -f -
+
+  POD=$(oc get pods -l component=forward-fluentd -o name)
+  FLUENTD_FORWARD=$(oc get $POD --template='{{.status.podIP}}')
+
+  # update configmap secure-forward.conf
+  oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward.conf", "value": "\
+  @type secure_forward\n\
+  self_hostname forwarding-${HOSTNAME}\n\
+  shared_key aggregated_logging_ci_testing\n\
+  secure no\n\
+  <server>\n\
+   host '${FLUENTD_FORWARD}'\n\
+   port 24284\n\
+  </server>"}]'
+
+  # redeploy fluentd
+  oc label node --all logging-infra-fluentd=true
+
+  # wait for fluentd to start
+  wait_for_pod_action start fluentd
+}
+
+create_forwarding_fluentd() {
+ # create forwarding configmap named "logging-forward-fluentd"
+ oc create configmap logging-forward-fluentd \
+    --from-file=fluent.conf=../templates/forward-fluent.conf
+
+ # create forwarding daemonset
+  oc get template/logging-fluentd-template -o yaml | \
+    sed -e 's/logging-infra-fluentd: "true"/logging-infra-forward-fluentd: "true"/' \
+        -e 's/name: logging-fluentd/name: logging-forward-fluentd/' \
+        -e 's/ fluentd/ forward-fluentd/' \
+        -e '/image:/ a \
+          ports: \
+            - containerPort: 24284' | \
+    oc new-app -f -
+
+  oc label node --all logging-infra-forward-fluentd=true
+
+  # wait for fluentd to start
+  wait_for_pod_action start forward-fluentd
 }
 
 # $1 - kibana pod name
@@ -157,7 +243,7 @@ write_and_verify_logs() {
     rc=0
     # poll for logs to show up
     if myhost=logging-es myproject=test mymessage=$logmessage expected=$expected \
-             wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project test for $logmessage
         fi
@@ -166,7 +252,7 @@ write_and_verify_logs() {
     fi
 
     if myhost=logging-es${ops} myproject=.operations mymessage=$logmessage2 expected=$expected myfield=ident \
-             wait_until_cmd_or_err test_count_expected test_count_err 20 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project .operations for $logmessage2
         fi
@@ -178,14 +264,13 @@ write_and_verify_logs() {
 }
 
 restart_fluentd() {
-    # delete daemonset which also stops fluentd
-    oc delete daemonset logging-fluentd
+    oc label node --all logging-infra-fluentd-
     # wait for fluentd to stop
-    wait_for_pod_ACTION stop $fpod
+    wait_for_pod_action stop $fpod
     # create the daemonset which will also start fluentd
-    oc process logging-fluentd-template | oc create -f -
+    oc label node --all logging-infra-fluentd=true
     # wait for fluentd to start
-    wait_for_pod_ACTION start fluentd
+    wait_for_pod_action start fluentd
 }
 
 TEST_DIVIDER="------------------------------------------"
@@ -202,80 +287,31 @@ testport=5432
 
 fpod=`get_running_pod fluentd`
 
-# first, make sure copy is off
-cfg=`mktemp`
-oc get template logging-fluentd-template -o yaml | \
-    sed '/- name: ES_COPY/,/value:/ s/value: .*$/value: "false"/' | \
-    oc replace -f -
-restart_fluentd
-fpod=`get_running_pod fluentd`
-
-# save original template config
-origconfig=`mktemp`
-oc get template logging-fluentd-template -o yaml > $origconfig
-
-# run test to make sure fluentd is working normally - no copy
+# run test to make sure fluentd is working normally - no forwarding
 write_and_verify_logs 1 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
 
 cleanup() {
-    # may have already been cleaned up
-    if [ ! -f $origconfig ] ; then return 0 ; fi
     # put back original configuration
-    oc replace --force -f $origconfig
-    rm -f $origconfig
+    cleanup_forward
     restart_fluentd
 }
 trap "cleanup" INT TERM EXIT
 
-nocopy=`mktemp`
-# strip off the copy settings, if any
-sed '/_COPY/,/value/d' $origconfig > $nocopy
-# for every ES_ or OPS_ setting, create a copy called ES_COPY_ or OPS_COPY_
-envpatch=`mktemp`
-sed -n '/^        - env:/,/^          image:/ {
-/^          image:/d
-/^        - env:/d
-/name: K8S_HOST_URL/,/value/d
-s/ES_/ES_COPY_/
-s/OPS_/OPS_COPY_/
-p
-}' $nocopy > $envpatch
+create_forwarding_fluentd
+update_current_fluentd
 
-# add the scheme, and turn on verbose
-cat >> $envpatch <<EOF
-          - name: ES_COPY
-            value: "true"
-          - name: ES_COPY_SCHEME
-            value: https
-          - name: OPS_COPY_SCHEME
-            value: https
-          - name: VERBOSE
-            value: "true"
-EOF
-
-# add this back to the dc config
-cat $nocopy | \
-    sed '/^        - env:/r '$envpatch | \
-    oc replace -f -
-
-rm -f $envpatch $nocopy
-
-restart_fluentd
 fpod=`get_running_pod fluentd`
 
-write_and_verify_logs 2 || {
+write_and_verify_logs 1 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
 
 # put back original configuration
-oc replace --force -f $origconfig
-rm -f $origconfig
-
-restart_fluentd
+cleanup
 fpod=`get_running_pod fluentd`
 
 write_and_verify_logs 1 || {

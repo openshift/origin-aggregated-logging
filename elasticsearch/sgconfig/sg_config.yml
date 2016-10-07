@@ -1,0 +1,28 @@
+searchguard:
+  dynamic:
+    http:
+      xff:
+        enabled: true
+        remoteIpHeader: 'remoteAddress'
+        proxiesHeader: 'remoteAddress'
+        trustedProxies: '.*'
+        internalProxies: '.*'
+    authc:
+      authentication_domain_proxy:
+        enabled: true
+        order: 0
+        http_authenticator:
+          challenge: false
+          type: proxy
+          config:
+            user_header: 'x-proxy-remote-user'
+        authentication_backend:
+          type: noop
+      authentication_domain_basic_internal:
+        enabled: true
+        order: 1
+        http_authenticator:
+          type: clientcert
+          challenge: false
+        authentication_backend:
+          type: noop

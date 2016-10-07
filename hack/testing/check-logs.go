@@ -18,6 +18,9 @@ func main() {
 	index := args[2]
 	filePath := args[3]
 	querySize := args[4]
+	userName := args[5]
+	userToken := args[6]
+	testIP := args[7]
 	journal := os.Getenv("USE_JOURNAL")
 	verbose := false
 	if os.Getenv("VERBOSE") != "" {
@@ -29,7 +32,8 @@ func main() {
 	hostname = strings.Split(hostname, ".")[0]
 
 	// instead of receiving jsonStream as an Arg, we'll make the call ourselves...
-	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s -k --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET "https://` + es_svc + `/` + index + `.*/fluentd/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
+	proxyHeaders := `-H 'X-Proxy-Remote-User: ` + userName + `' -H 'Authorization: Bearer ` + userToken + `' -H 'X-Forwarded-For: ` + testIP + `'`
+	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca ` + proxyHeaders + ` -XGET "https://` + es_svc + `/` + index + `.*/fluentd/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
 	if verbose {
 		fmt.Printf("Executing command [%s]\n", queryCommand)
 	}
