@@ -52,6 +52,7 @@ objects:
             provider: openshift
             component: "fluentd"
         spec:
+          terminationGracePeriodSeconds: 300
           serviceAccountName: aggregated-logging-fluentd
           containers:
           - name: fluentd-elasticsearch
