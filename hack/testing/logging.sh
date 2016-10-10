@@ -340,24 +340,24 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TI
 function wait_for_app() {
   echo "[INFO] Waiting for app in namespace $1"
   echo "[INFO] Waiting for database pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running' "$(( 2 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running' "$(( 5 * TIME_MIN ))"
 
   echo "[INFO] Waiting for database service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'database' "$(( 2 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get -n $1 services" 'database' "$(( 5 * TIME_MIN ))"
   DB_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service database)
 
   echo "[INFO] Waiting for frontend pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods" 'frontend.+Running' "$(( 2 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get -n $1 pods" 'frontend.+Running' "$(( 5 * TIME_MIN ))"
 
   echo "[INFO] Waiting for frontend service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'frontend' "$(( 2 * TIME_MIN ))"
+  os::cmd::try_until_text "oc get -n $1 services" 'frontend' "$(( 5 * TIME_MIN ))"
   FRONTEND_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
 
   echo "[INFO] Waiting for database to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${DB_IP}:5434'" $((3*TIME_MIN))
+  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${DB_IP}:5434'" $((5*TIME_MIN))
 
   echo "[INFO] Waiting for app to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${FRONTEND_IP}:5432'" $((2*TIME_MIN))
+  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${FRONTEND_IP}:5432'" $((5*TIME_MIN))
 
   echo "[INFO] Testing app"
   os::cmd::try_until_text "curl -s -X POST http://${FRONTEND_IP}:5432/keys/foo -d value=1337" "Key created" "$((60*TIME_SEC))"
@@ -381,6 +381,84 @@ os::cmd::expect_success "oadm router --create --namespace default --service-acco
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibtest"
+os::cmd::expect_success "oc project logging"
+# also give kibtest access to cluster stats
+espod=`get_running_pod es`
+oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+   --key /etc/elasticsearch/secret/admin-key \
+   https://logging-es:9200/.searchguard.$espod/rolesmapping/0 | \
+    python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("kibtest"); print json.dumps(hsh)' | \
+    oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+       --key /etc/elasticsearch/secret/admin-key \
+       https://logging-es:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
+    python -mjson.tool
+if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    esopspod=`get_running_pod es-ops`
+    oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+       --key /etc/elasticsearch/secret/admin-key \
+       https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 | \
+        python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("kibtest"); print json.dumps(hsh)' | \
+        oc exec -i $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+           --key /etc/elasticsearch/secret/admin-key \
+           https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 -XPUT -d@- | \
+        python -mjson.tool
+fi
+
+# verify that kibtest user has access to cluster stats
+sleep 5
+oc login --username=kibtest --password=kibtest
+test_token="$(oc whoami -t)"
+test_name="$(oc whoami)"
+test_ip="127.0.0.1"
+oc login --username=system:admin
+oc project logging
+kibpod=`get_running_pod kibana`
+status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
+   --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+   -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
+   https://logging-es:9200/_cluster/health -o /dev/null -w '%{response_code}')
+os::cmd::expect_success "test $status = 200"
+if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    kibpod=`get_running_pod kibana-ops`
+    status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
+       --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+       -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
+       https://logging-es-ops:9200/_cluster/health -o /dev/null -w '%{response_code}')
+    os::cmd::expect_success "test $status = 200"
+fi
+
+# external elasticsearch access - reencrypt route - need certs, keys
+if [ -n "${ES_HOST:-}" -o -n "${ES_OPS_HOST:-}" ] ; then
+    destca=`mktemp`
+    # this is the same ca that issued the es server cert
+    oc get secret logging-elasticsearch \
+       --template='{{index .data "admin-ca"}}' | base64 -d > $destca
+    if [ -n "${ES_HOST:-}" ] ; then
+        openshift admin ca create-server-cert --key=$ARTIFACT_DIR/es.key \
+                  --cert=$ARTIFACT_DIR/es.crt --hostnames=$ES_HOST \
+                  --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
+                  --signer-key=$MASTER_CONFIG_DIR/ca.key \
+                  --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
+        oc create route reencrypt --service logging-es --port 9200 \
+                  --hostname $ES_HOST --dest-ca-cert $destca \
+                  --ca-cert $MASTER_CONFIG_DIR/ca.crt \
+                  --cert $ARTIFACT_DIR/es.crt \
+                  --key $ARTIFACT_DIR/es.key
+    fi
+    if [ -n "${ES_OPS_HOST:-}" ] ; then
+        openshift admin ca create-server-cert --key=$ARTIFACT_DIR/es-ops.key \
+                  --cert=$ARTIFACT_DIR/es-ops.crt --hostnames=$ES_OPS_HOST \
+                  --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
+                  --signer-key=$MASTER_CONFIG_DIR/ca.key \
+                  --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
+        oc create route reencrypt --service logging-es-ops --port 9200 \
+                  --hostname $ES_OPS_HOST --dest-ca-cert $destca \
+                  --ca-cert $MASTER_CONFIG_DIR/ca.crt \
+                  --cert $ARTIFACT_DIR/es-ops.crt \
+                  --key $ARTIFACT_DIR/es-ops.key
+    fi
+    rm -f $destca
+fi
 
 if [ "${SETUP_ONLY:-}" = "true" ] ; then
     exit 0
