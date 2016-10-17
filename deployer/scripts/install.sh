@@ -396,10 +396,13 @@ function generate_es() {
   for pvc in $(oc get persistentvolumeclaim --template='{{range .items}}{{.metadata.name}} {{end}}' 2>/dev/null); do
     pvcs["$pvc"]=1  # note, map all that exist, not just ones labeled as supporting
   done
+
+  es_dynamic=$([ "$es_pvc_dynamic" = 'true' ] && echo "dynamic-" || echo "")
+
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${es_pvc_prefix}$n"
     if [ "${pvcs[$pvc]}" != 1 -a "${es_pvc_size}" != "" ]; then # doesn't exist, create it
-      oc new-app logging-pvc-${es_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${es_pvc_size}"
+      oc new-app logging-pvc-${es_dynamic}template -p "NAME=$pvc,SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -413,10 +416,13 @@ function generate_es() {
   done
 
   if [ "${input_vars[enable-ops-cluster]}" == true ]; then
+
+    es_ops_dynamic=$([ "$es_ops_pvc_dynamic" = 'true' ] && echo "dynamic-" || echo "")
+
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${es_ops_pvc_prefix}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${es_ops_pvc_size}" != "" ]; then # doesn't exist, create it
-        oc new-app logging-pvc-${es_ops_pvc_dynamic:+"dynamic-"}template -p "NAME=$pvc,SIZE=${es_ops_pvc_size}"
+        oc new-app logging-pvc-${es_ops_dynamic}template -p "NAME=$pvc,SIZE=${es_ops_pvc_size}"
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
