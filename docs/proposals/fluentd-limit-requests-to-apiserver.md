@@ -9,6 +9,8 @@ The pod metadata is currently sourced by watching the Openshift API server for P
 * Limits the number of cluster nodes because of the cap on the number of open connections
 
 This proposal addresses both the short and long term solutions to resolve the connection issues being experienced using the v3.4 EFK stack.
+### Considerations
+1. OpenShift Logging is not the only consumer of OpenShift log messages.  There are a significant number of OpenShift consumers who desire to use their existing logging infrastructure: Splunk, Elasticsearc.  We need to normalize log entries with metadata irrespective of the final destination.  This may dictate the deployment topology of a long term solution
 
 ##Proposal - Short Term (3.4)
 1. Leave the value as-is and note that it must be adjusted to account for # of nodes plus some headroom (swag @ 10%?).
