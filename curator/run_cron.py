@@ -46,9 +46,9 @@ if not curlvl in logging._levelNames:
 #allowed_units = {'hours': 'hours', 'days': 'days', 'weeks': 'weeks', 'months': 'months'}
 allowed_units = {'days': 'days', 'weeks': 'weeks', 'months': 'months'}
 
-# allowed operations, currently we'll just allow delete
-allowed_operations = {'delete': 'delete'}
-curator_settings = {'delete': {}}
+# allowed operations, currently we'll just allow delete, close, and optimize
+allowed_operations = {'delete': 'delete', 'close': 'close', 'optimize': 'optimize'}
+curator_settings = {'delete': {}, 'close': {}, 'optimize': {}}
 
 filename = os.getenv('CURATOR_CONF_LOCATION', '/etc/curator/settings/config.yaml')
 
@@ -79,52 +79,56 @@ if tzstr:
 
 connection_info = '--host ' + os.getenv('ES_HOST') + ' --port ' + os.getenv('ES_PORT') + ' --use_ssl --certificate ' + os.getenv('ES_CA') + ' --client-cert ' + os.getenv('ES_CLIENT_CERT') + ' --client-key ' + os.getenv('ES_CLIENT_KEY')
 
-defaults = {'delete': {'days': int(os.getenv('CURATOR_DEFAULT_DAYS', 30))}}
+defaults = {'delete': {'days': int(os.getenv('CURATOR_DEFAULT_DELETE_DAYS', 30))}, 'optimize': {'days': int(os.getenv('CURATOR_DEFAULT_OPTIMIZE_DAYS', 2))}, 'close': {'days': int(os.getenv('CURATOR_DEFAULT_CLOSE_DAYS', 15))}}
 deldefaults = defaults['delete']
+optdefaults = defaults['optimize']
+closedefaults = defaults['close']
 
-default_time_unit = decoded.get('.defaults', defaults).get('delete', deldefaults).keys()[0]
-if not default_time_unit in allowed_units:
-    logger.error('an unknown time unit of ' + default_time_unit + ' was provided... using days')
-    default_time_unit = 'days'
+for operation in allowed_operations:
+    default_time_unit = decoded.get('.defaults', defaults).get(operation, defaults[operation]).keys()[0]
+    if not default_time_unit in allowed_units:
+        logger.error('an unknown time unit of ' + default_time_unit + ' was provided... using days')
+        default_time_unit = 'days'
 
-default_value = int(decoded.get('.defaults', defaults).get('delete', deldefaults)[default_time_unit])
-if default_time_unit.lower() == "weeks":
-    # because our timestring is %Y.%m.%d and does not contain weeks,
-    # curator doesn't like asking for trimming in weeks, so convert
-    # weeks to days
-    default_time_unit = "days"
-    default_value = default_value * 7
+    default_value = int(decoded.get('.defaults', defaults).get(operation, defaults[operation])[default_time_unit])
+    if default_time_unit.lower() == "weeks":
+        # because our timestring is %Y.%m.%d and does not contain weeks,
+        # curator doesn't like asking for trimming in weeks, so convert
+        # weeks to days
+        default_time_unit = "days"
+        default_value = default_value * 7
 
-base_default_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' delete indices --timestring %Y.%m.%d'
-default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana*'
+    base_default_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' ' + operation + ' indices --timestring %Y.%m.%d'
+    default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana*'
 
-for project in decoded:
-    if project == '.defaults':
-        continue
-    for operation in decoded[project]:
-        if operation in allowed_operations:
-            for unit in decoded[project][operation]:
-                value = int(decoded[project][operation][unit])
+    for project in decoded:
+        if project == '.defaults':
+            continue
+        for operation in decoded[project]:
+            if operation in allowed_operations:
+                for unit in decoded[project][operation]:
+                    value = int(decoded[project][operation][unit])
 
-                if unit in allowed_units:
-                    default_command = default_command + " --exclude " + shellquote(re.escape(project + '.') + '*')
+                    if unit in allowed_units:
+                        default_command = default_command + " --exclude " + shellquote(re.escape(project + '.') + '*')
 
-                    if unit.lower() == "weeks":
-                        unit = "days"
-                        value = value * 7
+                        if unit.lower() == "weeks":
+                            unit = "days"
+                            value = value * 7
 
-                    curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(project)
-                else:
-                    if unit.lower() == "hours":
-                        logger.error('time unit "hours" is currently not supported due to our current index level granularity is in days')
+                        curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(project)
                     else:
-                        logger.error('an unknown time unit of ' + unit + ' was provided... Record skipped')
-        else:
-            logger.error('an unsupported or unknown operation ' + operation + ' was provided... Record skipped')
+                        if unit.lower() == "hours":
+                            logger.error('time unit "hours" is currently not supported due to our current index level granularity is in days')
+                        else:
+                            logger.error('an unknown time unit of ' + unit + ' was provided... Record skipped')
+            else:
+                logger.error('an unsupported or unknown operation ' + operation + ' was provided... Record skipped')
 
-my_cron  = CronTab()
-default_job = my_cron.new(command=default_command, comment='Default generated job for curator')
-default_job.every().day()
+    my_cron  = CronTab()
+    default_comment = 'Default generated ' + operation + ' job for curator'
+    default_job = my_cron.new(command=default_command, comment=default_comment)
+    default_job.every().day()
 
 for operation in curator_settings:
     for unit in curator_settings[operation]:

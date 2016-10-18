@@ -84,8 +84,12 @@ objects:
               value: ${ES_CLIENT_KEY}
             - name: "ES_CA"
               value: ${ES_CA}
-            - name: "CURATOR_DEFAULT_DAYS"
-              value: ${CURATOR_DEFAULT_DAYS}
+            - name: "CURATOR_DEFAULT_DELETE_DAYS"
+              value: ${CURATOR_DEFAULT_DELETE_DAYS}
+            - name: "CURATOR_DEFAULT_CLOSE_DAYS"
+              value: ${CURATOR_DEFAULT_CLOSE_DAYS}
+            - name: "CURATOR_DEFAULT_OPTIMIZE_DAYS"
+              value: ${CURATOR_DEFAULT_OPTIMIZE_DAYS}
             - name: "CURATOR_RUN_HOUR"
               value: ${CURATOR_RUN_HOUR}
             - name: "CURATOR_RUN_MINUTE"
@@ -134,8 +138,16 @@ parameters:
   value: "/etc/curator/keys/ca"
 -
   description: "(Deprecated) The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
-  name: CURATOR_DEFAULT_DAYS
+  name: CURATOR_DEFAULT_DELETE_DAYS
   value: "30"
+-
+  description: "(Deprecated) The default number of days that logs will be left open for a project if an index management configuration for it is not provided"
+  name: CURATOR_DEFAULT_CLOSE_DAYS
+  value: "15"
+-
+  description: "(Deprecated) The default number of days that logs will be wait before being optimized for a project if an index management configuration for it is not provided"
+  name: CURATOR_DEFAULT_OPTIMIZE_DAYS
+  value: "2"
 -
   description: "(Deprecated) The hour of the day (24 hour format) at which to run the curator jobs."
   name: CURATOR_RUN_HOUR
