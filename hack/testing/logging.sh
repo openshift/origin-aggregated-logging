@@ -368,6 +368,9 @@ sleep 5
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader \
                       system:serviceaccount:logging:aggregated-logging-fluentd"
 sleep 5
+os::cmd::expect_success "oadm policy add-cluster-role-to-user rolebinding-reader \
+                      system:serviceaccount:logging:aggregated-logging-elasticsearch"
+sleep 5
 if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
     os::cmd::expect_success "oc new-app \
                           logging-deployer-template \
