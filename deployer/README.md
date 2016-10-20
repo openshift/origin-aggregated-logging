@@ -113,6 +113,13 @@ all pods (note, change `:logging:` below to the project of your choice):
     $ oadm policy add-cluster-role-to-user cluster-reader \
            system:serviceaccount:logging:aggregated-logging-fluentd
 
+In order for Elasticsearch to correctly check the role bindings for users
+it will need to be added to an additional role (note, change `:logging:` below
+to the project of your choice):
+
+    $ oadm policy add-cluster-role-to-user rolebinding-reader \
+           system:serviceaccount:logging:aggregated-logging-elasticsearch
+
 The remaining steps do not require cluster-admin privileges to run.
 
 ## Specify Deployer Parameters
@@ -840,6 +847,11 @@ keep in mind also that the default time interval for retrieving logs is
 15 minutes and you will need to adjust it to find logs older than that.
 5. Unfortunately there is no way to stream logs as they are created at
 this time.
+6. By default, only a `cluster-admin` user can view logs contained within
+the `.operations.*` index. To allow a `cluster-reader` user or a `cluster-admin`
+user to be able to view these logs, run `$ oc edit configmap/logging-elasticsearch`,
+change the value of `openshift.operations.allow_cluster_reader` to `true` and
+restart your ES cluster.
 
 # Adjusting ElasticSearch After Deployment
 
