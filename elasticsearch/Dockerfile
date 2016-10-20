@@ -9,7 +9,7 @@ USER 0
 ENV HOME=/opt/app-root/src \
   JAVA_VER=1.8.0 \
   ES_VER=2.3.5 \
-  SG_VER=2.3.5.6 \
+  SG_VER=2.3.5.7 \
   SG_SSL_VER=2.3.5.15 \
   ES_CLOUD_K8S_VER=2.3.5 \
   OSE_ES_VER=2.3.5.7 \
