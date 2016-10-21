@@ -105,7 +105,7 @@ wait_for_pod_ACTION() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
@@ -139,9 +139,7 @@ test_count_err() {
 }
 
 write_and_verify_logs() {
-    # expected number of matches
-    expected=$1
-
+    expected=1
     # write a log message to the test app
     logmessage=`uuidgen`
     curl --connect-timeout 1 -s http://$testip:$testport/$logmessage > /dev/null 2>&1 || echo will generate a 404
@@ -161,29 +159,92 @@ write_and_verify_logs() {
     rc=0
     # poll for logs to show up
     if myhost=logging-es myproject=${PROJ_PREFIX}test mymessage=$logmessage expected=$expected \
-             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 300 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project test for $logmessage
         fi
     else
-        echo failed - test-es-copy.sh: not found $expected records project test for $logmessage
+        echo failed - test-common-data-model.sh: not found $expected records project test for $logmessage
         rc=1
     fi
 
+    if [ $rc = "0" ] ; then
+        # get the record - verify result matches expected data
+        if curl_es_from_kibana $kpod logging-es ${PROJ_PREFIX}test _search message $logmessage | \
+                python test-common-data-model.py $1 ${2:-} ; then
+            : # good
+        else
+            echo Error: result data does not match expected
+            rc=1
+        fi
+    fi
+
     if myhost=logging-es${ops} myproject=${INDEX_PREFIX}.operations mymessage=$logmessage2 expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
-             wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
+             wait_until_cmd_or_err test_count_expected test_count_err 300 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project .operations for $logmessage2
         fi
     else
-        echo failed - test-es-copy.sh: not found $expected records project .operations for $logmessage2
+        echo failed - test-common-data-model.sh: not found $expected records project .operations for $logmessage
         rc=1
     fi
 
-    if [ $rc -ne 0 ]; then
-        echo test-es-copy.sh: returning $rc ...
+    if [ $rc = "0" ] ; then
+        # get the record - verify result matches expected data
+        if curl_es_from_kibana $kpod logging-es${ops} ${INDEX_PREFIX}.operations _search message $logmessage2 | \
+                python test-common-data-model.py $1 ${2:-} ; then
+            : # good
+        else
+            echo Error: result data does not match expected
+            rc=1
+        fi
     fi
+
+    if [ $rc != "0" ] ; then
+        echo test-common-data-model.sh: returning $rc ...
+    fi
+
     return $rc
+}
+
+remove_test_volume() {
+    oc get template logging-fluentd-template -o json | \
+        python -c 'import json, sys; obj = json.loads(sys.stdin.read()); vm = obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]; obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = [xx for xx in vm if xx["name"] != "cdmtest"]; vs = obj["objects"][0]["spec"]["template"]["spec"]["volumes"]; obj["objects"][0]["spec"]["template"]["spec"]["volumes"] = [xx for xx in vs if xx["name"] != "cdmtest"]; print json.dumps(obj, indent=2)' | \
+        oc replace -f -
+}
+
+# takes json input, removes the "cdmtest" volume and volumeMount, returns
+# json output
+# oc get ... -o json | add_test_volume | oc replace -f -
+# $1 is the local file to use for the volume hostPath
+add_test_volume() {
+    oc get template logging-fluentd-template -o json | \
+        python -c 'import json, sys; obj = json.loads(sys.stdin.read()); obj["objects"][0]["spec"]["template"]["spec"]["containers"][0]["volumeMounts"].append({"name": "cdmtest", "mountPath": "/etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf", "readOnly": True}); obj["objects"][0]["spec"]["template"]["spec"]["volumes"].append({"name": "cdmtest", "hostPath": {"path": "'$1'"}}); print json.dumps(obj, indent=2)' | \
+        oc replace -f -
+}
+
+remove_cdm_env() {
+    oc get template logging-fluentd-template -o yaml | \
+        sed '/- name: CDM_/,/value:/d' | \
+        oc replace -f -
+}
+
+add_cdm_env_var_val() {
+    junk=`mktemp`
+    cat > $junk <<EOF
+          - name: "$1"
+            value: $2
+EOF
+    oc get template logging-fluentd-template -o yaml | \
+        sed "/env:/r $junk" | \
+        oc replace -f -
+    rm -f $junk
+}
+
+del_cdm_env_var() {
+    oc get template logging-fluentd-template -o yaml | \
+        sed "/- name: ${1}$/,/value:/d" | \
+        oc replace -f -
 }
 
 restart_fluentd() {
@@ -203,91 +264,98 @@ TEST_DIVIDER="------------------------------------------"
 testip=$(oc get -n test --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
 testport=5432
 
-# configure fluentd to just use the same ES instance for the copy
-# cause messages to be written to a container - verify that ES contains
-# two copies
-# cause messages to be written to the system log - verify that OPS contains
-# two copies
+# configure fluentd with a test filter that adds undefined and empty fields/hashes
+# verify that undefined fields are stored in a top level field with a hash value
+# the hash holds all of the other top level fields that are undefined
+# also verify that the output contains no empty fields, including empty hashes
 
 fpod=`get_running_pod fluentd`
 
-# first, make sure copy is off
+# first, make sure the cdm test filter is not being used
+remove_test_volume
+# add the test volume
 cfg=`mktemp`
-oc get template logging-fluentd-template -o yaml | \
-    sed '/- name: ES_COPY/,/value:/ s/value: .*$/value: "false"/' | \
-    oc replace -f -
-restart_fluentd
-fpod=`get_running_pod fluentd`
-
-# save original template config
-origconfig=`mktemp`
-oc get template logging-fluentd-template -o yaml > $origconfig
-
-# run test to make sure fluentd is working normally - no copy
-write_and_verify_logs 1 || {
-    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
-    exit 1
-}
+cat > $cfg <<EOF
+<filter **>
+  @type record_transformer
+  <record>
+    undefined1 undefined1
+    empty1 ""
+    undefined2 {"undefined2":"undefined2","":""}
+    undefined3 {"":""}
+    undefined4 undefined4
+    undefined5 undefined5
+  </record>
+</filter>
+EOF
+add_test_volume $cfg
 
 cleanup() {
-    # may have already been cleaned up
-    if [ ! -f $origconfig ] ; then return 0 ; fi
-    # put back original configuration
-    oc replace --force -f $origconfig
-    rm -f $origconfig
+    remove_test_volume
+    remove_cdm_env
+    rm -f $cfg
     restart_fluentd
 }
 trap "cleanup" INT TERM EXIT
 
-nocopy=`mktemp`
-# strip off the copy settings, if any
-sed '/_COPY/,/value/d' $origconfig > $nocopy
-# for every ES_ or OPS_ setting, create a copy called ES_COPY_ or OPS_COPY_
-envpatch=`mktemp`
-sed -n '/^        - env:/,/^          image:/ {
-/^          image:/d
-/^        - env:/d
-/name: K8S_HOST_URL/,/value/d
-s/ES_/ES_COPY_/
-s/OPS_/OPS_COPY_/
-p
-}' $nocopy > $envpatch
-
-# add the scheme, and turn on verbose
-cat >> $envpatch <<EOF
-          - name: ES_COPY
-            value: "true"
-          - name: ES_COPY_SCHEME
-            value: https
-          - name: OPS_COPY_SCHEME
-            value: https
-          - name: VERBOSE
-            value: "true"
-EOF
-
-# add this back to the dc config
-cat $nocopy | \
-    sed '/^        - env:/r '$envpatch | \
-    oc replace -f -
-
-rm -f $envpatch $nocopy
-
 restart_fluentd
 fpod=`get_running_pod fluentd`
 
-write_and_verify_logs 2 || {
+# TEST 1
+# default - undefined fields are passed through untouched
+
+# run test to make sure fluentd is working normally
+write_and_verify_logs test1 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
 
-# put back original configuration
-oc replace --force -f $origconfig
-rm -f $origconfig
-
+# TEST 2
+# cdm - undefined fields are stored in 'undefined' field
+add_cdm_env_var_val CDM_USE_UNDEFINED '"true"'
 restart_fluentd
 fpod=`get_running_pod fluentd`
 
-write_and_verify_logs 1 || {
+# run test to make sure fluentd is working normally
+write_and_verify_logs test2 || {
+    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
+    exit 1
+}
+
+# TEST 3
+# user specifies extra fields to keep
+add_cdm_env_var_val CDM_EXTRA_KEEP_FIELDS undefined4,undefined5
+restart_fluentd
+fpod=`get_running_pod fluentd`
+
+# run test to make sure fluentd is working normally
+write_and_verify_logs test3 || {
+    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
+    exit 1
+}
+
+# TEST 4
+# user specifies alternate undefined name to use
+add_cdm_env_var_val CDM_UNDEFINED_NAME myname
+restart_fluentd
+fpod=`get_running_pod fluentd`
+
+# run test to make sure fluentd is working normally
+write_and_verify_logs test4 || {
+    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
+    exit 1
+}
+
+# TEST 5
+# preserve specified empty field as empty
+del_cdm_env_var CDM_EXTRA_KEEP_FIELDS
+add_cdm_env_var_val CDM_EXTRA_KEEP_FIELDS undefined4,undefined5,empty1,undefined3
+add_cdm_env_var_val CDM_KEEP_EMPTY_FIELDS undefined4,undefined5,empty1,undefined3
+restart_fluentd
+fpod=`get_running_pod fluentd`
+
+# run test to make sure fluentd is working normally
+write_and_verify_logs test5 allow_empty || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }

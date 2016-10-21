@@ -28,6 +28,8 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+PROJ_PREFIX=project.
+
 oc login --username=kibtest --password=kibtest
 test_token="$(oc whoami -t)"
 test_name="$(oc whoami)"
@@ -242,24 +244,29 @@ write_and_verify_logs() {
 
     rc=0
     # poll for logs to show up
-    if myhost=logging-es myproject=test mymessage=$logmessage expected=$expected \
+    if myhost=logging-es myproject=${PROJ_PREFIX}test mymessage=$logmessage expected=$expected \
              wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project test for $logmessage
         fi
     else
+        echo failed - test-fluentd-forward.sh: not found $expected records project test for $logmessage
         rc=1
     fi
 
-    if myhost=logging-es${ops} myproject=.operations mymessage=$logmessage2 expected=$expected myfield=ident \
+    if myhost=logging-es${ops} myproject=.operations mymessage=$logmessage2 expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
              wait_until_cmd_or_err test_count_expected test_count_err 60 ; then
         if [ -n "$VERBOSE" ] ; then
             echo good - found $expected records project .operations for $logmessage2
         fi
     else
+        echo failed - test-fluentd-forward.sh: not found $expected records project .operations for $logmessage2
         rc=1
     fi
 
+    if [ $rc -ne 0 ]; then
+        echo test-fluentd-forward.sh: returning $rc ...
+    fi
     return $rc
 }
 

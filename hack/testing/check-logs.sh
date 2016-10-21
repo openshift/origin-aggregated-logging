@@ -37,6 +37,8 @@ test_ip="127.0.0.1"
 oc login --username=system:admin
 
 TEST_DIVIDER="------------------------------------------"
+# in case we need an index prefix
+INDEX_PREFIX=
 
 # we need logic for ES_OPS
 KIBANA_POD=`oc get pods | grep 'logging-kibana-[0-9]' | grep -v -- "-build" | grep -v -- "-deploy" | cut -d" " -f 1`
@@ -51,7 +53,7 @@ PODS=(`oc get pods | grep 'logging-es-' | grep 'Running' | cut -d" " -f 1`)
 for pod in "${PODS[@]}"; do
   INDEX_COUNT=0
   for i in $(seq 1 $TIMES); do
-    INDICES=(`oc logs $pod | grep 'update_mapping \[fluentd\]' | cut -d"[" -f 6 | cut -d"]" -f 1 | rev | cut -d"." -f 4- | rev | sort | uniq`)
+    INDICES=(`oc logs $pod | grep 'update_mapping \[com.redhat.viaq.common\]' | cut -d"[" -f 6 | cut -d"]" -f 1 | rev | cut -d"." -f 4- | rev | sort | uniq`)
     INDEX_COUNT=${#INDICES[@]}
     if [[ $INDEX_COUNT -eq 0 ]]; then
       sleep 1
@@ -69,7 +71,7 @@ for pod in "${PODS[@]}"; do
 
     for index in "${INDICES[@]}"; do
       # if index is ".operations.*" then we check syslog
-      if [[ "$index" == ".operations" ]]; then
+      if [[ "$index" == "${INDEX_PREFIX}.operations" ]]; then
         # search /var/log/messages*
         FILE_PATH="/var/log/messages*"
 

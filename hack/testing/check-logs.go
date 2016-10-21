@@ -33,7 +33,7 @@ func main() {
 
 	// instead of receiving jsonStream as an Arg, we'll make the call ourselves...
 	proxyHeaders := `-H 'X-Proxy-Remote-User: ` + userName + `' -H 'Authorization: Bearer ` + userToken + `' -H 'X-Forwarded-For: ` + testIP + `'`
-	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca ` + proxyHeaders + ` -XGET "https://` + es_svc + `/` + index + `.*/fluentd/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
+	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca ` + proxyHeaders + ` -XGET "https://` + es_svc + `/` + index + `.*/com.redhat.viaq.common/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
 	if verbose {
 		fmt.Printf("Executing command [%s]\n", queryCommand)
 	}
