@@ -248,7 +248,7 @@ os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
 os::util::environment::use_sudo
 reset_tmp_dir
 
-os::log::start_system_logger
+os::log::system::start
 
 export KUBELET_HOST=$(hostname)
 
