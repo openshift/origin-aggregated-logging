@@ -1178,11 +1178,14 @@ the first created. You can check if the route in question is defined in multiple
 
 ## Splitting your Fluentd for high scale capacity (Advanced)
 
-In scenarios where the number of Fluentd nodes starts to exceed 100, the watching
-connection to Kubernetes that is used within Fluentd to collect pod metadata can
-cause the cluster to exceed the *maxRequestsInFlight* configuration setting. This
-can cause symptoms such as Fluentd being unable to connect to the Kubernetes service
-to collect metadata and preventing it from being able to process and ship logs.
+In scenarios where the number of nodes running Fluentd starts to exceed 100, the
+watching connection to Kubernetes that is used within Fluentd to collect pod
+metadata can cause the cluster to exceed the default value for the *maxRequestsInFlight*
+configuration setting of `400`. Fluentd uses two watches, one for pod
+changes and one for namespace changes. This means running Fluentd on around 200
+nodes, the cluster would start to experience symptoms such as Fluentd being unable
+to connect to the Kubernetes service to collect metadata and preventing it from
+being able to process and ship logs.
 
 The alternative to setting *maxRequestsInFlight* to be unlimited, potentially creating
 a larger load on the cluster, is to split up the Fluentd deployments into collector
@@ -1199,10 +1202,21 @@ can all remain running):
 
 Where "logging-infra-fluentd" is the nodeSelector configured for the Fluentd daemonset.
 
-Next, create the configmap that will be used for the Enriching Fluentd.
+Next, create the key/cert pair that will be used for each Fluentd to communicate
+with one another:
+
+    $ openssl req -new -newkey rsa:2048 -days 712 -x509 -keyout server.key -out server.crt -subj "/CN=logging-enrichment-fluentd/OU=OpenShift/O=Logging" -passout pass:kspass
+
+Once the cert and key are created, the logging-fluentd secret needs to add these
+generated files:
+
+    $ oc create secret generic logging-fluentd --dry-run=true --from-file server.crt --from-file server.key -o yaml | oc apply -f -
+
+After that, create the configmap that will be used for the Enriching Fluentd.
 
 First, generate a random key that will be used for communication between the two
-types of Fluentd pods:
+types of Fluentd pods, this will be the value for the `shared_key` configuration
+entry:
 
     $ tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 128
 
@@ -1216,15 +1230,21 @@ Once we have the random secret key, save the following to your local directory a
       @type secure_forward
       @label @INGRESS
 
-      self_hostname ${HOSTNAME}-enrichment
+      self_hostname logging-enrichment-fluentd
       bind 0.0.0.0
       port 24284
 
-      shared_key <our generated string>
+      shared_key <our generated string from above>
 
       secure yes
-      ca_cert_path        /etc/fluentd/keys/ca
-      ca_private_key_path /etc/fluentd/keys/key
+      enable_strict_verification yes
+      ca_cert_path        /etc/fluent/keys/server.crt
+      ca_private_key_path /etc/fluent/keys/server.key
+      ca_private_key_passphrase kspass
+
+      <client>
+        host logging-enrichment-fluentd
+      </client>
     </source>
 
     <label @INGRESS>
@@ -1255,7 +1275,7 @@ file created in the previous step as the source for the configmap:
 The next step will be to create the Deployment configuration that will be used to
 scale up the enrichment fluentd pods. Save the following file to your local file
 system as `enrichment-fluentd-dc.yaml`. Be sure to update the value of "K8S_HOST_URL"
-and "OPS_HOST" if necessary:
+and "OPS_HOST" as necessary:
 
     apiVersion: v1
     kind: "DeploymentConfig"
@@ -1263,12 +1283,12 @@ and "OPS_HOST" if necessary:
       name: "logging-enrichment-fluentd"
       labels:
         provider: openshift
-        component: "fluentd"
+        component: "enrichment-fluentd"
     spec:
       replicas: 0
       selector:
         provider: openshift
-        component: "fluentd"
+        component: "enrichment-fluentd"
       triggers: {}
       strategy:
         resources: {}
@@ -1282,13 +1302,13 @@ and "OPS_HOST" if necessary:
           name: enrichment-fluentd-elasticsearch
           labels:
             provider: openshift
-            component: "fluentd"
+            component: "enrichment-fluentd"
         spec:
           terminationGracePeriodSeconds: 300
           serviceAccountName: aggregated-logging-fluentd
           containers:
           - name: enrichment-fluentd-elasticsearch
-            image: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
+            image: registry.access.redhat.com/openshift3/ose-logging-fluentd:latest
             imagePullPolicy: Always
             securityContext:
               privileged: true
@@ -1296,86 +1316,65 @@ and "OPS_HOST" if necessary:
               limits:
                 cpu: 100m
             ports:
-              - containerPort: 1095
-                hostPort: 1095
-                protocol: TCP
-                purpose: "to prevent more than one per node"
-                volumeMounts:
-                - name: runlogjournal
-                  mountPath: /run/log/journal
-                - name: varlog
-                  mountPath: /var/log
-                - name: varlibdockercontainers
-                  mountPath: /var/lib/docker/containers
-                  readOnly: true
-                - name: config
-                  mountPath: /etc/fluent/configs.d/user
-                  readOnly: true
-                - name: certs
-                  mountPath: /etc/fluent/keys
-                  readOnly: true
-                - name: dockerhostname
-                  mountPath: /etc/docker-hostname
-                  readOnly: true
-                - name: localtime
-                  mountPath: /etc/localtime
-                  readOnly: true
-                - name: dockercfg
-                  mountPath: /etc/sysconfig/docker
-                  readOnly: true
-                env:
-                - name: "K8S_HOST_URL"
-                  value: https://kubernetes.default.svc.cluster.local
-                - name: "ES_HOST"
-                  value: logging-es
-                - name: "ES_PORT"
-                  value: 9200
-                - name: "ES_CLIENT_CERT"
-                  value: /etc/fluent/keys/cert
-                - name: "ES_CLIENT_KEY"
-                  value: /etc/fluent/keys/key
-                - name: "ES_CA"
-                  value: /etc/fluent/keys/ca
-                - name: "OPS_HOST"
-                  value: <logging-es | logging-es-ops>
-                - name: "OPS_PORT"
-                  value: 9200
-                - name: "OPS_CLIENT_CERT"
-                  value: /etc/fluent/keys/cert
-                - name: "OPS_CLIENT_KEY"
-                  value: /etc/fluent/keys/key
-                - name: "OPS_CA"
-                  value: /etc/fluent/keys/ca
-              volumes:
-              - name: runlogjournal
-                hostPath:
-                  path: /run/log/journal
-              - name: varlog
-                hostPath:
-                  path: /var/log
-              - name: varlibdockercontainers
-                hostPath:
-                  path: /var/lib/docker/containers
-              - name: config
-                configMap:
-                  name: logging-fluentd-enrichment
-              - name: certs
-                secret:
-                  secretName: logging-fluentd
-              - name: dockerhostname
-                hostPath:
-                  path: /etc/hostname
-              - name: localtime
-                hostPath:
-                  path: /etc/localtime
-              - name: dockercfg
-                hostPath:
-                  path: /etc/sysconfig/docker
+            - containerPort: 1095
+              hostPort: 1095
+              protocol: TCP
+              purpose: "to prevent more than one per node"
+            volumeMounts:
+            - name: config
+              mountPath: /etc/fluent/configs.d/user
+              readOnly: true
+            - name: certs
+              mountPath: /etc/fluent/keys
+              readOnly: true
+            - name: dockerhostname
+              mountPath: /etc/docker-hostname
+              readOnly: true
+            - name: localtime
+              mountPath: /etc/localtime
+              readOnly: true
+            env:
+            - name: "K8S_HOST_URL"
+              value: https://kubernetes.default.svc.cluster.local
+            - name: "ES_HOST"
+              value: logging-es
+            - name: "ES_PORT"
+              value: "9200"
+            - name: "ES_CLIENT_CERT"
+              value: /etc/fluent/keys/cert
+            - name: "ES_CLIENT_KEY"
+              value: /etc/fluent/keys/key
+            - name: "ES_CA"
+              value: /etc/fluent/keys/ca
+            - name: "OPS_HOST"
+              value: logging-es
+            - name: "OPS_PORT"
+              value: "9200"
+            - name: "OPS_CLIENT_CERT"
+              value: /etc/fluent/keys/cert
+            - name: "OPS_CLIENT_KEY"
+              value: /etc/fluent/keys/key
+            - name: "OPS_CA"
+              value: /etc/fluent/keys/ca
+          volumes:
+          - name: config
+            configMap:
+              name: logging-fluentd-enrichment
+          - name: certs
+            secret:
+              secretName: logging-fluentd
+          - name: dockerhostname
+            hostPath:
+              path: /etc/hostname
+          - name: localtime
+            hostPath:
+              path: /etc/localtime
 
 Once `enrichment-fluentd-dc.yaml` has been created, run the following to create
-the new DC:
+the new DC and deploy it:
 
     $ oc create -f enrichment-fluentd-dc.yaml
+    $ oc deploy dc/logging-enrichment-fluentd --latest
 
 Now that the enrichment Fluentd has been set up, the original Fluentd will need to
 be updated.
@@ -1406,13 +1405,16 @@ Update it so the fluent.conf section looks like the following:
         @type secure_forward
 
         self_hostname ${HOSTNAME}
-        shared_key <our generated string>
+        shared_key <our generated string from above>
 
         secure yes
-        ca_cert_path        /etc/fluentd/keys/ca
+        enable_strict_verification yes
+        ca_cert_path        /etc/fluent/keys/server.crt
+        ca_private_key_path /etc/fluent/keys/server.key
+        ca_private_key_passphrase kspass
 
         <server>
-          host logging-enrichment-fluentd.logging.svc.cluster.local
+          host logging-enrichment-fluentd
           port 24284
         </server>
       </match>
