@@ -244,15 +244,14 @@ ensure_iptables_or_die
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
-os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
 os::util::environment::use_sudo
-reset_tmp_dir
+os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
 
 os::log::system::start
 
 export KUBELET_HOST=$(hostname)
 
-configure_os_server
+os::start::configure_server
 if [ -n "${KIBANA_HOST:-}" ] ; then
     # add loggingPublicURL so the OpenShift UI Console will include a link for Kibana
     # this part stolen from util.sh configure_os_server()
@@ -261,7 +260,7 @@ if [ -n "${KIBANA_HOST:-}" ] ; then
               --patch="{\"assetConfig\": {\"loggingPublicURL\": \"https://${KIBANA_HOST}\"}}" > \
               ${SERVER_CONFIG_DIR}/master/master-config.yaml
 fi
-start_os_server
+os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
@@ -463,10 +462,10 @@ function wait_for_app() {
   FRONTEND_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
 
   echo "[INFO] Waiting for database to start..."
-  wait_for_url_timed "http://${DB_IP}:5434" "[INFO] Database says: " $((3*TIME_MIN))
+  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${DB_IP}:5434'" $((3*TIME_MIN))
 
   echo "[INFO] Waiting for app to start..."
-  wait_for_url_timed "http://${FRONTEND_IP}:5432" "[INFO] Frontend says: " $((2*TIME_MIN))
+  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${FRONTEND_IP}:5432'" $((2*TIME_MIN))
 
   echo "[INFO] Testing app"
   wait_for_command '[[ "$(curl -s -X POST http://${FRONTEND_IP}:5432/keys/foo -d value=1337)" = "Key created" ]]'
