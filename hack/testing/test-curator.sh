@@ -128,7 +128,7 @@ skip_list=("^\." "^default")
 
 create_indices() {
     myops=${1:-""}
-    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
+    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtyonedaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
         this_proj="project.${proj}"
@@ -150,7 +150,7 @@ verify_indices() {
     oc exec $1 -- curator --host logging-es${myops} --use_ssl --certificate /etc/curator/keys/ca \
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices > $curout 2>&1
-    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtydaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
+    set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtyonedaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     rc=0
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
@@ -264,7 +264,7 @@ today=`date -u +"$tf"`
 yesterday=`date -u +"$tf" --date=yesterday`
 lastweek=`date -u +"$tf" --date="last week"`
 fourweeksago=`date -u +"$tf" --date="4 weeks ago"`
-thirtydaysago=`date -u +"$tf" --date="30 days ago"`
+thirtyonedaysago=`date -u +"$tf" --date="31 days ago"`
 # projects:
 # project-dev-YYYY.mm.dd delete 24 hours
 # project-qe-YYYY.mm.dd delete 7 days
@@ -377,7 +377,7 @@ basictest() {
     cat > $curtest <<EOF
 .defaults:
   delete:
-    days: 30
+    days: 31
   runhour: $runhour
   runminute: $runminute
   timezone: $tz

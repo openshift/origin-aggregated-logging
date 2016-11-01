@@ -618,7 +618,7 @@ For example, using:
 
     .defaults:
       delete:
-        days: 30
+        days: 31
       runhour: 0
       runminute: 0
       timezone: America/New_York
@@ -626,7 +626,7 @@ For example, using:
 
 Every day, curator runs to delete indices in the myapp-dev project older than 1
 day, and indices in the myapp-qe project older than 1 week.  All other projects
-have their indices deleted after they are 30 days old.  The curator jobs run at
+have their indices deleted after they are 31 days old.  The curator jobs run at
 midnight every day in the `America/New_York` timezone, regardless of
 geographical location where the pod is running, or the timezone setting of the
 pod, host, etc.
@@ -640,7 +640,7 @@ today (`delete: months: 2`), curator doesn't delete indices that are dated
 older than February 15, it deletes indices older than _February 1_.  That is,
 it goes back to the first day of the current month, _then_ goes back two whole
 months from that date.
-If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 30`
+If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 31`
 [Curator issue](https://github.com/elastic/curator/issues/569)
 
 To create the curator configuration, you can just edit the current

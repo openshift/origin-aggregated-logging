@@ -135,7 +135,7 @@ parameters:
 -
   description: "(Deprecated) The default number of days that logs will be retained for a project if an index management configuration for it is not provided"
   name: CURATOR_DEFAULT_DAYS
-  value: "30"
+  value: "31"
 -
   description: "(Deprecated) The hour of the day (24 hour format) at which to run the curator jobs."
   name: CURATOR_RUN_HOUR

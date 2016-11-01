@@ -3,7 +3,7 @@
 # uncomment and use this to override the defaults from env vars
 #.defaults:
 #  delete:
-#    days: 30
+#    days: 31
 #  runhour: 0
 #  runminute: 0
 

@@ -3,7 +3,7 @@ FROM centos:centos7
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 # by default, run the curator cron job at midnight UTC every night, and delete
-# indices older than 30 days old
+# indices older than 31 days old
 ENV HOME=/opt/app-root/src \
     ES_HOST=localhost \
     ES_PORT=9200 \
@@ -11,7 +11,7 @@ ENV HOME=/opt/app-root/src \
     ES_CLIENT_CERT=/etc/curator/keys/cert \
     ES_CLIENT_KEY=/etc/curator/keys/key \
     CURATOR_CONF_LOCATION=/etc/curator/settings/config.yaml \
-    CURATOR_DEFAULT_DAYS=30 \
+    CURATOR_DEFAULT_DAYS=31 \
     CURATOR_RUN_HOUR=0 \
     CURATOR_RUN_MINUTE=0 \
     CURATOR_RUN_TIMEZONE=UTC \
