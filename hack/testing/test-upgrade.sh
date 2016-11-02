@@ -105,7 +105,7 @@ function useFluentdDC() {
   waitFor "[[ -z \"\$(oc get pod \$fluentdpod -o name)\" ]]" "$(( 3 * TIME_MIN ))"
 
   oc process -f templates/fluentd_dc.yaml \
-     -v IMAGE_PREFIX_DEFAULT=$imageprefix,OPS_HOST=$ops_host,OPS_PORT=$ops_port | oc create -f -
+     -v IMAGE_PREFIX_DEFAULT=$imageprefix -v OPS_HOST=$ops_host -v OPS_PORT=$ops_port | oc create -f -
 
   oc new-app logging-fluentd-template
 
