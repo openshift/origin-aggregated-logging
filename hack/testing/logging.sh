@@ -265,7 +265,7 @@ os::start::server
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
 install_registry
-wait_for_registry
+oc rollout status dc/docker-registry
 
 ######### logging specific code starts here ####################
 
@@ -344,7 +344,7 @@ else
 
     os::cmd::expect_success "oc process -o yaml \
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
-       -v LOGGING_FORK_URL=$GIT_URL,LOGGING_FORK_BRANCH=$GIT_BRANCH \
+       -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
        | build_filter | oc create -f -"
     post_build
     os::cmd::expect_success "wait_for_builds_complete"
@@ -357,7 +357,7 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
         sudo mkdir -p $ES_OPS_VOLUME
         sudo chown 1000:1000 $ES_OPS_VOLUME
     fi
-    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -v SIZE=10,PATH=${ES_OPS_VOLUME} | oc create -f -"
+    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -v SIZE=10 -v PATH=${ES_OPS_VOLUME} | oc create -f -"
     pvc_params="-p ES_OPS_PVC_SIZE=10 -p ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
 fi
 # TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
@@ -475,8 +475,8 @@ function wait_for_app() {
 os::cmd::expect_success "$OS_ROOT/examples/sample-app/pullimages.sh"
 os::cmd::expect_success "oc new-project test --display-name='example app for logging testing' --description='This is an example app for logging testing'"
 os::cmd::expect_success "oc new-app -f $OS_ROOT/examples/sample-app/application-template-stibuild.json"
-os::build:wait_for_start "test"
-os::build:wait_for_end "test"
+os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Running" "$(( 10*TIME_MIN ))"
+os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Complete" "$(( 10*TIME_MIN ))"
 wait_for_app "test"
 ### test app added ###
 
