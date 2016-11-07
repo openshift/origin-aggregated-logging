@@ -77,7 +77,7 @@ if tzstr:
         logger.error('The timezone must be specified as a string in the tzselect(8) or timedatectl(1) "Region/Locality" format e.g. "America/New_York" or "UTC".  Unexpected error [%s] attempting to parse timezone [%s]' % (str(sys.exc_info()[0]), str(tzstr)))
         sys.exit(1)
 
-connection_info = '--host ' + os.getenv('ES_HOST') + ' --port ' + os.getenv('ES_PORT') + ' --use_ssl --certificate ' + os.getenv('ES_CA') + ' --client-cert ' + os.getenv('ES_CLIENT_CERT') + ' --client-key ' + os.getenv('ES_CLIENT_KEY')
+connection_info = '--host ' + os.getenv('ES_HOST') + ' --port ' + os.getenv('ES_PORT') + ' --use_ssl --certificate ' + os.getenv('ES_CA') + ' --client-cert ' + os.getenv('ES_CLIENT_CERT') + ' --client-key ' + os.getenv('ES_CLIENT_KEY') + ' --timeout ' + os.getenv('CURATOR_TIMEOUT', 30)
 
 defaults = {'delete': {'days': int(os.getenv('CURATOR_DEFAULT_DAYS', 30))}}
 deldefaults = defaults['delete']
