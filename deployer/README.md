@@ -836,9 +836,9 @@ defined some index patterns that match indices being recorded in
 ElasticSearch. This should already be done for you, but you should be
 aware how these work in case you want to customize anything. When logs
 from applications in a project are recorded, they are indexed by project
-name and date in the format `name.YYYY-MM-DD`. For matching a project's
+name and date in the format `project.name.YYYY-MM-DD`. For matching a project's
 logs for all dates, an index pattern will be defined in Kibana for each
-project which looks like `name.*`.
+project which looks like `project.name.*`.
 4. When first visiting Kibana, the first page directs you to create
 an index pattern.  In general this should not be necessary and you can
 just click the "Discover" tab and choose a project index pattern to see
