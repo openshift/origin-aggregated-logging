@@ -1210,12 +1210,12 @@ with one another:
 Once the cert and key are created, the logging-fluentd secret needs to add these
 generated files:
 
-    $ oc create secret generic logging-fluentd --dry-run=true --from-file server.crt --from-file server.key -o yaml | oc apply -f -
+    $ oc create secret generic logging-fluentd --from-file server.crt --from-file server.key -o yaml --dry-run=true | oc apply -f -
 
 After that, create the configmap that will be used for the Enriching Fluentd.
 
 First, generate a random key that will be used for communication between the two
-types of Fluentd pods, this will be the value for the `shared_key` configuration
+types of Fluentd pods; this will be the value for the `shared_key` configuration
 entry:
 
     $ tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 128
@@ -1274,8 +1274,8 @@ file created in the previous step as the source for the configmap:
 
 The next step will be to create the Deployment configuration that will be used to
 scale up the enrichment fluentd pods. Save the following file to your local file
-system as `enrichment-fluentd-dc.yaml`. Be sure to update the value of "K8S_HOST_URL"
-and "OPS_HOST" as necessary:
+system as `enrichment-fluentd-dc.yaml`. Be sure to update the value of "OPS_HOST" 
+as necessary:
 
     apiVersion: v1
     kind: "DeploymentConfig"
