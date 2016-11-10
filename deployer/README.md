@@ -1274,7 +1274,7 @@ file created in the previous step as the source for the configmap:
 
 The next step will be to create the Deployment configuration that will be used to
 scale up the enrichment fluentd pods. Save the following file to your local file
-system as `enrichment-fluentd-dc.yaml`. Be sure to update the value of "OPS_HOST" 
+system as `enrichment-fluentd-dc.yaml`. Be sure to update the value of "OPS_HOST"
 as necessary:
 
     apiVersion: v1
@@ -1310,16 +1310,9 @@ as necessary:
           - name: enrichment-fluentd-elasticsearch
             image: registry.access.redhat.com/openshift3/ose-logging-fluentd:latest
             imagePullPolicy: Always
-            securityContext:
-              privileged: true
             resources:
               limits:
                 cpu: 100m
-            ports:
-            - containerPort: 1095
-              hostPort: 1095
-              protocol: TCP
-              purpose: "to prevent more than one per node"
             volumeMounts:
             - name: config
               mountPath: /etc/fluent/configs.d/user
