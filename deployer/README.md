@@ -1419,7 +1419,10 @@ Next, since our collecting Fluentd expects to ship its logs to a service called
     $ oc expose dc logging-enrichment-fluentd --port=24284
 
 At this point, the enrichment Fluentd pods can be scaled up. They do not need to
-be 1:1 with the Fluentd collectors, A ratio of 1:10 is likely a good start:
+be 1:1 with the Fluentd collectors, A ratio of 1:10 is likely a good start, however
+each environment may be different. To correctly scale, the buffer performance for
+both the collection and enrichment Fluentd nodes should be monitored. For
+more information on monitoring Fluentd, see [here](#monitoring_fluentd):
 
     $ oc scale dc/logging-enrichment-fluentd --replicas=X
 
@@ -1427,3 +1430,50 @@ Once the enrichment pods have started, nodes can be relabeled for Fluentd collec
 to be deployed to:
 
     $ oc label node --all logging-infra-fluentd=true
+
+
+# Monitoring Fluentd
+
+Fluentd has available to it, a monitoring agent that can be used to retrieve internal
+metrics back in JSON format. We can use this to investigate the buffer size for
+our plugins as a gauge for whether or not they are overwhelmed.
+
+To do this, first the monitor_agent plugin needs to be added to the Fluentd configuration.
+Scale down any Fluentd pods that you are updating the configuration for. Once they are
+no longer running, edit it's configmap and add the following section with other
+sources:
+
+  ...
+
+  ## sources
+  ## ordered so that syslog always runs last...
+    <source>
+      @type monitor_agent
+      bind 0.0.0.0
+      port 24220
+    </source>
+
+    ...
+
+After that, deploy the Fluentd pods again. To query a Fluentd pod for it's
+current buffer usage, run the following:
+
+    $ oc exec <fluentd_pod> -- curl -s http://localhost:24220/api/plugins.json | python -m json.tool | grep buffer
+
+This will return output such as:
+
+    "buffer_queue_length": 0,
+    "buffer_total_queued_size": 0,
+    "buffer_queue_length": 1,
+    "buffer_total_queued_size": 52472,
+
+In the above, the first `buffer_total_queued_size` is for the plugin that pushes
+operations logs to Elasticsearch. This can be observed also by removing the pipe (|)
+to grep in the above curl statement, and scrolling through the output to find the
+plugin's configuration.
+
+It should be observed that this value will increase, but then drop back down to zero.
+Meaning that it was able to send all of its processed events correctly. If this
+value follows this saw-tooth pattern, but increases over time it could mean that
+it is not able to keep up with the incoming events. Either due to processing performance
+or due to transport performance.
