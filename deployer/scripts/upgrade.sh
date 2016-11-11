@@ -557,7 +557,8 @@ function add_fluentd_configmaps() {
   # the configmap may already exist from previous upgrade step add_config_maps
   oc create configmap logging-fluentd \
       --from-file=fluent.conf=conf/fluent.conf \
-      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml || return 0
+      --from-file=throttle-config.yaml=conf/fluentd-throttle-config.yaml \
+      --from-file=secure-forward.conf=conf/secure-forward.conf || return 0
   oc label configmap/logging-fluentd logging-infra=support
 }
 
