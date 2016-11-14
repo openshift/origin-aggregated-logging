@@ -66,6 +66,15 @@ items:
       - watch
       - delete
       - update
+  - apiVersion: v1
+    kind: ClusterRole
+    metadata:
+      name: rolebinding-reader
+    rules:
+    - resources:
+      - clusterrolebindings
+      verbs:
+      - get
   -
     apiVersion: v1
     kind: RoleBinding
@@ -88,6 +97,17 @@ items:
     subjects:
     - kind: ServiceAccount
       name: logging-deployer
+  -
+    apiVersion: v1
+    kind: RoleBinding
+    metadata:
+      name: logging-elasticsearch-view-role
+    roleRef:
+      kind: ClusterRole
+      name: view
+    subjects:
+    - kind: ServiceAccount
+      name: aggregated-logging-elasticsearch
 -
   apiVersion: "v1"
   kind: "Template"
@@ -202,11 +222,11 @@ items:
   -
     description: 'Specify prefix for logging components; e.g. for "registry.access.redhat.com/openshift3/logging-deployer:3.3.0", set prefix "registry.access.redhat.com/openshift3/"'
     name: IMAGE_PREFIX
-    value: "docker.io/openshift/origin-"
+    value: "registry.access.redhat.com/openshift3/"
   -
     description: 'Specify version for logging components; e.g. for "registry.access.redhat.com/openshift3/logging-deployer:3.3.0", set version "3.3.0"'
     name: IMAGE_VERSION
-    value: "latest"
+    value: "3.4.0"
   -
     description: "(Deprecated) Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry."
     name: IMAGE_PULL_SECRET
@@ -323,4 +343,3 @@ items:
     description: "(Deprecated) Node selector operations Curator (label=value)."
     name: CURATOR_OPS_NODESELECTOR
     value: ""
-
