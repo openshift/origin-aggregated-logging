@@ -264,7 +264,7 @@ os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
-install_registry
+os::start::registry
 oc rollout status dc/docker-registry
 
 ######### logging specific code starts here ####################
