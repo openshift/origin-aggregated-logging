@@ -145,7 +145,6 @@ update_current_fluentd() {
   oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward.conf", "value": "\
   @type secure_forward\n\
   self_hostname forwarding-${HOSTNAME}\n\
-  shared_key aggregated_logging_ci_testing\n\
   secure no\n\
   <server>\n\
    host '${FLUENTD_FORWARD}'\n\
