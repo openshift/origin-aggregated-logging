@@ -74,7 +74,7 @@ module Fluent
     # recursively delete empty fields and empty lists/hashes from thing
     def delempty(thing)
       if thing.respond_to?(:delete_if)
-        thing.delete_if{|k,v| v.nil? || delempty(v).empty? || isempty(v)}
+        thing.delete_if{|k,v| v.nil? || isempty(delempty(v)) || isempty(v)}
       end
       thing
     end
