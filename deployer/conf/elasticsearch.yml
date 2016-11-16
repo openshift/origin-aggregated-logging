@@ -20,10 +20,6 @@ node:
 
 network:
   host: 0.0.0.0
-  publish_host: ${CLUSTER_NAME}
-
-transport:
-  publish_host: ${CLUSTER_NAME}-cluster
 
 cloud:
   kubernetes:
