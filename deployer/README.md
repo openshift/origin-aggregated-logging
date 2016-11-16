@@ -473,7 +473,7 @@ can send a copy of each log message to that Elasticsearch, in addition to the
 the Elasticsearch hosted with OpenShift aggregated logging.
 
 Note: The use of `ES_COPY` is being deprecated, please update your configurations
-to use [secure forward](#secure_forward) instead.
+to use [secure forward](#secure-forward) instead.
 If the environment variable `ES_COPY` is `"true"`, Fluentd will send a copy of
 the logs to another Elasticsearch. The settings for the copy are just like the
 current `ES_HOST`, etc. and `OPS_HOST`, etc. settings, except that they add
