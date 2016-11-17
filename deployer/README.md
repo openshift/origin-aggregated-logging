@@ -531,8 +531,8 @@ will need to match what is specified within secure-forward.conf in the configmap
 
 #### Have Fluentd use the systemd journal as the log source
 
-By default, fluentd will read from `/var/log/messages*` and
-`/var/log/containers/*.log` for system logs and container logs, respectively.
+By default, fluentd will read from `/var/log/messages` and `/var/log/containers/*.log` 
+for system logs and container logs, respectively. 
 You can use the systemd journal instead as the log source.  There are three
 deployer configuration parameters set in the deployer configmap: `use-journal`,
 `journal-source`, and `journal-read-from-head`.
