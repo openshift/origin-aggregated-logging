@@ -97,7 +97,7 @@ module Fluent
       end
       # remove the field from record if it is not in the list of fields to keep and
       # it is empty
-      record.delete_if{|k,v| !@keep_empty_fields_hash.key?(k) && (v.nil? || delempty(v).empty? || isempty(v))}
+      record.delete_if{|k,v| !@keep_empty_fields_hash.key?(k) && (v.nil? || isempty(delempty(v)) || isempty(v))}
       # probably shouldn't remove everything . . .
       log.warn("Empty record! tag [#{tag}] time [#{time}]") if record.empty?
       # rename the time field
