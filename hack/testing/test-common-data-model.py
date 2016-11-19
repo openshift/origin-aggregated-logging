@@ -33,16 +33,24 @@ if check_for_empty and empty(obj):
 
 test2match = {
     "test1": {"undefined1": "undefined1",
+              "undefined11": 1111,
+              "undefined12": True,
               "undefined2": {
-                  "undefined2": "undefined2"
+                  "undefined2": "undefined2",
+                  "undefined22": 2222,
+                  "undefined23": False
               },
               "undefined4": "undefined4",
               "undefined5": "undefined5"
     },
     "test2": {"undefined":
               {"undefined1": "undefined1",
+               "undefined11": 1111,
+               "undefined12": True,
                "undefined2": {
-                   "undefined2": "undefined2"
+                   "undefined2": "undefined2",
+                   "undefined22": 2222,
+                   "undefined23": False
                },
                "undefined4": "undefined4",
                "undefined5": "undefined5"
@@ -50,8 +58,12 @@ test2match = {
     },
     "test3": {"undefined":
               {"undefined1": "undefined1",
+               "undefined11": 1111,
+               "undefined12": True,
                "undefined2": {
-                   "undefined2": "undefined2"
+                   "undefined2": "undefined2",
+                   "undefined22": 2222,
+                   "undefined23": False
                }
               },
               "undefined4": "undefined4",
@@ -59,8 +71,12 @@ test2match = {
     },
     "test4": {"myname":
               {"undefined1": "undefined1",
+               "undefined11": 1111,
+               "undefined12": True,
                "undefined2": {
-                   "undefined2": "undefined2"
+                   "undefined2": "undefined2",
+                   "undefined22": 2222,
+                   "undefined23": False
                }
               },
               "undefined4": "undefined4",
@@ -68,8 +84,12 @@ test2match = {
     },
     "test5": {"myname":
               {"undefined1": "undefined1",
+               "undefined11": 1111,
+               "undefined12": True,
                "undefined2": {
-                   "undefined2": "undefined2"
+                   "undefined2": "undefined2",
+                   "undefined22": 2222,
+                   "undefined23": False
                }
               },
               "undefined4": "undefined4",

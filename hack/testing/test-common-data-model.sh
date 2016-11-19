@@ -278,10 +278,14 @@ cfg=`mktemp`
 cat > $cfg <<EOF
 <filter **>
   @type record_transformer
+  enable_ruby
+  auto_typecast
   <record>
     undefined1 undefined1
+    undefined11 \${1111}
+    undefined12 \${true}
     empty1 ""
-    undefined2 {"undefined2":"undefined2","":""}
+    undefined2 {"undefined2":"undefined2","":"","undefined22":2222,"undefined23":false}
     undefined3 {"":""}
     undefined4 undefined4
     undefined5 undefined5
