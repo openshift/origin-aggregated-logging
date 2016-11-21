@@ -78,8 +78,8 @@ function initialize_install_vars() {
   es_ops_recover_expected_nodes=${input_vars[es-ops-recover-expected-nodes]:-$es_ops_cluster_size}
   es_ops_recover_after_time=${input_vars[es-ops-recover-after-time]:-5m}
   use_journal=${input_vars[use-journal]:-}
-  journal_read_from_head=${input_vars[journal_read_from_head]:-false}
-  journal_source=${input_vars[journal_source]:-}
+  journal_read_from_head=${input_vars[journal-read-from-head]:-false}
+  journal_source=${input_vars[journal-source]:-}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
