@@ -409,7 +409,8 @@ function generate_es() {
       oc process logging-es-template | \
         oc volume -f - \
                   --add --overwrite --name=elasticsearch-storage \
-                  --type=persistentVolumeClaim --claim-name="$pvc"
+                  --type=persistentVolumeClaim --claim-name="$pvc" -o yaml | \
+        oc create -f -
     else
       oc new-app logging-es-template
     fi
@@ -429,7 +430,8 @@ function generate_es() {
             oc process logging-es-ops-template | \
               oc volume -f - \
                   --add --overwrite --name=elasticsearch-storage \
-                  --type=persistentVolumeClaim --claim-name="$pvc"
+                  --type=persistentVolumeClaim --claim-name="$pvc" -o yaml | \
+              oc create -f -
       else
             oc new-app logging-es-ops-template
       fi
