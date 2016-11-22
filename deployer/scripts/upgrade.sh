@@ -657,7 +657,7 @@ function update_es_for_235() {
 function get_list_of_proj_uuid_indices() {
     curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/indices | \
         awk -v daterx='[.]20[0-9]{2}[.][0-1]?[0-9][.][0-9]{1,2}$' \
-            '$3 !~ "^[.]" && $3 !~ "^project." && $3 ~ daterx {print gensub(daterx, "", "", $3)}' | \
+            '$3 !~ "^[.]" && $3 !~ "^project." && $3 ~ daterx {print gensub(daterx, "", 1, $3)}' | \
         sort -u
 }
 
@@ -682,11 +682,12 @@ function update_for_common_data_model() {
   {
     echo '{"actions":['
     get_list_of_proj_uuid_indices | \
-      while IFS=. read proj uuid ; do
-        # e.g. make project.test.uuid.* and alias of test.uuid.* so we can search for
+      while IFS=. read proj uuid rest ; do
+        # e.g. make project.test.uuid.* an alias of test.uuid.* so we can search for
         # /project.test.uuid.*/_search and get both the test.uuid.* and
         # the project.test.uuid.* indices
-        echo "{\"add\":{\"index\":\"$proj.$uuid.*\",\"alias\":\"${PROJ_PREFIX}$proj.$uuid.*\"}}"
+        echo "${comma:-}{\"add\":{\"index\":\"$proj.$uuid.*\",\"alias\":\"${PROJ_PREFIX}$proj.$uuid.*\"}}"
+        comma=","
       done
     echo ']}'
   } | curl -s --cacert $CA --key $KEY --cert $CERT -XPOST -d @- "https://$es_host:$es_port/_aliases"
