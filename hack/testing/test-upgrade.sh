@@ -32,6 +32,31 @@ function dumpEvents() {
 }
 trap dumpEvents EXIT
 
+function createOldIndexPattern() {
+  echo "creating index with old pattern"
+
+  indexDate=`date +%Y.%m.%d`
+  #rawUUID="$(tr -dc 'a-f0-9' < /dev/urandom | head -c 32)"
+
+  #echo $rawUUID
+  #echo ${rawUUID:0:8}-${rawUUID:8:4}-${rawUUID:12:4}-${rawUUID:16:4}-${rawUUID:20}
+
+  #genUUID="$(echo ${rawUUID:0:8}-${rawUUID:8:4}-${rawUUID:12:4}-${rawUUID:16:4}-${rawUUID:20})"
+  genUUID="7601c01e-012e-7640-42ab-01e833d4fd33"
+
+  esPod=`oc get pods -l component=es -o name | sed "s,pod/,,"`
+
+  waitFor "[[ \"Running\" == \"\$(oc get pods -l component=es -o jsonpath='{.items[*].status.phase}')\" ]]" "$(( 3 * TIME_MIN ))" || return 1
+  [ -z "$esPod" ] && echo "Unable to find ES pod for recreating old index pattern" && return 1
+
+  # create an old index pattern
+#  oc exec $esPod -- curl --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+#                         -XPUT "https://logging-es:9200/test.${indexDate}" -d '{ "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } } }'
+
+   oc exec $esPod -- curl --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+                          -XPUT "https://logging-es:9200/oldindex.${genUUID}.${indexDate}" -d '{ "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } } }'
+}
+
 function removeFluentdConfigMaps() {
   echo "removing configmaps from fluentd template"
   # construct patch for template
@@ -193,6 +218,7 @@ function verifyUpgrade() {
 
   local version=${1:-latest}
   local checkMigrate=${2:-false}
+  local checkCDMMigrate=${3:-false}
 
 ### check templates and DC patched
   for template in $(oc get template -l logging-infra -o name); do
@@ -233,7 +259,11 @@ function verifyUpgrade() {
       [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && continue
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
+  fi
 
+  if [ $checkCDMMigrate = true ]; then
+    [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project oldindex.'${genUUID}'.'${indexDate}' - using common data model')" ]] && return 1
+    [[ -z "$(oc logs $UPGRADE_POD | grep '^{"acknowledged":true}')" ]] && return 1
   fi
 
 ### check for Fluentd daemonset, no DC exists
@@ -265,6 +295,7 @@ TIME_MIN=60
 
 echo $TEST_DIVIDER
 # test from base install
+createOldIndexPattern
 removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 removeAdminCert
@@ -274,7 +305,7 @@ addTriggers
 rebuildVersion "upgraded"
 
 upgrade "upgraded"
-verifyUpgrade "upgraded" true
+verifyUpgrade "upgraded" true true
 
 ./e2e-test.sh $USE_CLUSTER
 
@@ -284,6 +315,7 @@ removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 useFluentdDC
 addTriggers
+
 upgrade "upgraded"
 verifyUpgrade "upgraded"
 
