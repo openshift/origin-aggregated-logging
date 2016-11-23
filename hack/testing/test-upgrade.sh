@@ -23,6 +23,26 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+if [ "function" = `type -t get_es_dcs 2> /dev/null` ] ; then
+    : # already sourced
+else
+    source ../../deployer/scripts/util.sh
+fi
+
+if [ -z "${imageprefix:-}" ] ; then
+    imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
+fi
+
+USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-true}
+OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
+ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-$CLUSTER}
+masterurlhack=${masterurlhack:-"-p MASTER_URL=https://172.30.0.1:443"}
+my_pvc_params=""
+if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
+    my_pvc_params="-p ES_OPS_PVC_SIZE=10 -p ES_OPS_PVC_PREFIX=es-ops-pvc-"
+fi
+pvc_params=${pvc_params:-$my_pvc_params}
+
 TEST_DIVIDER="------------------------------------------"
 UPGRADE_POD=""
 OPS_PROJECTS=("default" "openshift" "openshift-infra" "kube-system")
@@ -31,6 +51,21 @@ function dumpEvents() {
   oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
 }
 trap dumpEvents EXIT
+
+function createOldIndexPattern() {
+  echo "creating index with old pattern"
+
+  indexDate=`date +%Y.%m.%d`
+  genUUID=`uuidgen`
+
+  esPod=`oc get pods -l component=es -o name | sed "s,pod/,,"`
+
+  [ -z "$esPod" ] && echo "Unable to find ES pod for recreating old index pattern" && return 1
+
+  # create an old index pattern
+  oc exec $esPod -- curl -s --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+                         -XPUT "https://logging-es:9200/oldindex.${genUUID}.${indexDate}" -d '{"message":"'$genUUID'"}'
+}
 
 function removeFluentdConfigMaps() {
   echo "removing configmaps from fluentd template"
@@ -230,7 +265,7 @@ function verifyUpgrade() {
   if [ $checkMigrate = true ]; then
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
       [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
-      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && continue
+      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && return 1
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
 
@@ -265,6 +300,7 @@ TIME_MIN=60
 
 echo $TEST_DIVIDER
 # test from base install
+createOldIndexPattern
 removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 removeAdminCert
@@ -280,10 +316,12 @@ verifyUpgrade "upgraded" true
 
 echo $TEST_DIVIDER
 # test from partial upgrade
+createOldIndexPattern
 removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 useFluentdDC
 addTriggers
+
 upgrade "upgraded"
 verifyUpgrade "upgraded"
 
