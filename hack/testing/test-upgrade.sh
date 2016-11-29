@@ -60,6 +60,7 @@ function createOldIndexPattern() {
 
   esPod=`oc get pods -l component=es -o name | sed "s,pod/,,"`
 
+  waitFor "[[ \"Running\" == \"\$(oc get pods -l component=es -o jsonpath='{.items[*].status.phase}')\" ]]" "$(( 3 * TIME_MIN ))" || return 1
   [ -z "$esPod" ] && echo "Unable to find ES pod for recreating old index pattern" && return 1
 
   # create an old index pattern
@@ -228,6 +229,7 @@ function verifyUpgrade() {
 
   local version=${1:-latest}
   local checkMigrate=${2:-false}
+  local checkCDMMigrate=${3:-false}
 
 ### check templates and DC patched
   for template in $(oc get template -l logging-infra -o name); do
@@ -265,10 +267,13 @@ function verifyUpgrade() {
   if [ $checkMigrate = true ]; then
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
       [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
-      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && return 1
+      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && continue
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
+  fi
 
+  if [ $checkCDMMigrate = true ]; then
+    [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project oldindex.'${genUUID}'.'${indexDate}' - using common data model')" ]] && return 1
   fi
 
 ### check for Fluentd daemonset, no DC exists
@@ -310,7 +315,7 @@ addTriggers
 rebuildVersion "upgraded"
 
 upgrade "upgraded"
-verifyUpgrade "upgraded" true
+verifyUpgrade "upgraded" true true
 
 ./e2e-test.sh $USE_CLUSTER
 
