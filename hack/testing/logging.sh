@@ -218,7 +218,7 @@ else
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
        -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
        | build_filter | oc create -f -"
-#    os::cmd::expect_success "oc import-image centos:7 --from=centos:7"
+    os::cmd::expect_success "oc import-image centos:7 --from=centos:7"
     post_build
     os::cmd::expect_success "wait_for_builds_complete"
     imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
