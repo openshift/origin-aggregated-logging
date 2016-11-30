@@ -240,7 +240,7 @@ trap "cleanup" EXIT
 
 echo "[INFO] Starting logging tests at " `date`
 
-ensure_iptables_or_die
+os::util::ensure::iptables_privileges_exist
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}

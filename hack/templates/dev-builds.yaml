@@ -14,14 +14,6 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-elasticsearch
-    name: centos
-  spec:
-    dockerImageRepository: library/centos
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
       build: logging-deployment
     name: logging-deployment
   spec: {}
@@ -121,8 +113,8 @@ objects:
     strategy:
       dockerStrategy:
         from:
-          kind: ImageStreamTag
-          name: centos:7
+          kind: DockerImage
+          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
@@ -148,8 +140,8 @@ objects:
     strategy:
       dockerStrategy:
         from:
-          kind: ImageStreamTag
-          name: centos:7
+          kind: DockerImage
+          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
