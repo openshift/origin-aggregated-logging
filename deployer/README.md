@@ -156,7 +156,7 @@ are available:
 * `enable-ops-cluster`: If "true", configure a second ES cluster and Kibana for ops logs. (See [below](#ops-cluster) for details.)
 * `kibana-ops-hostname`, `es-ops-instance-ram`, `es-ops-pvc-size`, `es-ops-pvc-prefix`, `es-ops-cluster-size`, `es-ops-nodeselector`, `kibana-ops-nodeselector`, `curator-ops-nodeselector`: Parallel parameters for the ops log cluster.
 * `image-pull-secret`: Specify the name of an existing pull secret to be used for pulling component images from an authenticated registry.
-* `use-journal`: By default, fluentd will use `/var/log/messages*` and
+* `use-journal`: By default, fluentd will use `/var/log/messages` and
 `/var/log/containers/*.log` for system logs and container logs, respectively.
 Setting `use-journal=true` will cause fluentd to use the systemd journal for
 the logging source.  This requires docker 1.10 or later, and docker must be configured to
@@ -557,6 +557,10 @@ journal, before any new log entries are available in Elasticsearch, when using
 *NOTE*: DO NOT USE `journal-read-from-head=true` IF YOU HAVE PREVIOUSLY USED
 `journal-read-from-head=false` - you will fill up your Elasticsearch with
 duplicate records.
+*NOTE* As of 1.3, Fluentd no longer reads historical log files when using the
+json-file log driver. This is to avoid delays pushing into Elasticsearch the most recent logs
+on clusters that have a large number of log files that are older then the EFK deployment, and to 
+mitigate Curator deleting logs shortly after they are added to Elasticsearch.
 
 ### Kibana
 
