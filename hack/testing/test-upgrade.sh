@@ -308,7 +308,7 @@ echo $TEST_DIVIDER
 createOldIndexPattern
 removeFluentdConfigMaps
 removeEsCuratorConfigMaps
-removeAdminCert
+#removeAdminCert
 removeCurator
 useFluentdDC
 addTriggers
