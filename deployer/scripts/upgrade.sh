@@ -655,10 +655,11 @@ function update_es_for_235() {
 # daterx - the date regex that matches the .%Y.%m.%d at the end of the indices
 # we are interested in - the awk will strip that part off
 function get_list_of_proj_uuid_indices() {
+    set -o pipefail
     curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/indices | \
         awk -v daterx='[.]20[0-9]{2}[.][0-1]?[0-9][.][0-9]{1,2}$' \
             '$3 !~ "^[.]" && $3 !~ "^project." && $3 ~ daterx {print gensub(daterx, "", 1, $3)}' | \
-        sort -u
+        sort -u || { >&2 echo Error $? getting list of indices; return $? ; }
 }
 
 function update_for_common_data_model() {
