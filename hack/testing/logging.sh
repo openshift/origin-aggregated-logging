@@ -107,140 +107,12 @@ function cleanup()
     return $out
 }
 
-function wait_for_latest_build_complete() {
-
-  interval=30
-  waittime=120
-
-  local bc=$1
-  local lastVersion=$(oc get bc $bc -o jsonpath='{.status.lastVersion}')
-  local status
-
-  for (( i = 1; i <= $waittime; i++ )); do
-    status=$(oc get build/$bc-$lastVersion -o jsonpath='{.status.phase}')
-    case $status in
-      "Complete")
-        return 0
-        ;;
-      "Failed")
-        return 1
-        ;;
-      "Pending"|"Running")
-        sleep $interval
-        ;;
-    esac
-  done
-
-  return 1
-}
-
-function wait_for_new_builds_complete() {
-
-  retries=30
-  for bc in $(oc get bc -l logging-infra -o jsonpath='{.items[*].metadata.name}'); do
-
-    for (( i = 1; i <= retries; i++ )); do
-
-      wait_for_latest_build_complete "$bc" && break
-
-      [[ $i -eq $retries ]] && return 1
-
-      oc delete builds -l buildconfig=$bc
-
-      if [ "$USE_LOCAL_SOURCE" = false ] ; then
-          oc start-build $bc
-      else
-          oc start-build --from-dir $OS_O_A_L_DIR $bc
-      fi
-    done
-
-  done
-
-  return 0
-}
-
-function wait_for_builds_complete()
-{
-    waittime=3600 # seconds - 1 hour
-    interval=60
-    complete=0
-    while [ $waittime -gt 0 -a $complete = 0 ] ; do
-        # all lines must have $4 == "Complete"
-        complete=`oc get builds | awk '$4 == "STATUS" || $4 == "Complete" {complete++}; END {print NR == complete}'`
-        if [ $complete = 1 ] ; then
-            echo Builds are complete
-            break
-        fi
-        # restart failed builds
-        # get a list of the new failures
-        curfailedbuilds=`oc get builds | awk '$4 == "Failed" {print $1}'`
-        for build in $curfailedbuilds ; do
-            # get the bc
-            bc=`oc get build $build --template='{{.metadata.labels.buildconfig}}'`
-            # see if there is a build in progress for this bc
-            statuses=`oc describe bc $bc | awk -v pre=$bc '$1 ~ pre {print $2}'`
-            needbuild=0
-            for status in $statuses ; do
-                case $status in
-                "running"|"complete"|"pending")
-                    echo build in progress for $bc - delete failed build $build status $status
-                    # delete the failed build - otherwise it will show up in the list and
-                    # the main loop will never Complete
-                    oc logs build/$build > $LOG_DIR/build-$build.log 2>&1
-                    oc delete build $build
-                    needbuild=0
-                    break
-                    ;;
-                "failed")
-                    # if the build failed, there will be at least 1 failed status
-                    # if there is another build running or complete, it will be
-                    # detected above
-                    needbuild=1
-                    ;;
-                esac
-            done
-            # if we are here and needbuild=1, there were no running or complete builds
-            if [ $needbuild = "1" ] ; then
-                # start a new build
-                if [ "$USE_LOCAL_SOURCE" = false ] ; then
-                    oc start-build $bc
-                else
-                    oc start-build --from-dir $OS_O_A_L_DIR $bc
-                fi
-            fi
-        done
-        sleep $interval
-        waittime=`expr $waittime - $interval`
-    done
-    if [ $complete = 0 ] ; then
-        echo error builds are not complete
-        oc get builds
-        return 1
-    fi
-    return 0
-}
-
-function get_running_pod() {
-    # $1 is component for selector
-    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
-}
-
-function get_latest_pod() {
-
-  label=$1
-
-  local times=(`oc get pods -l $label -o jsonpath='{.items[*].metadata.creationTimestamp}' | xargs -n1 | sort -r | xargs`)
-  local pod=$(oc get pods -l $label -o jsonpath="{.items[?(@.metadata.creationTimestamp==\"${times[0]}\")].metadata.name}")
-
-  echo $pod
-}
-
 trap "exit" INT TERM
 trap "cleanup" EXIT
 
 echo "[INFO] Starting logging tests at " `date`
 
-ensure_iptables_or_die
+#ensure_iptables_or_die
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
@@ -346,6 +218,7 @@ else
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
        -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
        | build_filter | oc create -f -"
+    os::cmd::expect_success "oc import-image centos:7 --from=centos:7"
     post_build
     os::cmd::expect_success "wait_for_builds_complete"
     imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
