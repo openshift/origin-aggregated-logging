@@ -63,6 +63,7 @@ objects:
             resources:
               limits:
                 cpu: 100m
+                memory: 512Mi
             volumeMounts:
             - name: runlogjournal
               mountPath: /run/log/journal
