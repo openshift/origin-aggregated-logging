@@ -23,7 +23,7 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
-if [ "function" = `type -t get_es_dcs 2> /dev/null` ] ; then
+if [ "function" = "`type -t get_es_dcs 2> /dev/null`" ] ; then
     : # already sourced
 else
     source ../../deployer/scripts/util.sh
@@ -317,7 +317,7 @@ rebuildVersion "upgraded"
 upgrade "upgraded"
 verifyUpgrade "upgraded" true true
 
-./e2e-test.sh $USE_CLUSTER
+./e2e-test.sh ${USE_CLUSTER:-$CLUSTER}
 
 echo $TEST_DIVIDER
 # test from partial upgrade
@@ -330,4 +330,4 @@ addTriggers
 upgrade "upgraded"
 verifyUpgrade "upgraded"
 
-./e2e-test.sh $USE_CLUSTER
+./e2e-test.sh ${USE_CLUSTER:-$CLUSTER}
