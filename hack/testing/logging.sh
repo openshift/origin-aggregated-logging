@@ -240,7 +240,7 @@ trap "cleanup" EXIT
 
 echo "[INFO] Starting logging tests at " `date`
 
-ensure_iptables_or_die
+#ensure_iptables_or_die
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
@@ -346,6 +346,7 @@ else
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
        -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
        | build_filter | oc create -f -"
+    os::cmd::expect_success "oc import-image centos:7 --from=centos:7"
     post_build
     os::cmd::expect_success "wait_for_builds_complete"
     imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
@@ -517,7 +518,7 @@ else
     ./e2e-test.sh $USE_CLUSTER
     # test-* tests modify data and are not generally safe to use
     # in production environments
-    for test in test-*.sh ; do
+    for test in test-upgrade.sh ; do
         if [ -x ./$test ] ; then
             echo running test $test
             (. ./$test $USE_CLUSTER)
