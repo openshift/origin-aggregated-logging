@@ -655,10 +655,14 @@ function update_es_for_235() {
 # daterx - the date regex that matches the .%Y.%m.%d at the end of the indices
 # we are interested in - the awk will strip that part off
 function get_list_of_proj_uuid_indices() {
+    set -o pipefail
     curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/indices | \
         awk -v daterx='[.]20[0-9]{2}[.][0-1]?[0-9][.][0-9]{1,2}$' \
             '$3 !~ "^[.]" && $3 !~ "^project." && $3 ~ daterx {print gensub(daterx, "", 1, $3)}' | \
-        sort -u
+        sort -u || { rc=$?; set +o pipefail; >&2 echo Error $rc getting list of indices; return $rc; }
+    rc=$?
+    set +o pipefail
+    return $rc
 }
 
 function update_for_common_data_model() {
@@ -766,13 +770,16 @@ function upgrade_logging() {
   if [[ $installedVersion -ne $LOGGING_VERSION ]]; then
     if [[ -n "$migrate" ]]; then
       uuid_migrate
-    elif [[ -n "$common_data_model" ]] ; then
-      # set these in case uuid_migrate did not
-      initialize_es_vars
     fi
     if [[ -n "$common_data_model" ]] ; then
       # make sure these env. vars. are exported inside the function
       # to be available to all pipes, subshells, etc.
+      if [ -z "${CERT:-}" ] ; then
+        initialize_es_vars
+      fi
+      if [ ! -f $CERT ] ; then
+        recreate_admin_certs
+      fi
       PROJ_PREFIX=project. CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
     fi
 

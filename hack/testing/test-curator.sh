@@ -38,6 +38,16 @@ add_message_to_index() {
 }' > /dev/null
 }
 
+delete_indices() {
+    # ops is $1
+    espod=`get_running_pod es${1:-""}`
+    host=logging-es${1:-""}
+    cert=/etc/elasticsearch/secret/admin-cert
+    key=/etc/elasticsearch/secret/admin-key
+    url="https://${host}:9200/*.curatortest.*"
+    oc exec $espod -- curl -s -k --cert $cert --key $key -XDELETE "$url"
+}
+
 get_running_pod() {
     # $1 is component for selector
     oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
@@ -138,7 +148,7 @@ create_indices() {
                 break
             fi
         done
-        add_message_to_index "${this_proj}.$1" "$this_proj $1 message" $myops
+        add_message_to_index "${this_proj}.curatortest.$1" "$this_proj $1 message" $myops
         shift
     done
 }
@@ -154,10 +164,10 @@ verify_indices() {
     rc=0
     while [ -n "${1:-}" ] ; do
         proj="$1" ; shift
-        this_idx="project.${proj}.$1"
+        this_idx="project.${proj}.curatortest.$1"
         for skip in ${skip_list[*]} ; do
             if [ `expr ${proj} : "$skip"` -gt 0 ]; then
-                this_idx="${proj}.$1"
+                this_idx="${proj}.curatortest.$1"
                 break
             fi
         done
@@ -235,6 +245,11 @@ if uses_config_maps ; then
 fi
 
 cleanup() {
+    # delete indices
+    delete_indices
+    if [ "$CLUSTER" = "true" ] ; then
+        delete_indices "$OPS"
+    fi
     if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
         oc delete configmap logging-curator || :
         sleep 1
