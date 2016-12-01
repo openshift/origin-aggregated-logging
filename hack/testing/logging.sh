@@ -320,7 +320,7 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TI
 function wait_for_app() {
   echo "[INFO] Waiting for app in namespace $1"
   echo "[INFO] Waiting for database pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running'
+  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running' "$(( 2 * TIME_MIN ))"
 
   echo "[INFO] Waiting for database service to start"
   os::cmd::try_until_text "oc get -n $1 services" 'database' "$(( 2 * TIME_MIN ))"
@@ -374,6 +374,10 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
 else
     USE_CLUSTER=
 fi
+
+# when fluentd starts up it may take a while before it catches up with all of the logs
+# let's wait until that happens
+wait_for_fluentd_to_catch_up
 
 if [ "$TEST_PERF" = "true" ] ; then
     echo "Running performance tests"
