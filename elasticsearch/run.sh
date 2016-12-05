@@ -2,6 +2,66 @@
 
 set -euo pipefail
 
+# convert our secrets to JKS if necessary
+
+function importPKCS() {
+  dir=${SCRATCH_DIR:-_output}
+  NODE_NAME=$1
+	FILE_NAME=${2:-$dir/$NODE_NAME.pkcs12}
+	KEY_NAME=${3:-$dir/keystore.jks}
+  ks_pass=${KS_PASS:-kspass}
+  ts_pass=${TS_PASS:-tspass}
+  rm -rf $NODE_NAME
+
+  keytool \
+    -importkeystore \
+    -srckeystore $FILE_NAME \
+    -srcstoretype PKCS12 \
+    -srcstorepass pass \
+    -deststorepass $ks_pass \
+    -destkeypass $ks_pass \
+    -destkeystore $KEY_NAME \
+    -alias 1 \
+    -destalias $NODE_NAME
+
+  echo "Import back to keystore (including CA chain)"
+
+  keytool  \
+    -import \
+    -file $dir/admin-ca  \
+    -keystore $KEY_NAME  \
+    -storepass $ks_pass  \
+    -noprompt -alias sig-ca
+
+  echo All done for $NODE_NAME
+}
+
+function createTruststore() {
+	dir=${SCRATCH_DIR:-_output}
+	FILE_NAME=${1:-$dir/truststore.jks}
+
+  echo "Import CA to truststore for validating client certs"
+
+  keytool  \
+    -import \
+    -file $dir/admin-ca  \
+    -keystore $FILE_NAME  \
+    -storepass $ts_pass  \
+    -noprompt -alias sig-ca
+}
+
+generated_dir="/elasticsearch/generated"
+secret_dir="/etc/elasticsearch/secret"
+SCRATCH_DIR=$secret_dir
+
+[ ! -d $generated_dir ] && mkdir -p $generated_dir
+# convert our secrets to JKS if necessary
+[ ! -f $secret_dir/admin.jks ] && importPKCS "system.admin" "$secret_dir/admin" "$generated_dir/admin.jks"
+[ ! -f $secret_dir/searchguard.key ] && importPKCS "elasticsearch" "$secret_dir/searchguard" "$generated_dir/searchguard.key"
+[ ! -f $secret_dir/key ] && importPKCS "logging-es" "$secret_dir/elasticsearch" "$generated_dir/key"
+[ ! -f $secret_dir/truststore ] && createTruststore "$generated_dir/truststore"
+[ ! -f $secret_dir/searchguard.truststore ] && cp $generated_dir/truststore $generated_dir/searchguard.truststore
+
 export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 ES_REST_BASEURL=https://localhost:9200
 LOG_FILE=elasticsearch_connect_log.txt
@@ -13,7 +73,6 @@ max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
-secret_dir=/etc/elasticsearch/secret
 
 BYTES_PER_MEG=$((1024*1024))
 BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
