@@ -486,6 +486,10 @@ parameters added:
 * `ES_COPY_PASSWORD`, `OPS_COPY_PASSWORD` - password to use to authenticate to
   elasticsearch using username/password auth
 
+**Note:** Sending logs directly to an AWS Elasticsearch instance is not supported.  Please
+use [secure forward](#secure-forward) to direct logs to an instance of Fluentd that
+you control and is configured with the `fluent-plugin-aws-elasticsearch-service` plugin.
+
 To set the parameters:
 
     oc edit -n logging template logging-fluentd-template
