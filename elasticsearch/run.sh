@@ -24,7 +24,7 @@ MIN_ES_MEMORY_BYTES=$((256*${BYTES_PER_MEG}))
 # the amount of RAM allocated should be half of available instance RAM.
 # ref. https://www.elastic.co/guide/en/elasticsearch/guide/current/heap-sizing.html#_give_half_your_memory_to_lucene
 # parts inspired by https://github.com/fabric8io-images/run-java-sh/blob/master/fish-pepper/run-java-sh/fp-files/java-container-options
-regex='^([[:digit:]]+)([GgMm])$'
+regex='^([[:digit:]]+)([GgMm])i?$'
 if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
 	num=${BASH_REMATCH[1]}
 	unit=${BASH_REMATCH[2]}
