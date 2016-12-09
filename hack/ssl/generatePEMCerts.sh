@@ -18,8 +18,8 @@ openssl ca \
     -config etc/signing-ca.conf \
     -extensions v3_req \
     -batch \
-	-passin pass:$CA_PASS \
-	-extensions server_ext
+    -passin pass:$CA_PASS \
+    -extensions server_ext
 
 echo Cleaning up Cert Requests
 rm -rf $NODE_NAME/$NODE_NAME.csr

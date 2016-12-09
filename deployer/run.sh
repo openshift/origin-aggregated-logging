@@ -15,46 +15,46 @@ mkdir -p $dir
 if [ -n "${WRITE_KUBECONFIG}" ]; then
     # craft a kubeconfig, usually at $KUBECONFIG location
     oc config set-cluster master \
-	--api-version='v1' \
-	--certificate-authority="${master_ca}" \
-	--server="${master_url}"
+        --api-version='v1' \
+        --certificate-authority="${master_ca}" \
+        --server="${master_url}"
     oc config set-credentials account \
-	--token="$(cat ${token_file})"
+        --token="$(cat ${token_file})"
     oc config set-context current \
-	--cluster=master \
-	--user=account \
-	--namespace="${project}"
+        --cluster=master \
+        --user=account \
+        --namespace="${project}"
     oc config use-context current
 fi
 
 for file in scripts/*.sh; do source $file; done
 case "${mode}" in
-  install)
-    install_logging
-    ;;
-  uninstall)
-    scaleDown || :
-    delete_logging
-    ;;
-  reinstall)
-    scaleDown || :
-    delete_logging
-    install_logging
-    ;;
-  migrate)
-    uuid_migrate
-    ;;
-  upgrade)
-    upgrade_logging
-    ;;
-  stop)
-    scaleDown
-    ;;
-  start)
-    scaleUp
-    ;;
-  *)
-    echo "Invalid mode provided. One of ['install'|'uninstall'|'reinstall'|'migrate'|'upgrade'|'start'|'stop'] was expected";
-    exit 1
-    ;;
+    install)
+        install_logging
+        ;;
+    uninstall)
+        scaleDown || :
+        delete_logging
+        ;;
+    reinstall)
+        scaleDown || :
+        delete_logging
+        install_logging
+        ;;
+    migrate)
+        uuid_migrate
+        ;;
+    upgrade)
+        upgrade_logging
+        ;;
+    stop)
+        scaleDown
+        ;;
+    start)
+        scaleUp
+        ;;
+    *)
+        echo "Invalid mode provided. One of ['install'|'uninstall'|'reinstall'|'migrate'|'upgrade'|'start'|'stop'] was expected";
+        exit 1
+        ;;
 esac
