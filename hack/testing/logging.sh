@@ -169,6 +169,15 @@ if [ -n "${KIBANA_HOST:-}" ] ; then
             echo $ip $KIBANA_HOST | sudo tee -a /etc/hosts
         fi
     fi
+    # generate externally facing cert for router
+    openshift admin ca create-server-cert --key=$ARTIFACT_DIR/kibana.key \
+          --cert=$ARTIFACT_DIR/kibana.crt --hostnames=$KIBANA_HOST \
+          --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
+          --signer-key=$MASTER_CONFIG_DIR/ca.key \
+          --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
+    deployer_args="$deployer_args \
+                   --from-file=kibana.crt=$ARTIFACT_DIR/kibana.crt \
+                   --from-file=kibana.key=$ARTIFACT_DIR/kibana.key"
 fi
 if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
     deployer_args="$deployer_args --from-literal kibana-ops-hostname=$KIBANA_OPS_HOST"
@@ -183,6 +192,15 @@ if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
             echo $ip $KIBANA_OPS_HOST | sudo tee -a /etc/hosts
         fi
     fi
+    # generate externally facing cert for router
+    openshift admin ca create-server-cert --key=$ARTIFACT_DIR/kibana-ops.key \
+          --cert=$ARTIFACT_DIR/kibana-ops.crt --hostnames=$KIBANA_OPS_HOST \
+          --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
+          --signer-key=$MASTER_CONFIG_DIR/ca.key \
+          --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
+    deployer_args="$deployer_args \
+                   --from-file=kibana-ops.crt=$ARTIFACT_DIR/kibana-ops.crt \
+                   --from-file=kibana-ops.key=$ARTIFACT_DIR/kibana-ops.key"
 fi
 os::cmd::expect_success "oc create configmap logging-deployer $deployer_args"
 
