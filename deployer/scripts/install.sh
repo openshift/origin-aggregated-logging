@@ -99,6 +99,9 @@ function procure_server_cert() {
     # use files from secret if present
     echo -e "${input_vars[$file.key]}" > $dir/$file.key
     echo -e "${input_vars[$file.crt]}" > $dir/$file.crt
+    if [ ${input_vars[$file.ca.crt]+set} ]; then
+        echo -e "${input_vars[$file.ca.crt]}" > $dir/$file.ca.crt
+    fi
   elif [ -n "${hostnames:-}" ]; then  #fallback to creating one
     openshift admin ca create-server-cert  \
       --key=$dir/$file.key \
@@ -119,14 +122,26 @@ function generate_support_objects() {
 
   oc new-app logging-support-template
   kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert=$dir/kibana.crt --key=$dir/kibana.key"
+  # use provided ca cert, if any, otherwise, use the internal ca cert
+  if [ -e "$dir/kibana.ca.crt" ] ; then
+      kibana_keys="$kibana_keys --ca-cert=$dir/kibana.ca.crt"
+  else
+      kibana_keys="$kibana_keys --ca-cert=$dir/ca.crt"
+  fi
   oc create route reencrypt --service="logging-kibana" \
                              --hostname="${hostname}" \
-                             --{dest-,}ca-cert="$dir/ca.crt" \
+                             --dest-ca-cert="$dir/ca.crt" \
                                    $kibana_keys
   kibana_keys=""; [ -e "$dir/kibana-ops.crt" ] && kibana_keys="--cert=$dir/kibana-ops.crt --key=$dir/kibana-ops.key"
+  # use provided ca cert, if any, otherwise, use the internal ca cert
+  if [ -e "$dir/kibana-ops.ca.crt" ] ; then
+      kibana_keys="$kibana_keys --ca-cert=$dir/kibana-ops.ca.crt"
+  else
+      kibana_keys="$kibana_keys --ca-cert=$dir/ca.crt"
+  fi
   oc create route reencrypt --service="logging-kibana-ops" \
                              --hostname="${ops_hostname}" \
-                             --{dest-,}ca-cert="$dir/ca.crt" \
+                             --dest-ca-cert="$dir/ca.crt" \
                                    $kibana_keys
    # note: route labels are copied from service, no need to add
 }

@@ -201,8 +201,12 @@ in the `logging-deployer` secret:
 
 * `kibana.crt` - A browser-facing certificate for the Kibana route. If not supplied, the route is secured with the default router cert.
 * `kibana.key` - A key to be used with the Kibana certificate.
+* `kibana.ca.crt` - The CA cert for the CA that issued `kibana.crt`, if needed
+  * if not present, the CA cert for the the internal Kibana service will be used
 * `kibana-ops.crt` - A browser-facing certificate for the Ops Kibana route. If not supplied, the route is secured with the default router cert.
 * `kibana-ops.key` - A key to be used with the Ops Kibana certificate.
+* `kibana-ops.ca.crt` - The CA cert for the CA that issued `kibana-ops.crt`, if needed
+  * if not present, the CA cert for the the internal Kibana service will be used
 * `kibana-internal.crt` - An internal certificate for the Kibana server.
 * `kibana-internal.key` - A key to be used with the internal Kibana certificate.
 * `server-tls.json` - JSON TLS options to override the internal Kibana TLS defaults; refer to
@@ -216,7 +220,8 @@ An invocation supplying a properly signed Kibana cert might be:
 
     $ oc create secret generic logging-deployer \
        --from-file kibana.crt=/path/to/cert \
-       --from-file kibana.key=/path/to/key
+       --from-file kibana.key=/path/to/key \
+       --from-file kibana.ca.crt=/path/to/ca.crt
 
 ### Choose Template Parameters
 
