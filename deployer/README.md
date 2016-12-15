@@ -1,41 +1,3 @@
-# About the Logging Components
-
-The aggregated logging subsystem consists of multiple components commonly
-abbreviated as the "ELK" stack (though modified here to be the "EFK"
-stack).
-
-### ElasticSearch
-
-ElasticSearch is a Lucene-based indexing object store into which logs
-are fed. Logs for node services and all containers in the cluster are
-fed into one deployed cluster. The ElasticSearch cluster should be deployed
-with redundancy and persistent storage for scale and high availability.
-
-### Fluentd
-
-Fluentd is responsible for gathering log entries from all nodes, enriching
-them with metadata, and feeding them into the ElasticSearch cluster.
-
-### Kibana
-
-Kibana presents a web UI for browsing and visualizing logs in ElasticSearch.
-
-### Logging auth proxy
-
-In order to authenticate the Kibana user against OpenShift's Oauth2 for
-single sign-on, a proxy is required that runs in front of Kibana.
-
-### Curator
-
-Curator allows the admin to remove old data from Elasticsearch on a per-project
-basis.
-
-### Deployer
-
-The deployer enables the system administrator to generate all of the
-necessary key/certs/secrets and deploy all of the logging components
-in concert.
-
 # Contents
 
 * [Using the Logging Deployer](#using-the-logging-deployer)
@@ -535,8 +497,8 @@ will need to match what is specified within secure-forward.conf in the configmap
 
 #### Have Fluentd use the systemd journal as the log source
 
-By default, fluentd will read from `/var/log/messages` and `/var/log/containers/*.log` 
-for system logs and container logs, respectively. 
+By default, fluentd will read from `/var/log/messages` and `/var/log/containers/*.log`
+for system logs and container logs, respectively.
 You can use the systemd journal instead as the log source.  There are three
 deployer configuration parameters set in the deployer configmap: `use-journal`,
 `journal-source`, and `journal-read-from-head`.
@@ -563,7 +525,7 @@ journal, before any new log entries are available in Elasticsearch, when using
 duplicate records.
 *NOTE* As of 1.3, Fluentd no longer reads historical log files when using the
 json-file log driver. This is to avoid delays pushing into Elasticsearch the most recent logs
-on clusters that have a large number of log files that are older then the EFK deployment, and to 
+on clusters that have a large number of log files that are older then the EFK deployment, and to
 mitigate Curator deleting logs shortly after they are added to Elasticsearch.
 
 ### Kibana
