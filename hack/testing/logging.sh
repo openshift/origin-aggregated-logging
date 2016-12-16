@@ -177,7 +177,8 @@ if [ -n "${KIBANA_HOST:-}" ] ; then
           --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
     deployer_args="$deployer_args \
                    --from-file=kibana.crt=$ARTIFACT_DIR/kibana.crt \
-                   --from-file=kibana.key=$ARTIFACT_DIR/kibana.key"
+                   --from-file=kibana.key=$ARTIFACT_DIR/kibana.key \
+                   --from-file=kibana.ca.crt=$MASTER_CONFIG_DIR/ca.crt"
 fi
 if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
     deployer_args="$deployer_args --from-literal kibana-ops-hostname=$KIBANA_OPS_HOST"
@@ -200,7 +201,8 @@ if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
           --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
     deployer_args="$deployer_args \
                    --from-file=kibana-ops.crt=$ARTIFACT_DIR/kibana-ops.crt \
-                   --from-file=kibana-ops.key=$ARTIFACT_DIR/kibana-ops.key"
+                   --from-file=kibana-ops.key=$ARTIFACT_DIR/kibana-ops.key \
+                   --from-file=kibana-ops.ca.crt=$MASTER_CONFIG_DIR/ca.crt"
 fi
 os::cmd::expect_success "oc create configmap logging-deployer $deployer_args"
 
