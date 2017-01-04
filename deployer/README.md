@@ -92,7 +92,9 @@ a [Secret](https://docs.openshift.org/latest/dev_guide/secrets.html),
 or template parameters (which are passed as environment variables). The
 deployer looks for each value first in a `logging-deployer` ConfigMap,
 then a `logging-deployer` Secret, then as an environment variable. Any
-or all may be omitted if not needed.
+or all may be omitted if not needed. Please note that if you are specifying values
+within a configmap, the values will not be reflected in the output from `$oc new-app`
+but will still precede the corresponding template values within the deployer pod.
 
 ### Create Deployer ConfigMap
 
