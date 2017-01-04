@@ -1443,16 +1443,14 @@ Scale down any Fluentd pods that you are updating the configuration for. Once th
 no longer running, edit it's configmap and add the following section with other
 sources:
 
-  ...
-
-  ## sources
-  ## ordered so that syslog always runs last...
-    <source>
-      @type monitor_agent
-      bind 0.0.0.0
-      port 24220
-    </source>
-
+    ...
+    ## sources
+    ## ordered so that syslog always runs last...
+      <source>
+        @type monitor_agent
+        bind 0.0.0.0
+        port 24220
+      </source>
     ...
 
 After that, deploy the Fluentd pods again. To query a Fluentd pod for it's
