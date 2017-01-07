@@ -132,9 +132,16 @@ def create_default_syslog()
   path "#{ENV['JOURNAL_SOURCE'] || '/run/log/journal'}"
   pos_file /var/log/journal.pos
   tag journal
-  read_from_head "#{ENV['JOURNAL_READ_FROM_HEAD'] || 'false'}"
-</source>
     CONF
+      # workaround for https://github.com/reevoo/fluent-plugin-systemd/issues/19
+      if ENV['JOURNAL_READ_FROM_HEAD'] == "true"
+        file.write(<<-CONF2)
+  read_from_head true
+      CONF2
+      end
+      file.write(<<-CONF3)
+</source>
+    CONF3
     }
   else
     File.open(file_name, 'w') { |file|
