@@ -10,7 +10,6 @@ ln -s /usr/share/elasticsearch /usr/share/java/elasticsearch
 /usr/share/elasticsearch/bin/plugin install io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
 /usr/share/elasticsearch/bin/plugin install io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
 
-
 mkdir /elasticsearch
 mkdir -p $ES_CONF
 chmod -R og+w $ES_CONF
