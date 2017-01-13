@@ -245,6 +245,7 @@ if uses_config_maps ; then
 fi
 
 cleanup() {
+    oc logs $curpod
     # delete indices
     delete_indices
     if [ "$CLUSTER" = "true" ] ; then
@@ -387,8 +388,8 @@ basictest() {
     # so for now, just use UTC
     #tz=`timedatectl | awk '/Time zone:/ {print $3}'`
     tz=UTC
-    runhour=`date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
-    runminute=`date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
 .defaults:
   delete:
