@@ -188,6 +188,12 @@ echo $TEST_DIVIDER
 
 # we add a '0' to deal with false positives of 'kibana' matching 'kibana' and 'kibana-ops' when checking what is found
 NEEDED_ROUTES=("kibana0" "kibana-ops0")
+if [ -n "${ES_HOST:-}" ] ; then
+    NEEDED_ROUTES=(${NEEDED_ROUTES[@]} "logging-es")
+fi
+if [ -n "${ES_OPS_HOST:-}" ] ; then
+    NEEDED_ROUTES=(${NEEDED_ROUTES[@]} "logging-es-ops")
+fi
 FOUND_ROUTES=(`oc get routes -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 ROUTE_COUNT=${#FOUND_ROUTES[@]}
 NEEDED_ROUTE_COUNT=${#NEEDED_ROUTES[@]}
