@@ -248,6 +248,18 @@ else
     source $OS_O_A_L_DIR/hack/testing/setup-and-deploy-logging
 fi
 
+# start fluentd
+os::cmd::try_until_success "oc get daemonset logging-fluentd" "$(( 1 * TIME_MIN ))"
+os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
+
+# the old way with dc's
+# # scale up a fluentd pod
+# os::cmd::try_until_success "oc get dc logging-fluentd"
+# os::cmd::expect_success "oc scale dc logging-fluentd --replicas=1"
+
+os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TIME_MIN ))"
+### logging component pods are now created and deployed ###
+
 ### kibana setup - router account, router, kibana user ###
 oc get serviceaccount -n default router || os::cmd::expect_success "oc create serviceaccount router -n default"
 os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:default:router"
@@ -263,7 +275,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibt
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod 30
+wait_for_es_ready $espod logging-es 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
    https://localhost:9200/.searchguard.$espod/rolesmapping/0 | \
@@ -274,7 +286,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod 30
+    wait_for_es_ready $esopspod logging-es-ops 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
        https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 | \
