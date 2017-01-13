@@ -30,7 +30,7 @@ RUN mkdir -p ${HOME} && \
       'activesupport:<5' \
       fluent-plugin-kubernetes_metadata_filter \
       fluent-plugin-elasticsearch \
-      fluent-plugin-systemd \
+      'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
       fluent-plugin-rewrite-tag-filter \
       fluent-plugin-secure-forward
