@@ -86,7 +86,7 @@ def close_file(project, isSyslog)
   else
     File.open(file_name, 'a') { |file|
       file.write(<<-CONF)
-  time_format %Y-%m-%dT%H:%M:%S
+  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
   format json
   keep_time_key true
@@ -108,7 +108,7 @@ def create_default_docker(excluded)
   @label @INGRESS
   path /var/log/containers/*.log
   pos_file /var/log/es-containers.log.pos
-  time_format %Y-%m-%dT%H:%M:%S
+  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
   format json
   keep_time_key true
