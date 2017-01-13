@@ -335,43 +335,6 @@ os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TIME_MIN ))"
 ### logging component pods are now created and deployed ###
 
-### add the test app ###
-# copied from end-to-end/core.sh
-function wait_for_app() {
-  echo "[INFO] Waiting for app in namespace $1"
-  echo "[INFO] Waiting for database pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running' "$(( 5 * TIME_MIN ))"
-
-  echo "[INFO] Waiting for database service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'database' "$(( 5 * TIME_MIN ))"
-  DB_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service database)
-
-  echo "[INFO] Waiting for frontend pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods" 'frontend.+Running' "$(( 5 * TIME_MIN ))"
-
-  echo "[INFO] Waiting for frontend service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'frontend' "$(( 5 * TIME_MIN ))"
-  FRONTEND_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
-
-  echo "[INFO] Waiting for database to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${DB_IP}:5434'" $((5*TIME_MIN))
-
-  echo "[INFO] Waiting for app to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${FRONTEND_IP}:5432'" $((5*TIME_MIN))
-
-  echo "[INFO] Testing app"
-  os::cmd::try_until_text "curl -s -X POST http://${FRONTEND_IP}:5432/keys/foo -d value=1337" "Key created" "$((60*TIME_SEC))"
-  os::cmd::try_until_text "curl -s http://${FRONTEND_IP}:5432/keys/foo" "1337" "$((60*TIME_SEC))"
-}
-
-os::cmd::expect_success "$OS_ROOT/examples/sample-app/pullimages.sh"
-os::cmd::expect_success "oc new-project test --display-name='example app for logging testing' --description='This is an example app for logging testing'"
-os::cmd::expect_success "oc new-app -f $OS_ROOT/examples/sample-app/application-template-stibuild.json"
-os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Running" "$(( 10*TIME_MIN ))"
-os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Complete" "$(( 10*TIME_MIN ))"
-wait_for_app "test"
-### test app added ###
-
 ### kibana setup - router account, router, kibana user ###
 os::cmd::expect_success "oc create serviceaccount router -n default"
 os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:default:router"
@@ -384,6 +347,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibt
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
+wait_for_es_ready $espod logging-es 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
    https://logging-es:9200/.searchguard.$espod/rolesmapping/0 | \
@@ -394,6 +358,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
+    wait_for_es_ready $esopspod logging-es-ops 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
        https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 | \

@@ -304,6 +304,58 @@ function wait_for_builds_complete()
     return 0
 }
 
+get_error_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && ($3 == "Error" || $3 == "CrashLoopBackOff") {print $1}'
+}
+
+wait_for_pod_ACTION() {
+    # action is $1 - start or stop
+    # $2 - if action is stop, $2 is the pod name
+    #    - if action is start, $2 is the component selector
+    # $3 - if present, expect error - if stop, $2 may be empty, just return - if start, no error if pod cannot be started
+    local ii=120
+    local incr=10
+    if [ $1 = start ] ; then
+        curpod=`get_running_pod $2`
+    else
+        curpod=${2:-}
+        if [ -z "${curpod:-}" -a -n "${3:-}" ] ; then
+            return 0 # assume not running
+        fi
+    fi
+    while [ $ii -gt 0 ] ; do
+        if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
+            if [ -n "$VERBOSE" ] ; then
+                echo pod $curpod still running
+            fi
+        elif [ $1 = start ] && [ -z "$curpod" ] ; then
+            if [ -n "${3:-}" ] ; then
+                errpod=`get_error_pod $2`
+                if [ -n "$errpod" ] ; then
+                    return 1
+                fi
+            fi
+            if [ -n "$VERBOSE" ] ; then
+                echo pod for component=$2 not running yet
+            fi
+        else
+            break # pod is either started or stopped
+        fi
+        sleep $incr
+        ii=`expr $ii - $incr`
+        if [ $1 = start ] ; then
+            curpod=`get_running_pod $2`
+        fi
+    done
+    if [ $ii -le 0 ] ; then
+        echo ERROR: pod $2 not in state $1 after 2 minutes
+        oc get pods
+        return 1
+    fi
+    return 0
+}
+
 function get_running_pod() {
     # $1 is component for selector
     oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
@@ -319,6 +371,30 @@ function get_latest_pod() {
   echo $pod
 }
 
+# set the test_token, test_name, and test_ip for token auth
+function get_test_user_token() {
+    oc login --username=kibtest --password=kibtest > /dev/null
+    test_token="$(oc whoami -t)"
+    test_name="$(oc whoami)"
+    test_ip="127.0.0.1"
+    oc login --username=system:admin > /dev/null
+}
+
+# $1 - kibana pod name
+# $2 - es hostname (e.g. logging-es or logging-es-ops)
+# $3 - project name (e.g. logging, test, .operations, etc.)
+# $4 - _count or _search
+# $5 - field to search
+# $6 - search string
+# stdout is the JSON output from Elasticsearch
+# stderr is curl errors
+curl_es_from_kibana() {
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
+       --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+       -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
+       https://${2}:9200/${3}*/${4}\?q=${5}:${6}
+}
+
 # $1 - es pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
 # $3 - index name (e.g. project.logging, project.test, .operations, etc.)
@@ -331,6 +407,35 @@ function query_es_from_es() {
     oc exec $1 -- curl --connect-timeout 1 -s -k \
        --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}
+}
+
+# $1 is es pod
+# $2 is es hostname (logging-es or logging-es-ops)
+# $3 is timeout
+function wait_for_es_ready() {
+    # test for ES to be up first and that our SG index has been created
+    out=/dev/null
+    if [ "${VERBOSE:-}" = true ] ; then
+        echo "Checking if Elasticsearch $1 is ready"
+        out=${LOG_DIR:-/tmp}/wait_for_es_port_open.log
+    fi
+    secret_dir=/etc/elasticsearch/secret
+    local ii=$3
+    while ! response_code=$(oc exec $1 -- curl -s \
+        --cacert $secret_dir/admin-ca \
+        --cert $secret_dir/admin-cert \
+        --key  $secret_dir/admin-key \
+        --connect-timeout 1 \
+        -w '%{response_code}' -o $out \
+        "https://$2:9200/.searchguard.$1") || test "${response_code:-}" != 200
+    do
+        sleep 1
+        ii=`expr $ii - 1`
+        if [ $ii -eq 0 ] ; then
+            return 1
+        fi
+    done
+    return 0
 }
 
 function get_count_from_json() {
@@ -385,6 +490,9 @@ function test_count_err() {
     done
 }
 
+# $1 - command to call to pass the uuid_es
+# $2 - command to call to pass the uuid_es_ops
+# $3 - expected number of matches
 function wait_for_fluentd_to_catch_up() {
     local es_pod=`get_running_pod es`
     local es_ops_pod=`get_running_pod es-ops`
@@ -393,6 +501,7 @@ function wait_for_fluentd_to_catch_up() {
     fi
     local uuid_es=`uuidgen`
     local uuid_es_ops=`uuidgen`
+    local expected=${3:-1}
 
     add_test_message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
@@ -401,21 +510,27 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
 
-    if espod=$es_pod myhost=logging-es myproject=project.logging mymessage=$uuid_es expected=1 \
+    if espod=$es_pod myhost=logging-es myproject=project.logging mymessage=$uuid_es expected=$expected \
             wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
-        echo good - $FUNCNAME: found 1 record project logging for $uuid_es
+        echo good - $FUNCNAME: found $expected record project logging for $uuid_es
     else
-        echo failed - $FUNCNAME: not found 1 record project logging for $uuid_es
+        echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es
         rc=1
     fi
 
-    if espod=$es_ops_pod myhost=logging-es-ops myproject=.operations mymessage=$uuid_es_ops expected=1 myfield=systemd.u.SYSLOG_IDENTIFIER \
+    if espod=$es_ops_pod myhost=logging-es-ops myproject=.operations mymessage=$uuid_es_ops expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
             wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
-        echo good - $FUNCNAME: found 1 record project .operations for $uuid_es_ops
+        echo good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
     else
-        echo failed - $FUNCNAME: not found 1 record project .operations for $uuid_es_ops
+        echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops
         rc=1
     fi
 
+    if [ -n "${1:-}" ] ; then
+        $1 $uuid_es
+    fi
+    if [ -n "${2:-}" ] ; then
+        $2 $uuid_es_ops
+    fi
     return $rc
 }

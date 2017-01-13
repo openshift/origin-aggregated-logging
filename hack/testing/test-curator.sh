@@ -10,6 +10,10 @@ fi
 set -o nounset
 set -o pipefail
 
+if ! type get_running_pod > /dev/null 2>&1 ; then
+    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
+fi
+
 if [[ $# -ne 1 || "$1" = "false" ]]; then
   # assuming not using OPS cluster
   CLUSTER="false"
@@ -48,48 +52,8 @@ delete_indices() {
     oc exec $espod -- curl -s -k --cert $cert --key $key -XDELETE "$url"
 }
 
-get_running_pod() {
-    # $1 is component for selector
-    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
-}
-
-get_error_pod() {
-    # $1 is component for selector
-    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && ($3 == "Error" || $3 == "CrashLoopBackOff") {print $1}'
-}
-
-wait_for_pod_ACTION() {
-    # action is $1 - start or stop
-    # $2 - if action is stop, $2 is the pod name
-    #    - if action is start, $2 is the component selector
-    # $3 - if present, expect error - if stop, $2 may be empty, just return - if start, no error if pod cannot be started
-    ii=120
-    incr=10
-    if [ $1 = start ] ; then
-        curpod=`get_running_pod $2`
-    else
-        curpod=${2:-}
-        if [ -z "${curpod:-}" -a -n "${3:-}" ] ; then
-            return 0 # assume not running
-        fi
-    fi
-    while [ $ii -gt 0 ] ; do
-        if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
-            if [ -n "$VERBOSE" ] ; then
-                echo pod $curpod still running
-            fi
-        elif [ $1 = start ] && [ -z "$curpod" ] ; then
-            if [ -n "$VERBOSE" ] ; then
-                echo pod for component=$2 not running yet
-            fi
-        else
-            break # pod is either started or stopped
-        fi
-        sleep $incr
-        ii=`expr $ii - $incr`
-        if [ $1 = start ] ; then
-            curpod=`get_running_pod $2`
-        fi
+wait_for_curator_pod_ACTION() {
+    if ! wait_for_pod_ACTION $1 "$2" ${3:-} ; then
         if [ -z "$curpod" ] ; then
             errpod=`get_error_pod $2`
             if [ -n "$errpod" ] ; then
@@ -104,13 +68,7 @@ wait_for_pod_ACTION() {
                 return 0
             fi
         fi
-    done
-    if [ -z "${2:-}" ] ; then
-        if [ $ii -le 0 ] ; then
-            echo ERROR: pod $2 not in state $1 after 2 minutes
-            oc get pods > $ARTIFACT_DIR/curator-pods 2>&1
-            return 1
-        fi
+        return 1
     fi
     return 0
 }
@@ -204,11 +162,11 @@ restart_curator() {
     # scale down dc
     oc scale --replicas=0 dc logging-curator${ops:-}
     # wait for pod to go away
-    wait_for_pod_ACTION stop "$curpod" ${1:-}
+    wait_for_curator_pod_ACTION stop "$curpod" ${1:-}
     # scale up dc
     oc scale --replicas=1 dc logging-curator${ops:-}
     # wait for pod to start
-    wait_for_pod_ACTION start curator${ops:-} ${1:-}
+    wait_for_curator_pod_ACTION start curator${ops:-} ${1:-}
     # get new pod
     curpod=`get_running_pod curator${ops:-}`
 }
