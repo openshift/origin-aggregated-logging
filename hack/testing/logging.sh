@@ -347,7 +347,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibt
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod logging-es 30
+wait_for_es_ready $espod 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
    https://logging-es:9200/.searchguard.$espod/rolesmapping/0 | \
@@ -358,7 +358,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod logging-es-ops 30
+    wait_for_es_ready $esopspod 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
        https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 | \
