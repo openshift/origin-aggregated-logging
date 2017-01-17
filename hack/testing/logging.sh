@@ -73,14 +73,12 @@ else
                "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
     do source "$lib"; done
 fi
-os::log::stacktrace::install
-os::util::environment::setup_time_vars
+
+os::util::ensure::iptables_privileges_exist
+
+os::log::info "Starting logging tests at `date`"
 
 cd "${OS_ROOT}"
-
-os::build::setup_env
-
-os::test::junit::declare_suite_start 'logging'
 
 function cleanup()
 {
@@ -89,12 +87,12 @@ function cleanup()
     if [ $out -ne 0 ]; then
         echo "[FAIL] !!!!! Test Failed !!!!"
     else
-        echo "[INFO] Test Succeeded"
+        os::log::info "Test Succeeded"
     fi
-    echo
-
     os::test::junit::declare_suite_end
     os::test::junit::reconcile_output
+    echo
+
     if [ "$DEBUG_FAILURES" = "true" ] ; then
         echo debug failures - when you are finished, 'ps -ef|grep 987654' then kill that sleep process
         sleep 987654 || echo debugging done - continuing
@@ -102,7 +100,7 @@ function cleanup()
     if [ "$DO_CLEANUP" = "true" ] ; then
         cleanup_openshift
     fi
-    echo "[INFO] Exiting at " `date`
+    os::log::info "Exiting at `date`"
     ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"
     return $out
 }
@@ -110,18 +108,14 @@ function cleanup()
 trap "exit" INT TERM
 trap "cleanup" EXIT
 
-echo "[INFO] Starting logging tests at " `date`
-
-os::util::ensure::iptables_privileges_exist
 # override LOG_DIR and ARTIFACTS_DIR
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 os::util::environment::use_sudo
 os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
+os::util::environment::setup_time_vars
 
 os::log::system::start
-
-export KUBELET_HOST=$(hostname)
 
 os::start::configure_server
 if [ -n "${KIBANA_HOST:-}" ] ; then
@@ -136,8 +130,10 @@ os::start::server
 
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
-os::start::registry
-oc rollout status dc/docker-registry
+os::test::junit::declare_suite_start "logging"
+os::cmd::expect_success "oadm registry"
+os::cmd::expect_success 'oadm policy add-scc-to-user hostnetwork -z router'
+os::cmd::expect_success 'oadm router'
 
 ######### logging specific code starts here ####################
 
@@ -236,7 +232,7 @@ else
 
     os::cmd::expect_success "oc process -o yaml \
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
-       -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
+       -p LOGGING_FORK_URL=$GIT_URL -p LOGGING_FORK_BRANCH=$GIT_BRANCH \
        | build_filter | oc create -f -"
     post_build
     os::cmd::expect_success "wait_for_builds_complete"
@@ -249,7 +245,7 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
         sudo mkdir -p $ES_OPS_VOLUME
         sudo chown 1000:1000 $ES_OPS_VOLUME
     fi
-    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -v SIZE=10 -v PATH=${ES_OPS_VOLUME} | oc create -f -"
+    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -p SIZE=10 -p PATH=${ES_OPS_VOLUME} | oc create -f -"
     pvc_params="-p ES_OPS_PVC_SIZE=10 -p ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
 fi
 # TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
@@ -335,55 +331,16 @@ os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TIME_MIN ))"
 ### logging component pods are now created and deployed ###
 
-### add the test app ###
-# copied from end-to-end/core.sh
-function wait_for_app() {
-  echo "[INFO] Waiting for app in namespace $1"
-  echo "[INFO] Waiting for database pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods -l name=database" 'Running' "$(( 5 * TIME_MIN ))"
-
-  echo "[INFO] Waiting for database service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'database' "$(( 5 * TIME_MIN ))"
-  DB_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service database)
-
-  echo "[INFO] Waiting for frontend pod to start"
-  os::cmd::try_until_text "oc get -n $1 pods" 'frontend.+Running' "$(( 5 * TIME_MIN ))"
-
-  echo "[INFO] Waiting for frontend service to start"
-  os::cmd::try_until_text "oc get -n $1 services" 'frontend' "$(( 5 * TIME_MIN ))"
-  FRONTEND_IP=$(oc get -n $1 --output-version=v1beta3 --template="{{ .spec.clusterIP }}" service frontend)
-
-  echo "[INFO] Waiting for database to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${DB_IP}:5434'" $((5*TIME_MIN))
-
-  echo "[INFO] Waiting for app to start..."
-  os::cmd::try_until_success "curl --max-time 2 --fail --silent 'http://${FRONTEND_IP}:5432'" $((5*TIME_MIN))
-
-  echo "[INFO] Testing app"
-  os::cmd::try_until_text "curl -s -X POST http://${FRONTEND_IP}:5432/keys/foo -d value=1337" "Key created" "$((60*TIME_SEC))"
-  os::cmd::try_until_text "curl -s http://${FRONTEND_IP}:5432/keys/foo" "1337" "$((60*TIME_SEC))"
-}
-
-os::cmd::expect_success "$OS_ROOT/examples/sample-app/pullimages.sh"
-os::cmd::expect_success "oc new-project test --display-name='example app for logging testing' --description='This is an example app for logging testing'"
-os::cmd::expect_success "oc new-app -f $OS_ROOT/examples/sample-app/application-template-stibuild.json"
-os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Running" "$(( 10*TIME_MIN ))"
-os::cmd::try_until_text "oc get builds --namespace test -o jsonpath='{.items[0].status.phase}'" "Complete" "$(( 10*TIME_MIN ))"
-wait_for_app "test"
-### test app added ###
-
 ### kibana setup - router account, router, kibana user ###
-os::cmd::expect_success "oc create serviceaccount router -n default"
 os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:default:router"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:router"
-os::cmd::expect_success "oadm router --create --namespace default --service-account=router \
-     --credentials $MASTER_CONFIG_DIR/openshift-router.kubeconfig"
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibtest"
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
+wait_for_es_ready $espod 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
    https://logging-es:9200/.searchguard.$espod/rolesmapping/0 | \
@@ -394,6 +351,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
+    wait_for_es_ready $esopspod 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
        https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 | \
