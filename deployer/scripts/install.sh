@@ -122,22 +122,18 @@ function generate_support_objects() {
 
   oc new-app logging-support-template
   kibana_keys=""; [ -e "$dir/kibana.crt" ] && kibana_keys="--cert=$dir/kibana.crt --key=$dir/kibana.key"
-  # use provided ca cert, if any, otherwise, use the internal ca cert
+  # use provided ca cert, if any
   if [ -e "$dir/kibana.ca.crt" ] ; then
       kibana_keys="$kibana_keys --ca-cert=$dir/kibana.ca.crt"
-  else
-      kibana_keys="$kibana_keys --ca-cert=$dir/ca.crt"
   fi
   oc create route reencrypt --service="logging-kibana" \
                              --hostname="${hostname}" \
                              --dest-ca-cert="$dir/ca.crt" \
                                    $kibana_keys
   kibana_keys=""; [ -e "$dir/kibana-ops.crt" ] && kibana_keys="--cert=$dir/kibana-ops.crt --key=$dir/kibana-ops.key"
-  # use provided ca cert, if any, otherwise, use the internal ca cert
+  # use provided ca cert, if any
   if [ -e "$dir/kibana-ops.ca.crt" ] ; then
       kibana_keys="$kibana_keys --ca-cert=$dir/kibana-ops.ca.crt"
-  else
-      kibana_keys="$kibana_keys --ca-cert=$dir/ca.crt"
   fi
   oc create route reencrypt --service="logging-kibana-ops" \
                              --hostname="${ops_hostname}" \
