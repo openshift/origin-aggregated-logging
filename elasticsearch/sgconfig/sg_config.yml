@@ -3,8 +3,7 @@ searchguard:
     http:
       xff:
         enabled: true
-        remoteIpHeader: 'remoteAddress'
-        proxiesHeader: 'remoteAddress'
+        remoteIpHeader: 'x-forwarded-for'
         trustedProxies: '.*'
         internalProxies: '.*'
     authc:
