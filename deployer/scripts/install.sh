@@ -90,7 +90,7 @@ function initialize_install_vars() {
   # if env vars defined, get values from them
   # special-casing this as it's required anywhere we create a DC,
   # including both installs and upgrades. so ensure it's always set.
-  image_params="IMAGE_VERSION_DEFAULT=${image_version},IMAGE_PREFIX_DEFAULT=${image_prefix}"
+  image_params="--param IMAGE_VERSION_DEFAULT=${image_version} --param IMAGE_PREFIX_DEFAULT=${image_prefix}"
 } #initialize_install_vars()
 
 function procure_server_cert() {
@@ -308,7 +308,7 @@ function generate_es_template(){
     --param ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
     --param STORAGE_GROUP_DEFAULT=${storage_group} \
-    --param "$image_params"
+    $image_params
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
       create_template_optional_nodeselector "${input_vars[es-ops-nodeselector]}" es \
@@ -319,7 +319,7 @@ function generate_es_template(){
         --param ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
         --param ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
         --param STORAGE_GROUP_DEFAULT=${storage_group} \
-        --param "$image_params"
+        $image_params
     fi
 }
 
@@ -327,7 +327,7 @@ function generate_kibana_template(){
   create_template_optional_nodeselector "${input_vars[kibana-nodeselector]}" kibana \
     --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
     --param OAP_MASTER_URL=${master_url} \
-    --param "$image_params"
+    $image_params
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
       create_template_optional_nodeselector "${input_vars[kibana-ops-nodeselector]}" kibana \
@@ -335,7 +335,7 @@ function generate_kibana_template(){
         --param OAP_MASTER_URL=${master_url} \
         --param KIBANA_DEPLOY_NAME=kibana-ops \
         --param ES_HOST=logging-es-ops \
-        --param "$image_params"
+        $image_params
     fi
 }
 
@@ -344,14 +344,14 @@ function generate_curator_template(){
     --param ES_HOST=logging-es \
     --param MASTER_URL=${master_url} \
     --param CURATOR_DEPLOY_NAME=curator \
-    --param "$image_params"
+    $image_params
 
   if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     create_template_optional_nodeselector "${input_vars[curator-ops-nodeselector]}" curator \
       --param ES_HOST=logging-es-ops \
       --param MASTER_URL=${master_url} \
       --param CURATOR_DEPLOY_NAME=curator-ops \
-      --param "$image_params"
+      $image_params
   fi
 }
 
@@ -369,7 +369,7 @@ function generate_fluentd_template(){
     --param USE_JOURNAL=${use_journal} \
     --param JOURNAL_READ_FROM_HEAD=${journal_read_from_head} \
     --param JOURNAL_SOURCE=${journal_source} \
-    --param "$image_params"
+    $image_params
 } #generate_fluentd_template()
 
 ######################################
@@ -413,7 +413,8 @@ function generate_es() {
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${es_pvc_prefix}$n"
     if [ "${pvcs[$pvc]}" != 1 -a "${es_pvc_size}" != "" ]; then # doesn't exist, create it
-      oc new-app logging-pvc-${es_dynamic}template -p "NAME=$pvc,SIZE=${es_pvc_size}"
+      oc new-app logging-pvc-${es_dynamic}template \
+         --param "NAME=$pvc" --param "SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -434,7 +435,8 @@ function generate_es() {
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${es_ops_pvc_prefix}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${es_ops_pvc_size}" != "" ]; then # doesn't exist, create it
-        oc new-app logging-pvc-${es_ops_dynamic}template -p "NAME=$pvc,SIZE=${es_ops_pvc_size}"
+        oc new-app logging-pvc-${es_ops_dynamic}template \
+           --param "NAME=$pvc" --param "SIZE=${es_ops_pvc_size}"
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
