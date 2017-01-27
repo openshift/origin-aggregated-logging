@@ -294,7 +294,7 @@ function wait_for_builds_complete()
             fi
         done
         sleep $interval
-        waittime=`expr $waittime - $interval`
+        waittime=`expr $waittime - $interval` || :
     done
     if [ $complete = 0 ] ; then
         echo error builds are not complete
@@ -343,7 +343,7 @@ wait_for_pod_ACTION() {
             break # pod is either started or stopped
         fi
         sleep $incr
-        ii=`expr $ii - $incr`
+        ii=`expr $ii - $incr` || :
         if [ $1 = start ] ; then
             curpod=`get_running_pod $2`
         fi
@@ -429,7 +429,7 @@ function wait_for_es_ready() {
         "https://localhost:9200/.searchguard.$1") || test "${response_code:-}" != 200
     do
         sleep 1
-        ii=`expr $ii - 1`
+        ii=`expr $ii - 1` || :
         if [ $ii -eq 0 ] ; then
             return 1
         fi
@@ -493,6 +493,7 @@ function test_count_err() {
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches
 function wait_for_fluentd_to_catch_up() {
+    echo START wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
     local es_pod=`get_running_pod es`
     local es_ops_pod=`get_running_pod es-ops`
     if [ -z "$es_ops_pod" ] ; then
@@ -501,6 +502,7 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es=`uuidgen`
     local uuid_es_ops=`uuidgen`
     local expected=${3:-1}
+    local timeout=600
 
     add_test_message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
@@ -510,18 +512,31 @@ function wait_for_fluentd_to_catch_up() {
     # poll for logs to show up
 
     if espod=$es_pod myhost=logging-es myproject=project.logging mymessage=$uuid_es expected=$expected \
-            wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
+            wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
         echo good - $FUNCNAME: found $expected record project logging for $uuid_es
     else
-        echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es
+        echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es after $timeout seconds
+        echo "Checking journal for $uuid_es..."
+        if journalctl | grep $uuid_es ; then
+            echo "Found $uuid_es in journal"
+        else
+            echo "Unable to find $uuid_es in journal"
+        fi
+
         rc=1
     fi
 
     if espod=$es_ops_pod myhost=logging-es-ops myproject=.operations mymessage=$uuid_es_ops expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
-            wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
+            wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
         echo good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
     else
-        echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops
+        echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
+        echo "Checking journal for $uuid_es_ops..."
+        if journalctl | grep $uuid_es_ops ; then
+            echo "Found $uuid_es_ops in journal"
+        else
+            echo "Unable to find $uuid_es_ops in journal"
+        fi
         rc=1
     fi
 
@@ -531,5 +546,6 @@ function wait_for_fluentd_to_catch_up() {
     if [ -n "${2:-}" ] ; then
         $2 $uuid_es_ops
     fi
+    echo END wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
     return $rc
 }

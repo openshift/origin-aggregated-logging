@@ -74,6 +74,9 @@ else
     do source "$lib"; done
 fi
 
+SERVER_CONFIG_DIR=/etc/origin
+source $OS_O_A_L_DIR/hack/testing/prep-host
+
 os::util::ensure::iptables_privileges_exist
 
 os::log::info "Starting logging tests at `date`"
@@ -137,203 +140,25 @@ os::cmd::expect_success 'oadm router'
 
 ######### logging specific code starts here ####################
 
-### create and deploy the logging component pods ###
-masterurlhack="-p MASTER_URL=https://172.30.0.1:443"
-OS_O_A_L_DIR=${OS_O_A_L_DIR:-$OS_ROOT/test/extended/origin-aggregated-logging}
 os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging"
-os::cmd::expect_success "oc create -f $OS_O_A_L_DIR/deployer/deployer.yaml"
-os::cmd::expect_success "oc new-app logging-deployer-account-template"
-os::cmd::expect_success "oadm policy add-cluster-role-to-user oauth-editor system:serviceaccount:logging:logging-deployer"
-deployer_args="--from-literal enable-ops-cluster=${ENABLE_OPS_CLUSTER} \
-    --from-literal use-journal=${USE_JOURNAL:-} \
-    --from-literal journal-source=${JOURNAL_SOURCE:-} \
-    --from-literal journal-read-from-head=${JOURNAL_READ_FROM_HEAD:-false}"
-if [ -n "${PUBLIC_MASTER_HOST:-}" ] ; then
-    deployer_args="$deployer_args --from-literal public-master-url=https://${PUBLIC_MASTER_HOST}:8443"
-fi
-if [ -n "${KIBANA_HOST:-}" ] ; then
-    deployer_args="$deployer_args --from-literal kibana-hostname=$KIBANA_HOST"
-    if getent hosts $KIBANA_HOST > /dev/null 2>&1 ; then
-        echo kibana host $KIBANA_HOST is `getent hosts $KIBANA_HOST` `getent ahostsv4 $KIBANA_HOST`
-    else
-        # does not resolve - add it as an alias for the external IP
-        ip=`getent hosts $PUBLIC_MASTER_HOST | awk '{print $1}'`
-        if grep -q \^$ip /etc/hosts ; then
-            sudo sed -i -e 's/^\('$ip'.*\)$/\1 '$KIBANA_HOST'/' /etc/hosts
-        else
-            echo $ip $KIBANA_HOST | sudo tee -a /etc/hosts
-        fi
-    fi
-    # generate externally facing cert for router
-    openshift admin ca create-server-cert --key=$ARTIFACT_DIR/kibana.key \
-          --cert=$ARTIFACT_DIR/kibana.crt --hostnames=$KIBANA_HOST \
-          --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
-          --signer-key=$MASTER_CONFIG_DIR/ca.key \
-          --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
-    deployer_args="$deployer_args \
-                   --from-file=kibana.crt=$ARTIFACT_DIR/kibana.crt \
-                   --from-file=kibana.key=$ARTIFACT_DIR/kibana.key \
-                   --from-file=kibana.ca.crt=$MASTER_CONFIG_DIR/ca.crt"
-fi
-if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
-    deployer_args="$deployer_args --from-literal kibana-ops-hostname=$KIBANA_OPS_HOST"
-    if getent hosts $KIBANA_OPS_HOST > /dev/null 2>&1 ; then
-        echo kibana host $KIBANA_OPS_HOST is `getent hosts $KIBANA_OPS_HOST` `getent ahostsv4 $KIBANA_OPS_HOST`
-    else
-        # does not resolve - add it as an alias for the external IP
-        ip=`getent hosts $PUBLIC_MASTER_HOST | awk '{print $1}'`
-        if grep -q \^$ip /etc/hosts ; then
-            sudo sed -i -e 's/^\('$ip'.*\)$/\1 '$KIBANA_OPS_HOST'/' /etc/hosts
-        else
-            echo $ip $KIBANA_OPS_HOST | sudo tee -a /etc/hosts
-        fi
-    fi
-    # generate externally facing cert for router
-    openshift admin ca create-server-cert --key=$ARTIFACT_DIR/kibana-ops.key \
-          --cert=$ARTIFACT_DIR/kibana-ops.crt --hostnames=$KIBANA_OPS_HOST \
-          --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
-          --signer-key=$MASTER_CONFIG_DIR/ca.key \
-          --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
-    deployer_args="$deployer_args \
-                   --from-file=kibana-ops.crt=$ARTIFACT_DIR/kibana-ops.crt \
-                   --from-file=kibana-ops.key=$ARTIFACT_DIR/kibana-ops.key \
-                   --from-file=kibana-ops.ca.crt=$MASTER_CONFIG_DIR/ca.crt"
-fi
-os::cmd::expect_success "oc create configmap logging-deployer $deployer_args"
 
-if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
-    imageprefix="docker.io/openshift/origin-"
-elif [ -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
-    pushd $OS_O_A_L_DIR/deployer
-    IMAGE_PREFIX="openshift/origin-" PROJECT=logging ./run.sh
-    popd
-    imageprefix=
-else
-    if [ "$USE_LOCAL_SOURCE" = "true" ] ; then
-        build_filter() {
-            # remove all build triggers
-            sed "/triggers/d; /- type: .*Change/d"
-        }
-        post_build() {
-            os::cmd::try_until_success "oc get imagestreamtag origin:latest" "$(( 1 * TIME_MIN ))"
-            for bc in `oc get bc -o jsonpath='{.items[*].metadata.name}'` ; do
-                oc start-build --from-dir $OS_O_A_L_DIR $bc
-            done
-        }
-    else
-        build_filter() {
-            cat
-        }
-        post_build() {
-            :
-        }
-    fi
+#initialize logging stack
+source $OS_O_A_L_DIR/hack/testing/init-log-stack
+source $OS_O_A_L_DIR/hack/testing/lib/test-functions
 
-    os::cmd::expect_success "oc process -o yaml \
-       -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
-       -p LOGGING_FORK_URL=$GIT_URL -p LOGGING_FORK_BRANCH=$GIT_BRANCH \
-       | build_filter | oc create -f -"
-    post_build
-    os::cmd::expect_success "wait_for_builds_complete"
-    imageprefix=`oc get is | awk '$1 == "logging-deployment" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
-    sleep 5
-fi
-pvc_params=""
-if [ "$ENABLE_OPS_CLUSTER" = "true" ]; then
-    if [ ! -d $ES_OPS_VOLUME ] ; then
-        sudo mkdir -p $ES_OPS_VOLUME
-        sudo chown 1000:1000 $ES_OPS_VOLUME
-    fi
-    os::cmd::expect_success "oc process -f $OS_O_A_L_DIR/hack/templates/pv-hostmount.yaml -p SIZE=10 -p PATH=${ES_OPS_VOLUME} | oc create -f -"
-    pvc_params="-p ES_OPS_PVC_SIZE=10 -p ES_OPS_PVC_PREFIX=es-ops-pvc-" # deployer will create PVC
-fi
-# TODO: put this back to hostmount-anyuid once we've resolved the SELinux problem with that
-# https://github.com/openshift/origin-aggregated-logging/issues/89
-os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:logging:aggregated-logging-fluentd"
-sleep 5
-os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader \
-                      system:serviceaccount:logging:aggregated-logging-fluentd"
-sleep 5
-os::cmd::expect_success "oadm policy add-cluster-role-to-user rolebinding-reader \
-                      system:serviceaccount:logging:aggregated-logging-elasticsearch"
-sleep 5
-if [ ! -n "$USE_LOGGING_DEPLOYER_SCRIPT" ] ; then
-    os::cmd::expect_success "oc new-app \
-                          logging-deployer-template \
-                          -p IMAGE_PREFIX=$imageprefix \
-                          ${pvc_params} ${masterurlhack}"
-
-    os::cmd::try_until_text "oc describe bc logging-deployment | awk '/^logging-deployment-/ {print \$2}'" "complete"
-    os::cmd::try_until_text "oc get pods -l logging-infra=deployer" "Completed" "$(( 3 * TIME_MIN ))"
-fi
-if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
-    # TODO: this shouldn't be necessary once SELinux problems are worked out
-    # leave this at hostmount-anyuid once we've resolved the SELinux problem with that
-    # https://github.com/openshift/origin-aggregated-logging/issues/89
-    os::cmd::expect_success "oadm policy add-scc-to-user privileged \
-         system:serviceaccount:logging:aggregated-logging-elasticsearch"
-    # update the ES_OPS DC to be in the privileged context.
-    # TODO: should not have to do that - should work the same as regular hostmount
-    os::cmd::try_until_text "oc get dc -o name -l component=es-ops" "ops"
-    ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
-    os::cmd::expect_success "oc patch $ops_dc \
-       -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
-
-    os::cmd::try_until_text "oc deploy $ops_dc --latest" "Started" "$(( 3 * TIME_MIN ))"
-fi
 # see if expected pods are running
 os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
 os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
 os::cmd::try_until_text "oc get pods -l component=curator" "Running" "$(( 3 * TIME_MIN ))"
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
-    # make sure the expected PVC was created and bound
-    os::cmd::try_until_text "oc get persistentvolumeclaim es-ops-pvc-1" "Bound" "$(( 1 * TIME_MIN ))"
     # make sure the expected pods are running
     os::cmd::try_until_text "oc get pods -l component=es-ops" "Running" "$(( 3 * TIME_MIN ))"
     os::cmd::try_until_text "oc get pods -l component=kibana-ops" "Running" "$(( 3 * TIME_MIN ))"
     os::cmd::try_until_text "oc get pods -l component=curator-ops" "Running" "$(( 3 * TIME_MIN ))"
 fi
 
-if [ -n "$ES_VOLUME" ] ; then
-    if [ ! -d $ES_VOLUME ] ; then
-        sudo mkdir -p $ES_VOLUME
-        sudo chown 1000:1000 $ES_VOLUME
-    fi
-    # allow es and es-ops to mount volumes from the host
-    os::cmd::expect_success "oadm policy add-scc-to-user hostmount-anyuid \
-         system:serviceaccount:logging:aggregated-logging-elasticsearch"
-    # get es dc
-    esdc=`oc get dc -l component=es -o jsonpath='{.items[0].metadata.name}'`
-    # shutdown es
-    espod=`get_running_pod es`
-    os::cmd::expect_success "oc scale dc $esdc --replicas=0"
-    os::cmd::try_until_failure "oc describe pod $espod > /dev/null" "$(( 3 * TIME_MIN ))"
-    # mount volume manually on ordinary cluster
-    os::cmd::expect_success "oc volume dc/$esdc \
-                             --add --overwrite --name=elasticsearch-storage \
-                             --type=hostPath --path=$ES_VOLUME"
-    # start up es
-    os::cmd::try_until_text "oc deploy $esdc --latest" "Started" "$(( 3 * TIME_MIN ))"
-    os::cmd::expect_success "oc scale dc $esdc --replicas=1"
-    os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
-fi
-
-# start fluentd
-os::cmd::try_until_success "oc get daemonset logging-fluentd" "$(( 1 * TIME_MIN ))"
-os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
-
-# the old way with dc's
-# # scale up a fluentd pod
-# os::cmd::try_until_success "oc get dc logging-fluentd"
-# os::cmd::expect_success "oc scale dc logging-fluentd --replicas=1"
-
-os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 5 * TIME_MIN ))"
-### logging component pods are now created and deployed ###
-
-### kibana setup - router account, router, kibana user ###
-os::cmd::expect_success "oadm policy add-scc-to-user privileged system:serviceaccount:default:router"
-os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-reader system:serviceaccount:default:router"
+# add kibtest user for kibana and token auth testing
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibtest"
@@ -371,12 +196,15 @@ test_ip="127.0.0.1"
 oc login --username=system:admin
 oc project logging
 kibpod=`get_running_pod kibana`
+announce_test "Test 'kibtest' user can access cluster stats"
 status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
    --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
    -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
    https://logging-es:9200/_cluster/health -o /dev/null -w '%{response_code}')
 os::cmd::expect_success "test $status = 200"
+
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    announce_test "Test 'kibtest' user can access cluster stats for OPS cluster"
     kibpod=`get_running_pod kibana-ops`
     status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
@@ -431,6 +259,24 @@ else
     USE_CLUSTER=
 fi
 
+### many of the tests require the logging-fluentd-template ###
+### remove this when we port the tests not to use the template ###
+lfds=`mktemp`
+oc get daemonset logging-fluentd -o yaml | grep -A 1 "nodeSelector:" | \
+    sed 's/^/    /' > $lfds
+# have to indent the value from the daemonset by 4 because we are inserting it
+# into a template
+sed "/serviceAccountName/r$lfds" $OS_O_A_L_DIR/deployer/templates/fluentd.yaml | \
+oc new-app --param MASTER_URL=${MASTER_URL:-https://kubernetes.default.svc.cluster.local} \
+   --param ES_HOST=logging-es --param OPS_HOST=logging-es-ops \
+   --param IMAGE_VERSION_DEFAULT=latest --param IMAGE_PREFIX_DEFAULT=$imageprefix \
+   --param USE_JOURNAL=${USE_JOURNAL:-""} \
+   --param JOURNAL_SOURCE=${JOURNAL_SOURCE:-""} \
+   --param JOURNAL_READ_FROM_HEAD=${JOURNAL_READ_FROM_HEAD:-false} \
+   -f -
+rm -f $lfds
+### remove this when we port the tests not to use the template ###
+
 # when fluentd starts up it may take a while before it catches up with all of the logs
 # let's wait until that happens
 wait_for_fluentd_to_catch_up
@@ -450,6 +296,10 @@ else
     # test-* tests modify data and are not generally safe to use
     # in production environments
     for test in test-*.sh ; do
+        if [ $test = test-upgrade.sh ] ; then
+            echo SKIPPING upgrade test for now
+            continue
+        fi
         if [ -x ./$test ] ; then
             echo running test $test
             (. ./$test $USE_CLUSTER)
@@ -477,8 +327,10 @@ function reinstall() {
   os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
 }
 
-TEST_DIVIDER="------------------------------------------"
+echo SKIPPING reinstall test for now
+exit 0
 
+TEST_DIVIDER="------------------------------------------" 
 echo $TEST_DIVIDER
 reinstall
 

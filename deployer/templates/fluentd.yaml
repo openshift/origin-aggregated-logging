@@ -299,7 +299,7 @@ parameters:
 -
   description: "Use the journal as input for system logs"
   name: USE_JOURNAL
-  value: "false"
+  value: ""
 -
   description: 'The journal source to use when USE_JOURNAL=true'
   name: JOURNAL_SOURCE

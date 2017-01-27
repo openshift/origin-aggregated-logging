@@ -1,0 +1,56 @@
+#!/bin/bash
+
+OS_ANSIBLE_VERBOSITY=${OS_ANSIBLE_VERBOSITY:-"vv"}
+OS_VERSION=${OS_VERSION:-v1.5.0-alpha.2}
+
+ANSIBLE_PLAYBOOK_ARGS=${ANSIBLE_PLAYBOOK_ARGS:-""}
+
+source $OS_O_A_L_DIR/hack/testing/build-images
+
+# init inventory file
+pushd $OS_ANSIBLE_DIR
+
+# these should be interpreted as python
+cat > ansible.inventory  << EOL
+[oo_first_master]
+openshift
+
+[oo_first_master:vars]
+ansible_become=true
+ansible_connection=local
+containerized=true
+docker_protect_installed_version=true
+openshift_deployment_type=origin
+deployment_type=origin
+required_packages=[]
+openshift_release=${OS_VERSION}
+
+openshift_hosted_logging_hostname=kibana.127.0.0.1.xip.io
+
+openshift_logging_image_prefix=$imageprefix
+openshift_logging_use_ops=${ENABLE_OPS_CLUSTER:-False}
+openshift_logging_fluentd_use_journal=${USE_JOURNAL:-}
+openshift_logging_fluentd_journal_read_from_head=${JOURNAL_READ_FROM_HEAD:-False}
+
+EOL
+
+echo "### Created host inventory file ###"
+cat ansible.inventory
+echo "###################################"
+
+# Execute logging playbook
+os::cmd::expect_success "oc login -u system:admin"
+
+# hack since ansible is looking for it
+sudo mkdir -p /etc/origin
+sudo cp -r ${SERVER_CONFIG_DIR}/master/ /etc/origin/
+
+sudo ansible-playbook -i ansible.inventory \
+  -$OS_ANSIBLE_VERBOSITY \
+  $OS_ANSIBLE_DIR/playbooks/common/openshift-cluster/openshift_logging.yml \
+  -e ansible_host=127.0.0.1 \
+  -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master \
+  --skip-tags=update_master_config \
+  $ANSIBLE_PLAYBOOK_ARGS
+
+popd
