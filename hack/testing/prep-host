@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# prep the environment to allow bailing early on failures
+# setup ansible
+sudo yum makecache fast
+sudo yum install python-devel ansible python2-pip -y
+sudo pip install ruamel.yaml
+
+# make sure binaries are in the desired place
+# hack - ansible should find whichever binaries 
+for oc_binary in oc oadm
+do
+  if [ ! -f /usr/local/bin/$oc_binary ]; then
+    echo "Copying $oc_binary from path to /usr/local/bin for use by openshift-ansible"
+    sudo cp `which $oc_binary` /usr/local/bin
+  else
+    echo "Found $oc_binary in /usr/local/bin for use by openshift-ansible"
+  fi
+  if [ ! -f /usr/bin/$oc_binary ]; then
+    echo "Copying $oc_binary from path to /usr/bin for use by openshift-ansible"
+    sudo cp `which $oc_binary` /usr/bin
+  fi
+done
+
+export PATH=/usr/local/bin:$PATH

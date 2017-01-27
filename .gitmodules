@@ -4,3 +4,6 @@
 [submodule "kibana-proxy"]
 	path = kibana-proxy
 	url = https://github.com/fabric8io/openshift-auth-proxy.git
+[submodule "lib/openshift-ansible"]
+	path = lib/openshift-ansible
+	url = https://github.com/openshift/openshift-ansible
