@@ -2,6 +2,7 @@
 
 OS_ANSIBLE_DIR=${OS_ANSIBLE_VERSION:-$OS_O_A_L_DIR/lib/openshift-ansible}
 OS_ANSIBLE_VERBOSITY=${OS_ANSIBLE_VERBOSITY:-"vv"}
+OS_VERSION=${OS_VERSION:-v1.5.0-alpha.2}
 
 source $OS_O_A_L_DIR/hack/testing/build-images
 
@@ -20,6 +21,7 @@ containerized=true
 docker_protect_installed_version=true
 deployment_type=origin
 required_packages=[]
+openshift_release=${OS_VERSION}
 
 openshift_logging_image_prefix=$imageprefix
 openshift_logging_use_ops=${ENABLE_OPS_CLUSTER:-False}
