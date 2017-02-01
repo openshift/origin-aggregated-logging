@@ -142,12 +142,8 @@ os::cmd::expect_success 'oadm router'
 os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging"
 
-#initialize
-if [ -n "$USE_LOGGING_DEPLOYER" ]; then
-  source $OS_O_A_L_DIR/hack/testing/init-log-stack-deployer
-else
-  source $OS_O_A_L_DIR/hack/testing/init-log-stack-ansible
-fi
+#initialize logging stack
+source $OS_O_A_L_DIR/hack/testing/init-log-stack
 
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
