@@ -41,7 +41,8 @@ playbook_cmd="sudo ansible-playbook -i ansible.inventory \
   -$OS_ANSIBLE_VERBOSITY \
   $OS_ANSIBLE_DIR/playbooks/common/openshift-cluster/openshift_logging.yml \
   -e ansible_host=127.0.0.1 \
-  -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master"
+  -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master \
+  --skip-tags=skip-task"
 echo "running:"
 echo $playbook_cmd
 
