@@ -1,8 +1,9 @@
 #!/bin/bash
 
-OS_ANSIBLE_DIR=${OS_ANSIBLE_VERSION:-$OS_O_A_L_DIR/lib/openshift-ansible}
 OS_ANSIBLE_VERBOSITY=${OS_ANSIBLE_VERBOSITY:-"vv"}
 OS_VERSION=${OS_VERSION:-v1.5.0-alpha.2}
+
+ANSIBLE_PLAYBOOK_ARGS=${ANSIBLE_PLAYBOOK_ARGS:-""}
 
 source $OS_O_A_L_DIR/hack/testing/build-images
 
@@ -42,10 +43,9 @@ playbook_cmd="sudo ansible-playbook -i ansible.inventory \
   $OS_ANSIBLE_DIR/playbooks/common/openshift-cluster/openshift_logging.yml \
   -e ansible_host=127.0.0.1 \
   -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master \
-  --skip-tags=skip-task"
-echo "running:"
-echo $playbook_cmd
+  $ANSIBLE_PLAYBOOK_ARGS"
+os::cmd::expect_success "running: '$playbook_cmd'"
 
-$playbook_cmd
+os::cmd::expect_success $playbook_cmd
 
 popd

@@ -2,9 +2,21 @@
 
 # prep the environment to allow bailing early on failures
 # setup ansible
-sudo yum makecache fast
-sudo yum install python-devel ansible python2-pip -y
-sudo pip install ruamel.yaml
+WORKDIR=$(mkdtemp -d)
+ANSIBLE_RPM=${ANSIBLE_RPM:-ansible-2.2.1.0-1.el7.noarch}
+ANSIBLE_INSTALL_CMD=${ANSIBLE_INSTALL_CMD:-"sudo yum install $ANSIBLE_RPM"}
+RUAMEL_YAML_INSTALL_CMD=${RUAMEL_YAML_INSTALL_CMD:-"sudo yum install python2-ruamel-yaml"}
+
+OS_ANSIBLE_REPO=${OS_ANSIBLE_REPO:-https://github.com/openshift/openshift-ansible}
+OS_ANSIBLE_BRANCH=${OS_ANSIBLE_BRANCH:-master}
+OS_ANSIBLE_DIR=$WORKDIR/openhift-ansible
+
+os::cmd::expect_success "sudo yum makecache fast"
+os::cmd::expect_success "sudo yum install python-devel python2-pip -y"
+os::cmd::expect_success "$ANSIBLE_INSTALL_CMD"
+os::cmd::expect_success "$RUAMEL_YAML_INSTALL_CMD"
+
+os::cmd::expect_success "git clone $OS_ANSIBLE_REPO $OS_ANSIBLE_DIR -b $OS_ANSIBLE_BRANCH --depth=1"
 
 # make sure binaries are in the desired place
 # hack - ansible should find whichever binaries 

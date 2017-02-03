@@ -38,8 +38,6 @@ TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 
-source prep-host
-
 # if USE_JOURNAL is empty, fluentd will use whatever docker is using
 if [ "${USE_JOURNAL:-}" = false ] ; then
     # see if docker is using the journal log driver - if so, change it to json-file
@@ -75,6 +73,8 @@ else
                "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
     do source "$lib"; done
 fi
+
+source prep-host
 
 os::util::ensure::iptables_privileges_exist
 
