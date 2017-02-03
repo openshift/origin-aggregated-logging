@@ -74,7 +74,7 @@ else
     do source "$lib"; done
 fi
 
-source prep-host
+source $OS_O_A_L_DIR/hack/testing/prep-host
 
 os::util::ensure::iptables_privileges_exist
 
