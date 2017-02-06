@@ -10,7 +10,7 @@ OS_ANSIBLE_REPO=${OS_ANSIBLE_REPO:-https://github.com/openshift/openshift-ansibl
 OS_ANSIBLE_BRANCH=${OS_ANSIBLE_BRANCH:-master}
 OS_ANSIBLE_DIR=$WORKDIR/openhift-ansible
 
-if [ -n PUDDLE_URL ]; then
+if [ -n $PUDDLE_URL ]; then
   sudo wget $PUDDLE_URL/puddle.repo -O /etc/yum.repos.d/puddle.repo
 fi
 
