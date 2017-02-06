@@ -1,0 +1,17 @@
+[AtomicOpenShift-3.2-Puddle]
+name=AtomicOpenShift-3.2-Puddle
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/RHAOS/AtomicOpenShift/3.2/2017-02-02.3/$basearch/os
+gpgcheck=0
+enabled=1
+
+[AtomicOpenShift-3.2-Puddle-debug]
+name=AtomicOpenShift-3.2-Puddle Debuginfo
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/RHAOS/AtomicOpenShift/3.2/2017-02-02.3/$basearch/debuginfo
+gpgcheck=0
+enabled=0
+
+[AtomicOpenShift-3.2-Puddle-sources]
+name=AtomicOpenShift-3.2-Puddle Sources
+baseurl=http://download.lab.bos.redhat.com/rcm-guest/puddles/RHAOS/AtomicOpenShift/3.2/2017-02-02.3/source
+gpgcheck=0
+enabled=0
