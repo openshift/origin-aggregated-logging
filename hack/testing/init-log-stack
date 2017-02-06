@@ -38,11 +38,11 @@ echo "###################################"
 # Execute logging playbook
 os::cmd::expect_success "oc login -u system:admin"
 
-os::cmd::expect_success "sudo ansible-playbook -i ansible.inventory \
+sudo ansible-playbook -i ansible.inventory \
   -$OS_ANSIBLE_VERBOSITY \
   $OS_ANSIBLE_DIR/playbooks/common/openshift-cluster/openshift_logging.yml \
   -e ansible_host=127.0.0.1 \
   -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master \
-  $ANSIBLE_PLAYBOOK_ARGS"
+  $ANSIBLE_PLAYBOOK_ARGS
 
 popd
