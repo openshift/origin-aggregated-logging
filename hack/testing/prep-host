@@ -3,8 +3,8 @@
 # prep the environment to allow bailing early on failures
 # setup ansible
 WORKDIR=$(mktemp -d)
-ANSIBLE_RPM=${ANSIBLE_RPM:-ansible-2.2.0.0-1.el7.noarch}
-RUAMEL_YAML_RPM=${ANSIBLE_RPM:-python2-ruamel-yaml-0.12.14-6.el7.x86_64}
+ANSIBLE_RPM=${ANSIBLE_RPM:-ansible}
+RUAMEL_YAML_RPM=${RUAMEL_YAML_RPM:-python-ruamel-yaml}
 
 OS_ANSIBLE_REPO=${OS_ANSIBLE_REPO:-https://github.com/openshift/openshift-ansible}
 OS_ANSIBLE_BRANCH=${OS_ANSIBLE_BRANCH:-master}
