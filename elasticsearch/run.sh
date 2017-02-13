@@ -100,9 +100,9 @@ rm -f $LOG_FILE
 exit 1
 }
 
-verify_or_add_index_templates() {
+verify_or_add_index_entities() {
     wait_for_port_open
-    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
+    # Uncomment this if you want to wait for cluster becoming more stable before index entity being pushed in.
     # Give up on timeout and continue...
     # curl -v -s -X GET \
     #     --cacert $secret_dir/admin-ca \
@@ -110,32 +110,37 @@ verify_or_add_index_templates() {
     #     --key  $secret_dir/admin-key \
     #     "$ES_REST_BASEURL/_cluster/health?wait_for_status=yellow&timeout=${max_time}s"
 
+    location=$1
+    entity_name=$2
+    index_name=$3
+
     shopt -s failglob
-    for template_file in /usr/share/elasticsearch/index_templates/*.json
+    for entity_file in /usr/share/elasticsearch/$location/*.json
     do
-        template=`basename $template_file`
-        # Check if index template already exists
+        entity=`basename $entity_file`
+        # Check if index entity already exists
         response_code=$(curl -s -X HEAD \
             --cacert $secret_dir/admin-ca \
             --cert $secret_dir/admin-cert \
             --key  $secret_dir/admin-key \
             -w '%{response_code}' \
-            $ES_REST_BASEURL/_template/$template)
+            $ES_REST_BASEURL/$index_name/$entity)
         if [ $response_code == "200" ]; then
-            echo "Index template '$template' already present in ES cluster"
+            echo "Index $entity_name '$entity' already present in ES cluster"
         else
-            echo "Create index template '$template'"
+            echo "Create index $entity_name '$entity'"
             curl -v -s -X PUT \
                 --cacert $secret_dir/admin-ca \
                 --cert $secret_dir/admin-cert \
                 --key  $secret_dir/admin-key \
-                -d@$template_file \
-                $ES_REST_BASEURL/_template/$template
+                -d@$entity_file \
+                $ES_REST_BASEURL/$index_name/$entity
         fi
     done
     shopt -u failglob
 }
 
-verify_or_add_index_templates &
+verify_or_add_index_entities "index_templates" "template" "_template" &
+verify_or_add_index_entities "kibana_dashboards" "dashboard" ".kibana/dashboard" &
 
 exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
