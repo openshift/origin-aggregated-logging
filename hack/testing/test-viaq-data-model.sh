@@ -51,7 +51,7 @@ write_and_verify_logs() {
     if [ $rc = "0" ] ; then
         # get the record - verify result matches expected data
         if curl_es_from_kibana $kpod logging-es ${PROJ_PREFIX}logging _search message $logmessage | \
-                python test-common-data-model.py $1 ${2:-} ; then
+                python test-viaq-data-model.py $1 ${2:-} ; then
             : # good
         else
             echo Error: result data does not match expected
@@ -62,7 +62,7 @@ write_and_verify_logs() {
     if [ $rc = "0" ] ; then
         # get the record - verify result matches expected data
         if curl_es_from_kibana $kpod logging-es${ops} ${INDEX_PREFIX}.operations _search message $logmessage2 | \
-                python test-common-data-model.py $1 ${2:-} ; then
+                python test-viaq-data-model.py $1 ${2:-} ; then
             : # good
         else
             echo Error: result data does not match expected
@@ -71,7 +71,7 @@ write_and_verify_logs() {
     fi
 
     if [ $rc != "0" ] ; then
-        echo test-common-data-model.sh: returning $rc ...
+        echo test-viaq-data-model.sh: returning $rc ...
     fi
 
     return $rc

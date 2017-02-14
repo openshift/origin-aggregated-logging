@@ -33,11 +33,11 @@ RUN mkdir -p ${HOME} && \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
       fluent-plugin-rewrite-tag-filter \
-      fluent-plugin-secure-forward
+      fluent-plugin-secure-forward \
+      fluent-plugin-viaq_data_model
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
-ADD filter-common-data-model.rb /etc/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
