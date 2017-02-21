@@ -74,6 +74,7 @@ else
     do source "$lib"; done
 fi
 
+SERVER_CONFIG_DIR=/etc/origin
 source $OS_O_A_L_DIR/hack/testing/prep-host
 
 os::util::ensure::iptables_privileges_exist
