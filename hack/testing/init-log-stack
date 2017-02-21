@@ -42,7 +42,7 @@ os::cmd::expect_success "oc login -u system:admin"
 
 # hack since ansible is looking for it
 sudo mkdir -p /etc/origin/master
-suduo touch /etc/origin/master/master-config.yaml
+sudo touch /etc/origin/master/master-config.yaml
 
 sudo ansible-playbook -i ansible.inventory \
   -$OS_ANSIBLE_VERBOSITY \
