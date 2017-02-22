@@ -145,7 +145,7 @@ os::cmd::expect_success "oc project logging"
 
 #initialize logging stack
 source $OS_O_A_L_DIR/hack/testing/init-log-stack
-source $OS_O_A_L_DIR/hack/testing/lib/test-function
+source $OS_O_A_L_DIR/hack/testing/lib/test-functions
 
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
