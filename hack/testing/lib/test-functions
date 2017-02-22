@@ -1,0 +1,9 @@
+#!/bin/bash
+
+function announce_test(){
+  local message=${1:-""}
+  local TEST_DIVIDER="------------------------------------------" 
+  echo $TEST_DIVIDER
+  echo "     $message" 
+  echo $TEST_DIVIDER
+}

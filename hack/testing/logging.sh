@@ -145,6 +145,7 @@ os::cmd::expect_success "oc project logging"
 
 #initialize logging stack
 source $OS_O_A_L_DIR/hack/testing/init-log-stack
+source $OS_O_A_L_DIR/hack/testing/lib/test-function
 
 os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
 os::cmd::expect_success "oc login --username=system:admin"
@@ -183,12 +184,15 @@ test_ip="127.0.0.1"
 oc login --username=system:admin
 oc project logging
 kibpod=`get_running_pod kibana`
+announce_test "Test 'kibtest' user can access cluster stats"
 status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
    --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
    -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
    https://logging-es:9200/_cluster/health -o /dev/null -w '%{response_code}')
 os::cmd::expect_success "test $status = 200"
+
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+    announce_test "Test 'kibtest' user can access cluster stats for OPS cluster"
     kibpod=`get_running_pod kibana-ops`
     status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
@@ -289,8 +293,7 @@ function reinstall() {
   os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
 }
 
-TEST_DIVIDER="------------------------------------------"
-
+TEST_DIVIDER="------------------------------------------" 
 echo $TEST_DIVIDER
 reinstall
 
