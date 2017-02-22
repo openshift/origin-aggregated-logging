@@ -49,6 +49,7 @@ sudo ansible-playbook -i ansible.inventory \
   $OS_ANSIBLE_DIR/playbooks/common/openshift-cluster/openshift_logging.yml \
   -e ansible_host=127.0.0.1 \
   -e openshift_master_config_dir=${SERVER_CONFIG_DIR}/master \
+  --skip-tags=update_master_config \
   $ANSIBLE_PLAYBOOK_ARGS
 
 popd
