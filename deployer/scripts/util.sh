@@ -514,6 +514,12 @@ function wait_for_fluentd_to_catch_up() {
         echo good - $FUNCNAME: found $expected record project logging for $uuid_es
     else
         echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es
+        echo "Checking journal $uuid_es..."
+        status=$(journalctl | grep $uuid_es)
+        if [ $status -ne 0]; then
+            echo "Unable to find $uuid_es in journal"
+        fi
+
         rc=1
     fi
 
@@ -522,6 +528,11 @@ function wait_for_fluentd_to_catch_up() {
         echo good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
     else
         echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops
+        echo "Checking journal $uuid_es_ops..."
+        status=$(journalctl | grep $uuid_es_ops)
+        if [ $status -ne 0]; then
+            echo "Unable to find $uuid_es_ops in journal"
+        fi
         rc=1
     fi
 
