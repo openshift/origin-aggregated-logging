@@ -84,7 +84,7 @@ wait_for_curator_run() {
             return 0
         fi
         sleep $incr
-        ii=`expr $ii - $incr`
+        ii=`expr $ii - $incr` || :
     done
     echo ERROR: curator run not complete for pod $1 after 2 minutes
     date

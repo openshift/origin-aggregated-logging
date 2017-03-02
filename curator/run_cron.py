@@ -52,6 +52,8 @@ curator_settings = {'delete': {}}
 
 filename = os.getenv('CURATOR_CONF_LOCATION', '/etc/curator/settings/config.yaml')
 
+logger.debug('Using curator config file [%s]' % filename)
+
 decoded = {}
 with open(filename, 'r') as stream:
     decoded = yaml.load(stream) or {}
@@ -64,6 +66,7 @@ for project in decoded:
     if not projectre.match(project):
         logger.error('The project name must match this regex: [%s] This does not match: [%s]' % (projectre.pattern, project))
         sys.exit(1)
+    logger.debug('Adding project [%s]' % project)
 
 tzstr = decoded.get('.defaults', {}).get('timezone', os.getenv('CURATOR_RUN_TIMEZONE', 'UTC'))
 tz = None
@@ -76,6 +79,7 @@ if tzstr:
     except: # unexpected error
         logger.error('The timezone must be specified as a string in the tzselect(8) or timedatectl(1) "Region/Locality" format e.g. "America/New_York" or "UTC".  Unexpected error [%s] attempting to parse timezone [%s]' % (str(sys.exc_info()[0]), str(tzstr)))
         sys.exit(1)
+    logger.debug('Using timezone [%s]' % tzstr)
 
 connection_info = '--host ' + os.getenv('ES_HOST') + ' --port ' + os.getenv('ES_PORT') + ' --use_ssl --certificate ' + os.getenv('ES_CA') + ' --client-cert ' + os.getenv('ES_CLIENT_CERT') + ' --client-key ' + os.getenv('ES_CLIENT_KEY') + ' --timeout ' + os.getenv('CURATOR_TIMEOUT', 30)
 
@@ -120,6 +124,7 @@ for project in decoded:
                     else:
                         this_project = proj_prefix + project
                     curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(this_project)
+                    logger.debug('Using [%s] [%d] for [%s]' % (unit, value, this_project))
                 else:
                     if unit.lower() == "hours":
                         logger.error('time unit "hours" is currently not supported due to our current index level granularity is in days')
