@@ -9,7 +9,7 @@ ENV KIBANA_VER=4.6.4 \
     ES_PORT=9200 \
     HOME=/opt/app-root/src \
     KIBANA_HOME=/opt/kibana \
-    AOP_KIBANA_PLUGIN_VER=v4.5.1-1 \
+    AOP_KIBANA_PLUGIN_VER=v4.5.1-2 \
     AOP_KIBANA_PLUGIN_REPO=https://github.com/openshift/origin-kibana
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
