@@ -12,33 +12,16 @@ source "${OS_ROOT}/hack/common.sh"
 # Go to the top of the tree.
 cd "${OS_ROOT}"
 
-if [[ -z "${OS_TAG-}" ]]; then
-  echo "You must specify the OS_TAG variable as the name of the tag to create, e.g. 'v1.0.1'."
-  exit 1
-fi
-tag="${OS_TAG}"
-
-if [[ "$(git name-rev --name-only --tags HEAD)" != "${tag}^0" ]]; then
-  if git rev-parse -q --short "${tag}" &>/dev/null; then
-    echo "Tag ${tag} already exists"
+tag="${OS_TAG:-}"
+if [[ -z "${tag}" ]]; then
+  if [[ "$( git tag --points-at HEAD | wc -l )" -ne 1 ]]; then
+    os::log::error "Specify OS_TAG or ensure the current git HEAD is tagged."
     exit 1
-  else
-    git tag "${tag}" -a -m "${tag}" HEAD
   fi
+  tag="$( git tag --points-at HEAD )"
+elif [[ "$( git rev-parse "${tag}" )" != "$( git rev-parse HEAD )" ]]; then
+  os::log::warn "You are running a version of hack/release.sh that does not match OS_TAG - images may not be build correctly"
 fi
-
-function removeimage() {
-  for i in $@; do
-    if docker inspect $i &>/dev/null; then
-      docker rmi $i
-    fi
-    if docker inspect docker.io/$i &>/dev/null; then
-      docker rmi docker.io/$i
-    fi
-  done
-}
-
-removeimage openshift/origin:v1.1.6 centos:centos7 openshift/base-centos7
 
 docker pull openshift/origin:v1.1.6
 docker pull openshift/base-centos7
