@@ -1,7 +1,8 @@
-#/bin/bash -euxo pipefail
+#!/bin/bash -e
 
 # Utility to grab documents from the ES
 # instance using the admin certs and keys
+source es_util_env
 
 QUERY=${QUERY:-""}
 INDEX=${INDEX:-"project.*"}
@@ -10,7 +11,7 @@ SIZE=${SIZE:-10}
 SORT=${SORT:-"@timestamp:desc"}
 OPTIONS=${OPTIONS:-"size=$SIZE&sort=$SORT&pretty"}
 
-BASE=${BASE:-https://localhost:9200}
+ES_BASE=${ES_BASE:-https://localhost:9200}
 
 if [ -z "${QUERY:-}" ]; then
   QUERY="$INDEX/$TYPE?$OPTIONS"
