@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+# Utility to grab documents from the ES
+# instance using the admin certs and keys
+source es_util_env
+
+QUERY=${QUERY:-""} 
+INDEX=${INDEX:-"project.*"}
+SIZE=${SIZE:-10}
+SORT=${SORT:-"@timestamp:desc"}
+
+ES_BASE=${ES_BASE:-https://localhost:9200}
+
+if [ -z "${QUERY:-}" ]; then
+  QUERY="$ES_BASE/$INDEX/_search?size=$SIZE&sort=$SORT&pretty"
+fi
+
+curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key $QUERY

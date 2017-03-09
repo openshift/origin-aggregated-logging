@@ -1,0 +1,30 @@
+#!/bin/bash -eu
+#
+# Utility to grab the health of the cluster.  The default
+# is the general state of the cluster
+#
+# INDEX - comma separated list of index to get health of
+#         specific indexes
+# LEVEL - Detail of health information. Must be one of:
+#         cluster, indices, shards. Defaults to 'cluster'
+# LOCAL - any value will return results for the local node
+#         instead of querying the master. Defaults to false.
+source es_util_env
+
+QUERY="$ES_BASE/_cluster/health" 
+
+if [[ ! -z "${INDEX:-}" ]]; then
+  QUERY="$QUERY/$INDEX"
+fi
+
+QUERY="$QUERY?pretty"
+
+if [[ ! -z "${LOCAL:-}" ]]; then
+  QUERY="$QUERY&local=true"
+fi
+
+if [[ ! -z "${LEVEL:-}" ]]; then
+  QUERY="$QUERY&level=$LEVEL"
+fi
+
+curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key $QUERY
