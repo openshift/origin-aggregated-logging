@@ -40,7 +40,7 @@ ADD index_templates/ /usr/share/elasticsearch/index_templates/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
-ADD es_util /usr/local/bin
+COPY utils/** /usr/local/bin/
 
 WORKDIR ${HOME}
 USER 1000
