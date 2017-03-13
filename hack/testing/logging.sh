@@ -295,6 +295,9 @@ else
     # e2e-test runs checks which do not modify any data - safe to use
     # in production environments
     ./e2e-test.sh $USE_CLUSTER
+    # check log speed - see how far behind ES and fluentd are with respect
+    # to the log sources
+    ./check-log-speed.sh
     # test-* tests modify data and are not generally safe to use
     # in production environments
     for test in test-*.sh ; do
