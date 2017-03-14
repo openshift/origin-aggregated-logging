@@ -1,5 +1,9 @@
 # Contents
 
+***NOTE:*** The Deployer has been deprecated. It has been replaced by the
+[***openshift_logging role***](https://github.com/openshift/openshift-ansible/tree/master/roles/openshift_logging)
+in the OpenShift Ansible project.
+
 * [Using the Logging Deployer](#using-the-logging-deployer)
   * [Preparation](#preparation)
   * [Specify Deployer Parameters](#specify-deployer-parameters)
