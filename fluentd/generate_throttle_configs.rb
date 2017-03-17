@@ -201,7 +201,7 @@ def get_project_pattern(name)
   project_pattern << "_*.log"
 end
 
-filename = "/etc/fluent/configs.d/user/throttle-conf.yaml"
+filename = "/etc/fluent/configs.d/user/throttle-config.yaml"
 
 parsed = ""
 parsed = YAML.load_file(filename) if File.exists?(filename)
@@ -211,11 +211,6 @@ excludeSyslog = false
 
 # We do not yet support throttling logs read from the journal
 unless ENV['USE_JOURNAL'] == "true"
-  filename = "#{ENV['THROTTLE_CONF_LOCATION']}/settings"
-
-  parsed = ""
-  parsed = YAML.load_file(filename) if File.exists?(filename)
-
   parsed.each { |project|
     name = project[0]
     options = project[1]
