@@ -259,8 +259,10 @@ os::cmd::expect_success "oc project logging"
 pushd $OS_O_A_L_DIR/hack/testing
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     USE_CLUSTER=true
+    ops_host=logging-es-ops
 else
     USE_CLUSTER=
+    ops_host=logging-es
 fi
 
 ### many of the tests require the logging-fluentd-template ###
@@ -272,7 +274,7 @@ oc get daemonset logging-fluentd -o yaml | grep -A 1 "nodeSelector:" | \
 # into a template
 sed "/serviceAccountName/r$lfds" $OS_O_A_L_DIR/deployer/templates/fluentd.yaml | \
 oc new-app --param MASTER_URL=${MASTER_URL:-https://kubernetes.default.svc.cluster.local} \
-   --param ES_HOST=logging-es --param OPS_HOST=logging-es-ops \
+   --param ES_HOST=logging-es --param OPS_HOST=$ops_host \
    --param IMAGE_VERSION_DEFAULT=latest --param IMAGE_PREFIX_DEFAULT=$imageprefix \
    --param USE_JOURNAL=${USE_JOURNAL:-""} \
    --param JOURNAL_SOURCE=${JOURNAL_SOURCE:-""} \
