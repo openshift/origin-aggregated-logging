@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+if [ ${DEBUG:-""} = "true" ]; then
+ set -x
+fi
+
 export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 ES_REST_BASEURL=https://localhost:9200
 LOG_FILE=elasticsearch_connect_log.txt
@@ -77,7 +81,7 @@ wait_for_port_open() {
         --key  $secret_dir/admin-key \
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
-        "$ES_REST_BASEURL/.searchguard.${HOSTNAME}") || test $response_code != "200"
+        $ES_REST_BASEURL) || test $response_code != "200"
 do
     echo -n "."
     sleep $RETRY_INTERVAL
@@ -100,8 +104,30 @@ rm -f $LOG_FILE
 exit 1
 }
 
+seed_searchguard(){
+    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
+        -cd ${HOME}/sgconfig \
+        -i .searchguard.${HOSTNAME} \
+        -ks /etc/elasticsearch/secret/searchguard.key \
+        -kst JKS \
+        -kspass kspass \
+        -ts /etc/elasticsearch/secret/searchguard.truststore \
+        -tst JKS \
+        -tspass tspass \
+        -nhnv \
+        -icl
+    
+    if [ $? -eq 0 ]; then
+      echo "Seeded the searchguard ACL index"  
+    else
+      echo "Error seeding the searchguard ACL index"  
+      exit 1
+    fi
+}
+
 verify_or_add_index_templates() {
     wait_for_port_open
+    seed_searchguard
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # Give up on timeout and continue...
     # curl -v -s -X GET \
