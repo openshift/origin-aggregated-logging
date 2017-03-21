@@ -406,7 +406,7 @@ curl_es_from_kibana() {
 function query_es_from_es() {
     oc exec $1 -- curl --connect-timeout 1 -s -k \
        --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-       https://${2}:9200/${3}*/${4}\?q=${5}:${6}
+       https://localhost:9200/${2}*/${3}\?q=${4}:${5}
 }
 
 # $1 is es pod
@@ -472,7 +472,7 @@ function wait_until_cmd_or_err() {
 # return true if the actual count matches the expected count, false otherwise
 function test_count_expected() {
     myfield=${myfield:-message}
-    local nrecs=`query_es_from_es $espod $myhost $myproject _count $myfield $mymessage | \
+    local nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
            get_count_from_json`
     test "$nrecs" = $expected
 }
@@ -481,11 +481,11 @@ function test_count_expected() {
 # the actual count
 function test_count_err() {
     myfield=${myfield:-message}
-    nrecs=`query_es_from_es $espod $myhost $myproject _count $myfield $mymessage | \
+    nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
            get_count_from_json`
     echo Error: found $nrecs for project $myproject message $mymessage - expected $expected
     for thetype in _count _search ; do
-        query_es_from_es $espod $myhost $myproject $thetype $myfield $mymessage | python -mjson.tool
+        query_es_from_es $espod $myproject $thetype $myfield $mymessage | python -mjson.tool
     done
 }
 
@@ -511,7 +511,7 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
 
-    if espod=$es_pod myhost=logging-es myproject=project.logging mymessage=$uuid_es expected=$expected \
+    if espod=$es_pod myproject=project.logging mymessage=$uuid_es expected=$expected \
             wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
         echo good - $FUNCNAME: found $expected record project logging for $uuid_es
     else
@@ -526,7 +526,7 @@ function wait_for_fluentd_to_catch_up() {
         rc=1
     fi
 
-    if espod=$es_ops_pod myhost=logging-es-ops myproject=.operations mymessage=$uuid_es_ops expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
+    if espod=$es_ops_pod myproject=.operations mymessage=$uuid_es_ops expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
             wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
         echo good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
     else
