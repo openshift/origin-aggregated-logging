@@ -38,6 +38,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ /usr/share/elasticsearch/index_templates/
 ADD index_patterns/ /usr/share/elasticsearch/index_patterns/
+ADD probe/ /usr/share/elasticsearch/probe/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
