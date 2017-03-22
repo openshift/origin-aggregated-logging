@@ -25,7 +25,9 @@ deployment_type=origin
 required_packages=[]
 openshift_release=${OS_VERSION}
 
-openshift_hosted_logging_hostname=kibana.127.0.0.1.xip.io
+openshift_hosted_logging_hostname=${KIBANA_HOST:-kibana.127.0.0.1.xip.io}
+openshift_master_logging_public_url=https://${KIBANA_HOST:-kibana.127.0.0.1.xip.io}
+openshift_logging_master_public_url=https://${PUBLIC_MASTER_HOST:-localhost}:8443
 
 openshift_logging_image_prefix=$imageprefix
 openshift_logging_use_ops=${ENABLE_OPS_CLUSTER:-False}
