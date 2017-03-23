@@ -373,7 +373,7 @@ function get_latest_pod() {
 
 # set the test_token, test_name, and test_ip for token auth
 function get_test_user_token() {
-    oc login --username=kibtest --password=kibtest > /dev/null
+    oc login --username=${LOG_ADMIN_USER:-${1:-admin}} --password=${LOG_ADMIN_PW:-${2:-admin}} > /dev/null
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
     test_ip="127.0.0.1"
@@ -438,7 +438,7 @@ function wait_for_es_ready() {
 }
 
 function get_count_from_json() {
-    python -c 'import json, sys; print json.loads(sys.stdin.read())["count"]'
+    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
 }
 
 # $1 - unique value to search for in es
