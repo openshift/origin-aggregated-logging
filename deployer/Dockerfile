@@ -10,7 +10,7 @@ ENV BIN_DIR=/opt/deploy \
     WRITE_KUBECONFIG=1 \
     LOGGING_VERSION=6
 
-RUN yum install -y java-1.8.0-openjdk openssl && yum clean all
+RUN yum install -y java-1.8.0-openjdk openssl bc && yum clean all
 
 RUN mkdir -p ${HOME} ${SCRATCH_DIR} ${BIN_DIR} && chmod 555 ${BIN_DIR} && chmod 777 ${HOME}
 COPY . ${BIN_DIR}

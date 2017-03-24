@@ -81,6 +81,17 @@ function initialize_install_vars() {
   journal_read_from_head=${input_vars[journal-read-from-head]:-false}
   journal_source=${input_vars[journal-source]:-}
 
+  es_min_masters=$(echo "$es_cluster_size / 2 + 1" | bc)
+  if [ "$es_cluster_size" -eq "1" ]; then
+    es_min_masters=1
+  fi
+
+  es_ops_min_masters=$(echo "$es_ops_cluster_size / 2 + 1" | bc)
+  if [ "$es_ops_cluster_size" -eq "1" ]; then
+    es_ops_min_masters=1
+  fi
+
+
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
   # *_NODESELECTOR
@@ -308,7 +319,8 @@ function generate_es_template(){
     --param ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
     --param STORAGE_GROUP_DEFAULT=${storage_group} \
-    --param "$image_params"
+    --param "$image_params" \
+    --param ES_MIN_MASTERS=${es_min_masters}
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
       create_template_optional_nodeselector "${input_vars[es-ops-nodeselector]}" es \
@@ -319,7 +331,8 @@ function generate_es_template(){
         --param ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
         --param ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
         --param STORAGE_GROUP_DEFAULT=${storage_group} \
-        --param "$image_params"
+        --param "$image_params" \
+        --param ES_MIN_MASTERS=${es_ops_min_masters}
     fi
 }
 
