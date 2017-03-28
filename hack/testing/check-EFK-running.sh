@@ -129,6 +129,10 @@ else
   NEEDED_COMPONENTS=("logging-es-[a-zA-Z0-9]+?0" "logging-kibana0" "logging-curator0")
 fi
 
+if [ "${USE_MUX:-}" = true ] ; then
+    NEEDED_COMPONENTS=(${NEEDED_COMPONENTS[@]} "logging-mux0")
+fi
+
 TEST_DIVIDER="-------------------------------------------------------"
 COMPONENTS_COUNT=${#NEEDED_COMPONENTS[@]}
 
@@ -224,6 +228,9 @@ echo $TEST_DIVIDER
 NEEDED_SERVICE=("logging-es0" "logging-es-cluster0" "logging-kibana0")
 if [[ "$CLUSTER" = true ]] ; then
     NEEDED_SERVICE=(${NEEDED_SERVICE[@]} "logging-es-ops0" "logging-es-ops-cluster0" "logging-kibana-ops0")
+fi
+if [ "${MUX_ALLOW_EXTERNAL:-}" = true ] ; then
+    NEEDED_SERVICE=(${NEEDED_SERVICE[@]} "logging-mux0")
 fi
 FOUND_SERVICE=(`oc get svc -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 SERVICE_COUNT=${#FOUND_SERVICE[@]}
