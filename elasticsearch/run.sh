@@ -68,11 +68,8 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-
-    # Set JVM HEAP size to half of available space
-    num=$(($num/2/BYTES_PER_MEG))
-    export ES_HEAP_SIZE="${num}m"
-    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms$(($num/2/BYTES_PER_MEG))m -Xmx$(($num/2/BYTES_PER_MEG))m"
+    echo "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
@@ -82,11 +79,8 @@ fi
 wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
-    info "Checking if Elasticsearch is ready on $ES_REST_BASEURL"
-    while ! response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
-        --cacert $secret_dir/admin-ca \
-        --cert $secret_dir/admin-cert \
-        --key  $secret_dir/admin-key \
+    echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
+    while ! response_code=$(curl -s \
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
         $ES_REST_BASEURL) || test $response_code != "200"
@@ -99,12 +93,24 @@ wait_for_port_open() {
         fi
     done
 
-    if [ $timeouted = true ] ; then
-        error "Timed out waiting for Elasticsearch to be ready"
+seed_searchguard(){
+    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
+        -cd ${HOME}/sgconfig \
+        -i .searchguard.${HOSTNAME} \
+        -ks /etc/elasticsearch/secret/searchguard.key \
+        -kst JKS \
+        -kspass kspass \
+        -ts /etc/elasticsearch/secret/searchguard.truststore \
+        -tst JKS \
+        -tspass tspass \
+        -nhnv \
+        -icl
+
+    if [ $? -eq 0 ]; then
+      echo "Seeded the searchguard ACL index"
     else
-        rm -f $LOG_FILE
-        info Elasticsearch is ready and listening at $ES_REST_BASEURL
-        return 0
+      echo "Error seeding the searchguard ACL index"
+      exit 1
     fi
     cat $LOG_FILE
     rm -f $LOG_FILE
@@ -113,9 +119,9 @@ wait_for_port_open() {
 
 verify_or_add_index_templates() {
     wait_for_port_open
-    es_seed_acl
-    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
+    # seed_searchguard
     # Give up on timeout and continue...
+    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # curl -v -s -X GET \
     #     --cacert $secret_dir/admin-ca \
     #     --cert $secret_dir/admin-cert \
@@ -137,23 +143,28 @@ verify_or_add_index_templates() {
         if [ $response_code == "200" ]; then
             info "Index template '$template' already present in ES cluster"
         else
-            info "Create index template '$template'"
-            curl ${DEBUG:+-v} -s -X PUT \
-                --cacert $secret_dir/admin-ca \
-                --cert $secret_dir/admin-cert \
-                --key  $secret_dir/admin-key \
-                -d@$template_file \
-                $ES_REST_BASEURL/_template/$template
+            echo "Create index template '$template'"
+#            curl -v -s -X PUT \
+#                --cacert $secret_dir/admin-ca \
+#                --cert $secret_dir/admin-cert \
+#                --key  $secret_dir/admin-key \
+#                -d@$template_file \
+#                $ES_REST_BASEURL/_template/$template
         fi
     done
     shopt -u failglob
     info Finished adding index templates
 }
 
-verify_or_add_index_templates &
+#verify_or_add_index_templates &
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
 
+<<<<<<< fccc46b478f4cf9c93305e811f6d53bb55b9c669
 exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+=======
+exec /usr/share/elasticsearch/bin/elasticsearch -Epath.conf=$ES_CONF
+#--security.manager.enabled false
+>>>>>>> Elasticsearch 5.3.1 without SearchGuard

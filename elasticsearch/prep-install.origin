@@ -4,9 +4,6 @@ mv "${es_source}"/* "${ES_HOME}"
 
 # list of plugins to be installed
 if [ -z "${ES_CLOUD_K8S_URL:-}" ] ; then
-    ES_CLOUD_K8S_URL=io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
+    ES_CLOUD_K8S_URL=io.fabric8:elasticsearch-cloud-kubernetes:${ES_CLOUD_K8S_VER}
 fi
-if [ -z "${OSE_ES_URL:-}" ] ; then
-    OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
-fi
-es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL)
+es_plugins=($ES_CLOUD_K8S_URL)
