@@ -2,17 +2,17 @@ FROM centos:centos7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
-ENV HOME=/opt/app-root/src \
-  PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
-  RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.37 \
-  GEM_HOME=/opt/app-root/src \
-  DATA_VERSION=1.6.0
+ENV DATA_VERSION=1.6.0 \
+    FLUENTD_VERSION=0.12.37 \
+    GEM_HOME=/opt/app-root/src \
+    HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
+    RUBY_VERSION=2.0
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
-  io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
-  io.openshift.expose-services="9200:http, 9300:http" \
-  io.openshift.tags="logging,elk,fluentd"
+      io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
+      io.openshift.expose-services="9200:http, 9300:http" \
+      io.openshift.tags="logging,elk,fluentd"
 
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
@@ -27,19 +27,19 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       iproute && \
     yum clean all
 RUN mkdir -p ${HOME} && \
-    gem install -N --conservative --minimal-deps \
+    gem install -N --conservative --minimal-deps --no-ri \
+     'activesupport:<5' \
+     'elasticsearch-transport:<5' \
+     'elasticsearch-api:<5' \
+     'elasticsearch:<5' \
       fluentd:${FLUENTD_VERSION} \
-      'activesupport:<5' \
-      'elasticsearch-transport:<5' \
-      'elasticsearch-api:<5' \
-      'elasticsearch:<5' \
+     'fluent-plugin-elasticsearch:>1.9.2' \
       fluent-plugin-kubernetes_metadata_filter \
-      'fluent-plugin-elasticsearch:>1.9.2' \
-      'fluent-plugin-systemd:<0.1.0' \
-      systemd-journal \
       fluent-plugin-rewrite-tag-filter \
       fluent-plugin-secure-forward \
-      fluent-plugin-viaq_data_model
+     'fluent-plugin-systemd:<0.1.0' \
+      fluent-plugin-viaq_data_model \
+      systemd-journal
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
