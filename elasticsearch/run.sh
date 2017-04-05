@@ -75,7 +75,7 @@ wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
     echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
-    while ! response_code=$(curl -s \
+    while ! response_code=$(curl -s -X HEAD \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
