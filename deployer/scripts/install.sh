@@ -312,7 +312,7 @@ function generate_es_template(){
     --param ES_RECOVER_EXPECTED_NODES=${es_recover_expected_nodes} \
     --param ES_RECOVER_AFTER_TIME=${es_recover_after_time} \
     --param STORAGE_GROUP_DEFAULT=${storage_group} \
-    $image_params
+    "$image_params"
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
       create_template_optional_nodeselector "${input_vars[es-ops-nodeselector]}" es \
@@ -323,7 +323,7 @@ function generate_es_template(){
         --param ES_RECOVER_EXPECTED_NODES=${es_ops_recover_expected_nodes} \
         --param ES_RECOVER_AFTER_TIME=${es_ops_recover_after_time} \
         --param STORAGE_GROUP_DEFAULT=${storage_group} \
-        $image_params
+        "$image_params"
     fi
 }
 
