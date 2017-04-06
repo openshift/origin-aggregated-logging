@@ -173,7 +173,7 @@ os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod 30
+wait_for_es_ready $espod 30 .searchguard.$espod/rolesmapping/0
 
 admindir=`mktemp -d`
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
