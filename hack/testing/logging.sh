@@ -222,7 +222,7 @@ fi
 # verify normal user has access to logging indices
 get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
 oc project logging
-nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count message a | \
+nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernetes.namespace_name logging | \
        get_count_from_json`
 if [ ${nrecs:-0} -lt 1 ] ; then
     echo ERROR: $LOG_NORMAL_USER cannot access project.logging.* indices
