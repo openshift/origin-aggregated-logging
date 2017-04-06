@@ -123,6 +123,11 @@ function removeEsCuratorConfigMaps() {
   return 0
 }
 
+function replaceMinMasterEnvVar() {
+  oc get configmap logging-elasticsearch -o yaml | sed -i '/NODE_QUORUM/MIN_MASTERS/' | oc replace -f -
+}
+
+
 function waitFor() {
 
   local statement=$1
@@ -293,6 +298,9 @@ function verifyUpgrade() {
   local checkMigrate=${2:-false}
   local checkCDMMigrate=${3:-false}
 
+### check configmap patched for MIN_MASTERS
+  [[ -n "$(oc get configmap logging-elasticsearch | grep MIN_MASTERS)" ]] && return 1
+
 ### check templates and DC patched
   for template in $(oc get template -l logging-infra -o name); do
 
@@ -401,6 +409,7 @@ removeFluentdConfigMaps
 removeEsCuratorConfigMaps
 useFluentdDC
 addTriggers
+replaceMinMasterEnvVar
 
 upgrade "upgraded"
 verifyUpgrade "upgraded"

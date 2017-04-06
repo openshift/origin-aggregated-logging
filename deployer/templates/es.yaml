@@ -81,9 +81,6 @@ objects:
                 name: INSTANCE_RAM
                 value: ${INSTANCE_RAM}
               -
-                name: MIN_MASTERS
-                value: ${MIN_MASTERS}
-              -
                 name: NODE_QUORUM
                 value: ${NODE_QUORUM}
               -
@@ -150,14 +147,9 @@ objects:
     description: "Numeric ID of a supplemental group for storage volume access."
     name: STORAGE_GROUP
     value: ${STORAGE_GROUP_DEFAULT}
-  -
-    description: "The mimimum number of masters that must be present in the ES cluster for the master election process to complete"
-    name: MIN_MASTERS
-    value: ${ES_MIN_MASTERS}
 parameters:
 - name: ES_CLUSTER_NAME
 - name: ES_INSTANCE_RAM
-- name: ES_MIN_MASTERS
 - name: ES_NODE_QUORUM
 - name: ES_RECOVER_AFTER_NODES
 - name: ES_RECOVER_EXPECTED_NODES
