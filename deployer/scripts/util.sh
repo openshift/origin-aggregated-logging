@@ -413,19 +413,15 @@ function query_es_from_es() {
 # $2 is timeout
 function wait_for_es_ready() {
     # test for ES to be up first and that our SG index has been created
-    out=/dev/null
-    if [ "${VERBOSE:-}" = true ] ; then
-        echo "Checking if Elasticsearch $1 is ready"
-        out=${LOG_DIR:-/tmp}/wait_for_es_port_open.log
-    fi
+    echo "Checking if Elasticsearch $1 is ready"
     secret_dir=/etc/elasticsearch/secret
     local ii=$2
-    while ! response_code=$(oc exec $1 -- curl -s \
+    while ! response_code=$(oc exec $1 -- curl -s -X HEAD \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
         --connect-timeout 1 \
-        -w '%{response_code}' -o $out \
+        -w '%{response_code}' \
         "https://localhost:9200/.searchguard.$1") || test "${response_code:-}" != 200
     do
         sleep 1
