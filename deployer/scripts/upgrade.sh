@@ -102,6 +102,17 @@ function waitForStart() {
   return 1
 }
 
+# waitForLatestDeployment waits until the ReplicationController
+# from a DeploymentConfig reaches completed state
+function waitForLatestDeployment() {
+  local dc=$1
+  local dcName=${dc##*/}
+  local latestVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
+  local rc="rc/$dcName-$latestVersion"
+
+  waitFor "[[ \"Complete\" = \"\$(oc get $rc --template='{{index .metadata.annotations \"openshift.io/deployment.phase\"}}')\" ]]"
+}
+
 # This lets us wait until the pod has been scheduled before we try to grab its name
 function getPodName() {
 
@@ -270,7 +281,7 @@ function scaleUpDCsAndCheck() {
 }
 
 function scaleUp() {
-
+  echo "Scaling up cluster..."
 # Elasticsearch
   scaleUpDCsAndCheck "elasticsearch" "checkESStarted"
 
@@ -642,12 +653,28 @@ function update_es_for_235() {
   echo "Adding downward API NAMESPACE var to ES"
   patchPIDs=()
   local dc patch=$(join , \
-    '{"op": "add", "path": "/spec/template/spec/containers/0/env/0", "value": { "name": "NAMESPACE", "valueFrom": { "fieldRef": { "fieldPath": "metadata.namespace" }}}}'
-  )
+    '{"op": "add", "path": "/spec/template/spec/containers/0/env/0", "value": { "name": "NAMESPACE", "valueFrom": { "fieldRef": { "fieldPath": "metadata.namespace" }}}}')
 
   for dc in $(get_es_dcs); do
     currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
     oc patch $dc --type=json --patch "[$patch]"
+
+    oc deploy $dc --latest
+    waitForChange $currentVersion $dc &
+    patchPIDs+=( $!)
+  done
+}
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1439554
+function update_es_for_min_masters() {
+  echo "Fixing MIN_MASTERS in elasticsearch.yaml conf"
+  oc get configmap logging-elasticsearch -o yaml | sed -i '/MIN_MASTERS/NODE_QUORUM/' | oc replace -f -
+
+  for dc in $(get_es_dcs); do
+    # wait incase another patch is deploying latest
+    waitForLatestDeployment $dc
+
+    currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
 
     oc deploy $dc --latest
     waitForChange $currentVersion $dc &
@@ -908,7 +935,11 @@ function upgrade_logging() {
     done
   fi
 
+  if oc get configmap logging-elasticsearch -o yaml | grep -q MIN_MASTER ; then
+     update_es_for_min_masters
+  fi
   scaleUp
+
 
   if [[ $installedVersion -ne $LOGGING_VERSION ]]; then
     if [[ -n "$migrate" ]]; then
