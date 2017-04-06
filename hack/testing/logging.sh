@@ -186,7 +186,7 @@ cat $admindir/2 | oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secr
 cat $admindir/3 | python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod 30
+    wait_for_es_ready $esopspod 30 .searchguard.$esopspod/rolesmapping/0
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
        https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 | \
