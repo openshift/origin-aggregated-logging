@@ -30,11 +30,12 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
     fi
 fi
 
-oc login --username=kibtest --password=kibtest
+oc login --username=${LOG_ADMIN_USER:-admin} --password=${LOG_ADMIN_PW:-admin} > /dev/null
 test_token="$(oc whoami -t)"
 test_name="$(oc whoami)"
 test_ip="127.0.0.1"
-oc login --username=system:admin
+oc login --username=system:admin > /dev/null
+oc project logging
 
 TEST_DIVIDER="------------------------------------------"
 # in case we need an index prefix

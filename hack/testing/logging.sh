@@ -68,6 +68,7 @@ source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 # include all the origin test libs we need
 if [ -f ${OS_ROOT}/hack/lib/init.sh ] ; then
     source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
+    os::util::environment::setup_tmpdir_vars origin-aggregated-logging
 else
     for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
                "${OS_ROOT}"/hack/lib/*.sh "${OS_ROOT}"/hack/lib/**/*.sh
@@ -158,45 +159,50 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     os::cmd::try_until_text "oc get pods -l component=curator-ops" "Running" "$(( 3 * TIME_MIN ))"
 fi
 
-# add kibtest user for kibana and token auth testing
-os::cmd::expect_success "oc login --username=kibtest --password=kibtest"
+# add admin user and normal user for kibana and token auth testing
+export LOG_ADMIN_USER=admin
+export LOG_ADMIN_PW=admin
+export LOG_NORMAL_USER=loguser
+export LOG_NORMAL_PW=loguser
+os::cmd::expect_success "oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW"
 os::cmd::expect_success "oc login --username=system:admin"
-os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibtest"
+os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER"
+os::cmd::expect_success "oc login --username=$LOG_NORMAL_USER --password=$LOG_NORMAL_PW"
+os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oc project logging"
-# also give kibtest access to cluster stats
+os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
+# also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod 30
+wait_for_es_ready $espod 30 .searchguard.$espod/rolesmapping/0
+
+admindir=`mktemp -d`
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
-   https://logging-es:9200/.searchguard.$espod/rolesmapping/0 | \
-    python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("kibtest"); print json.dumps(hsh)' | \
-    oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+   https://localhost:9200/.searchguard.$espod/rolesmapping/0 > $admindir/1
+cat $admindir/1 | python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' > $admindir/2
+cat $admindir/2 | oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://logging-es:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
-    python -mjson.tool
+       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- > $admindir/3
+cat $admindir/3 | python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod 30
+    wait_for_es_ready $esopspod 30 .searchguard.$esopspod/rolesmapping/0
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 | \
-        python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("kibtest"); print json.dumps(hsh)' | \
+       https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 | \
+        python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
         oc exec -i $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
            --key /etc/elasticsearch/secret/admin-key \
-           https://logging-es-ops:9200/.searchguard.$esopspod/rolesmapping/0 -XPUT -d@- | \
+           https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 -XPUT -d@- | \
         python -mjson.tool
 fi
 
-# verify that kibtest user has access to cluster stats
+# verify that $LOG_ADMIN_USER user has access to cluster stats
 sleep 5
-oc login --username=kibtest --password=kibtest
-test_token="$(oc whoami -t)"
-test_name="$(oc whoami)"
-test_ip="127.0.0.1"
-oc login --username=system:admin
+get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
 oc project logging
 kibpod=`get_running_pod kibana`
-announce_test "Test 'kibtest' user can access cluster stats"
+announce_test "Test '$LOG_ADMIN_USER' user can access cluster stats"
 status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
    --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
    -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
@@ -204,13 +210,25 @@ status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
 os::cmd::expect_success "test $status = 200"
 
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
-    announce_test "Test 'kibtest' user can access cluster stats for OPS cluster"
+    announce_test "Test '$LOG_ADMIN_USER' user can access cluster stats for OPS cluster"
     kibpod=`get_running_pod kibana-ops`
     status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
        https://logging-es-ops:9200/_cluster/health -o /dev/null -w '%{response_code}')
     os::cmd::expect_success "test $status = 200"
+fi
+
+# verify normal user has access to logging indices
+get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
+oc project logging
+nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernetes.namespace_name logging | \
+       get_count_from_json`
+if [ ${nrecs:-0} -lt 1 ] ; then
+    echo ERROR: $LOG_NORMAL_USER cannot access project.logging.* indices
+    curl_es_from_kibana $kibpod logging-es "project.logging." _count message a | \
+        python -mjson.tool
+    exit 1
 fi
 
 # external elasticsearch access - reencrypt route - need certs, keys
