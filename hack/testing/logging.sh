@@ -173,27 +173,17 @@ os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-set -x
 wait_for_es_ready $espod 30
-set +x
-oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-   --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping || :
-oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-   --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping/0 || :
-oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-   --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/_search|python -mjson.tool || :
 
+admindir=`mktemp -d`
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping/0 | \
-    python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
-    oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+   https://localhost:9200/.searchguard.$espod/rolesmapping/0 > $admindir/1
+cat $admindir/1 | python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' > $admindir/2
+cat $admindir/2 | oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
-    python -mjson.tool
+       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- > $admindir/3
+cat $admindir/3 | python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
     wait_for_es_ready $esopspod 30
