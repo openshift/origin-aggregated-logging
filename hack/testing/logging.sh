@@ -142,7 +142,7 @@ os::cmd::expect_success 'oadm router'
 ######### logging specific code starts here ####################
 
 os::cmd::expect_success "oadm new-project logging --node-selector=''"
-os::cmd::expect_success "oc project logging"
+os::cmd::expect_success "oc project logging > /dev/null"
 
 #initialize logging stack
 source $OS_O_A_L_DIR/hack/testing/init-log-stack
@@ -169,21 +169,20 @@ os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER"
 os::cmd::expect_success "oc login --username=$LOG_NORMAL_USER --password=$LOG_NORMAL_PW"
 os::cmd::expect_success "oc login --username=system:admin"
-os::cmd::expect_success "oc project logging"
+os::cmd::expect_success "oc project logging > /dev/null"
 os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
 wait_for_es_ready $espod 30 .searchguard.$espod/rolesmapping/0
 
-admindir=`mktemp -d`
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping/0 > $admindir/1
-cat $admindir/1 | python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' > $admindir/2
-cat $admindir/2 | oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+   https://localhost:9200/.searchguard.$espod/rolesmapping/0 | \
+    python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
+    oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- > $admindir/3
-cat $admindir/3 | python -mjson.tool
+       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
+    python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
     wait_for_es_ready $esopspod 30 .searchguard.$esopspod/rolesmapping/0
@@ -200,7 +199,7 @@ fi
 # verify that $LOG_ADMIN_USER user has access to cluster stats
 sleep 5
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
-oc project logging
+oc project logging > /dev/null
 kibpod=`get_running_pod kibana`
 announce_test "Test '$LOG_ADMIN_USER' user can access cluster stats"
 status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
@@ -221,7 +220,7 @@ fi
 
 # verify normal user has access to logging indices
 get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
-oc project logging
+oc project logging > /dev/null
 nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernetes.namespace_name logging | \
        get_count_from_json`
 if [ ${nrecs:-0} -lt 1 ] ; then
@@ -269,7 +268,7 @@ if [ "${SETUP_ONLY:-}" = "true" ] ; then
 fi
 
 ### run logging tests ###
-os::cmd::expect_success "oc project logging"
+os::cmd::expect_success "oc project logging > /dev/null"
 pushd $OS_O_A_L_DIR/hack/testing
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     USE_CLUSTER=true
