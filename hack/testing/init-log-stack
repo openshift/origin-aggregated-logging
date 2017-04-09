@@ -1,7 +1,7 @@
 #!/bin/bash
 
 OS_ANSIBLE_VERBOSITY=${OS_ANSIBLE_VERBOSITY:-"vv"}
-OS_VERSION=${OS_VERSION:-v1.5.0-alpha.2}
+OS_VERSION_STRING=${OS_VERSION:+openshift_release=$OS_VERSION}
 
 ANSIBLE_PLAYBOOK_ARGS=${ANSIBLE_PLAYBOOK_ARGS:-""}
 
@@ -23,7 +23,7 @@ docker_protect_installed_version=true
 openshift_deployment_type=origin
 deployment_type=origin
 required_packages=[]
-openshift_release=${OS_VERSION}
+$OS_VERSION_STRING
 
 openshift_hosted_logging_hostname=${KIBANA_HOST:-kibana.127.0.0.1.xip.io}
 openshift_master_logging_public_url=https://${KIBANA_HOST:-kibana.127.0.0.1.xip.io}
