@@ -12,7 +12,7 @@ ENV HOME=/opt/app-root/src \
   SG_VER=2.4.1.8 \
   SG_SSL_VER=2.4.1.16 \
   ES_CLOUD_K8S_VER=2.4.1 \
-  OSE_ES_VER=2.4.1.5 \
+  OSE_ES_VER=2.4.1.7 \
   ES_CONF=/usr/share/elasticsearch/config \
   INSTANCE_RAM=512G \
   NODE_QUORUM=1 \
@@ -37,6 +37,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ /usr/share/elasticsearch/index_templates/
+ADD index_patterns/ /usr/share/elasticsearch/index_patterns/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
