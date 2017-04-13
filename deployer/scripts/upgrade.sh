@@ -52,6 +52,12 @@ function getDeploymentVersion() {
     return
   fi
 
+  # check for index patterns
+  if [[ -z "$(oc get configmap/logging-elasticsearch -o yaml | grep io.fabric8.elasticsearch.kibana.mapping)" ]]; then
+    echo 7
+    return
+  fi
+
   echo "$LOGGING_VERSION"
 }
 
@@ -697,6 +703,17 @@ function update_for_common_data_model() {
   } | curl -s --cacert $CA --key $KEY --cert $CERT -XPOST -d @- "https://$es_host:$es_port/_aliases"
 }
 
+function add_index_pattern_config() {
+    if oc get configmap logging-elasticsearch -o yaml | grep -q io.fabric8.elasticsearch.kibana.mapping > /dev/null ; then
+        return 0
+    fi
+
+    oc get configmap logging-elasticsearch -o yaml | \
+        sed -e '/^  elasticsearch.yml: /a\
+    io.fabric8.elasticsearch.kibana.mapping.app: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' -e '/^  elasticsearch.yml: /a\
+    io.fabric8.elasticsearch.kibana.mapping.ops: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' | oc replace -f -
+}
+
 function upgrade_logging() {
 
   installedVersion=$(getDeploymentVersion)
@@ -711,6 +728,7 @@ function upgrade_logging() {
   # 4 -- supply ES/curator configmaps
   # 5 -- update ES for 2.x
   # 6 -- add aliases for common data model
+  # 7 -- add index patterns for Kibana for common data model
 
   initialize_install_vars
 
@@ -753,6 +771,9 @@ function upgrade_logging() {
           ;;
         6)
           common_data_model=true
+          ;;
+        7)
+          add_index_pattern_config
           ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
