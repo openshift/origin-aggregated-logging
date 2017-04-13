@@ -9,8 +9,8 @@ fi
 export KUBERNETES_AUTH_TRYKUBECONFIG="false"
 ES_REST_BASEURL=https://localhost:9200
 LOG_FILE=elasticsearch_connect_log.txt
-RETRY_COUNT=300		# how many times
-RETRY_INTERVAL=1	# how often (in sec)
+RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
+RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
@@ -85,7 +85,7 @@ wait_for_port_open() {
 do
     echo -n "."
     sleep $RETRY_INTERVAL
-    (( retry -= 1 ))
+    (( retry -= 1 )) || :
     if (( retry == 0 )) ; then
         timeouted=true
         break
