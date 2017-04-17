@@ -56,8 +56,8 @@ if [ "${USE_MUX:-}" = "true" ] ; then
             cp -f $file $CFG_DIR/openshift
         fi
     done
-    rm -f configs.d/dynamic/input-docker-* configs.d/dynamic/input-syslog-*
-    if [ "${MUX_ALLOW_EXTERNAL-}" = "true" ] ; then
+    (cd $CFG_DIR; rm -f dynamic/input-docker-* dynamic/input-syslog-*)
+    if [ "${MUX_ALLOW_EXTERNAL:-}" = "true" ] ; then
         cp $CFG_DIR/mux-post-input*.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
         # copy any user defined files, possibly overwriting the standard ones
         for file in $CFG_DIR/user/mux-post-input*.conf $CFG_DIR/user/filter-*-mux.conf ; do

@@ -38,6 +38,11 @@ get_test_user_token
 
 cleanup_forward() {
 
+  # undeploy fluentd
+  oc label node --all logging-infra-fluentd-
+
+  wait_for_pod_ACTION stop $fpod
+
   # Clean up only if it's still around
   oc delete daemonset/logging-forward-fluentd || :
 
@@ -58,6 +63,13 @@ cleanup_forward() {
 #   port 24284\n\
 #  </server>"}]' || :
 
+  # redeploy fluentd
+  oc label node --all logging-infra-fluentd=true
+
+  # wait for fluentd to start
+  wait_for_pod_ACTION start fluentd
+
+  fpod=`get_running_pod fluentd`
 }
 
 update_current_fluentd() {
@@ -137,6 +149,7 @@ restart_fluentd() {
     oc label node --all logging-infra-fluentd=true
     # wait for fluentd to start
     wait_for_pod_ACTION start fluentd
+    fpod=`get_running_pod fluentd`
 }
 
 TEST_DIVIDER="------------------------------------------"
@@ -158,14 +171,12 @@ write_and_verify_logs 1 || {
 cleanup() {
     # put back original configuration
     cleanup_forward
-    restart_fluentd
+    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
 }
 trap "cleanup" INT TERM EXIT
 
 create_forwarding_fluentd
 update_current_fluentd
-
-fpod=`get_running_pod fluentd`
 
 write_and_verify_logs 1 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
@@ -174,7 +185,6 @@ write_and_verify_logs 1 || {
 
 # put back original configuration
 cleanup
-fpod=`get_running_pod fluentd`
 
 write_and_verify_logs 1 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1

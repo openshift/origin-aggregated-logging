@@ -150,6 +150,12 @@ objects:
               value: ${JOURNAL_SOURCE}
             - name: "JOURNAL_READ_FROM_HEAD"
               value: ${JOURNAL_READ_FROM_HEAD}
+            - name: "USE_MUX"
+              value: ${USE_MUX}
+            - name: "USE_MUX_CLIENT"
+              value: ${USE_MUX_CLIENT}
+            - name: "MUX_ALLOW_EXTERNAL"
+              value: ${MUX_ALLOW_EXTERNAL}
           volumes:
           - name: runlogjournal
             hostPath:
@@ -307,4 +313,16 @@ parameters:
 -
   description: 'Read the journal starting from the very beginning (false|true).'
   name: JOURNAL_READ_FROM_HEAD
+  value: "false"
+-
+  description: 'Configure MUX (false|true).'
+  name: USE_MUX
+  value: "false"
+-
+  description: 'Configure MUX CLIENT (false|true).'
+  name: USE_MUX_CLIENT
+  value: "false"
+-
+  description: 'Configure MUX SERVER (false|true).'
+  name: MUX_ALLOW_EXTERNAL
   value: "false"
