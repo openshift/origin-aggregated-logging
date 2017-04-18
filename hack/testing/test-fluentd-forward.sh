@@ -5,7 +5,7 @@
 # verify the same way we do now (for ES copy)
 # need to create a custom configmap for both fluentd?
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ]; then
   set -ex
 else
   set -e
@@ -189,7 +189,7 @@ create_forwarding_fluentd() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
        https://${2}:9200/${3}*/${4}\?q=${5}:${6}

@@ -330,7 +330,35 @@ function get_latest_pod() {
 function query_es_from_es() {
     oc exec $1 -- curl --connect-timeout 1 -s -k \
        --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-       https://${2}:9200/${3}*/${4}\?q=${5}:${6}
+       https://localhost:9200/${2}*/${3}\?q=${4}:${5}
+}
+
+# $1 is es pod
+# $2 is timeout
+function wait_for_es_ready() {
+    # test for ES to be up first and that our SG index has been created
+    out=/dev/null
+    if [ "${VERBOSE:-}" = true ] ; then
+        echo "Checking if Elasticsearch $1 is ready"
+        out=${LOG_DIR:-/tmp}/wait_for_es_port_open.log
+    fi
+    secret_dir=/etc/elasticsearch/secret
+    local ii=$2
+    while ! response_code=$(oc exec $1 -- curl -s \
+        --cacert $secret_dir/admin-ca \
+        --cert $secret_dir/admin-cert \
+        --key  $secret_dir/admin-key \
+        --connect-timeout 1 \
+        -w '%{response_code}' -o $out \
+        "https://localhost:9200/.searchguard.$1") || test "${response_code:-}" != 200
+    do
+        sleep 1
+        ii=`expr $ii - 1` || :
+        if [ $ii -eq 0 ] ; then
+            return 1
+        fi
+    done
+    return 0
 }
 
 function get_count_from_json() {
@@ -368,7 +396,7 @@ function wait_until_cmd_or_err() {
 # return true if the actual count matches the expected count, false otherwise
 function test_count_expected() {
     myfield=${myfield:-message}
-    local nrecs=`query_es_from_es $espod $myhost $myproject _count $myfield $mymessage | \
+    local nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
            get_count_from_json`
     test "$nrecs" = $expected
 }
@@ -377,11 +405,11 @@ function test_count_expected() {
 # the actual count
 function test_count_err() {
     myfield=${myfield:-message}
-    nrecs=`query_es_from_es $espod $myhost $myproject _count $myfield $mymessage | \
+    nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
            get_count_from_json`
     echo Error: found $nrecs for project $myproject message $mymessage - expected $expected
     for thetype in _count _search ; do
-        query_es_from_es $espod $myhost $myproject $thetype $myfield $mymessage | python -mjson.tool
+        query_es_from_es $espod $myproject $thetype $myfield $mymessage | python -mjson.tool
     done
 }
 
@@ -401,7 +429,7 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
 
-    if espod=$es_pod myhost=logging-es myproject=project.logging mymessage=$uuid_es expected=1 \
+    if espod=$es_pod myproject=project.logging mymessage=$uuid_es expected=1 \
             wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
         echo good - $FUNCNAME: found 1 record project logging for $uuid_es
     else
@@ -409,7 +437,7 @@ function wait_for_fluentd_to_catch_up() {
         rc=1
     fi
 
-    if espod=$es_ops_pod myhost=logging-es-ops myproject=.operations mymessage=$uuid_es_ops expected=1 myfield=systemd.u.SYSLOG_IDENTIFIER \
+    if espod=$es_ops_pod myproject=.operations mymessage=$uuid_es_ops expected=1 myfield=systemd.u.SYSLOG_IDENTIFIER \
             wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
         echo good - $FUNCNAME: found 1 record project .operations for $uuid_es_ops
     else

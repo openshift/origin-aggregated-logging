@@ -2,7 +2,7 @@
 # This tests for raw .operations index performance - write a bunch of messages
 # to the system log and see how long it takes all of them to show up in ES
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ] ; then
   set -ex
 else
   set -e
@@ -97,7 +97,7 @@ fi
 # not used now, but in case we need it
 INDEX_PREFIX=
 count_ge_nmessages() {
-    curcount=`oc exec $kpod -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+    curcount=`oc exec $kpod -c kibana -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
             https://logging-es${ops}:9200/${INDEX_PREFIX}.operations*/_count\?q=message:$prefix | \
             python -c 'import json, sys; print json.loads(sys.stdin.read())["count"]'`
     # output: time count 
@@ -116,7 +116,7 @@ echo duration `expr $MARKTIME - $STARTTIME`
 
 # search ES and extract the messages
 esmessages=`mktemp`
-oc exec $kpod -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+oc exec $kpod -c kibana -- curl -s -k --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
    https://logging-es${ops}:9200/${INDEX_PREFIX}.operations*/_search\?q=ident:$prefix\&fields=message\&size=`expr $NMESSAGES + 1` | \
     python -c 'import json, sys; print "\n".join([ii["fields"]["message"][0] for ii in json.loads(sys.stdin.read())["hits"]["hits"]])' | sort -n > $esmessages
 

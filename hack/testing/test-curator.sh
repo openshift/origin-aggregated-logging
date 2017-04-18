@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "${VERBOSE:-false}" = "true" ] ; then
+if [ -n "${VERBOSE:-}" ] ; then
   set -ex
 else
   set -e
@@ -86,7 +86,7 @@ wait_for_pod_ACTION() {
             break # pod is either started or stopped
         fi
         sleep $incr
-        ii=`expr $ii - $incr`
+        ii=`expr $ii - $incr` || :
         if [ $1 = start ] ; then
             curpod=`get_running_pod $2`
         fi
@@ -126,7 +126,7 @@ wait_for_curator_run() {
             return 0
         fi
         sleep $incr
-        ii=`expr $ii - $incr`
+        ii=`expr $ii - $incr` || :
     done
     echo ERROR: curator run not complete for pod $1 after 2 minutes
     date
@@ -223,13 +223,13 @@ update_config_and_restart() {
     if uses_config_maps ; then
         # use configmap
         oc delete configmap logging-curator || :
-        sleep 1
+        sleep 5
         if grep -q ^apiVersion: $1 ; then
             oc create -f $1 || : # oc get yaml dump, not a curator config file
         else
             oc create configmap logging-curator --from-file=config.yaml=$1
         fi
-        sleep 1
+        sleep 5
     else
         # use secret volume mount
         oc delete secret curator-config${ops:-} || echo no such secret curator-config${ops:-} - ignore
@@ -252,9 +252,9 @@ cleanup() {
     fi
     if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
         oc delete configmap logging-curator || :
-        sleep 1
+        sleep 5
         oc create -f $origconfig || :
-        sleep 1
+        sleep 5
     else
         oc delete secret curator-config || :
         oc delete secret curator-config-ops || :
@@ -317,7 +317,7 @@ this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long-this
     days: 1
 EOF
     update_config_and_restart $curtest errors
-    sleep 1
+    sleep 5
     rc=0
     # curator pod should be in error state
     errpod=`get_error_pod curator`
@@ -341,7 +341,7 @@ EOF
     days: 1
 EOF
         update_config_and_restart $curtest errors
-        sleep 1
+        sleep 5
         # curator pod should be in error state
         errpod=`get_error_pod curator`
         if [ -z "${errpod:-}" ] ; then
