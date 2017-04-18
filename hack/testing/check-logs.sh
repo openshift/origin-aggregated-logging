@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$VERBOSE" = true ]; then
+if [ -n "${VERBOSE:-}" ]; then
   set -ex
 else
   set -e
