@@ -152,7 +152,8 @@ os::cmd::expect_success 'oadm router'
 
 ######### logging specific code starts here ####################
 
-os::cmd::expect_success "oadm new-project logging --node-selector=''"
+# not sure how/where this could be created before this . . .
+oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging > /dev/null"
 
 #initialize logging stack
