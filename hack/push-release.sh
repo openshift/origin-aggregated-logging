@@ -50,7 +50,7 @@ fi
 if [[ "${OS_PUSH_BASE_REGISTRY-}" != "" || "${tag}" != "" ]]; then
   set -e
   for image in "${images[@]}"; do
-    docker tag -f "${image}:${source_tag}" "${OS_PUSH_BASE_REGISTRY-}${image}${tag}"
+    docker tag "${image}:${source_tag}" "${OS_PUSH_BASE_REGISTRY-}${image}${tag}"
   done
   set +e
 fi

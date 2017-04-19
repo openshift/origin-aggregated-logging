@@ -225,7 +225,8 @@ function scaleDown() {
     if [[ -n "$selector" ]]; then
       fluentd_nodeselector=$(echo ${selector:4:-1} | sed 's/:/=/g')
 
-      oc delete daemonset logging-fluentd
+      # don't fail if this command times out (adding --timeout and --grace-period doesn't resolve this)
+      oc delete daemonset logging-fluentd || :
     fi
   else
     # we are using a deployment config, scale down here
@@ -650,7 +651,7 @@ function update_es_for_235() {
     --from-file=elasticsearch.yml=conf/elasticsearch.yml
   oc label configmap/logging-elasticsearch logging-infra=support # make easier to delete later
 
-  echo "Adding downward API NAMESPACE var to ES"
+  echo "Adding downward API NAMESPACE var to ES and updating config mountPath"
   patchPIDs=()
   local dc patch=$(join , \
     '{"op": "add", "path": "/spec/template/spec/containers/0/env/0", "value": { "name": "NAMESPACE", "valueFrom": { "fieldRef": { "fieldPath": "metadata.namespace" }}}}')
@@ -680,6 +681,34 @@ function update_es_for_min_masters() {
     waitForChange $currentVersion $dc &
     patchPIDs+=( $!)
   done
+}
+
+#https://bugzilla.redhat.com/show_bug.cgi?id=1441369
+function update_kibana_memory_limits() {
+  local dc=$1
+  echo "Patching kibana memory limits for $dc"
+  local bytes_per_meg=$((1024 * 1024))
+  local kb_limit=$((736 * $bytes_per_meg))
+  local kb_proxy_limit=$((96 * $bytes_per_meg))
+  local patch=$(join , \
+    "{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/resources\", \"value\": { \"limits\": { \"memory\": $kb_limit } } }" \
+    '{"op": "add", "path": "/spec/template/spec/containers/0/env/0", "value": { "name": "KIBANA_MEMORY_LIMIT", "valueFrom": { "resourceFieldRef": { "containerName": "kibana", "resource": "limits.memory" }}}}' \
+    "{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/1/resources\", \"value\": { \"limits\": { \"memory\": $kb_proxy_limit } } }" \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OCP_AUTH_PROXY_MEMORY_LIMIT", "valueFrom": { "resourceFieldRef": { "containerName": "kibana-proxy", "resource": "limits.memory" }}}}' \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OAP_OAUTH_SECRET_FILE", "value": "/secret/oauth-secret" } }' \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OAP_SERVER_CERT_FILE", "value": "/secret/server-cert" } }' \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OAP_SERVER_KEY_FILE", "value": "/secret/server-key" } }' \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OAP_SERVER_TLS_FILE", "value": "/secret/server-tls.json" } }' \
+    '{"op": "add", "path": "/spec/template/spec/containers/1/env/0", "value": { "name": "OAP_SERVER_SESSION_SECRET_FILE", "value": "/secret/session-secret" } }' \
+  )
+
+  patchPIDs=()
+  currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
+  oc patch $dc --type=json --patch "[$patch]"
+
+  oc deploy $dc --latest
+  waitForChange $currentVersion $dc &
+  patchPIDs+=( $!)
 }
 
 # for each index in _cat/indices
@@ -938,8 +967,19 @@ function upgrade_logging() {
   if oc get configmap logging-elasticsearch -o yaml | grep -q MIN_MASTER ; then
      update_es_for_min_masters
   fi
-  scaleUp
 
+  for dc in $(oc get dc -l logging-infra=kibana -o name) ; do
+    yaml=$(oc get $dc -o yaml)
+    if echo $yaml | grep -q KIBANA_MEMORY_LIMIT  && 
+        echo $yaml | grep -q KIBANA_PROXY_MEMORY_LIMIT &&
+        echo $yaml | grep -q OAP_OAUTH_SECRET_FILE ; then
+       echo "Kibana memory limit changes already applied"
+    else
+      update_kibana_memory_limits $dc
+    fi
+  done
+
+  scaleUp
 
   if [[ $installedVersion -ne $LOGGING_VERSION ]]; then
     if [[ -n "$migrate" ]]; then

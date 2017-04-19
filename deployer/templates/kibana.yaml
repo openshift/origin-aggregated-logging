@@ -68,10 +68,19 @@ objects:
                   value: ${ES_HOST}
                 - name: "ES_PORT"
                   value: ${ES_PORT}
+                -
+                  name: "KIBANA_MEMORY_LIMIT"
+                  valueFrom:
+                    resourceFieldRef:
+                      containerName: kibana
+                      resource: limits.memory
               volumeMounts:
                 - name: kibana
                   mountPath: /etc/kibana/keys
                   readOnly: true
+              resources:
+                limits:
+                  memory: ${KIBANA_MEMORY_LIMIT}
             -
               name: "kibana-proxy"
               image: ${IMAGE_PREFIX}logging-auth-proxy:${IMAGE_VERSION}
@@ -81,6 +90,12 @@ objects:
                   name: "oaproxy"
                   containerPort: 3000
               env:
+                -
+                  name: "OCP_AUTH_PROXY_MEMORY_LIMIT"
+                  valueFrom:
+                    resourceFieldRef:
+                      containerName: kibana-proxy
+                      resource: limits.memory
                 -
                   name: "OAP_BACKEND_URL"
                   value: "http://localhost:5601"
@@ -108,6 +123,24 @@ objects:
                 -
                   name: "OAP_DEBUG"
                   value: ${OAP_DEBUG}
+                -
+                  name: "OAP_OAUTH_SECRET_FILE"
+                  value: "/secret/oauth-secret"
+                -
+                  name: "OAP_SERVER_CERT_FILE"
+                  value: "/secret/server-cert"
+                -
+                  name: "OAP_SERVER_KEY_FILE"
+                  value: "/secret/server-key"
+                -
+                  name: "OAP_SERVER_TLS_FILE"
+                  value: "/secret/server-tls.json"
+                -
+                  name: "OAP_SERVER_SESSION_SECRET_FILE"
+                  value: "/secret/session-secret"
+              resources:
+                limits:
+                  memory: ${KIBANA_PROXY_MEMORY_LIMIT}
               volumeMounts:
                 - name: kibana-proxy
                   mountPath: /secret
@@ -124,6 +157,14 @@ parameters:
   name: KIBANA_DEPLOY_NAME
   description: "Modify to differentiate regular and ops UI."
   value: "kibana"
+-
+  name: KIBANA_MEMORY_LIMIT
+  description: "The maximum memory for the kibana container"
+  value: "736Mi"
+-
+  name: KIBANA_PROXY_MEMORY_LIMIT
+  description: "The maximum memory for the kibana auth-proxy container"
+  value: "96Mi"
 -
   description: "Internal URL for the master, for authentication retrieval"
   name: OAP_MASTER_URL
