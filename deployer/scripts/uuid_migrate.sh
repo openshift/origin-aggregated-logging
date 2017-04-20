@@ -29,7 +29,19 @@ function create_alias() {
         set -o pipefail
         return 0
     fi
-    set -o pipefail
+    # it is an error to create an alias if no index matches the pattern:
+    # curl .. -XPOST https://logging-es:9200/_aliases -d '{ "actions": [ { "add": { "index": "management-infra.*", "alias": "management-infra.d6161ab4-25ec-11e7-875f-fa163e8d0bf0.reference"}} ] }'
+    # {"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index","resource.type":"index_or_alias","resource.id":"management-infra.*","index":"management-infra.*"}],"type":"index_not_found_exception","reason":"no such index","resource.type":"index_or_alias","resource.id":"management-infra.*","index":"management-infra.*"},"status":404}
+    if curl -s --cacert $CA --key $KEY --cert $CERT "https://$es_host:$es_port/_cat/indices" | \
+            grep -q " $1\.[^ ]* " ; then
+        # index exists
+        set -o pipefail
+    else
+        echo Migration skipped for project $1 - no index
+        set -o pipefail
+        return 0
+    fi
+
     output=$(curl -s --cacert $CA --key $KEY --cert $CERT -XPOST "https://$es_host:$es_port/_aliases" -d "{ \"actions\": [ { \"add\": { \"index\": \"${1}.*\", \"alias\": \"${1}.${2}.reference\"}} ] }")
 
     echo Migration for project $1: $output

@@ -731,6 +731,7 @@ function update_for_common_data_model() {
   count=$(get_list_of_proj_uuid_indices | wc -l)
   if [ $count -eq 0 ] ; then
       echo No matching indexes found - skipping update_for_common_data_model
+      rm -f $indices
       return 0
   fi
   echo Creating aliases for $count index patterns . . .
@@ -751,6 +752,151 @@ function update_for_common_data_model() {
       done
     echo ']}'
   } | curl -s --cacert $CA --key $KEY --cert $CERT -XPOST -d @- "https://$es_host:$es_port/_aliases"
+
+  # get a list of unique project.uuid.date - for each one, create an alias
+  # like ${proj_prefix}project.uuid.cdm-alias.date - this will not conflict with any
+  # other index or alias name, and will allow fluentd/elasticsearch to work correct,
+  # in addition to kibana and curator
+  batchfile=`mktemp`
+  trap "rm -f $indices $batchfile" ERR EXIT INT TERM
+  BATCHSIZE=${BATCHSIZE:-50}
+  ii=0
+  while IFS=. read proj uuid date ; do
+      mod=`expr $ii % $BATCHSIZE || :`
+      if [ $ii -eq $count -o $mod -eq 0 ] ; then
+          if [ $ii -eq $count ] || [ $ii -gt 0 ] ; then
+              echo ']}' >> $batchfile
+              cat $batchfile | \
+                  curl -s --cacert $CA --key $KEY --cert $CERT -XPOST --data-binary @- "https://$es_host:$es_port/_aliases" | \
+                  python -c 'import sys,json
+hsh = json.loads(sys.stdin.read())
+if hsh["acknowledged"] == "false":
+  print "ERROR: update failed"
+  sys.exit(1)
+else:
+  print "INFO: update succeeded"
+'
+          fi
+          if [ $ii -eq $count ] ; then
+              break
+          fi
+          echo '{"actions":[' > $batchfile
+          comma=
+      fi
+      echo "${comma:-}{\"add\":{\"index\":\"$proj.$uuid.$date\",\"alias\":\"${PROJ_PREFIX}$proj.$uuid.cdm-alias.$date\"}}" >> $batchfile
+      comma=","
+      ii=`expr $ii + 1`
+  done < $indices
+  echo ']}' >> $batchfile
+  cat $batchfile | \
+      curl -s --cacert $CA --key $KEY --cert $CERT -XPOST --data-binary @- "https://$es_host:$es_port/_aliases" | \
+      python -c 'import sys,json
+hsh = json.loads(sys.stdin.read())
+if hsh["acknowledged"] == "false":
+  print "ERROR: update failed"
+  sys.exit(1)
+else:
+  print "INFO: update succeeded"
+'
+  rm -f $batchfile $indices
+  trap - ERR EXIT INT TERM
+  echo Done - created aliases for $count old-style indices
+}
+
+get_broken_aliases() {
+    # find all aliases of the form ${prefix}project.uuid.*
+    namerx='[^.][^.]*'
+    uuidrx='[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
+    set -o pipefail
+    curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/aliases | \
+        awk -v projrx="^${PROJ_PREFIX_RX}[.]${namerx}[.]${uuidrx}[.][*]\$" '$1 ~ projrx {print $1}' || \
+        { rc=$?; set +o pipefail; >&2 echo Error $rc getting list of broken aliases; return $rc; }
+    rc=$?
+    set +o pipefail
+    return $rc
+}
+
+delete_broken_aliases() {
+    aliases=`mktemp`
+    get_broken_aliases > $aliases
+    count=$(cat $aliases | wc -l)
+    if [ $count -eq 0 ] ; then
+        echo No broken aliases - skipping
+        rm -f $aliases
+        return 0
+    fi
+    echo removing $count broken aliases . . .
+    # for each index in _cat/indices
+    # skip indices that begin with . - .kibana, .operations, etc.
+    # get a list of unique project.uuid
+    # daterx - the date regex that matches the .%Y.%m.%d at the end of the indices
+    # we are interested in - the awk will strip that part off
+    batchfile=`mktemp`
+    trap "rm -f $aliases $batchfile" ERR EXIT INT TERM
+    BATCHSIZE=${BATCHSIZE:-50}
+    ii=0
+    while IFS=. read ignore proj uuid rest ; do
+        mod=`expr $ii % $BATCHSIZE || :`
+        if [ $ii -eq $count -o $mod -eq 0 ] ; then
+            if [ $ii -eq $count ] || [ $ii -gt 0 ] ; then
+                echo ']}' >> $batchfile
+                cat $batchfile | \
+                    curl -s --cacert $CA --key $KEY --cert $CERT -XPOST --data-binary @- "https://$es_host:$es_port/_aliases" | \
+                    python -c 'import sys,json
+hsh = json.loads(sys.stdin.read())
+if hsh["acknowledged"] == "false":
+  print "ERROR: update failed"
+  sys.exit(1)
+else:
+  print "INFO: update succeeded"
+'
+            fi
+            if [ $ii -eq $count ] ; then
+                break
+            fi
+            echo '{"actions":[' > $batchfile
+            comma=
+        fi
+        echo "${comma:-}{\"remove\":{\"index\":\"$proj.$uuid.*\",\"alias\":\"${PROJ_PREFIX}$proj.$uuid.*\"}}" >> $batchfile
+        comma=","
+        ii=`expr $ii + 1`
+    done < $aliases
+    rm -f $aliases
+    echo ']}' >> $batchfile
+    cat $batchfile | \
+        curl -s --cacert $CA --key $KEY --cert $CERT -XPOST --data-binary @- "https://$es_host:$es_port/_aliases" | \
+        python -c 'import sys,json
+hsh = json.loads(sys.stdin.read())
+if hsh["acknowledged"] == "false":
+  print "ERROR: update failed"
+  sys.exit(1)
+else:
+  print "INFO: update succeeded"
+'
+    rm -f $batchfile
+    trap - ERR EXIT INT TERM
+    echo Done - removed $count broken aliases
+}
+
+function add_index_pattern_config() {
+    if oc get configmap logging-elasticsearch -o yaml | grep -q io.fabric8.elasticsearch.kibana.mapping > /dev/null ; then
+        return 0
+    fi
+
+    oc get configmap logging-elasticsearch -o yaml | \
+        sed -e '/^  elasticsearch.yml: /a\
+    io.fabric8.elasticsearch.kibana.mapping.app: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' -e '/^  elasticsearch.yml: /a\
+    io.fabric8.elasticsearch.kibana.mapping.ops: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' | oc replace -f -
+}
+
+function add_common_data_model_plugin() {
+    if oc get configmap logging-fluentd -o yaml | grep -q configs.d/openshift/filter-common-data-model.conf ; then
+        return 0
+    fi
+    oc get configmap logging-fluentd -o yaml | \
+        sed -e '/@include configs.d\/openshift\/filter-syslog-record-transform.conf/a\
+      @include configs.d/openshift/filter-common-data-model.conf' | \
+        oc replace -f -
 }
 
 function upgrade_logging() {
@@ -810,6 +956,14 @@ function upgrade_logging() {
         6)
           common_data_model=true
           ;;
+<<<<<<< HEAD
+=======
+        7)
+          common_data_model=true
+          add_index_pattern_config
+          add_common_data_model_plugin
+          ;;
+>>>>>>> eddc26f... Bug 1440855 - Missing aliases after upgrade
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
           ;;
@@ -852,7 +1006,12 @@ function upgrade_logging() {
       if [ ! -f $CERT ] ; then
         recreate_admin_certs
       fi
+<<<<<<< HEAD
       PROJ_PREFIX=project. CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
+=======
+      PROJ_PREFIX=project. PROJ_PREFIX_RX=project CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port delete_broken_aliases
+      PROJ_PREFIX=project. PROJ_PREFIX_RX=project CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
+>>>>>>> eddc26f... Bug 1440855 - Missing aliases after upgrade
     fi
 
     upgrade_notify
