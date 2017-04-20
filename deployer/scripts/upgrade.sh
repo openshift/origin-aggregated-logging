@@ -681,7 +681,7 @@ function update_for_common_data_model() {
   get_list_of_proj_uuid_indices > $indices
   count=$(cat $indices | wc -l)
   if [ $count -eq 0 ] ; then
-      info No matching indexes found - skipping update_for_common_data_model
+      echo No matching indexes found - skipping update_for_common_data_model
       rm -f $indices
       return 0
   fi
@@ -735,7 +735,7 @@ else:
 '
   rm -f $batchfile $indices
   trap - ERR EXIT INT TERM
-  info Done - created aliases for $count old-style indices
+  echo Done - created aliases for $count old-style indices
 }
 
 get_broken_aliases() {
@@ -744,7 +744,7 @@ get_broken_aliases() {
     uuidrx='[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
     set -o pipefail
     curl -s --cacert $CA --key $KEY --cert $CERT https://$es_host:$es_port/_cat/aliases | \
-        awk -v projrx="^${PROJ_PREFIX}${namerx}\.${uuidrx}\.[*]\$" '$1 ~ projrx {print $1}' 2>&1 | grep -v "awk: warning: escape sequence" || \
+        awk -v projrx="^${PROJ_PREFIX_RX}[.]${namerx}[.]${uuidrx}[.][*]\$" '$1 ~ projrx {print $1}' || \
         { rc=$?; set +o pipefail; >&2 echo Error $rc getting list of broken aliases; return $rc; }
     rc=$?
     set +o pipefail
@@ -756,11 +756,11 @@ delete_broken_aliases() {
     get_broken_aliases > $aliases
     count=$(cat $aliases | wc -l)
     if [ $count -eq 0 ] ; then
-        info No broken aliases - skipping
+        echo No broken aliases - skipping
         rm -f $aliases
         return 0
     fi
-    info removing $count broken aliases . . .
+    echo removing $count broken aliases . . .
     # for each index in _cat/indices
     # skip indices that begin with . - .kibana, .operations, etc.
     # get a list of unique project.uuid
@@ -810,7 +810,7 @@ else:
 '
     rm -f $batchfile
     trap - ERR EXIT INT TERM
-    info Done - removed $count broken aliases
+    echo Done - removed $count broken aliases
 }
 
 function add_index_pattern_config() {
@@ -822,6 +822,16 @@ function add_index_pattern_config() {
         sed -e '/^  elasticsearch.yml: /a\
     io.fabric8.elasticsearch.kibana.mapping.app: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' -e '/^  elasticsearch.yml: /a\
     io.fabric8.elasticsearch.kibana.mapping.ops: /usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json' | oc replace -f -
+}
+
+function add_common_data_model_plugin() {
+    if oc get configmap logging-fluentd -o yaml | grep -q configs.d/openshift/filter-common-data-model.conf ; then
+        return 0
+    fi
+    oc get configmap logging-fluentd -o yaml | \
+        sed -e '/@include configs.d\/openshift\/filter-syslog-record-transform.conf/a\
+      @include configs.d/openshift/filter-common-data-model.conf' | \
+        oc replace -f -
 }
 
 function upgrade_logging() {
@@ -885,6 +895,7 @@ function upgrade_logging() {
         7)
           common_data_model=true
           add_index_pattern_config
+          add_common_data_model_plugin
           ;;
         $LOGGING_VERSION)
           echo "Infrastructure changes for Aggregated Logging complete..."
@@ -912,8 +923,8 @@ function upgrade_logging() {
       if [ ! -f $CERT ] ; then
         recreate_admin_certs
       fi
-      PROJ_PREFIX=project. CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port delete_broken_aliases
-      PROJ_PREFIX=project. CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
+      PROJ_PREFIX=project. PROJ_PREFIX_RX=project CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port delete_broken_aliases
+      PROJ_PREFIX=project. PROJ_PREFIX_RX=project CA=$CA KEY=$KEY CERT=$CERT es_host=$es_host es_port=$es_port update_for_common_data_model
     fi
 
     upgrade_notify

@@ -56,7 +56,7 @@ function createOldIndexPattern() {
   echo "creating index with old pattern"
 
   indexDate=`date +%Y.%m.%d`
-  genUUID=`uuidgen`
+  genUUID=$(oc get project "oldindex" -o jsonpath='{.metadata.uid}')
 
   esPod=`oc get pods -l component=es -o name | sed "s,pod/,,"`
 
@@ -64,12 +64,18 @@ function createOldIndexPattern() {
   [ -z "$esPod" ] && echo "Unable to find ES pod for recreating old index pattern" && return 1
 
   # create an old index pattern
+  oldindex="oldindex.${genUUID}.${indexDate}"
   oc exec $esPod -- curl -s --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-                         -XPUT "https://logging-es:9200/oldindex.${genUUID}.${indexDate}" -d '{ "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } } }'
+                         -XPUT "https://localhost:9200/$oldindex" -d '{ "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } } }'
+
+  # create a bad alias for the old index
+  badalias="project.oldindex.${genUUID}.*"
+  oc exec $esPod -- curl -s --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+                         -XPOST "https://localhost:9200/_aliases" -d '{"actions":[{"add":{"index":"'"$oldindex"'","alias":"'"$badalias"'"}}]}'
 
   # necessary?
   oc exec $esPod -- curl -s --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-                         -XGET "https://logging-es:9200/_cluster/health/oldindex.${genUUID}.${indexDate}?wait_for_status=yellow&timeout=50s"
+                         -XGET "https://localhost:9200/_cluster/health/oldindex.${genUUID}.${indexDate}?wait_for_status=yellow&timeout=50s"
 }
 
 function deleteOldIndexPattern() {
@@ -219,7 +225,7 @@ function upgrade() {
                         -p IMAGE_PREFIX=$imageprefix \
                         -p KIBANA_HOSTNAME=kibana.example.com \
                         -p ES_CLUSTER_SIZE=1 \
-                        -p PUBLIC_MASTER_URL=https://localhost:8443${masterurlhack} \
+                        -p PUBLIC_MASTER_URL=https://localhost:8443 ${masterurlhack} \
                         -p MODE=upgrade \
                         -p IMAGE_VERSION=$version
 
@@ -227,6 +233,50 @@ function upgrade() {
   waitFor "[[ \"Succeeded\" == \"\$(oc get pod $UPGRADE_POD -o jsonpath='{.status.phase}')\" ]]" "$(( 20 * TIME_MIN ))" "[[ \"Failed\" == \"\$(oc get pod $UPGRADE_POD -o jsonpath='{.status.phase}')\" ]]" && return 0
 
   return 1
+}
+
+function findBrokenAliases() {
+    local espod=$(oc get pods -l component=es -o jsonpath='{.items[0].metadata.name}')
+    namerx='[^.][^.]*'
+    uuidrx='[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
+    set -o pipefail
+    if oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+          --key /etc/elasticsearch/secret/admin-key \
+          https://localhost:9200/_cat/aliases | \
+            awk -v projrx="^project[.]${namerx}[.]${uuidrx}[.][*]\$" '$1 ~ projrx {exit 1}' ; then
+        echo good - found no broken aliases
+    else
+        echo ERROR: found broken aliases
+        oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+          --key /etc/elasticsearch/secret/admin-key \
+          https://localhost:9200/_cat/aliases | \
+            awk -v projrx="^project[.]${namerx}[.]${uuidrx}[.][*]\$" '$1 ~ projrx {print}'
+        set +o pipefail
+        return 1
+    fi
+    set +o pipefail
+    return 0
+}
+
+function findGoodAliases() {
+    local espod=$(oc get pods -l component=es -o jsonpath='{.items[0].metadata.name}')
+    uuidrx='[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
+    set -o pipefail
+    if oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+          --key /etc/elasticsearch/secret/admin-key \
+          https://localhost:9200/_cat/aliases | \
+            awk -v projrx="^project[.]oldindex[.]${uuidrx}[.]cdm-alias[.]" '$1 ~ projrx {exit 1}' ; then
+        echo ERROR: did not find good alias
+        oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
+          --key /etc/elasticsearch/secret/admin-key \
+          https://localhost:9200/_cat/aliases
+        set +o pipefail
+        return 1
+    else
+        echo good - found good alias
+    fi
+    set +o pipefail
+    return 0
 }
 
 # verify everything is at the latest state
@@ -269,7 +319,6 @@ function verifyUpgrade() {
     echo "Checking tag for $name"
     [[ "$value" == "$version" ]] || [[ "$value" == "$sha" ]] || return 1
   done
-
 ### check for admin-cert, admin-key, admin-ca
   [[ -z "$(oc get secret/logging-elasticsearch -o jsonpath='{.data.admin-ca}')" ]] && return 1
   [[ -z "$(oc get secret/logging-elasticsearch -o jsonpath='{.data.admin-key}')" ]] && return 1
@@ -280,13 +329,16 @@ function verifyUpgrade() {
     for project in $(oc get projects -o 'jsonpath={.items[*].metadata.name}'); do
       [[ "${OPS_PROJECTS[@]}" =~ $project ]] && continue
       [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - using common data model')" ]] && continue
+      [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project '$project' - no index')" ]] && continue
       [[ -z "$(oc logs $UPGRADE_POD | grep 'Migration for project '$project': {"acknowledged":true}')" ]] && return 1
     done
   fi
 
   if [ $checkCDMMigrate = true ]; then
     [[ -n "$(oc logs $UPGRADE_POD | grep 'Migration skipped for project oldindex.'${genUUID}'.'${indexDate}' - using common data model')" ]] && return 1
-    [[ -z "$(oc logs $UPGRADE_POD | grep '^{"acknowledged":true}')" ]] && return 1
+    [[ -z "$(oc logs $UPGRADE_POD | grep '^INFO: update succeeded')" ]] && return 1
+    [[ -z "$(oc logs $UPGRADE_POD | grep '^Done - removed 1 broken aliases')" ]] && return 1
+    [[ -z "$(oc logs $UPGRADE_POD | grep '^Done - created aliases for 1 old-style indices')" ]] && return 1
   fi
 
 ### check for Fluentd daemonset, no DC exists
@@ -310,6 +362,15 @@ function verifyUpgrade() {
     waitFor "[[ \"Running\" == \"\$(oc get pods -l component=kibana-ops -o jsonpath='{.items[*].status.phase}')\" ]]" "$(( 3 * TIME_MIN ))" || return 1
     waitFor "[[ \"Running\" == \"\$(oc get pods -l component=curator-ops -o jsonpath='{.items[*].status.phase}')\" ]]" "$(( 3 * TIME_MIN ))" || return 1
   fi
+  if [ $checkCDMMigrate = true ]; then
+      findBrokenAliases
+      findGoodAliases
+  fi
+  # check elasticsearch has kibana mappings
+  oc get configmap logging-elasticsearch -o yaml | grep -q io.fabric8.elasticsearch.kibana.mapping.app
+  oc get configmap logging-elasticsearch -o yaml | grep -q io.fabric8.elasticsearch.kibana.mapping.ops
+  # check fluentd has common data model
+  oc get configmap logging-fluentd -o yaml | grep -q configs.d/openshift/filter-common-data-model.conf
 
   return 0
 }
@@ -317,6 +378,7 @@ function verifyUpgrade() {
 TIME_MIN=60
 
 echo $TEST_DIVIDER
+oc get project oldindex > /dev/null 2>&1 || oadm new-project oldindex --node-selector='' && sleep 5
 # test from base install
 createOldIndexPattern
 removeFluentdConfigMaps
@@ -346,3 +408,4 @@ verifyUpgrade "upgraded"
 ./e2e-test.sh ${USE_CLUSTER:-$CLUSTER}
 
 deleteOldIndexPattern
+oc delete project oldindex || :
