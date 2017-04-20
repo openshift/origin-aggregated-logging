@@ -12,7 +12,7 @@ ENV AOP_KIBANA_PLUGIN_VER=4.5.1 \
     KIBANA_CONF_DIR=/etc/kibana \
     CONFIG_PATH=/etc/kibana \
     NODE_ENV=production \
-    KIBANA_VER=4.6.4 \
+    KIBANA_VER=5.3.1 \
     NODE_BIN=/usr/bin/node \
     RELEASE_STREAM=prod
 

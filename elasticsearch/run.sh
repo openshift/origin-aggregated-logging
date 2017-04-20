@@ -80,7 +80,10 @@ wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
     echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
-    while ! response_code=$(curl -s \
+    while ! response_code=$(curl ${DEBUG:+-v} -s --head \
+        --cacert $secret_dir/admin-ca \
+        --cert $secret_dir/admin-cert \
+        --key  $secret_dir/admin-key \
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
         $ES_REST_BASEURL) || test $response_code != "200"
@@ -94,33 +97,9 @@ wait_for_port_open() {
     done
 }
 
-seed_searchguard(){
-    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
-        -cd ${HOME}/sgconfig \
-        -i .searchguard.${HOSTNAME} \
-        -ks /etc/elasticsearch/secret/searchguard.key \
-        -kst JKS \
-        -kspass kspass \
-        -ts /etc/elasticsearch/secret/searchguard.truststore \
-        -tst JKS \
-        -tspass tspass \
-        -nhnv \
-        -icl
-
-    if [ $? -eq 0 ]; then
-      echo "Seeded the searchguard ACL index"
-    else
-      echo "Error seeding the searchguard ACL index"
-      exit 1
-    fi
-    cat $LOG_FILE
-    rm -f $LOG_FILE
-    exit 1
-}
-
 verify_or_add_index_templates() {
     wait_for_port_open
-    # seed_searchguard
+    es_seed_acl
     # Give up on timeout and continue...
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # curl -v -s -X GET \
@@ -135,29 +114,35 @@ verify_or_add_index_templates() {
     do
         template=`basename $template_file`
         # Check if index template already exists
-        response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
+	info Adding template $template
+        response_code=$(curl ${DEBUG:+-v} -s --head \
             --cacert $secret_dir/admin-ca \
             --cert $secret_dir/admin-cert \
             --key  $secret_dir/admin-key \
             -w '%{response_code}' \
+            --max-time $max_time \
             $ES_REST_BASEURL/_template/$template)
         if [ $response_code == "200" ]; then
             info "Index template '$template' already present in ES cluster"
         else
             echo "Create index template '$template'"
-#            curl -v -s -X PUT \
-#                --cacert $secret_dir/admin-ca \
-#                --cert $secret_dir/admin-cert \
-#                --key  $secret_dir/admin-key \
-#                -d@$template_file \
-#                $ES_REST_BASEURL/_template/$template
+            curl -v -s -X PUT \
+                --cacert $secret_dir/admin-ca \
+                --cert $secret_dir/admin-cert \
+                --key  $secret_dir/admin-key \
+                -d@$template_file \
+                $ES_REST_BASEURL/_template/$template
         fi
     done
-    shopt -u failglob
+#    shopt -u failglob
     info Finished adding index templates
 }
 
-#verify_or_add_index_templates &
+if [ $IS_MASTER == "false" ]; then
+  verify_or_add_index_templates &
+fi
+
+cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"

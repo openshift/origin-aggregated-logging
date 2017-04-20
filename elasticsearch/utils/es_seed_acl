@@ -12,18 +12,19 @@ index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard'
 now=0
 numretries=0
 loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
-while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
+while ! ${ES_HOME}/plugins/search-guard-5/tools/sgadmin.sh \
     -cd ${HOME}/sgconfig \
     -i $index \
     -ks /etc/elasticsearch/secret/searchguard.key \
     -kst JKS \
     -kspass kspass \
+    -ksalias ${CLUSTER_NAME}-cluster \
     -ts /etc/elasticsearch/secret/searchguard.truststore \
     -tst JKS \
     -tspass tspass \
     -nhnv \
-    -h ${ES_API_SERVICE}-cluster \
-    -cn ${ES_API_SERVICE} \
+    -h ${CLUSTER_NAME}-cluster \
+    -cn ${CLUSTER_NAME} \
     ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
 do
     if ! expr $numretries % $loginterval ; then
