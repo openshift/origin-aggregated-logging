@@ -19,6 +19,6 @@ if [[ $? -eq 0 ]]; then
   echo "Checking for log entry matches between ES and their sources..."
   ./check-logs.sh "$CLUSTER"
 else
-  echo "Errors found when checking installation of the EFK stack -- not checking log entry matches. Please resolve errors and retest."
+  echo "[ERROR] Errors found when checking installation of the EFK stack -- not checking log entry matches. Please resolve errors and retest."
   exit 1
 fi

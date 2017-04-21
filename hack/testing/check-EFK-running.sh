@@ -43,7 +43,7 @@ function checkESStarted() {
   # If this instance detects a different master, it won't recover its own indices
   #  check for output from "[cluster.service " with "] detected_master ["
   local non_master=$(echo $cluster_service | grep "detected_master")
-# OR
+  # OR
   # instance is the master if logs have this:
   #  check for output from "[cluster.service " with "] new_master ["
   local master=$(echo $cluster_service | grep "new_master")
@@ -130,10 +130,33 @@ else
 fi
 
 TEST_DIVIDER="-------------------------------------------------------"
+
+function echo_divider() {
+  msg=${1:-""}
+  echo $TEST_DIVIDER
+  echo "$TEST_DIVIDER $msg"
+  echo $TEST_DIVIDER
+}
+
+function echo_error() {
+  msg=${1:-""}
+  echo "[ERROR] $msg" 
+}
+
+function echo_info() {
+  msg=${1:-""}
+  echo "[INFO ] $msg" 
+}
+
+function echo_warn() {
+  msg=${1:-""}
+  echo "[WARN ] $msg" 
+}
+
+
 COMPONENTS_COUNT=${#NEEDED_COMPONENTS[@]}
 
-echo "Checking component installation and if pods are running:"
-echo $TEST_DIVIDER
+echo_divider "Checking component installation and if pods are running..."
 # Check that we have DC
 
 FOUND_DC=(`oc get dc -l logging-infra -o jsonpath='{.items[*].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
@@ -141,7 +164,7 @@ DC_COUNT=${#FOUND_DC[@]}
 DC_MESSAGE="[$DC_COUNT/$COMPONENTS_COUNT] deployment configs found."
 
 if [[ $DC_COUNT -ne $COMPONENTS_COUNT ]]; then
-  echo "Error - $DC_MESSAGE"
+  echo_error $DC_MESSAGE
   EXIT_CODE=1
 
   # check which DC are missing
@@ -149,16 +172,16 @@ if [[ $DC_COUNT -ne $COMPONENTS_COUNT ]]; then
     if [[ ! ( ${FOUND_DC[@]} =~ $dc ) ]]; then
 
       PRINTED_DC=`echo $dc | cut -d"[" -f 1 | rev | cut -c 2- | rev`
-      echo " ! deployment config for $PRINTED_DC is missing..."
+      echo_error " ! deployment config for $PRINTED_DC is missing..."
     fi
   done
 
-  echo "* Please rerun the deployer to generate missing deployment configs."
+  echo_info "* Please rerun the deployer to generate missing deployment configs."
 else
-  echo "Success - $DC_MESSAGE"
+  echo_info "Success - $DC_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Checking there are RCs for the needed components..."
 # Check that we have RC
 
 FOUND_RC=(`oc get rc -l logging-infra -o jsonpath='{.items[*].metadata.labels.component}' | xargs -n1 | sort -u | xargs`)
@@ -166,24 +189,24 @@ RC_COUNT=${#FOUND_RC[@]}
 RC_MESSAGE="[$RC_COUNT/$COMPONENTS_COUNT] unique replication controllers found."
 
 if [[ $RC_COUNT -ne $COMPONENTS_COUNT ]]; then
-  echo "Error - $RC_MESSAGE"
+  echo_error "$RC_MESSAGE"
   EXIT_CODE=1
 
   # check which RC are missing
   for rc in "${NEEDED_COMPONENTS[@]}"; do
     if [[ ! ( ${FOUND_RC[@]} =~ $rc ) ]]; then
       PRINTED_RC=`echo $rc | cut -d"[" -f 1 | rev | cut -c 2- | rev`
-      echo " ! unique replication controller for $PRINTED_RC is missing..."
+      echo_error " ! unique replication controller for $PRINTED_RC is missing..."
     fi
   done
 
   #TODO: there is another way to generate the RC from a DC... update message to use that *'if able, otherwise'
-  echo "* Please rerun the deployer or redeploy the appropriate DC to generate missing replication controllers."
+  echo_info "* Please rerun the deployer or redeploy the appropriate DC to generate missing replication controllers."
 else
-  echo "Success - $RC_MESSAGE"
+  echo_info "Success - $RC_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Checking we have routes..."
 # Check that we have Routes
 
 # we add a '0' to deal with false positives of 'kibana' matching 'kibana' and 'kibana-ops' when checking what is found
@@ -203,21 +226,21 @@ NEEDED_ROUTE_COUNT=${#NEEDED_ROUTES[@]}
 ROUTE_MESSAGE="[$ROUTE_COUNT/$NEEDED_ROUTE_COUNT] routes found."
 
 if [[ $ROUTE_COUNT -ne $NEEDED_ROUTE_COUNT ]]; then
-  echo "Error - $ROUTE_MESSAGE"
+  echo_error $ROUTE_MESSAGE
   EXIT_CODE=1
 
   for route in "${NEEDED_ROUTES[@]}"; do
     if [[ ! ( ${FOUND_ROUTES[@]} =~ $route ) ]]; then
-      echo " ! route ${route%0} is missing..."
+      echo_error " ! route ${route%0} is missing..."
     fi
   done
 
-  echo "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing routes."
+  echo_info "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing routes."
 else
-  echo "Success - $ROUTE_MESSAGE"
+  echo_info "Success - $ROUTE_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Check we have services..."
 # Check that we have Services
 
 # we add a '0' to deal with false positives of when checking what is found, similar to what we do for routes
@@ -231,21 +254,21 @@ NEEDED_SERVICE_COUNT=${#NEEDED_SERVICE[@]}
 SERVICE_MESSAGE="[$SERVICE_COUNT/$NEEDED_SERVICE_COUNT] services found."
 
 if [[ $SERVICE_COUNT -ne $NEEDED_SERVICE_COUNT ]]; then
-  echo "Error - $SERVICE_MESSAGE"
+  echo_error "$SERVICE_MESSAGE"
   EXIT_CODE=1
 
   for svc in "${NEEDED_SERVICE[@]}"; do
     if [[ ! ( ${FOUND_SERVICE[@]} =~ $svc ) ]]; then
-      echo " ! service ${svc%0} is missing..."
+      echo_error " ! service ${svc%0} is missing..."
     fi
   done
 
-  echo "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing routes."
+  echo_info "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing routes."
 else
-  echo "Success - $SERVICE_MESSAGE"
+  echo_info "Success - $SERVICE_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Check we have oauthclient..."
 # Check that we have Oauth Client
 
 FOUND_OAUTH=(`oc get oauthclient -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
@@ -254,16 +277,16 @@ NEEDED_OAUTH_COUNT=1
 OAUTH_MESSAGE="[$OAUTH_COUNT/$NEEDED_OAUTH_COUNT] oauth clients found."
 
 if [[ $OAUTH_COUNT -ne $NEEDED_OAUTH_COUNT ]]; then
-  echo "Error - $OAUTH_MESSAGE"
-  echo " ! oauth client kibana-proxy is missing..."
+  echo_error $OAUTH_MESSAGE
+  echo_error " ! oauth client kibana-proxy is missing..."
   EXIT_CODE=1
 
-  echo "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing oauth client."
+  echo_info "* Please rerun \`oc process logging-support-template | oc create -f -\` to generate missing oauth client."
 else
-  echo "Success - $OAUTH_MESSAGE"
+  echo_info "Success - $OAUTH_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Check that we have the fluentd DaemonSet..."
 # Check that we have the fluentd DaemonSet
 
 FOUND_DAEMONSET=(`oc get daemonset -l logging-infra=fluentd -o jsonpath='{.items[*].metadata.name}'`)
@@ -272,21 +295,21 @@ NEEDED_DAEMONSET_COUNT=1
 DAEMONSET_MESSAGE="[$DAEMONSET_COUNT/$NEEDED_DAEMONSET_COUNT] daemonsets found."
 
 if [[ $DAEMONSET_COUNT -ne $NEEDED_DAEMONSET_COUNT ]]; then
-  echo "Error - $DAEMONSET_MESSAGE"
-  echo " ! daemonset logging-fluentd is missing..."
+  echo_error "$DAEMONSET_MESSAGE"
+  echo_error " ! daemonset logging-fluentd is missing..."
   EXIT_CODE=1
 
-  echo "* Please rerun \`oc process logging-fluentd-template | oc create -f -\` to generate missing daemonset."
+  echo_info "* Please rerun \`oc process logging-fluentd-template | oc create -f -\` to generate missing daemonset."
 else
-  echo "Success - $DAEMONSET_MESSAGE"
+  echo_info "Success - $DAEMONSET_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
+echo_divider "Check that Pods are running..."
 # Check that Pods are running
 # we want to only look for currently running pods
 waitFor "[[ ${#NEEDED_COMPONENTS[@]} -eq \$(oc get pods -o jsonpath='{.items[*].metadata.labels.deployment}' | wc -w) ]]"
 if [[ $? -ne 0 ]]; then
-  echo "Timed out waiting for triggered deployments to complete..."
+  echo_warn "Timed out waiting for triggered deployments to complete..."
   # should this exit?
 fi
 
@@ -296,25 +319,24 @@ POD_COUNT=${#FOUND_PODS[@]}
 POD_MESSAGE="[$POD_COUNT/$((COMPONENTS_COUNT + ADDITIONAL_PODS))] running pods found."
 
 if [[ $POD_COUNT -ne $((COMPONENTS_COUNT + ADDITIONAL_PODS)) ]]; then
-  echo "Error - $POD_MESSAGE"
+  echo_error "$POD_MESSAGE"
   EXIT_CODE=1
 
   # check which pods are missing
   for pod in "${NEEDED_PODS[@]}"; do
     if [[ ! ( ${FOUND_PODS[@]} =~ $pod ) ]]; then
       PRINTED_POD=`echo $pod | cut -d"[" -f 1 | rev | cut -c 2- | rev`
-      echo " ! pod for $PRINTED_POD is not currently running..."
+      echo_error " ! pod for $PRINTED_POD is not currently running..."
     fi
   done
 
-  echo "* Please ensure the number of replicas for your DC and RC are at least 1."
-  echo "* If the fluentd pod is missing, please ensure your node is tagged appropriately."
+  echo_info "* Please ensure the number of replicas for your DC and RC are at least 1."
+  echo_info "* If the fluentd pod is missing, please ensure your node is tagged appropriately."
 else
-  echo "Success - $POD_MESSAGE"
+  echo_info "Success - $POD_MESSAGE"
 fi
 
-echo $TEST_DIVIDER
-echo "Checking for ES and Kibana successful starts"
+echo_divider "Checking for ES and Kibana successful starts"
 ## Add check to Kibana and ES that they started up correctly
 for pod in $(oc get pods -l component=es -o name); do
   checkESStarted "$pod" || EXIT_CODE=1
@@ -330,8 +352,7 @@ for pod in $(oc get pods -l component=kibana-ops -o name); do
   checkKibanaStarted "$pod" || EXIT_CODE=1
 done
 
-echo $TEST_DIVIDER
-echo "Checking if ES contains common data model index templates"
+echo_divider "Checking if ES contains common data model index templates"
 for pod in $(oc get pods -l component=es -o name | sed 's,pod/,,'); do
   checkESContainsIndexTemplates "$pod" || EXIT_CODE=1
 done
