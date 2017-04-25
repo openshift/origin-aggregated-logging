@@ -14,21 +14,32 @@ docker_uses_journal() {
     grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker
 }
 
-if [ "${USE_JOURNAL:-}" != false ] ; then
-    if [ -z "${JOURNAL_SOURCE:-}" ] ; then
-        if [ -d /var/log/journal ] ; then
-            export JOURNAL_SOURCE=/var/log/journal
-        else
-            export JOURNAL_SOURCE=/run/log/journal
+if [ "${MUX_ALLOW_EXTERNAL:-}" = "true" ] ; then
+    # mux service implies mux
+    export USE_MUX=true
+fi
+
+if [ "${USE_MUX:-}" != "true" ] ; then
+    if [ "${USE_JOURNAL:-}" != false ] ; then
+        if [ -z "${JOURNAL_SOURCE:-}" ] ; then
+            if [ -d /var/log/journal ] ; then
+                export JOURNAL_SOURCE=/var/log/journal
+            else
+                export JOURNAL_SOURCE=/run/log/journal
+            fi
+        fi
+        if [ -z "${USE_JOURNAL:-}" ] ; then
+            if docker_uses_journal ; then
+                export USE_JOURNAL=true
+            else
+                export USE_JOURNAL=false
+            fi
         fi
     fi
-    if [ -z "${USE_JOURNAL:-}" ] ; then
-        if docker_uses_journal ; then
-            export USE_JOURNAL=true
-        else
-            export USE_JOURNAL=false
-        fi
-    fi
+else
+    # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
+    # for CONTAINER_NAME instead of the kubernetes.var.log.containers.* tag
+    export USE_JOURNAL=true
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
@@ -36,7 +47,41 @@ IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \(
 export IPADDR4 IPADDR6
 
 CFG_DIR=/etc/fluent/configs.d
-ruby generate_throttle_configs.rb
+if [ "${USE_MUX:-}" = "true" ] ; then
+    # copy our standard mux configs to the openshift dir
+    cp $CFG_DIR/input-*-mux.conf $CFG_DIR/openshift
+    # copy any user defined files, possibly overwriting the standard ones
+    for file in $CFG_DIR/user/input-*-mux.conf ; do
+        if [ -f "$file" ] ; then
+            cp -f $file $CFG_DIR/openshift
+        fi
+    done
+    rm -f configs.d/dynamic/input-docker-* configs.d/dynamic/input-syslog-*
+    if [ "${MUX_ALLOW_EXTERNAL-}" = "true" ] ; then
+        cp $CFG_DIR/mux-post-input*.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
+        # copy any user defined files, possibly overwriting the standard ones
+        for file in $CFG_DIR/user/mux-post-input*.conf $CFG_DIR/user/filter-*-mux.conf ; do
+            if [ -f "$file" ] ; then
+                cp -f $file $CFG_DIR/openshift
+            fi
+        done
+    else
+        rm -f $CFG_DIR/openshift/mux-post-input*.conf $CFG_DIR/openshift/filter-*-mux.conf
+    fi
+else
+    ruby generate_throttle_configs.rb
+    rm -f $CFG_DIR/openshift/*mux*.conf
+fi
+
+if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
+    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift
+    # copy any user defined files, possibly overwriting the standard ones
+    if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
+        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift
+    fi
+else
+    rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf
+fi
 
 OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
 OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"

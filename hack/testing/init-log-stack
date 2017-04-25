@@ -34,6 +34,9 @@ openshift_logging_use_ops=${ENABLE_OPS_CLUSTER:-False}
 openshift_logging_fluentd_use_journal=${USE_JOURNAL:-}
 openshift_logging_fluentd_journal_read_from_head=${JOURNAL_READ_FROM_HEAD:-False}
 openshift_logging_es_log_appenders=['console']
+openshift_logging_use_mux=${USE_MUX:-false}
+openshift_logging_mux_allow_external=${MUX_ALLOW_EXTERNAL:-false}
+openshift_logging_use_mux_client=${USE_MUX_CLIENT:-false}
 
 EOL
 
