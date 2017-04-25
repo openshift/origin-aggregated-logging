@@ -39,7 +39,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
     fi
 
     #determine if req is less then max recommended by ES
-    echo "Comparing the specificed RAM to the maximum recommended for ElasticSearch..."
+    echo "Comparing the specified RAM to the maximum recommended for Elasticsearch..."
     if [ ${MAX_ES_MEMORY_BYTES} -lt ${num} ]; then
         ((num = ${MAX_ES_MEMORY_BYTES}))
         echo "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
@@ -55,7 +55,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
             echo "Setting the maximum allowable RAM to $(($num / BYTES_PER_MEG))m which is the largest amount available"
         fi
     else
-        echo "Unable to determine the maximum allowable RAM for this host in order to configure ElasticSearch"
+        echo "Unable to determine the maximum allowable RAM for this host in order to configure Elasticsearch"
         exit 1
     fi
 
@@ -63,7 +63,10 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         echo "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms128M -Xmx$(($num/2/BYTES_PER_MEG))m"
+
+    # Set JVM HEAP size to half of available space
+    num=$(($num/2/BYTES_PER_MEG))
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
     echo "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     echo "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
