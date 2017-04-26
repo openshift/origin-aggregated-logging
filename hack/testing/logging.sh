@@ -65,8 +65,13 @@ fi
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
+# have to set these here so setup_tmpdir_vars will not give them bogus values
+export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
+export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 # include all the origin test libs we need
 if [ -f ${OS_ROOT}/hack/lib/init.sh ] ; then
+    # disallow init.sh from calling setup_tmpdir_vars
+    export OS_TMP_ENV_SET=origin-aggregated-logging
     source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
 else
     for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
@@ -112,10 +117,8 @@ trap "exit" INT TERM
 trap "cleanup" EXIT
 
 # override LOG_DIR and ARTIFACTS_DIR
-export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
-export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 os::util::environment::use_sudo
-os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
+os::util::environment::setup_all_server_vars
 os::util::environment::setup_time_vars
 
 os::log::system::start
@@ -130,7 +133,6 @@ if [ -n "${KIBANA_HOST:-}" ] ; then
               ${SERVER_CONFIG_DIR}/master/master-config.yaml
 fi
 os::start::server
-
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
 os::test::junit::declare_suite_start "logging"
