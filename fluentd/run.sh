@@ -105,5 +105,8 @@ else
     echo > $CFG_DIR/dynamic/es-ops-copy-config.conf
 fi
 
-
-exec fluentd $fluentdargs
+if [[ $DEBUG ]] ; then
+    exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
+else
+    exec fluentd $fluentdargs
+fi
