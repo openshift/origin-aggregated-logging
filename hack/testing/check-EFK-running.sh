@@ -339,11 +339,11 @@ done
 
 echo $TEST_DIVIDER
 echo "Checking if ES contains common data model index templates"
-for pod in $(oc get pods -l component=es -o name | sed 's,pod/,,'); do
+for pod in $(oc get pods -l component=es -o jsonpath='{.items[*].metadata.name}'); do
   checkESContainsIndexTemplates "$pod" || EXIT_CODE=1
 done
 if [[ "$CLUSTER" == "true" ]]; then
-  for pod in $(oc get pods -l component=es-ops -o name | sed 's,pod/,,'); do
+  for pod in $(oc get pods -l component=es-ops -o jsonpath='{.items[*].metadata.name}'); do
     checkESContainsIndexTemplates "$pod" || EXIT_CODE=1
   done
 fi
