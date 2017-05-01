@@ -173,7 +173,7 @@ fpod=`get_running_pod fluentd`
 
 # these fields are present because it is a kibana log message - we
 # want to ignore them for the purposes of our tests
-keep_fields="method,statusCode,type,@timestamp"
+keep_fields="method,statusCode,type,@timestamp,req,res"
 
 # TEST 1
 # default - undefined fields are passed through untouched
