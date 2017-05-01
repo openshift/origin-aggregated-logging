@@ -205,9 +205,9 @@ fi
 cleanup() {
     oc logs $curpod
     # delete indices
-    delete_indices
+    delete_indices || :
     if [ "$CLUSTER" = "true" ] ; then
-        delete_indices "$OPS"
+        delete_indices "$OPS" || :
     fi
     if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
         oc delete configmap logging-curator || :
