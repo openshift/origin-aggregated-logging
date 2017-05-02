@@ -29,7 +29,7 @@ fi
 oadm new-project testproj --node-selector=''
 
 print_message() {
-    if [[ $VERBOSE ]]; then
+    if [ "${VERBOSE:-false}" = true ] ; then
         query_es_from_es $espod $myproject _search $myfield $mymessage >> $MUXDEBUG
     fi
 }
@@ -178,7 +178,7 @@ write_and_verify_logs() {
 
     local rc=0
 
-    if [[ $VERBOSE ]]; then
+    if [ "${VERBOSE:-false}" = true ] ; then
         MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.log
     else
         MUXDEBUG="/dev/null"
