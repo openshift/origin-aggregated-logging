@@ -6,6 +6,11 @@ USE_JOURNAL_VAR=${USE_JOURNAL:+openshift_logging_fluentd_use_journal=${USE_JOURN
 
 ANSIBLE_PLAYBOOK_ARGS=${ANSIBLE_PLAYBOOK_ARGS:-""}
 
+ES_ALLOW_EXTERNAL=${ES_HOST:+openshift_logging_es_allow_external=True}
+ES_HOSTNAME=${ES_HOST:+openshift_logging_es_hostname=$ES_HOST}
+ES_OPS_ALLOW_EXTERNAL=${ES_OPS_HOST:+openshift_logging_es_ops_allow_external=True}
+ES_OPS_HOSTNAME=${ES_OPS_HOST:+openshift_logging_es_ops_hostname=$ES_OPS_HOST}
+
 source $OS_O_A_L_DIR/hack/testing/build-images
 
 # init inventory file
@@ -38,6 +43,10 @@ openshift_logging_es_log_appenders=['console']
 openshift_logging_use_mux=${USE_MUX:-false}
 openshift_logging_mux_allow_external=${MUX_ALLOW_EXTERNAL:-false}
 openshift_logging_use_mux_client=${USE_MUX_CLIENT:-false}
+$ES_ALLOW_EXTERNAL
+$ES_HOSTNAME
+$ES_OPS_ALLOW_EXTERNAL
+$ES_OPS_HOSTNAME
 
 EOL
 
