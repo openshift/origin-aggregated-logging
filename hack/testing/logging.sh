@@ -13,21 +13,25 @@ set -o nounset
 set -o pipefail
 
 STARTTIME=$(date +%s)
+GIT_BRANCH=${CI_GIT_BRANCH:-release-1.5}
+
 # assume this script is being run from openshift/origin-aggregated-logging/hack/testing, and
 # origin is checked out in openshift/origin
-OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../origin}
+OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../../origin}
 # use absolute path
 pushd $OS_ROOT
 OS_ROOT=`pwd`
+git checkout ${GIT_BRANCH}
 popd
+
 GIT_URL=${GIT_URL:-https://github.com/openshift/origin-aggregated-logging}
-GIT_BRANCH=${GIT_BRANCH:-master}
 # assume this script is being run from openshift/origin-aggregated-logging/hack/testing
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
 # use absolute path
 pushd $OS_O_A_L_DIR
 OS_O_A_L_DIR=`pwd`
 popd
+
 USE_LOGGING_DEPLOYER=
 USE_LOGGING_DEPLOYER_SCRIPT=
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-false}
@@ -118,7 +122,7 @@ trap "cleanup" EXIT
 
 # override LOG_DIR and ARTIFACTS_DIR
 os::util::environment::use_sudo
-os::util::environment::setup_all_server_vars
+os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
 os::util::environment::setup_time_vars
 
 os::log::system::start
