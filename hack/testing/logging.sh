@@ -21,7 +21,7 @@ OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../../origin}
 # use absolute path
 pushd $OS_ROOT
 OS_ROOT=`pwd`
-git checkout ${GIT_BRANCH}
+git checkout -f ${GIT_BRANCH}
 popd
 
 GIT_URL=${GIT_URL:-https://github.com/openshift/origin-aggregated-logging}
