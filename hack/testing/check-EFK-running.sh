@@ -187,7 +187,10 @@ echo $TEST_DIVIDER
 # Check that we have Routes
 
 # we add a '0' to deal with false positives of 'kibana' matching 'kibana' and 'kibana-ops' when checking what is found
-NEEDED_ROUTES=("kibana0" "kibana-ops0")
+NEEDED_ROUTES=("kibana0")
+if [[ "$CLUSTER" = true ]] ; then
+    NEEDED_ROUTES=(${NEEDED_ROUTES[@]} "kibana-ops0")
+fi
 if [ -n "${ES_HOST:-}" ] ; then
     NEEDED_ROUTES=(${NEEDED_ROUTES[@]} "logging-es")
 fi
@@ -218,7 +221,10 @@ echo $TEST_DIVIDER
 # Check that we have Services
 
 # we add a '0' to deal with false positives of when checking what is found, similar to what we do for routes
-NEEDED_SERVICE=("logging-es0" "logging-es-cluster0" "logging-es-ops0" "logging-es-ops-cluster0" "logging-kibana0" "logging-kibana-ops0")
+NEEDED_SERVICE=("logging-es0" "logging-es-cluster0" "logging-kibana0")
+if [[ "$CLUSTER" = true ]] ; then
+    NEEDED_SERVICE=(${NEEDED_SERVICE[@]} "logging-es-ops0" "logging-es-ops-cluster0" "logging-kibana-ops0")
+fi
 FOUND_SERVICE=(`oc get svc -l logging-infra=support -o jsonpath='{.items[*].metadata.name}'`)
 SERVICE_COUNT=${#FOUND_SERVICE[@]}
 NEEDED_SERVICE_COUNT=${#NEEDED_SERVICE[@]}

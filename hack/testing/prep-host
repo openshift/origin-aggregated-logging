@@ -7,13 +7,21 @@ ANSIBLE_RPM=${ANSIBLE_RPM:-ansible}
 RUAMEL_YAML_RPM=${RUAMEL_YAML_RPM:-python-ruamel-yaml}
 
 OS_ANSIBLE_REPO=${OS_ANSIBLE_REPO:-https://github.com/openshift/openshift-ansible}
-OS_ANSIBLE_BRANCH=${OS_ANSIBLE_BRANCH:-master}
+OS_ANSIBLE_BRANCH=${CI_OS_ANSIBLE_BRANCH:-release-1.5}
 OS_ANSIBLE_DIR=$WORKDIR/openhift-ansible
 
 sudo yum makecache fast
 sudo yum install python2-pip $RUAMEL_YAML_RPM $ANSIBLE_RPM -y
 
 git clone $OS_ANSIBLE_REPO $OS_ANSIBLE_DIR -b $OS_ANSIBLE_BRANCH --depth=1
+
+pushd $WORKDIR
+  wget -O bin.tar.gz https://github.com/openshift/origin/releases/download/v1.5.0/openshift-origin-server-v1.5.0-031cbe4-linux-64bit.tar.gz
+  tar -xf bin.tar.gz
+  cd `ls -d openshift-origin-server*`
+  sudo cp * /usr/local/bin
+  sudo cp * /usr/bin
+popd
 
 # make sure binaries are in the desired place
 # hack - ansible should find whichever binaries 
@@ -32,3 +40,6 @@ do
 done
 
 export PATH=/usr/local/bin:$PATH
+
+sudo sed -i -e 's/--selinux-enabled//g'  /etc/sysconfig/docker
+sudo systemctl restart docker

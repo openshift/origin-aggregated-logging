@@ -13,21 +13,25 @@ set -o nounset
 set -o pipefail
 
 STARTTIME=$(date +%s)
+GIT_BRANCH=${CI_GIT_BRANCH:-release-1.5}
+
 # assume this script is being run from openshift/origin-aggregated-logging/hack/testing, and
 # origin is checked out in openshift/origin
-OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../origin}
+OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../../origin}
 # use absolute path
 pushd $OS_ROOT
 OS_ROOT=`pwd`
+git checkout -f ${GIT_BRANCH}
 popd
+
 GIT_URL=${GIT_URL:-https://github.com/openshift/origin-aggregated-logging}
-GIT_BRANCH=${GIT_BRANCH:-master}
 # assume this script is being run from openshift/origin-aggregated-logging/hack/testing
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
 # use absolute path
 pushd $OS_O_A_L_DIR
 OS_O_A_L_DIR=`pwd`
 popd
+
 USE_LOGGING_DEPLOYER=
 USE_LOGGING_DEPLOYER_SCRIPT=
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-false}
@@ -65,8 +69,13 @@ fi
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
+# have to set these here so setup_tmpdir_vars will not give them bogus values
+export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
+export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 # include all the origin test libs we need
 if [ -f ${OS_ROOT}/hack/lib/init.sh ] ; then
+    # disallow init.sh from calling setup_tmpdir_vars
+    export OS_TMP_ENV_SET=origin-aggregated-logging
     source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
 else
     for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \
@@ -112,8 +121,6 @@ trap "exit" INT TERM
 trap "cleanup" EXIT
 
 # override LOG_DIR and ARTIFACTS_DIR
-export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
-export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 os::util::environment::use_sudo
 os::util::environment::setup_all_server_vars "origin-aggregated-logging/"
 os::util::environment::setup_time_vars
@@ -130,7 +137,6 @@ if [ -n "${KIBANA_HOST:-}" ] ; then
               ${SERVER_CONFIG_DIR}/master/master-config.yaml
 fi
 os::start::server
-
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
 os::test::junit::declare_suite_start "logging"
@@ -165,6 +171,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibt
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
+os::cmd::try_until_text "oc logs $espod" "Seeded the searchguard ACL index" "$(( 3 * TIME_MIN ))"
 wait_for_es_ready $espod 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
@@ -176,6 +183,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
+    os::cmd::try_until_text "oc logs $esopspod" "Seeded the searchguard ACL index" "$(( 3 * TIME_MIN ))"
     wait_for_es_ready $esopspod 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
@@ -255,8 +263,10 @@ os::cmd::expect_success "oc project logging"
 pushd $OS_O_A_L_DIR/hack/testing
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     USE_CLUSTER=true
+    ops_host=logging-es-ops
 else
     USE_CLUSTER=
+    ops_host=logging-es
 fi
 
 ### many of the tests require the logging-fluentd-template ###
@@ -268,7 +278,7 @@ oc get daemonset logging-fluentd -o yaml | grep -A 1 "nodeSelector:" | \
 # into a template
 sed "/serviceAccountName/r$lfds" $OS_O_A_L_DIR/deployer/templates/fluentd.yaml | \
 oc new-app --param MASTER_URL=${MASTER_URL:-https://kubernetes.default.svc.cluster.local} \
-   --param ES_HOST=logging-es --param OPS_HOST=logging-es-ops \
+   --param ES_HOST=logging-es --param OPS_HOST=$ops_host \
    --param IMAGE_VERSION_DEFAULT=latest --param IMAGE_PREFIX_DEFAULT=$imageprefix \
    --param USE_JOURNAL=${USE_JOURNAL:-""} \
    --param JOURNAL_SOURCE=${JOURNAL_SOURCE:-""} \
