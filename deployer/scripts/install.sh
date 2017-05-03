@@ -80,6 +80,10 @@ function initialize_install_vars() {
   use_journal=${input_vars[use-journal]:-}
   journal_read_from_head=${input_vars[journal-read-from-head]:-false}
   journal_source=${input_vars[journal-source]:-}
+  kibana_memory_limit=${input_vars[kibana-memory-limit]:-736Mi}
+  kibana_proxy_memory_limit=${input_vars[kibana-proxy-memory-limit]:-96Mi}
+  kibana_ops_memory_limit=${input_vars[kibana-ops-memory-limit]:-736Mi}
+  kibana_ops_proxy_memory_limit=${input_vars[kibana-ops-proxy-memory-limit]:-96Mi}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
@@ -327,13 +331,17 @@ function generate_kibana_template(){
   create_template_optional_nodeselector "${input_vars[kibana-nodeselector]}" kibana \
     --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
     --param OAP_MASTER_URL=${master_url} \
-    $image_params
+    --param KIBANA_MEMORY_LIMIT=${kibana_memory_limit} \
+    --param KIBANA_PROXY_MEMORY_LIMIT=${kibana_proxy_memory_limit} \
+    "$image_params"
 
     if [ "${input_vars[enable-ops-cluster]}" == true ]; then
       create_template_optional_nodeselector "${input_vars[kibana-ops-nodeselector]}" kibana \
         --param OAP_PUBLIC_MASTER_URL=${public_master_url} \
         --param OAP_MASTER_URL=${master_url} \
         --param KIBANA_DEPLOY_NAME=kibana-ops \
+        --param KIBANA_MEMORY_LIMIT=${kibana_ops_memory_limit} \
+        --param KIBANA_PROXY_MEMORY_LIMIT=${kibana_ops_proxy_memory_limit} \
         --param ES_HOST=logging-es-ops \
         $image_params
     fi
@@ -419,7 +427,7 @@ function generate_es() {
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
       oc process logging-es-template | \
-        oc volume -f - \
+        oc set volume -f - \
                   --add --overwrite --name=elasticsearch-storage \
                   --type=persistentVolumeClaim --claim-name="$pvc" -o yaml | \
         oc create -f -
@@ -441,7 +449,7 @@ function generate_es() {
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
             oc process logging-es-ops-template | \
-              oc volume -f - \
+              oc set volume -f - \
                   --add --overwrite --name=elasticsearch-storage \
                   --type=persistentVolumeClaim --claim-name="$pvc" -o yaml | \
               oc create -f -
