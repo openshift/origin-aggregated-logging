@@ -40,6 +40,3 @@ do
 done
 
 export PATH=/usr/local/bin:$PATH
-
-sudo sed -i -e 's/--selinux-enabled//g'  /etc/sysconfig/docker
-sudo systemctl restart docker
