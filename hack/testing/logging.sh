@@ -250,7 +250,7 @@ fi
 
 # start fluentd
 os::cmd::try_until_success "oc get daemonset logging-fluentd" "$(( 1 * TIME_MIN ))"
-os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
+os::cmd::expect_success "oc label node --all logging-infra-fluentd=true --overwrite"
 
 # the old way with dc's
 # # scale up a fluentd pod
@@ -275,6 +275,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin kibt
 os::cmd::expect_success "oc project logging"
 # also give kibtest access to cluster stats
 espod=`get_running_pod es`
+os::cmd::try_until_text "oc logs $espod" "Seeded the searchguard ACL index" "$(( 3 * TIME_MIN ))"
 wait_for_es_ready $espod logging-es 30
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
@@ -286,6 +287,7 @@ oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
+    os::cmd::try_until_text "oc logs $esopspod" "Seeded the searchguard ACL index" "$(( 3 * TIME_MIN ))"
     wait_for_es_ready $esopspod logging-es-ops 30
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
