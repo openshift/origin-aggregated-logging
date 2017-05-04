@@ -60,6 +60,28 @@ else
     echo > $CFG_DIR/dynamic/es-ops-copy-config.conf
 fi
 
+# http://docs.fluentd.org/v0.12/articles/monitoring
+if [ "${ENABLE_MONITOR_AGENT:-}" = true ] ; then
+    cp $CFG_DIR/input-pre-monitor.conf $CFG_DIR/openshift
+    # copy any user defined files, possibly overwriting the standard ones
+    if [ -f $CFG_DIR/user/input-pre-monitor.conf ] ; then
+        cp -f $CFG_DIR/user/input-pre-monitor.conf $CFG_DIR/openshift
+    fi
+else
+    rm -f $CFG_DIR/openshift/input-pre-monitor.conf
+fi
+
+# http://docs.fluentd.org/v0.12/articles/monitoring#debug-port
+if [ "${ENABLE_DEBUG_AGENT:-}" = true ] ; then
+    cp $CFG_DIR/input-pre-debug.conf $CFG_DIR/openshift
+    # copy any user defined files, possibly overwriting the standard ones
+    if [ -f $CFG_DIR/user/input-pre-debug.conf ] ; then
+        cp -f $CFG_DIR/user/input-pre-debug.conf $CFG_DIR/openshift
+    fi
+else
+    rm -f $CFG_DIR/openshift/input-pre-debug.conf
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
