@@ -101,6 +101,19 @@ function cleanup()
     else
         os::log::info "Test Succeeded"
     fi
+
+    set -o xtrace
+    echo "########## SELINUX DEBUGGING ##########"
+    sudo getenforce
+    sudo semodule --list-modules=standard
+    sudo ausearch -m AVC -m USER_AVC -m SELINUX_ERR
+    sudo journalctl --no-pager --all --lines=all | grep -i AVC
+    sudo semodule --list-modules=full
+    sudo ausearch -m ALL
+    sudo journalctl --unit docker.service --no-pager --all --lines=all
+    echo "########## SELINUX DEBUGGING ##########"
+    set +o xtrace
+
     os::test::junit::declare_suite_end
     os::test::junit::reconcile_output
     echo
@@ -340,7 +353,7 @@ function reinstall() {
 echo SKIPPING reinstall test for now
 exit 0
 
-TEST_DIVIDER="------------------------------------------" 
+TEST_DIVIDER="------------------------------------------"
 echo $TEST_DIVIDER
 reinstall
 

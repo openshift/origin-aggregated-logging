@@ -1,5 +1,12 @@
 #!/bin/bash
 
+set -o xtrace
+echo "########## SELINUX DEBUGGING ##########"
+sudo semodule --disable_dontaudit --build
+sudo ps -eZ | grep audit
+echo "########## SELINUX DEBUGGING ##########"
+set +o xtrace
+
 # prep the environment to allow bailing early on failures
 # setup ansible
 WORKDIR=$(mktemp -d)
@@ -24,7 +31,7 @@ pushd $WORKDIR
 popd
 
 # make sure binaries are in the desired place
-# hack - ansible should find whichever binaries 
+# hack - ansible should find whichever binaries
 for oc_binary in oc oadm
 do
   if [ ! -f /usr/local/bin/$oc_binary ]; then
@@ -40,6 +47,3 @@ do
 done
 
 export PATH=/usr/local/bin:$PATH
-
-sudo sed -i -e 's/--selinux-enabled//g'  /etc/sysconfig/docker
-sudo systemctl restart docker
