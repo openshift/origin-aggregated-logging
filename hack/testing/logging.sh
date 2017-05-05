@@ -110,6 +110,7 @@ function cleanup()
     sudo journalctl --no-pager --all --lines=all | grep -i AVC
     sudo semodule --list-modules=full
     sudo ausearch -m ALL
+    sudo journalctl --unit docker.service --no-pager --all --lines=all
     echo "########## SELINUX DEBUGGING ##########"
     set +o xtrace
 
