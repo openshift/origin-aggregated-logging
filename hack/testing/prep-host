@@ -1,5 +1,8 @@
 #!/bin/bash
 
+sudo semodule -DB
+sudo ps -eZ | grep audit
+
 # prep the environment to allow bailing early on failures
 # setup ansible
 WORKDIR=$(mktemp -d)

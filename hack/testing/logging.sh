@@ -101,6 +101,10 @@ function cleanup()
     else
         os::log::info "Test Succeeded"
     fi
+
+    sudo ausearch -m avc
+    sudo journalctl --no-pager --all --lines=all | grep -i AVC
+  
     os::test::junit::declare_suite_end
     os::test::junit::reconcile_output
     echo
