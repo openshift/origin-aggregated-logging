@@ -1,7 +1,13 @@
 #!/bin/bash
 
-sudo semodule -DB
+set -o xtrace
+echo "########## SELINUX DEBUGGING ##########"
+sudo semodule --disable_dontaudit
+sudo semodule --build
+sudo semodule --reload
 sudo ps -eZ | grep audit
+echo "########## SELINUX DEBUGGING ##########"
+set +o xtrace
 
 # prep the environment to allow bailing early on failures
 # setup ansible
@@ -27,7 +33,7 @@ pushd $WORKDIR
 popd
 
 # make sure binaries are in the desired place
-# hack - ansible should find whichever binaries 
+# hack - ansible should find whichever binaries
 for oc_binary in oc oadm
 do
   if [ ! -f /usr/local/bin/$oc_binary ]; then
