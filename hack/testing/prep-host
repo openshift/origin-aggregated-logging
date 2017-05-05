@@ -2,9 +2,7 @@
 
 set -o xtrace
 echo "########## SELINUX DEBUGGING ##########"
-sudo semodule --disable_dontaudit
-sudo semodule --build
-sudo semodule --reload
+sudo semodule --disable_dontaudit --build
 sudo ps -eZ | grep audit
 echo "########## SELINUX DEBUGGING ##########"
 set +o xtrace
