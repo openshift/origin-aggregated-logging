@@ -102,7 +102,7 @@ function cleanup()
         os::log::info "Test Succeeded"
     fi
 
-    sudo ausearch -m avc
+    sudo ausearch -m AVC -m USER_AVC -m SELINUX_ERR 
     sudo journalctl --no-pager --all --lines=all | grep -i AVC
   
     os::test::junit::declare_suite_end
