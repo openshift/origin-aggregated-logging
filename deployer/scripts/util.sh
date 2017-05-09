@@ -546,3 +546,23 @@ function wait_for_fluentd_to_catch_up() {
     echo END wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
     return $rc
 }
+
+docker_uses_journal() {
+    # note the unintuitive logic - in this case, a 0 return means true, and a 1
+    # return means false
+    # need to be able to handle cases like
+    # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
+    # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
+    # authoritative
+    # otherwise, look for /etc/sysconfig/docker
+    if type -p docker > /dev/null && sudo docker info | grep -q 'Logging Driver: journald' ; then
+        return 0
+    elif grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
+        if grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
+            return 0
+        fi
+    elif grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
+        return 0
+    fi
+    return 1
+}

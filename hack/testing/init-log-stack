@@ -2,6 +2,7 @@
 
 OS_ANSIBLE_VERBOSITY=${OS_ANSIBLE_VERBOSITY:-"vv"}
 OS_VERSION_STRING=${OS_VERSION:+openshift_release=$OS_VERSION}
+USE_JOURNAL_VAR=${USE_JOURNAL:+openshift_logging_fluentd_use_journal=${USE_JOURNAL}}
 
 ANSIBLE_PLAYBOOK_ARGS=${ANSIBLE_PLAYBOOK_ARGS:-""}
 
@@ -31,7 +32,7 @@ openshift_logging_master_public_url=https://${PUBLIC_MASTER_HOST:-localhost}:844
 
 openshift_logging_image_prefix=$imageprefix
 openshift_logging_use_ops=${ENABLE_OPS_CLUSTER:-False}
-openshift_logging_fluentd_use_journal=${USE_JOURNAL:-}
+$USE_JOURNAL_VAR
 openshift_logging_fluentd_journal_read_from_head=${JOURNAL_READ_FROM_HEAD:-False}
 openshift_logging_es_log_appenders=['console']
 openshift_logging_use_mux=${USE_MUX:-false}
