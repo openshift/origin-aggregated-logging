@@ -104,9 +104,8 @@ function cleanup()
     else
         os::log::info "Test Succeeded"
     fi
-    os::test::junit::declare_suite_end
-    os::test::junit::reconcile_output
-    echo
+
+    os::test::junit::generate_oscmd_report
 
     if [ "$DEBUG_FAILURES" = "true" ] ; then
         echo debug failures - when you are finished, 'ps -ef|grep 987654' then kill that sleep process
@@ -147,11 +146,10 @@ openshift ex config patch ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml \
 os::start::server
 export KUBECONFIG="${ADMIN_KUBECONFIG}"
 
-os::test::junit::declare_suite_start "logging"
-os::cmd::expect_success "oadm registry"
-os::cmd::expect_success 'oadm policy add-scc-to-user hostnetwork -z router'
-os::cmd::expect_success 'oadm router'
+os::start::registry
+os::start::router
 
+os::test::junit::declare_suite_start "logging"
 ######### logging specific code starts here ####################
 
 # not sure how/where this could be created before this . . .
@@ -363,7 +361,7 @@ function reinstall() {
 echo SKIPPING reinstall test for now
 exit 0
 
-TEST_DIVIDER="------------------------------------------" 
+TEST_DIVIDER="------------------------------------------"
 echo $TEST_DIVIDER
 reinstall
 
