@@ -31,6 +31,15 @@ oadm new-project testproj --node-selector=''
 print_message() {
     if [ "${VERBOSE:-false}" = true ] ; then
         query_es_from_es $espod $myproject _search $myfield $mymessage >> $MUXDEBUG
+
+        local es_pod=`get_running_pod es`
+        local es_ops_pod=`get_running_pod es-ops`
+        oc exec $es_pod -- curl --connect-timeout 1 -s -k \
+           --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+           'https://localhost:9200/_cat/indices?v' >> $MUXDEBUG
+        oc exec $es_ops_pod -- curl --connect-timeout 1 -s -k \
+           --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+           'https://localhost:9200/_cat/indices?v' >> $MUXDEBUG
     fi
 }
 
@@ -78,9 +87,10 @@ reset_fluentd_daemonset() {
 }
 
 # OPTIONS:
-SET_CONTAINER_VALS=0
-NO_CONTAINER_VALS=1
-MISMATCH_NAMESPACE_TAG=2
+SET_CONTAINER_VALS=1
+NO_CONTAINER_VALS=2
+MISMATCH_NAMESPACE_TAG=3
+NO_PROJECT_TAG=4
 update_current_fluentd() {
   # this will update it so the current fluentd does not send logs to an ES host
   # but instead forwards to the forwarding fluentd
@@ -129,7 +139,7 @@ update_current_fluentd() {
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>"}]'
-  else
+  elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <match journal>\n\
         @type rewrite_tag_filter\n\
@@ -143,6 +153,20 @@ update_current_fluentd() {
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         CONTAINER_NAME k8s_mux.01234567_logging-mux_testproj_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        </record>\n\
+      </filter>"}]'
+  else
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <match journal>\n\
+        @type rewrite_tag_filter\n\
+        rewriterule1 MESSAGE .+ test.bogus.mux\n\
+        rewriterule2 message .+ test.bogus.mux\n\
+      </match>\n\
+      <filter test.bogus.mux>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         </record>\n\
       </filter>"}]'
   fi
@@ -164,6 +188,7 @@ write_and_verify_logs() {
     is_testproj=$2
     no_container_vals=$3
     mismatch_namespace=${4:-0}
+    no_project_tag=${5:-0}
 
     local es_pod=`get_running_pod es`
     local es_ops_pod=`get_running_pod es-ops`
@@ -179,7 +204,7 @@ write_and_verify_logs() {
     local rc=0
 
     if [ "${VERBOSE:-false}" = true ] ; then
-        MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.log
+        MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.$no_project_tag.log
     else
         MUXDEBUG="/dev/null"
     fi
@@ -209,6 +234,10 @@ write_and_verify_logs() {
         # other logs with project.testproj tag
         myfield="MESSAGE"
         myproject=project.testproj
+        espod=$es_pod
+    elif [ $no_project_tag -eq 1 ]; then
+        myfield="MESSAGE"
+        myproject=project.mux-undefined
         espod=$es_pod
     else
         myfield=""
@@ -301,7 +330,7 @@ cleanup() {
 }
 trap "cleanup" INT TERM EXIT
 
-echo "------- Test case 1 -------"
+echo "------- Test case $SET_CONTAINER_VALS -------"
 echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values."
 #
 # prerequisite: project testproj
@@ -317,7 +346,7 @@ write_and_verify_logs 1 1 0
 
 cleanup
 
-echo "------- Test case 2 -------"
+echo "------- Test case $NO_CONTAINER_VALS -------"
 echo "fluentd forwards kibana and system logs with tag project.testproj.mux without CONTAINER values."
 #
 # prerequisite: project testproj
@@ -334,7 +363,7 @@ write_and_verify_logs 1 1 1
 
 cleanup
 
-echo "------- Test case 3 -------"
+echo "------- Test case $MISMATCH_NAMESPACE_TAG -------"
 echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values, which namespace names do not match."
 #
 # prerequisite: project testproj
@@ -347,6 +376,20 @@ echo "fluentd forwards kibana and system logs with tag project.testproj.mux and 
 update_current_fluentd $MISMATCH_NAMESPACE_TAG
 
 write_and_verify_logs 1 1 0 1
+
+cleanup
+
+echo "------- Test case $NO_PROJECT_TAG -------"
+echo "fluentd forwards kibana and system logs with tag test.bogus.mux and no CONTAINER values, which will use a namespace of mux-undefined."
+#
+# results: system logs are stored in project.mux-undefined.*
+#
+
+oadm new-project mux-undefined --node-selector=''
+
+update_current_fluentd $NO_PROJECT_TAG
+
+write_and_verify_logs 1 0 0 1 1
 
 cleanup
 
