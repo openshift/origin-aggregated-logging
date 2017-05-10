@@ -87,6 +87,9 @@ objects:
             - name: dockercfg
               mountPath: /etc/sysconfig/docker
               readOnly: true
+            - name: dockerdaemoncfg
+              mountPath: /etc/docker
+              readOnly: true
             env:
             - name: "K8S_HOST_URL"
               value: ${MASTER_URL}
@@ -175,6 +178,9 @@ objects:
           - name: dockercfg
             hostPath:
               path: /etc/sysconfig/docker
+          - name: dockerdaemoncfg
+            hostPath:
+              path: /etc/docker
 parameters:
 -
   description: "Internal url for reaching the master API to query pod labels"

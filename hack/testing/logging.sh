@@ -44,15 +44,34 @@ if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true ] ; then
     export USE_MUX=true
 fi
 
+# use a few tools from the deployer
+source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
+
 # if USE_JOURNAL is empty, fluentd will use whatever docker is using
-if [ "${USE_JOURNAL:-}" = false ] ; then
+if [ "${USE_JOURNAL:-}" = false ] && docker_uses_journal ; then
     # see if docker is using the journal log driver - if so, change it to json-file
-    if grep -q -- '--log-driver=journald' /etc/sysconfig/docker ; then
+    if [ -f /etc/docker/daemon.json ] ; then
+        sudo sed -i.bak 's/"log-driver":.*"..*"/"log-driver": "json-file"/' /etc/docker/daemon.json
+    fi
+    if [ -f /etc/sysconfig/docker ] ; then
         sudo sed -i.bak 's/--log-driver=journald/--log-driver=json-file/' /etc/sysconfig/docker
+    fi
+    sudo systemctl restart docker
+elif [ "${USE_JOURNAL:-}" = true ] && ! docker_uses_journal ; then
+    # see if docker is explicitly configured to use the json-file log driver
+    if grep -q '^[^#].*"log-driver":.*json-file' /etc/docker/daemon.json 2> /dev/null ; then
+        sudo sed -i.bak 's/^[^#].*"log-driver":.*"..*"/  "log-driver": "journald"/' /etc/docker/daemon.json
+        sudo systemctl restart docker
+    elif [ -f /etc/docker/daemon.json ] ; then
+        sudo cat /etc/docker/daemon.json | python -c '
+import json, sys
+hsh = json.loads(sys.stdin.read())
+hsh["log-driver"] = "journald"
+json.dumps(hsh,indent=2)
+' | sudo tee /etc/docker/daemon.json.new
+        sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
         sudo systemctl restart docker
     fi
-elif [ "${USE_JOURNAL:-}" = true ] ; then
-    # see if docker is explicitly configured to use the json-file log driver
     if grep -q -- '--log-driver=json-file' /etc/sysconfig/docker ; then
         sudo sed -i.bak 's/--log-driver=json-file/--log-driver=journald/' /etc/sysconfig/docker
         sudo systemctl restart docker
@@ -67,9 +86,6 @@ elif [ "${USE_JOURNAL:-}" = true ] ; then
         sudo systemctl restart docker
     fi
 fi
-
-# use a few tools from the deployer
-source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
 
 # have to set these here so setup_tmpdir_vars will not give them bogus values
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
@@ -151,7 +167,6 @@ os::start::router
 
 os::test::junit::declare_suite_start "logging"
 ######### logging specific code starts here ####################
-
 # not sure how/where this could be created before this . . .
 oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
 os::cmd::expect_success "oc project logging > /dev/null"
