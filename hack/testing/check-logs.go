@@ -33,7 +33,7 @@ func main() {
 
 	// instead of receiving jsonStream as an Arg, we'll make the call ourselves...
 	proxyHeaders := `-H 'X-Proxy-Remote-User: ` + userName + `' -H 'Authorization: Bearer ` + userToken + `' -H 'X-Forwarded-For: ` + testIP + `'`
-	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca ` + proxyHeaders + ` -XGET "https://` + es_svc + `/` + index + `.*/com.redhat.viaq.common/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
+	queryCommand := `oc exec ` + kibana_pod + ` -- curl -s --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca ` + proxyHeaders + ` -XGET "https://` + es_svc + `/` + index + `.*/_search?q=hostname:` + hostname + `&fields=message&size=` + querySize + `"`
 	if verbose {
 		fmt.Printf("Executing command [%s]\n", queryCommand)
 	}
@@ -129,11 +129,13 @@ func main() {
 	if foundEntries == totalEntries {
 		if totalEntries == 0 {
 			fmt.Printf("Failure - no log entries found in Elasticsearch %s for index %s\n", es_svc, index)
+			os.Exit(1)
 		} else {
 			fmt.Printf("Success - [%v/%v] log entries found in %s\n", foundEntries, totalEntries, filePath)
 		}
 	} else {
 		fmt.Printf("Failure - [%v/%v] log entries found in %s\n%s", foundEntries, totalEntries, filePath, missesBuffer.String())
+		os.Exit(1)
 	}
 
 }
