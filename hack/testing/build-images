@@ -27,7 +27,7 @@ oc process -o yaml \
 
 os::cmd::expect_success "oc process -o yaml \
    -f $OS_O_A_L_DIR/hack/templates/$dev_build_template \
-   -p LOGGING_FORK_URL=$GIT_URL -p LOGGING_FORK_BRANCH=$GIT_BRANCH \
+   -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
    | build_filter | oc create -f -"
 post_build
 os::cmd::expect_success "wait_for_builds_complete"
