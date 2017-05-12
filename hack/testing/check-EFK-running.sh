@@ -92,7 +92,7 @@ function checkESContainsIndexTemplates() {
   local pod=$1
   local template_files
   local secret_dir=/etc/elasticsearch/secret/
- 
+
   if ! template_files=$(waitForValue "oc exec $pod -- ls -1 /usr/share/elasticsearch/index_templates"); then
     echo "No index template files found"
     return 1
@@ -153,7 +153,7 @@ if [[ $DC_COUNT -ne $COMPONENTS_COUNT ]]; then
     fi
   done
 
-  echo "* Please rerun the deployer to generate missing deployment configs."
+  echo "* Please rerun the ansible deployer to generate missing deployment configs."
 else
   echo "Success - $DC_MESSAGE"
 fi
@@ -178,7 +178,7 @@ if [[ $RC_COUNT -ne $COMPONENTS_COUNT ]]; then
   done
 
   #TODO: there is another way to generate the RC from a DC... update message to use that *'if able, otherwise'
-  echo "* Please rerun the deployer or redeploy the appropriate DC to generate missing replication controllers."
+  echo "* Please rerun the ansible deployer or redeploy the appropriate DC to generate missing replication controllers."
 else
   echo "Success - $RC_MESSAGE"
 fi

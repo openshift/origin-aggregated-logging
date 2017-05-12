@@ -20,7 +20,7 @@ else
     }
 fi
 
-dev_build_template=dev-builds-wo-deployer.yaml
+dev_build_template=dev-builds.yaml
 
 os::cmd::expect_success "oc process -o yaml \
    -f $OS_O_A_L_DIR/hack/templates/$dev_build_template \

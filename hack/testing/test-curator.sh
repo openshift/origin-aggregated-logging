@@ -11,7 +11,7 @@ set -o nounset
 set -o pipefail
 
 if ! type get_running_pod > /dev/null 2>&1 ; then
-    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
+    . ${HACK_TESTING_DIR}/util.sh
 fi
 
 if [[ $# -ne 1 || "$1" = "false" ]]; then
