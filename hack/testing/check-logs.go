@@ -129,13 +129,11 @@ func main() {
 	if foundEntries == totalEntries {
 		if totalEntries == 0 {
 			fmt.Printf("Failure - no log entries found in Elasticsearch %s for index %s\n", es_svc, index)
-			os.Exit(1)
 		} else {
 			fmt.Printf("Success - [%v/%v] log entries found in %s\n", foundEntries, totalEntries, filePath)
 		}
 	} else {
 		fmt.Printf("Failure - [%v/%v] log entries found in %s\n%s", foundEntries, totalEntries, filePath, missesBuffer.String())
-		os.Exit(1)
 	}
 
 }
