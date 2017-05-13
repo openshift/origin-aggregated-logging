@@ -7,6 +7,8 @@ function delete_logging() {
   oc process logging-support-template | oc delete -f - || :
   oc delete dc,rc,svc,routes,templates,daemonset --selector logging-infra
   oc delete is -l logging-infra=support
+  oc delete configmap logging-deployer || :
+  oc delete configmap -l logging-infra=support
   # secrets don't have label selectors
   oc delete secret logging-fluentd logging-elasticsearch logging-kibana logging-kibana-proxy logging-curator logging-curator-ops || :
 }
