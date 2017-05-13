@@ -27,6 +27,7 @@ OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
 # use absolute path
 pushd $OS_O_A_L_DIR
 OS_O_A_L_DIR=`pwd`
+export OS_O_A_L_DIR
 popd
 USE_LOGGING_DEPLOYER=
 USE_LOGGING_DEPLOYER_SCRIPT=
