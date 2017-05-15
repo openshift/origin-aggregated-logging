@@ -96,6 +96,8 @@ update_current_fluentd() {
   self_hostname forwarding-${HOSTNAME}\n\
   shared_key aggregated_logging_ci_testing\n\
   secure no\n\
+  buffer_queue_limit \"#{ENV['BUFFER_QUEUE_LIMIT']}\"\n\
+  buffer_chunk_limit \"#{ENV['BUFFER_SIZE_LIMIT']}\"\n\
   <server>\n\
    host '${FLUENTD_FORWARD}'\n\
    port 24284\n\
