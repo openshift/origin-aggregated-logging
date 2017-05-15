@@ -72,7 +72,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH
 	done
 
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
-	os::cmd::try_until_text "oc logs ${elasticsearch_pod}" "update_mapping \[com\.redhat\.viaq\.common\]"
+	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\."
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
