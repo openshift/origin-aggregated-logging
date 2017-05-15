@@ -490,6 +490,7 @@ function test_count_err() {
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches
 function wait_for_fluentd_to_catch_up() {
+    local starttime=`date +%s`
     echo START wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
     local es_pod=`get_running_pod es`
     local es_ops_pod=`get_running_pod es-ops`
@@ -499,10 +500,12 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es=`uuidgen`
     local uuid_es_ops=`uuidgen`
     local expected=${3:-1}
-    local timeout=600
+    local timeout=300
 
     add_test_message $uuid_es
+    echo added es message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
+    echo added es-ops message $uuid_es_ops
 
     local rc=0
 
@@ -514,7 +517,7 @@ function wait_for_fluentd_to_catch_up() {
     else
         echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es after $timeout seconds
         echo "Checking journal for $uuid_es..."
-        if journalctl | grep $uuid_es ; then
+        if sudo journalctl | grep $uuid_es ; then
             echo "Found $uuid_es in journal"
         else
             echo "Unable to find $uuid_es in journal"
@@ -529,7 +532,7 @@ function wait_for_fluentd_to_catch_up() {
     else
         echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
         echo "Checking journal for $uuid_es_ops..."
-        if journalctl | grep $uuid_es_ops ; then
+        if sudo journalctl | grep $uuid_es_ops ; then
             echo "Found $uuid_es_ops in journal"
         else
             echo "Unable to find $uuid_es_ops in journal"
@@ -543,7 +546,8 @@ function wait_for_fluentd_to_catch_up() {
     if [ -n "${2:-}" ] ; then
         $2 $uuid_es_ops
     fi
-    echo END wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
+    local endtime=`date +%s`
+    echo END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
     return $rc
 }
 
@@ -563,6 +567,34 @@ docker_uses_journal() {
         fi
     elif grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
         return 0
+    fi
+    return 1
+}
+
+wait_for_fluentd_ready() {
+    # wait until fluentd is actively reading from the source (journal or files)
+    if docker_uses_journal ; then
+        journal_pos_err() {
+            echo Error: timed out waiting for /var/log/journal.pos - check Fluentd pod log
+            return 1
+        }
+        if wait_until_cmd_or_err "test -f /var/log/journal.pos" journal_pos_err ${1:-60} ; then
+            return 0
+        fi
+    else
+        node_pos_err() {
+            echo Error: timed out waiting for /var/log/node.log.pos - check Fluentd pod log
+            return 1
+        }
+        if wait_until_cmd_or_err "test -f /var/log/node.log.pos" node_pos_err ${1:-60} ; then
+            cont_pos_err() {
+                echo Error: timed out waiting for /var/log/es-containers.log.pos - check Fluentd pod log
+                return 1
+            }
+            if wait_until_cmd_or_err "test -f /var/log/es-containers.log.pos" cont_pos_err ${1:-60} ; then
+                return 0
+            fi
+        fi
     fi
     return 1
 }
