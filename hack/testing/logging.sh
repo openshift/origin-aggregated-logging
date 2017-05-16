@@ -122,7 +122,7 @@ function cleanup()
         os::log::info "Test Succeeded"
     fi
 
-    os::test::junit::generate_oscmd_report
+    os::test::junit::generate_report
 
     if [ "$DEBUG_FAILURES" = "true" ] ; then
         echo debug failures - when you are finished, 'ps -ef|grep 987654' then kill that sleep process
