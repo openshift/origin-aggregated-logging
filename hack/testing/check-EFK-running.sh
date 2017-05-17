@@ -1,8 +1,6 @@
 #!/bin/bash
 
-set -o errexit
-set -o nounset
-set -o pipefail
+source "${OS_ROOT}/hack/lib/init.sh"
 
 oal_expected_deploymentconfigs=( "logging-kibana" "logging-curator" )
 oal_expected_routes=( "logging-kibana" )
