@@ -32,15 +32,15 @@ test_ip="${OAL_TEST_IP:-"127.0.0.1"}"
 
 os::test::junit::declare_suite_start "test/cluster/functionality"
 
-os::cmd::expect_success "oc project logging"
-
 # We need to use a name and token for logging checks later,
 # so we have to provision a user with a token for this.
 # TODO: Why is this necessary?
 os::cmd::expect_success "oc login --username=${LOG_ADMIN_USER:-admin} --password=${LOG_ADMIN_PW:-admin}"
 test_user="$( oc whoami )"
 test_token="$( oc whoami -t )"
+
 os::cmd::expect_success "oc login --username=system:admin"
+os::cmd::expect_success "oc project logging"
 
 # We can reach the ElasticSearch service at serviceName:apiPort
 elasticsearch_api="$( oc get svc "${OAL_ELASTICSEACH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
