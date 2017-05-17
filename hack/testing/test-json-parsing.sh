@@ -4,7 +4,7 @@
 # embedded JSON into its component fields, and use the
 # original message field in the embedded JSON
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ]; then
   set -ex
 else
   set -e

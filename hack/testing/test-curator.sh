@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "${VERBOSE:-false}" = "true" ] ; then
+if [ -n "${VERBOSE:-}" ] ; then
   set -ex
 else
   set -e

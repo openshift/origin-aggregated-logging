@@ -5,7 +5,7 @@
 # verify the same way we do now (for ES copy)
 # need to create a custom configmap for both fluentd?
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ]; then
   set -ex
 else
   set -e

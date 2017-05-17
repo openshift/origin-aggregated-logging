@@ -15,7 +15,7 @@ set -o pipefail
 STARTTIME=$(date +%s)
 # assume this script is being run from openshift/origin-aggregated-logging/hack/testing, and
 # origin is checked out in openshift/origin
-OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../origin}
+OS_ROOT=${OS_ROOT:-$(dirname "${BASH_SOURCE}")/../../../origin}
 # use absolute path
 pushd $OS_ROOT
 OS_ROOT=`pwd`
@@ -44,6 +44,13 @@ export USE_MUX=${USE_MUX:-false}
 if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true ] ; then
     export USE_MUX=true
 fi
+NOSETUP=
+if [ "${1:-}" = NOSETUP ] ; then
+    NOSETUP=1
+fi
+# have to do this after all argument processing, otherwise,
+# scripts that we use via source or `.` will inherit the args!
+set --
 
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
@@ -146,34 +153,134 @@ os::util::environment::setup_time_vars
 
 os::log::system::start
 
-os::start::configure_server
-if [ -n "${KIBANA_HOST:-}" ] ; then
-    # add loggingPublicURL so the OpenShift UI Console will include a link for Kibana
-    # this part stolen from util.sh configure_os_server()
+if [ $NOSETUP = 1 ] ; then
+    echo skipping openshift setup and start
+else
+    os::start::configure_server
+    if [ -n "${KIBANA_HOST:-}" ] ; then
+        # add loggingPublicURL so the OpenShift UI Console will include a link for Kibana
+        # this part stolen from util.sh configure_os_server()
+        cp ${SERVER_CONFIG_DIR}/master/master-config.yaml ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml
+        openshift ex config patch ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml \
+                  --patch="{\"assetConfig\": {\"loggingPublicURL\": \"https://${KIBANA_HOST}\"}}" > \
+                  ${SERVER_CONFIG_DIR}/master/master-config.yaml
+    fi
+    # allow externalIPs in services
     cp ${SERVER_CONFIG_DIR}/master/master-config.yaml ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml
     openshift ex config patch ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml \
-              --patch="{\"assetConfig\": {\"loggingPublicURL\": \"https://${KIBANA_HOST}\"}}" > \
+              --patch="{\"networkConfig\": {\"externalIPNetworkCIDRs\": [\"0.0.0.0/0\"]}}" > \
               ${SERVER_CONFIG_DIR}/master/master-config.yaml
+    os::start::server
 fi
-# allow externalIPs in services
-cp ${SERVER_CONFIG_DIR}/master/master-config.yaml ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml
-openshift ex config patch ${SERVER_CONFIG_DIR}/master/master-config.orig.yaml \
-          --patch="{\"networkConfig\": {\"externalIPNetworkCIDRs\": [\"0.0.0.0/0\"]}}" > \
-          ${SERVER_CONFIG_DIR}/master/master-config.yaml
-os::start::server
-export KUBECONFIG="${ADMIN_KUBECONFIG}"
+export KUBECONFIG="${ADMIN_KUBECONFIG:-$MASTER_CONFIG_DIR/admin.kubeconfig}"
+if [ ! -f $KUBECONFIG ] ; then
+    if [ -d /etc/origin ] ; then
+        SERVER_CONFIG_DIR=/etc/origin
+        MASTER_CONFIG_DIR=$SERVER_CONFIG_DIR/master
+        NODE_CONFIG_DIR=$SERVER_CONFIG_DIR/node-${KUBELET_HOST:-`hostname`}
+        KUBECONFIG=$MASTER_CONFIG_DIR/admin.kubeconfig
+    else
+        echo ERROR: cannot find admin.kubeconfig
+        exit 1
+    fi
+fi
 
-os::start::registry
-os::start::router
+
+if [ $NOSETUP = 1 ] ; then
+    echo skipping registry setup and start
+else
+    os::start::registry
+    os::start::router
+fi
+
+configure_es_with_hostpath() {
+    local es_dc=`oc get dc -l component=$1 -o jsonpath='{.items[0].metadata.name}'`
+    if oc set volume dc $es_dc | grep -q "empty directory as elasticsearch-storage" ; then
+        echo setting up $1 with persistent storage
+    else
+        return 0
+    fi
+    sudo setenforce Permissive # doesn't work with Enforcing
+    # type=AVC msg=audit(1493060981.565:2610): avc:  denied  { write } for  pid=58448 comm="java" name="logging-es" dev="vda1" ino=2560575 scontext=system_u:system_r:svirt_lxc_net_t:s0:c4,c7 tcontext=unconfined_u:object_r:var_lib_t:s0 tclass=dir
+    local espod=`get_running_pod $1`
+    os::cmd::expect_success "oc scale dc $es_dc --replicas=0"
+    os::cmd::try_until_failure "oc describe pod $espod > /dev/null" "$(( 10 * TIME_MIN ))"
+    # allow es to mount volumes from the host
+    oadm policy add-scc-to-user hostmount-anyuid \
+         system:serviceaccount:logging:aggregated-logging-elasticsearch
+    if [ ! -d $2 ] ; then
+        sudo mkdir -p $2
+        sudo chown 1000:1000 $2
+    fi
+    oc volume dc/$es_dc --add --overwrite --name=elasticsearch-storage \
+       --type=hostPath --path=$2
+    if [ "${3:-}" = norollout ] ; then
+        :
+    else
+        oc rollout latest dc/$es_dc
+    fi
+    oc rollout status -w dc/$es_dc
+    os::cmd::expect_success "oc scale dc $es_dc --replicas=1"
+    os::cmd::try_until_text "oc get pods -l component=$1" "Running" "$(( 10 * TIME_MIN ))"
+}
+
+configure_all_es_with_hostpath() {
+    # es and es-ops need persistent storage
+    configure_es_with_hostpath es $ES_VOLUME "$@"
+    if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
+        configure_es_with_hostpath es-ops $ES_OPS_VOLUME "$@"
+    fi
+}
+
+dc_or_ds_name_to_image_name() {
+    case $1 in
+        logging-es-*) echo logging-elasticsearch ;;
+        *) echo $1 ;;
+    esac
+}
+
+update_image_in_configs() {
+    # $1 is image prefix
+    # $2 is version
+    for dc in `oc get dc -o jsonpath='{.items[*].metadata.name}'`; do
+        image_name=`dc_or_ds_name_to_image_name $dc`
+        image_value=${1}${image_name}:${2:-latest}
+        oc patch dc $dc --type=json --patch \
+           '[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "'"$image_value"'"}]'
+        oc rollout status -w dc/$dc
+    done
+    for ds in `oc get ds -o jsonpath='{.items[*].metadata.name}'`; do
+        image_name=`dc_or_ds_name_to_image_name $ds`
+        image_value=${1}${image_name}:${2:-latest}
+        oc patch ds $ds --type=json --patch \
+           '[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "'"$image_value"'"}]'
+    done
+    fpod=`get_running_pod fluentd`
+    oc delete pod $fpod
+}
 
 os::test::junit::declare_suite_start "logging"
 ######### logging specific code starts here ####################
 # not sure how/where this could be created before this . . .
-oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
-os::cmd::expect_success "oc project logging > /dev/null"
+if [ $NOSETUP = 1 ] ; then
+    oc project logging > /dev/null
+    # fix es to log to console
+    oc get configmap logging-elasticsearch -o yaml | \
+        sed 's/rootLogger:\(.*\)file/rootLogger:\1console/' | \
+        oc replace -f -
+    # build images from source
+    source $OS_O_A_L_DIR/hack/testing/build-images
+    # fix dc, ds to use new built images
+    update_image_in_configs $imageprefix
+    # set up es and es-ops to use a PV local disk
+    configure_all_es_with_hostpath norollout
+else
+    oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
+    os::cmd::expect_success "oc project logging > /dev/null"
 
-#initialize logging stack
-source $OS_O_A_L_DIR/hack/testing/init-log-stack
+    #initialize logging stack
+    source $OS_O_A_L_DIR/hack/testing/init-log-stack
+fi
 source $OS_O_A_L_DIR/hack/testing/lib/test-functions
 
 # see if expected pods are running

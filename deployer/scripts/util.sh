@@ -326,7 +326,7 @@ wait_for_pod_ACTION() {
     fi
     while [ $ii -gt 0 ] ; do
         if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod $curpod still running
             fi
         elif [ $1 = start ] && [ -z "$curpod" ] ; then
@@ -336,7 +336,7 @@ wait_for_pod_ACTION() {
                     return 1
                 fi
             fi
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod for component=$2 not running yet
             fi
         else
@@ -493,7 +493,7 @@ function wait_for_fluentd_to_catch_up() {
     local starttime=`date +%s`
     echo START wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
     local es_pod=`get_running_pod es`
-    local es_ops_pod=`get_running_pod es-ops`
+    local es_ops_pod=`get_running_pod es-ops 2> /dev/null`
     if [ -z "$es_ops_pod" ] ; then
         es_ops_pod=$es_pod
     fi
