@@ -139,6 +139,11 @@ else
     rm -f $CFG_DIR/openshift/input-pre-debug.conf
 fi
 
+# bug https://bugzilla.redhat.com/show_bug.cgi?id=1437952
+# pods unable to be terminated because fluentd has them busy
+echo "umounts of dead containers will fail. Ignoring..."
+umount /var/lib/docker/containers/*/shm || :
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
