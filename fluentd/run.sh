@@ -60,5 +60,9 @@ else
     echo > $CFG_DIR/dynamic/es-ops-copy-config.conf
 fi
 
+# bug https://bugzilla.redhat.com/show_bug.cgi?id=1437952
+# pods unable to be terminated because fluentd has them busy
+echo "umounts of dead containers will fail. Ignoring..."
+umount /var/lib/docker/containers/*/shm || :
 
 exec fluentd $fluentdargs
