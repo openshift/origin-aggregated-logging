@@ -69,7 +69,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} contains common data model index templates..."
 	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
 	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
-		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/_template/${template}" '100'
+		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/_template/${template}" '200'
 	done
 
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
