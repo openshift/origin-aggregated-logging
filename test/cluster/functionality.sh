@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # This functionality test ensures that:
-#  - ElasticSearch and Kibana pods have started
+#  - Elasticsearch and Kibana pods have started
 #    successfully
-#  - ElasticSearch is reachable from Kibana
+#  - Elasticsearch is reachable from Kibana
 #  - the Kibana-proxy is working
 #  - the Kibana cert and key are functional
 #  - indices have been successfully created by Fluentd
-#    in ElasticSearch
+#    in Elasticsearch
 #
 # This script expects the following environment
 # variables:
@@ -17,7 +17,7 @@
 #         }_COMPONENT: the component labels that
 #    are used to identify application pods
 #  - OAL_ELASTICSEACH_SERVICE: the service under which
-#    ElasticSearch is exposed
+#    Elasticsearch is exposed
 #  - OAL_QUERY_SIZE: the number of messages to query
 #    for per index
 #  - OAL_TEST_IP: the IP address to test forwarding for
@@ -43,7 +43,7 @@ test_token="$( oc whoami -t )"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oc project logging"
 
-# We can reach the ElasticSearch service at serviceName:apiPort
+# We can reach the Elasticsearch service at serviceName:apiPort
 elasticsearch_api="$( oc get svc "${OAL_ELASTICSEACH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
 
 for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
@@ -54,26 +54,26 @@ for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}" 
 done
 
 for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
-	os::log::info "Testing ElasticSearch pod ${elasticsearch_pod} for a successful start..."
+	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::expect_success_and_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
 
-	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} recovered its indices after starting..."
+	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
 	if oc logs "${elasticsearch_pod}" | grep -E "\[cluster\.service\s*\]" | grep -q "new_master"; then
 		os::cmd::expect_success_and_text "oc logs ${elasticsearch_pod}" "\[gateway\s*\]\s*\[.*\]\s*recovered\s*\[[0-9]*\]\s*indices into cluster_state"
 	elif oc logs "${elasticsearch_pod}" | grep -E "\[cluster\.service\s*\]" | grep -q "detected_master"; then
-		os::log::info "ElasticSearch pod ${elasticsearch_pod} was able to detect a master"
+		os::log::info "Elasticsearch pod ${elasticsearch_pod} was able to detect a master"
 	else
-		os::log::fatal "ElasticSearch pod ${elasticsearch_pod} isn't master and was unable to detect a master"
+		os::log::fatal "Elasticsearch pod ${elasticsearch_pod} isn't master and was unable to detect a master"
 	fi
 
-	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} contains common data model index templates..."
+	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
 	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
 	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
 		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/_template/${template}" '200'
 	done
 
-	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
+	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
 	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>

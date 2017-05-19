@@ -113,23 +113,23 @@ parameters:
   name: MASTER_URL
   value: "https://kubernetes.default.svc.cluster.local"
 -
-  description: "Hostname (or IP) for reaching ElasticSearch"
+  description: "Hostname (or IP) for reaching Elasticsearch"
   name: ES_HOST
   value: "logging-es"
 -
-  description: "Port number for reaching ElasticSearch"
+  description: "Port number for reaching Elasticsearch"
   name: ES_PORT
   value: "9200"
 -
-  description: "Location of client certificate for authenticating to ElasticSearch"
+  description: "Location of client certificate for authenticating to Elasticsearch"
   name: ES_CLIENT_CERT
   value: "/etc/curator/keys/cert"
 -
-  description: "Location of client key for authenticating to ElasticSearch"
+  description: "Location of client key for authenticating to Elasticsearch"
   name: ES_CLIENT_KEY
   value: "/etc/curator/keys/key"
 -
-  description: "Location of CA cert for validating connecting to ElasticSearch"
+  description: "Location of CA cert for validating connecting to Elasticsearch"
   name: ES_CA
   value: "/etc/curator/keys/ca"
 -

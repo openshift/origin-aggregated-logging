@@ -483,7 +483,7 @@ function notify_user() {
 Operations logs:
 ----------------
 You chose to split ops logs to their own ops cluster, which includes an
-ElasticSearch cluster and its own deployment of Kibana. The deployments
+Elasticsearch cluster and its own deployment of Kibana. The deployments
 are set apart by '-ops' in the name. The comments above about configuring
 ES deployments apply equally to the ops cluster.
 "
@@ -497,7 +497,7 @@ The deployer has created secrets, templates, and component deployments
 required for logging. You now have a few more steps to run manually.
 Consult the deployer docs for more detail.
 
-ElasticSearch:
+Elasticsearch:
 --------------
 Clustered instances have been created as individual deployments. View with:
     oc get dc --selector logging-infra=elasticsearch

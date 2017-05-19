@@ -135,43 +135,43 @@ parameters:
   name: MASTER_URL
   value: "https://kubernetes.default.svc.cluster.local"
 -
-  description: "Hostname (or IP) for reaching ElasticSearch to write logs"
+  description: "Hostname (or IP) for reaching Elasticsearch to write logs"
   name: ES_HOST
   value: "logging-es"
 -
-  description: "Port number for reaching ElasticSearch to write logs"
+  description: "Port number for reaching Elasticsearch to write logs"
   name: ES_PORT
   value: "9200"
 -
-  description: "Location of client certificate for authenticating to ElasticSearch to write logs"
+  description: "Location of client certificate for authenticating to Elasticsearch to write logs"
   name: ES_CLIENT_CERT
   value: "/etc/fluent/keys/cert"
 -
-  description: "Location of client key for authenticating to ElasticSearch to write logs"
+  description: "Location of client key for authenticating to Elasticsearch to write logs"
   name: ES_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connectiong to ElasticSearch to write logs"
+  description: "Location of CA cert for validating connectiong to Elasticsearch to write logs"
   name: ES_CA
   value: "/etc/fluent/keys/ca"
 -
-  description: "Hostname (or IP) for reaching ElasticSearch to write cluster logs"
+  description: "Hostname (or IP) for reaching Elasticsearch to write cluster logs"
   name: OPS_HOST
   value: "logging-es"
 -
-  description: "Port number for reaching ElasticSearch to write cluster logs"
+  description: "Port number for reaching Elasticsearch to write cluster logs"
   name: OPS_PORT
   value: "9200"
 -
-  description: "Location of client certificate for authenticating to ElasticSearch to write cluster logs"
+  description: "Location of client certificate for authenticating to Elasticsearch to write cluster logs"
   name: OPS_CLIENT_CERT
   value: "/etc/fluent/keys/cert"
 -
-  description: "Location of client key for authenticating to ElasticSearch to write cluster logs"
+  description: "Location of client key for authenticating to Elasticsearch to write cluster logs"
   name: OPS_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connectiong to ElasticSearch to write cluster logs"
+  description: "Location of CA cert for validating connectiong to Elasticsearch to write cluster logs"
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
 -

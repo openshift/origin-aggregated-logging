@@ -3,7 +3,7 @@ kind: "Template"
 metadata:
   name: logging-elasticsearch-template-maker
   annotations:
-    description: "Template to create template for deploying ElasticSearch"
+    description: "Template to create template for deploying Elasticsearch"
     tags: "infrastructure"
 objects:
 - apiVersion: "v1"
@@ -11,7 +11,7 @@ objects:
   metadata:
     name: logging-${ES_CLUSTER_NAME}-template
     annotations:
-      description: "Template for deploying ElasticSearch with proxy/plugin for storing and retrieving aggregated cluster logs."
+      description: "Template for deploying Elasticsearch with proxy/plugin for storing and retrieving aggregated cluster logs."
       tags: "infrastructure"
     labels:
       logging-infra: elasticsearch
@@ -117,7 +117,7 @@ objects:
     from: 'logging-${ES_CLUSTER_NAME}-[a-z0-9]{8}'
     generate: expression
   -
-    description: "Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M or 8G)"
+    description: "Amount of RAM to reserve per Elasticsearch instance (e.g. 1024M or 8G)"
     name: INSTANCE_RAM
     value: ${ES_INSTANCE_RAM}
   -
