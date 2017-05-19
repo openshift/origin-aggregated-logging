@@ -69,15 +69,15 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} contains common data model index templates..."
 	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
 	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
-		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9100/_template/${template}" '100'
+		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/_template/${template}" '100'
 	done
 
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
-	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9100/_cat/indices?h=index" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
-	for index in $( oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9100/_cat/indices?h=index ); do
+	for index in $( oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index ); do
 		if [[ "${index}" == ".operations"* ]]; then
 			# If this is an operations index, we will be searching
 			# on disk for it
