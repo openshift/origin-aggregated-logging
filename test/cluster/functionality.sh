@@ -26,13 +26,12 @@
 #               PW
 #               }: credentials for the admin user
 source "${OS_ROOT}/hack/lib/init.sh"
+os::util::environment::setup_time_vars
 
 query_size="${OAL_QUERY_SIZE:-"500"}"
 test_ip="${OAL_TEST_IP:-"127.0.0.1"}"
 
 os::test::junit::declare_suite_start "test/cluster/functionality"
-
-os::cmd::expect_success "oc project logging"
 
 # We need to use a name and token for logging checks later,
 # so we have to provision a user with a token for this.
@@ -40,21 +39,23 @@ os::cmd::expect_success "oc project logging"
 os::cmd::expect_success "oc login --username=${LOG_ADMIN_USER:-admin} --password=${LOG_ADMIN_PW:-admin}"
 test_user="$( oc whoami )"
 test_token="$( oc whoami -t )"
+
 os::cmd::expect_success "oc login --username=system:admin"
+os::cmd::expect_success "oc project logging"
 
 # We can reach the ElasticSearch service at serviceName:apiPort
 elasticsearch_api="$( oc get svc "${OAL_ELASTICSEACH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
 
 for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Kibana pod ${kibana_pod} for a successful start..."
-	os::cmd::try_until_text "oc logs ${kibana_pod} -c kibana" "Server running at http://0\.0\.0\.0:5601"
-	os::cmd::try_until_text "oc logs ${kibana_pod} -c kibana" "Kibana index ready"
+	os::cmd::try_until_text "oc logs ${kibana_pod} -c kibana" "Server running at http://0\.0\.0\.0:5601" "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "oc logs ${kibana_pod} -c kibana" "Kibana index ready" "$(( 10*TIME_MIN ))"
 done
 
 for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing ElasticSearch pod ${elasticsearch_pod} for a successful start..."
-	os::cmd::try_until_text "oc logs ${elasticsearch_pod}" "\[cluster\.service\s*\]"
-	os::cmd::try_until_text "oc logs ${elasticsearch_pod}" "\[node\s*\]\s*\[.*\]\s*started"
+	os::cmd::try_until_text "oc logs ${elasticsearch_pod}" "\[cluster\.service\s*\]" "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "oc logs ${elasticsearch_pod}" "\[node\s*\]\s*\[.*\]\s*started" "$(( 10*TIME_MIN ))"
 
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} recovered its indices after starting..."
 	if oc logs "${elasticsearch_pod}" | grep -E "\[cluster\.service\s*\]" | grep -q "new_master"; then
@@ -72,7 +73,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH
 	done
 
 	os::log::info "Checking that ElasticSearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
-	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\."
+	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
