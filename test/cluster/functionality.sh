@@ -12,11 +12,11 @@
 # This script expects the following environment
 # variables:
 #  - OAL_{
-#         ELASTICSEACH,
+#         ELASTICSEARCH,
 #         KIBANA
 #         }_COMPONENT: the component labels that
 #    are used to identify application pods
-#  - OAL_ELASTICSEACH_SERVICE: the service under which
+#  - OAL_ELASTICSEARCH_SERVICE: the service under which
 #    Elasticsearch is exposed
 #  - OAL_QUERY_SIZE: the number of messages to query
 #    for per index
@@ -44,7 +44,7 @@ os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oc project logging"
 
 # We can reach the Elasticsearch service at serviceName:apiPort
-elasticsearch_api="$( oc get svc "${OAL_ELASTICSEACH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
+elasticsearch_api="$( oc get svc "${OAL_ELASTICSEARCH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
 
 for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Kibana pod ${kibana_pod} for a successful start..."
@@ -53,7 +53,7 @@ for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}" 
 	os::cmd::expect_success_and_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
 done
 
-for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEACH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
+for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::expect_success_and_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
