@@ -26,6 +26,7 @@
 #               PW
 #               }: credentials for the admin user
 source "${OS_ROOT}/hack/lib/init.sh"
+source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 os::util::environment::setup_time_vars
 
 query_size="${OAL_QUERY_SIZE:-"500"}"
@@ -55,7 +56,7 @@ done
 
 for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
-	os::cmd::try_until_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/" '200' "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/' -X HEAD -w '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::expect_success_and_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
@@ -70,15 +71,15 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
 	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
 	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
-		os::cmd::expect_success_and_text "oc exec ${elasticsearch_pod} -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key -X HEAD -w '%{response_code}' https://localhost:9200/_template/${template}" '200'
+		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' -X HEAD -w '%{response_code}'" '200'
 	done
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
-	os::cmd::try_until_text "oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cat/indices?h=index'" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
-	for index in $( oc exec "${elasticsearch_pod}" -- curl -sk --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key https://localhost:9200/_cat/indices?h=index ); do
+	for index in $( curl_es "${elasticsearch_pod}" '/_cat/indices?h=index' ); do
 		if [[ "${index}" == ".operations"* ]]; then
 			# If this is an operations index, we will be searching
 			# on disk for it
