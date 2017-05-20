@@ -60,7 +60,10 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	os::cmd::expect_success_and_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
-	if oc logs "${elasticsearch_pod}" | grep -E "\[cluster\.service\s*\]" | grep -q "new_master"; then
+	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cluster/state/master_node' -w '%{response_code}'" "}200$" "$(( 10*TIME_MIN ))"
+	es_master_id="$( curl_es "${elasticsearch_pod}" "/_cluster/state/master_node" | jq --raw-output '.master_node' )"
+	es_pod_node_id="$( curl_es "${elasticsearch_pod}" "/_nodes/_local" | jq '.nodes' | jq --raw-output 'keys[0]' )"
+	if [[ "${es_master_id}" == "${es_pod_node_id}" ]]; then
 		os::cmd::expect_success_and_text "oc logs ${elasticsearch_pod}" "\[gateway\s*\]\s*\[.*\]\s*recovered\s*\[[0-9]*\]\s*indices into cluster_state"
 	elif oc logs "${elasticsearch_pod}" | grep -E "\[cluster\.service\s*\]" | grep -q "detected_master"; then
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} was able to detect a master"
