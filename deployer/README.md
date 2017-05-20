@@ -292,7 +292,7 @@ You may instead choose to add volumes manually to deployments with the
 (which is actually recommended by Elastic in order to take advantage of
 local disk performance):
 
-    $ oc volume dc/logging-es-rca2m9u8 \
+    $ oc set volume dc/logging-es-rca2m9u8 \
               --add --overwrite --name=elasticsearch-storage \
               --type=hostPath --path=/path/to/storage
 
@@ -302,10 +302,10 @@ the `hostmount-anyuid` SCC similar to Fluentd as shown above. Use node
 selectors and node labels carefully to ensure that pods land on nodes
 with the storage you intend.
 
-See `oc volume -h` for further options. E.g. if you have a specific NFS volume
+See `oc set volume -h` for further options. E.g. if you have a specific NFS volume
 you would like to use, you can set it with:
 
-    $ oc volume dc/logging-es-rca2m9u8 \
+    $ oc set volume dc/logging-es-rca2m9u8 \
               --add --overwrite --name=elasticsearch-storage \
               --source='{"nfs": {"server": "nfs.server.example.com", "path": "/exported/path"}}'
 
@@ -540,7 +540,6 @@ mitigate Curator deleting logs shortly after they are added to Elasticsearch.
 You may scale the Kibana deployment normally for redundancy:
 
     $ oc scale dc/logging-kibana --replicas=2
-    $ oc scale rc/logging-kibana-1 --replicas=2
 
 You should be able to visit the `KIBANA_HOSTNAME` specified in the
 initial deployment to visit the UI (assuming DNS points correctly for
@@ -627,7 +626,7 @@ configuration in the deployed configmap:
 
 Then, redeploy:
 
-    $ oc deploy --latest logging-curator
+    $ oc rollout latest logging-curator
 
 For scripted deployments, do this:
 
@@ -858,12 +857,12 @@ logs will be lost; Fluentd simply blocks until the cluster returns.
 Halting traffic to ElasticSearch requires scaling down Kibana and removing node labels for Fluentd:
 
     $ oc label node --all logging-infra-
-    $ oc scale rc/logging-kibana-1 --replicas=0
+    $ oc scale dc/logging-kibana --replicas=0
 
 Next scale all of the ElasticSearch deployments to 0 similarly.
 
     $ oc get rc --selector logging-infra=elasticsearch
-    $ oc scale rc/logging-es-... --replicas=0
+    $ oc scale dc/logging-es-... --replicas=0
 
 Now edit the existing DeploymentConfigs and modify the variables as needed:
 
@@ -882,7 +881,7 @@ Once all the deployments are properly configured, deploy them all at
 about the same time.
 
     $ oc get dc --selector logging-infra=elasticsearch
-    $ oc deploy --latest logging-es-...
+    $ oc rollout latest logging-es-...
 
 The cluster parameters determine how cluster formation and recovery
 proceeds, but the default is that the cluster will wait up to five minutes
@@ -894,7 +893,7 @@ Kibana can be scaled back to its normal operating levels and nodes can be re-lab
 for Fluentd.
 
     $ oc label node --all logging-infra-fluentd=true
-    $ oc scale rc/logging-kibana-1 --replicas=2
+    $ oc scale dc/logging-kibana --replicas=2
 
 
 # Checking EFK Health
@@ -1067,11 +1066,7 @@ Deployment failure can happen for a number of transitory reasons, such as
 the image pull taking too long, or nodes being unresponsive. Examine the
 deployer pod logs for possible reasons; but often you can simply redeploy:
 
-    $ oc deploy --latest logging-es-2e7ut0iq
-
-Or you may be able to scale up the existing deployment:
-
-    $ oc scale --replicas=1 logging-es-2e7ut0iq-1
+    $ oc rollout retry dc/logging-es-2e7ut0iq
 
 If the problem persists, you can examine pods, events, and systemd unit
 logs to determine the source of the problem.
