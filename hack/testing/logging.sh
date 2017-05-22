@@ -187,39 +187,6 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     os::cmd::try_until_text "oc get pods -l component=curator-ops" "Running" "$(( 3 * TIME_MIN ))"
 fi
 
-# external elasticsearch access - reencrypt route - need certs, keys
-if [ -n "${ES_HOST:-}" -o -n "${ES_OPS_HOST:-}" ] ; then
-    destca=`mktemp`
-    # this is the same ca that issued the es server cert
-    oc get secret logging-elasticsearch \
-       --template='{{index .data "admin-ca"}}' | base64 -d > $destca
-    if [ -n "${ES_HOST:-}" ] ; then
-        openshift admin ca create-server-cert --key=$ARTIFACT_DIR/es.key \
-                  --cert=$ARTIFACT_DIR/es.crt --hostnames=$ES_HOST \
-                  --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
-                  --signer-key=$MASTER_CONFIG_DIR/ca.key \
-                  --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
-        oc create route reencrypt --service logging-es --port 9200 \
-                  --hostname $ES_HOST --dest-ca-cert $destca \
-                  --ca-cert $MASTER_CONFIG_DIR/ca.crt \
-                  --cert $ARTIFACT_DIR/es.crt \
-                  --key $ARTIFACT_DIR/es.key
-    fi
-    if [ -n "${ES_OPS_HOST:-}" ] ; then
-        openshift admin ca create-server-cert --key=$ARTIFACT_DIR/es-ops.key \
-                  --cert=$ARTIFACT_DIR/es-ops.crt --hostnames=$ES_OPS_HOST \
-                  --signer-cert=$MASTER_CONFIG_DIR/ca.crt \
-                  --signer-key=$MASTER_CONFIG_DIR/ca.key \
-                  --signer-serial=$MASTER_CONFIG_DIR/ca.serial.txt
-        oc create route reencrypt --service logging-es-ops --port 9200 \
-                  --hostname $ES_OPS_HOST --dest-ca-cert $destca \
-                  --ca-cert $MASTER_CONFIG_DIR/ca.crt \
-                  --cert $ARTIFACT_DIR/es-ops.crt \
-                  --key $ARTIFACT_DIR/es-ops.key
-    fi
-    rm -f $destca
-fi
-
 if [ "${SETUP_ONLY:-}" = "true" ] ; then
     exit 0
 fi
