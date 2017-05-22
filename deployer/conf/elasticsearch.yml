@@ -1,6 +1,8 @@
 cluster:
   name: ${CLUSTER_NAME}
 
+bootstrap.memory_lock: true
+
 script:
   inline: on
   indexed: on
