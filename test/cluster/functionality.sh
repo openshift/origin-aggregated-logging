@@ -61,8 +61,8 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
 	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cluster/state/master_node' -w '%{response_code}'" "}200$" "$(( 10*TIME_MIN ))"
-	es_master_id="$( curl_es "${elasticsearch_pod}" "/_cluster/state/master_node" | jq --raw-output '.master_node' )"
-	es_pod_node_id="$( curl_es "${elasticsearch_pod}" "/_nodes/_local" | jq '.nodes' | jq --raw-output 'keys[0]' )"
+	es_master_id="$( curl_es "${elasticsearch_pod}" "/_cluster/state/master_node" | python -c  'import json, sys; print json.load(sys.stdin)["master_node"];' )"
+	es_pod_node_id="$( curl_es "${elasticsearch_pod}" "/_nodes/_local" | python -c  'import json, sys; print json.load(sys.stdin)["nodes"].keys()[0];' )"
 	es_detected_master_id="$( curl_es "${elasticsearch_pod}" "/_cat/master?h=id" )"
 	if [[ "${es_master_id}" == "${es_pod_node_id}" ]]; then
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} is the master"
