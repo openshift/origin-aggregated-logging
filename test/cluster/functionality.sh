@@ -72,12 +72,6 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 		os::log::fatal "Elasticsearch pod ${elasticsearch_pod} isn't master and was unable to detect a master"
 	fi
 
-	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
-	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
-	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
-		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' -X HEAD -w '%{response_code}'" '200'
-	done
-
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
 	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cat/indices?h=index'" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
@@ -105,6 +99,12 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 			# As we're checking system log files, we need to use `sudo`
 			os::cmd::expect_success "sudo -E VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
 		done
+	done
+
+	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
+	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
+	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
+		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' -X HEAD -w '%{response_code}'" '200'
 	done
 done
 
