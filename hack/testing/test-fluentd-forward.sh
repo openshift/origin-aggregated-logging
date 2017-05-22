@@ -96,8 +96,8 @@ update_current_fluentd() {
   self_hostname forwarding-${HOSTNAME}\n\
   shared_key aggregated_logging_ci_testing\n\
   secure no\n\
-  buffer_queue_limit \"#{ENV['BUFFER_QUEUE_LIMIT']}\"\n\
-  buffer_chunk_limit \"#{ENV['BUFFER_SIZE_LIMIT']}\"\n\
+  buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
+  buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
   <server>\n\
    host '${FLUENTD_FORWARD}'\n\
    port 24284\n\
@@ -166,6 +166,9 @@ fpod=`get_running_pod fluentd`
 
 # run test to make sure fluentd is working normally - no forwarding
 write_and_verify_logs 1 || {
+    oc logs $fpod > $ARTIFACT_DIR/test-fluentd-forward.fluentd.log
+    ffpod=`get_running_pod forward-fluentd`
+    oc logs $ffpod > $ARTIFACT_DIR/test-fluentd-forward.forward-fluentd.log
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
@@ -181,6 +184,9 @@ create_forwarding_fluentd
 update_current_fluentd
 
 write_and_verify_logs 1 || {
+    oc logs $fpod > $ARTIFACT_DIR/test-fluentd-forward.fluentd.log
+    ffpod=`get_running_pod forward-fluentd`
+    oc logs $ffpod > $ARTIFACT_DIR/test-fluentd-forward.forward-fluentd.log
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
@@ -189,6 +195,9 @@ write_and_verify_logs 1 || {
 cleanup
 
 write_and_verify_logs 1 || {
+    oc logs $fpod > $ARTIFACT_DIR/test-fluentd-forward.fluentd.log
+    ffpod=`get_running_pod forward-fluentd`
+    oc logs $ffpod > $ARTIFACT_DIR/test-fluentd-forward.forward-fluentd.log
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
     exit 1
 }
