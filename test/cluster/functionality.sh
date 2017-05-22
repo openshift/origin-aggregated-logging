@@ -65,7 +65,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	es_pod_node_id="$( curl_es "${elasticsearch_pod}" "/_nodes/_local" | jq '.nodes' | jq --raw-output 'keys[0]' )"
 	es_detected_master_id="$( curl_es "${elasticsearch_pod}" "/_cat/master?h=id" )"
 	if [[ "${es_master_id}" == "${es_pod_node_id}" ]]; then
-		os::cmd::expect_success_and_text "oc logs ${elasticsearch_pod}" "\[gateway\s*\]\s*\[.*\]\s*recovered\s*\[[0-9]*\]\s*indices into cluster_state"
+		os::log::info "Elasticsearch pod ${elasticsearch_pod} is the master"
 	elif [[ -n "${es_detected_master_id}" ]]; then
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} was able to detect a master"
 	else
