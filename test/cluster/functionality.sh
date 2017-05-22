@@ -50,14 +50,14 @@ elasticsearch_api="$( oc get svc "${OAL_ELASTICSEARCH_SERVICE}" -o jsonpath='{ .
 for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Kibana pod ${kibana_pod} for a successful start..."
 	os::cmd::try_until_text "oc exec ${kibana_pod} -c kibana -- curl -s --request HEAD --write-out '%{response_code}' http://localhost:5601/" "200" "$(( 10*TIME_MIN ))"
-	os::cmd::expect_success_and_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana\")].ready }'" "true"
-	os::cmd::expect_success_and_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
+	os::cmd::try_until_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana\")].ready }'" "true"
+	os::cmd::try_until_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
 done
 
 for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/' -X HEAD -w '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
-	os::cmd::expect_success_and_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
+	os::cmd::try_until_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
 	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cluster/state/master_node' -w '%{response_code}'" "}200$" "$(( 10*TIME_MIN ))"
