@@ -112,31 +112,21 @@ os::log::info "Starting logging tests at `date`"
 
 cd "${OS_ROOT}"
 
-function cleanup()
-{
-    out=$?
-    echo
-    if [ $out -ne 0 ]; then
-        echo "[FAIL] !!!!! Test Failed !!!!"
-    else
-        os::log::info "Test Succeeded"
-    fi
-
-    os::test::junit::generate_report
-
+function cleanup() {
+    return_code=$?
     if [ "$DEBUG_FAILURES" = "true" ] ; then
         echo debug failures - when you are finished, 'ps -ef|grep 987654' then kill that sleep process
         sleep 987654 || echo debugging done - continuing
     fi
-    if [ "$DO_CLEANUP" = "true" ] ; then
-        cleanup_openshift
-    fi
-    os::log::info "Exiting at `date`"
-    ENDTIME=$(date +%s); echo "$0 took $(($ENDTIME - $STARTTIME)) seconds"
-    return $out
-}
 
-trap "exit" INT TERM
+    if [ "$DO_CLEANUP" = "true" ] ; then
+        os::cleanup::all "${return_code}"
+    else
+        os::util::describe_return_code "${return_code}"
+    fi
+
+    exit "${return_code}"
+}
 trap "cleanup" EXIT
 
 # override LOG_DIR and ARTIFACTS_DIR
