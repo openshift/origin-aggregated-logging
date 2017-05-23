@@ -396,6 +396,22 @@ curl_es_from_kibana() {
 }
 
 # $1 - es pod name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es() {
+    local pod="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/elasticsearch/secret/"
+    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             --key "${secret_dir}admin-key"   \
+                             --cert "${secret_dir}admin-cert" \
+                             "https://localhost:9200${endpoint}"
+}
+
+# $1 - es pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
 # $3 - index name (e.g. project.logging, project.test, .operations, etc.)
 # $4 - _count or _search
@@ -404,9 +420,7 @@ curl_es_from_kibana() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 function query_es_from_es() {
-    oc exec $1 -- curl --connect-timeout 1 -s -k \
-       --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/${2}*/${3}\?q=${4}:${5}
+    curl_es "$1" "/${2}*/${3}?q=${4}:${5}" --connect-timeout 1
 }
 
 # $1 is es pod

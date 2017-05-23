@@ -252,15 +252,15 @@ items:
     name: MASTER_URL
     value: "https://kubernetes.default.svc.cluster.local"
   -
-    description: "(Deprecated) How many instances of ElasticSearch to deploy."
+    description: "(Deprecated) How many instances of Elasticsearch to deploy."
     name: ES_CLUSTER_SIZE
     value: "1"
   -
-    description: "(Deprecated) Amount of RAM to reserve per ElasticSearch instance."
+    description: "(Deprecated) Amount of RAM to reserve per Elasticsearch instance."
     name: ES_INSTANCE_RAM
     value: "8G"
   -
-    description: "(Deprecated) Size of the PersistentVolumeClaim to create per ElasticSearch instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
+    description: "(Deprecated) Size of the PersistentVolumeClaim to create per Elasticsearch instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
     name: ES_PVC_SIZE
   -
     description: "(Deprecated) Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size ES_PVC_SIZE."
@@ -283,14 +283,14 @@ items:
     name: ES_RECOVER_AFTER_TIME
     value: "5m"
   -
-    description: "(Deprecated) How many ops instances of ElasticSearch to deploy. By default, ES_CLUSTER_SIZE."
+    description: "(Deprecated) How many ops instances of Elasticsearch to deploy. By default, ES_CLUSTER_SIZE."
     name: ES_OPS_CLUSTER_SIZE
   -
-    description: "(Deprecated) Amount of RAM to reserve per ops ElasticSearch instance."
+    description: "(Deprecated) Amount of RAM to reserve per ops Elasticsearch instance."
     name: ES_OPS_INSTANCE_RAM
     value: "8G"
   -
-    description: "(Deprecated) Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
+    description: "(Deprecated) Size of the PersistentVolumeClaim to create per Elasticsearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead."
     name: ES_OPS_PVC_SIZE
   -
     description: "(Deprecated) Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size ES_OPS_PVC_SIZE."

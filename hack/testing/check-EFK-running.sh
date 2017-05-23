@@ -20,7 +20,7 @@ if [[ $# -eq 1 ]]; then
 	oal_kibana_components+=( "kibana-ops" )
 fi
 
-# Currently one DeploymentConfig per ElasticSearch
+# Currently one DeploymentConfig per Elasticsearch
 # replica is created, and is therefore given a long
 # unique name that we do not know beforehand. We
 # only know that there should be DCs with the
@@ -30,13 +30,13 @@ fi
 # are used to deploy the cluster instead.
 es_dcs="$( oc get deploymentconfigs --namespace logging --selector component=es -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-es-[a-zA-Z0-9]{8}" )"
 if [[ "$( wc -w <<<"${es_dcs}" )" -ne 1 ]]; then
-	os::log::fatal "Expected to find one ElasticSearch DeploymentConfig, got: '${es_dcs:-"<none>"}'"
+	os::log::fatal "Expected to find one Elasticsearch DeploymentConfig, got: '${es_dcs:-"<none>"}'"
 fi
 oal_expected_deploymentconfigs+=( ${es_dcs} )
 if [[ $# -eq 1 ]]; then
 	es_ops_dcs="$( oc get deploymentconfigs --namespace logging --selector component=es-ops -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-es-ops-[a-zA-Z0-9]{8}" )"
 	if [[ "$( wc -w <<<"${es_ops_dcs}" )" -ne 1 ]]; then
-		os::log::fatal "Expected to find one OPS ElasticSearch DeploymentConfig, got: '${es_ops_dcs:-"<none>"}'"
+		os::log::fatal "Expected to find one OPS Elasticsearch DeploymentConfig, got: '${es_ops_dcs:-"<none>"}'"
 	fi
 	oal_expected_deploymentconfigs+=( ${es_ops_dcs} )
 fi

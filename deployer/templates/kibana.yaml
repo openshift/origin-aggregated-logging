@@ -11,7 +11,7 @@ objects:
   metadata:
     name: logging-${KIBANA_DEPLOY_NAME}-template
     annotations:
-      description: "Template for deploying log viewer Kibana connecting to ElasticSearch to visualize aggregated cluster logs."
+      description: "Template for deploying log viewer Kibana connecting to Elasticsearch to visualize aggregated cluster logs."
       tags: "infrastructure"
     labels:
       logging-infra: kibana
@@ -133,11 +133,11 @@ parameters:
   name: OAP_PUBLIC_MASTER_URL
   required: true
 -
-  description: "Hostname/IP for ElasticSearch backend to connect to."
+  description: "Hostname/IP for Elasticsearch backend to connect to."
   name: ES_HOST
   value: "logging-es"
 -
-  description: "Port to connect to for ElasticSearch backend."
+  description: "Port to connect to for Elasticsearch backend."
   name: ES_PORT
   value: "9200"
 -

@@ -31,17 +31,17 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
 fi
 
 USE_JOURNAL="${USE_JOURNAL}"    \
-OAL_ELASTICSEACH_COMPONENT="es" \
+OAL_ELASTICSEARCH_COMPONENT="es" \
 OAL_KIBANA_COMPONENT="kibana"   \
-OAL_ELASTICSEACH_SERVICE="logging-es" \
+OAL_ELASTICSEARCH_SERVICE="logging-es" \
 "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
 
 if [[ $# -eq 1 ]]; then
   # There is an ops cluster set up, so we
   # need to verify it's functionality as well.
   USE_JOURNAL="${USE_JOURNAL}"        \
-  OAL_ELASTICSEACH_COMPONENT="es-ops" \
+  OAL_ELASTICSEARCH_COMPONENT="es-ops" \
   OAL_KIBANA_COMPONENT="kibana-ops"   \
-  OAL_ELASTICSEACH_SERVICE="logging-es-ops" \
+  OAL_ELASTICSEARCH_SERVICE="logging-es-ops" \
   "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
 fi

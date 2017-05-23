@@ -197,43 +197,43 @@ parameters:
   name: MASTER_URL
   value: "https://kubernetes.default.svc.cluster.local"
 -
-  description: "Hostname (or IP) for reaching ElasticSearch to write logs"
+  description: "Hostname (or IP) for reaching Elasticsearch to write logs"
   name: ES_HOST
   value: "logging-es"
 -
-  description: "Port number for reaching ElasticSearch to write logs"
+  description: "Port number for reaching Elasticsearch to write logs"
   name: ES_PORT
   value: "9200"
 -
-  description: "Location of client certificate for authenticating to ElasticSearch to write logs"
+  description: "Location of client certificate for authenticating to Elasticsearch to write logs"
   name: ES_CLIENT_CERT
   value: "/etc/fluent/keys/cert"
 -
-  description: "Location of client key for authenticating to ElasticSearch to write logs"
+  description: "Location of client key for authenticating to Elasticsearch to write logs"
   name: ES_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connection to ElasticSearch to write logs"
+  description: "Location of CA cert for validating connection to Elasticsearch to write logs"
   name: ES_CA
   value: "/etc/fluent/keys/ca"
 -
-  description: "Hostname (or IP) for reaching ElasticSearch to write cluster logs"
+  description: "Hostname (or IP) for reaching Elasticsearch to write cluster logs"
   name: OPS_HOST
   value: "logging-es"
 -
-  description: "Port number for reaching ElasticSearch to write cluster logs"
+  description: "Port number for reaching Elasticsearch to write cluster logs"
   name: OPS_PORT
   value: "9200"
 -
-  description: "Location of client certificate for authenticating to ElasticSearch to write cluster logs"
+  description: "Location of client certificate for authenticating to Elasticsearch to write cluster logs"
   name: OPS_CLIENT_CERT
   value: "/etc/fluent/keys/cert"
 -
-  description: "Location of client key for authenticating to ElasticSearch to write cluster logs"
+  description: "Location of client key for authenticating to Elasticsearch to write cluster logs"
   name: OPS_CLIENT_KEY
   value: "/etc/fluent/keys/key"
 -
-  description: "Location of CA cert for validating connection to ElasticSearch to write cluster logs"
+  description: "Location of CA cert for validating connection to Elasticsearch to write cluster logs"
   name: OPS_CA
   value: "/etc/fluent/keys/ca"
 -
@@ -241,67 +241,67 @@ parameters:
   name: ES_COPY
   value: "false"
 -
-  description: "Hostname (or IP) for additional ElasticSearch"
+  description: "Hostname (or IP) for additional Elasticsearch"
   name: ES_COPY_HOST
   value: ""
 -
-  description: "Port number for additional ElasticSearch"
+  description: "Port number for additional Elasticsearch"
   name: ES_COPY_PORT
   value: ""
 -
-  description: "URL scheme for additional ElasticSearch - http or https - default is https"
+  description: "URL scheme for additional Elasticsearch - http or https - default is https"
   name: ES_COPY_SCHEME
   value: "https"
 -
-  description: "Location of client certificate for authenticating to additional ElasticSearch"
+  description: "Location of client certificate for authenticating to additional Elasticsearch"
   name: ES_COPY_CLIENT_CERT
   value: ""
 -
-  description: "Location of client key for authenticating to additional ElasticSearch"
+  description: "Location of client key for authenticating to additional Elasticsearch"
   name: ES_COPY_CLIENT_KEY
   value: ""
 -
-  description: "Location of CA cert for validating connection to additional ElasticSearch"
+  description: "Location of CA cert for validating connection to additional Elasticsearch"
   name: ES_COPY_CA
   value: ""
 -
-  description: "Username for username/password auth to connection to additional ElasticSearch"
+  description: "Username for username/password auth to connection to additional Elasticsearch"
   name: ES_COPY_USERNAME
   value: ""
 -
-  description: "Password for username/password auth to connection to additional ElasticSearch"
+  description: "Password for username/password auth to connection to additional Elasticsearch"
   name: ES_COPY_PASSWORD
   value: ""
 -
-  description: "Hostname (or IP) for additional ElasticSearch to write cluster logs"
+  description: "Hostname (or IP) for additional Elasticsearch to write cluster logs"
   name: OPS_COPY_HOST
   value: ""
 -
-  description: "Port number for additional ElasticSearch to write cluster logs"
+  description: "Port number for additional Elasticsearch to write cluster logs"
   name: OPS_COPY_PORT
   value: ""
 -
-  description: "URL scheme for additional ElasticSearch to write cluster logs - http or https - default is https"
+  description: "URL scheme for additional Elasticsearch to write cluster logs - http or https - default is https"
   name: OPS_COPY_SCHEME
   value: "https"
 -
-  description: "Location of client certificate for authenticating to additional ElasticSearch to write cluster logs"
+  description: "Location of client certificate for authenticating to additional Elasticsearch to write cluster logs"
   name: OPS_COPY_CLIENT_CERT
   value: ""
 -
-  description: "Location of client key for authenticating to additional ElasticSearch to write cluster logs"
+  description: "Location of client key for authenticating to additional Elasticsearch to write cluster logs"
   name: OPS_COPY_CLIENT_KEY
   value: ""
 -
-  description: "Location of CA cert for validating connectiong to additional ElasticSearch to write cluster logs"
+  description: "Location of CA cert for validating connectiong to additional Elasticsearch to write cluster logs"
   name: OPS_COPY_CA
   value: ""
 -
-  description: "Username for username/password auth to connection to additional ElasticSearch to write cluster logs"
+  description: "Username for username/password auth to connection to additional Elasticsearch to write cluster logs"
   name: OPS_COPY_USERNAME
   value: ""
 -
-  description: "Password for username/password auth to connection to additional ElasticSearch to write cluster logs"
+  description: "Password for username/password auth to connection to additional Elasticsearch to write cluster logs"
   name: OPS_COPY_PASSWORD
   value: ""
 -

@@ -3,7 +3,7 @@ kind: "Template"
 metadata:
   name: logging-pv-template
   annotations:
-    description: "Template for deploying a test volume with an nfs mount for ElasticSearch to use for storage."
+    description: "Template for deploying a test volume with an nfs mount for Elasticsearch to use for storage."
     tags: "infrastructure"
   labels:
     logging-infra: elasticsearch-pv

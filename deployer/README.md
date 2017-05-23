@@ -13,7 +13,7 @@
   * [Upgrading your EFK stack](#upgrading-your-efk-stack)
   * [Uninstall and Reinstall](#uninstall-and-reinstall)
 * [Using Kibana](#using-kibana)
-* [Adjusting ElasticSearch After Deployment](#adjusting-elasticsearch-after-deployment)
+* [Adjusting Elasticsearch After Deployment](#adjusting-elasticsearch-after-deployment)
 * [Checking EFK Health](#checking-efk-health)
 * [Troubleshooting](#troubleshooting)
 
@@ -22,7 +22,7 @@
 The deployer pod can enable deploying the full stack of the aggregated
 logging solution with just a few prerequisites:
 
-1. Sufficient volumes defined for ElasticSearch cluster storage.
+1. Sufficient volumes defined for Elasticsearch cluster storage.
 2. A router deployment for serving cluster-defined routes for Kibana.
 
 The deployer generates all the necessary certs/keys/etc for cluster
@@ -101,15 +101,15 @@ but will still precede the corresponding template values within the deployer pod
 You will need to specify the hostname at which Kibana should be
 exposed to client browsers, and also the master URL where client
 browsers will be directed for authenticating to OpenShift. You should
-read the [ElasticSearch](#elasticsearch) section below before choosing
-ElasticSearch parameters for the deployer. These and other parameters
+read the [Elasticsearch](#elasticsearch) section below before choosing
+Elasticsearch parameters for the deployer. These and other parameters
 are available:
 
 * `kibana-hostname`: External hostname where web clients will reach Kibana
 * `public-master-url`: External URL for the master, for OAuth purposes
-* `es-cluster-size`: How many instances of ElasticSearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
-* `es-instance-ram`: Amount of RAM to reserve per ElasticSearch instance (e.g. 1024M, 2G). Defaults to 8GiB; must be at least 512M (Ref.: [ElasticSearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
-* `es-pvc-size`: Size of the PersistentVolumeClaim to create per ElasticSearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead.
+* `es-cluster-size`: How many instances of Elasticsearch to deploy. At least 3 are needed for redundancy, and more can be used for scaling.
+* `es-instance-ram`: Amount of RAM to reserve per Elasticsearch instance (e.g. 1024M, 2G). Defaults to 8GiB; must be at least 512M (Ref.: [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/guide/current/hardware.html#_memory).
+* `es-pvc-size`: Size of the PersistentVolumeClaim to create per Elasticsearch ops instance, e.g. 100G. If empty, no PVCs will be created and emptyDir volumes are used instead.
 * `es-pvc-prefix`: Prefix for the names of PersistentVolumeClaims to be created; a number will be appended per instance. If they don't already exist, they will be created with size `es-pvc-size`.
 * `es-pvc-dynamic`: Set to `true` to have created PersistentVolumeClaims annotated such that their backing storage can be dynamically provisioned (if that is available for your cluster).
 * `storage-group`: Number of a supplemental group ID for access to Elasticsearch storage volumes; backing volumes should allow access by this group ID (defaults to 65534).
@@ -234,7 +234,7 @@ deployer creates and how to change them.
 ### Ops cluster
 
 If you set `enable-ops-cluster` to `true` for the deployer, fluentd
-expects to split logs between the main ElasticSearch cluster and another
+expects to split logs between the main Elasticsearch cluster and another
 cluster reserved for operations logs (which are defined as node system
 logs and the projects `default`, `openshift`, and `openshift-infra`). Thus
 a separate Elasticsearch cluster, a separate Kibana, and a separate
@@ -242,20 +242,20 @@ Curator are deployed to index, access, and manage operations logs. These
 deployments are set apart with the `-ops` included in their names. Keep
 these separate deployments in mind while reading the following.
 
-### ElasticSearch
+### Elasticsearch
 
-The deployer creates the number of ElasticSearch instances specified by
-`es-cluster-size`. The nature of ElasticSearch and current Kubernetes
+The deployer creates the number of Elasticsearch instances specified by
+`es-cluster-size`. The nature of Elasticsearch and current Kubernetes
 limitations require that we use a different scaling mechanism than the
 standard Kubernetes scaling.
 
 Scaling a standard deployment (a Kubernetes ReplicationController)
 to multiple pods currently mounts the same volumes on all pods in the
-deployment. However, multiple ElasticSearch instances in a cluster
+deployment. However, multiple Elasticsearch instances in a cluster
 cannot share storage; each pod requires its own storage. Work is under
 way to enable specifying multiple volumes to be allocated individually
 to instances in a deployment, but for now the deployer creates multiple
-deployments in order to scale ElasticSearch to multiple instances. You
+deployments in order to scale Elasticsearch to multiple instances. You
 can view the deployments with:
 
     $ oc get dc --selector logging-infra=elasticsearch
@@ -279,7 +279,7 @@ as directed below.
 By default, the deployer creates an ephemeral deployment in which all
 of a pod's data will be lost any time it is restarted. For production
 use you should specify a persistent storage volume for each deployment
-of ElasticSearch. The deployer parameters with `-pvc-` in the name should
+of Elasticsearch. The deployer parameters with `-pvc-` in the name should
 be used for this. You can either use a pre-existing set of PVCs (specify
 a common prefix for their names and append numbers starting at 1, for
 example with default prefix `logging-es-` supply PVCs `logging-es-1`,
@@ -311,7 +311,7 @@ you would like to use, you can set it with:
 
 #### Node selector
 
-ElasticSearch can be very resource-heavy, particularly in RAM, depending
+Elasticsearch can be very resource-heavy, particularly in RAM, depending
 on the volume of logs your cluster generates. Per Elastic's guidance,
 all members of the cluster should have low latency network connections
 to each other.  You will likely want to direct the instances to dedicated
@@ -342,7 +342,7 @@ oc patch dc/logging-es-{unique name} -p '{"spec":{"template":{"spec":{"nodeSelec
 Recall that the default scheduler algorithm will spread pods to different
 nodes (in the same region, if regions are defined). However this can
 have unexpected consequences in several scenarios and you will most
-likely want to label and specify designated nodes for ElasticSearch.
+likely want to label and specify designated nodes for Elasticsearch.
 
 #### Cluster parameters
 
@@ -362,7 +362,7 @@ should be sufficient, unless you need to scale ES after deployment.
 
 Fluentd is deployed as a DaemonSet that deploys replicas according
 to a node label selector (which you can choose; the default is
-`logging-infra-fluentd`). Once you have ElasticSearch running as
+`logging-infra-fluentd`). Once you have Elasticsearch running as
 desired, label the nodes to deploy Fluentd to in order to feed
 logs into ES. The example below would label a node named
 'ip-172-18-2-170.ec2.internal' using the default Fluentd node selector.
@@ -803,14 +803,14 @@ Here is some information specific to the aggregated logging deployment.
 1. Login is performed via OAuth2, as with the web console. The default certificate
 authentication used for the admin user isn't available, but you can create
 other users and make them cluster admins.
-2. Kibana and ElasticSearch have been customized to display logs only
+2. Kibana and Elasticsearch have been customized to display logs only
 to users that have access to the projects the logs came from. So if you login
 and have no access to anything, be sure your user has access to at least one
 project. Cluster admin users should have access to all project logs as
 well as host logs.
-3. To do anything with ElasticSearch and Kibana, Kibana has to have
+3. To do anything with Elasticsearch and Kibana, Kibana has to have
 defined some index patterns that match indices being recorded in
-ElasticSearch. This should already be done for you, but you should be
+Elasticsearch. This should already be done for you, but you should be
 aware how these work in case you want to customize anything. When logs
 from applications in a project are recorded, they are indexed by project
 name and date in the format `project.name.YYYY-MM-DD`. For matching a project's
@@ -830,16 +830,16 @@ user to be able to view these logs, run `$ oc edit configmap/logging-elasticsear
 change the value of `openshift.operations.allow_cluster_reader` to `true` and
 restart your ES cluster.
 
-# Adjusting ElasticSearch After Deployment
+# Adjusting Elasticsearch After Deployment
 
-If you need to change the ElasticSearch cluster size after deployment,
-DO NOT just scale existing deployments up or down. ElasticSearch cannot
+If you need to change the Elasticsearch cluster size after deployment,
+DO NOT just scale existing deployments up or down. Elasticsearch cannot
 scale by ordinary Kubernetes mechanisms, as explained above. Each instance
 requires its own storage, and thus under current capabilities, its own
 deployment. The deployer defined a template `logging-es-template` which
-can be used to create new ElasticSearch deployments.
+can be used to create new Elasticsearch deployments.
 
-Adjusting the scale of the ElasticSearch cluster
+Adjusting the scale of the Elasticsearch cluster
 typically requires adjusting cluster parameters that
 vary by cluster size. [Elastic documentation discusses these
 issues](https://www.elastic.co/guide/en/elasticsearch/guide/current/_important_configuration_changes.html)
@@ -852,15 +852,15 @@ and existing deployments when changing the cluster size.
 Changing cluster parameters (or any parameters/secrets, really) requires
 re-deploying the instances. In order to minimize resynchronization
 between the instances as they are restarted, we advise halting traffic to
-ElasticSearch and then taking down the entire cluster for maintenance. No
+Elasticsearch and then taking down the entire cluster for maintenance. No
 logs will be lost; Fluentd simply blocks until the cluster returns.
 
-Halting traffic to ElasticSearch requires scaling down Kibana and removing node labels for Fluentd:
+Halting traffic to Elasticsearch requires scaling down Kibana and removing node labels for Fluentd:
 
     $ oc label node --all logging-infra-
     $ oc scale rc/logging-kibana-1 --replicas=0
 
-Next scale all of the ElasticSearch deployments to 0 similarly.
+Next scale all of the Elasticsearch deployments to 0 similarly.
 
     $ oc get rc --selector logging-infra=elasticsearch
     $ oc scale rc/logging-es-... --replicas=0
@@ -1059,7 +1059,7 @@ with a non-zero exit code, and no deployed pods, e.g.:
     NAME                           READY     STATUS             RESTARTS   AGE
     logging-es-2e7ut0iq-1-deploy   1/1       ExitCode:255       0          1m
 
-(In this example, the deployer pod name for an ElasticSearch deployment is shown;
+(In this example, the deployer pod name for an Elasticsearch deployment is shown;
 this is from ReplicationController `logging-es-2e7ut0iq-1` which is a deployment
 of DeploymentConfig `logging-es-2e7ut0iq`.)
 
@@ -1128,7 +1128,7 @@ If everything is deployed but visiting Kibana results in a proxy
 error, then one of the following things is likely to be the issue.
 
 First, Kibana might not actually have any pods that are recognized
-as running. If ElasticSearch is slow in starting up, Kibana may
+as running. If Elasticsearch is slow in starting up, Kibana may
 error out trying to reach it, and won't be considered alive. You can
 check whether the relevant service has any endpoints:
 
