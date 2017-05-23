@@ -94,6 +94,9 @@ if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
     if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift
     fi
+    # rm k8s meta plugin - do not hit the API server
+    rm $CFG_DIR/openshift/filter-k8s-meta.conf
+    touch $CFG_DIR/openshift/filter-k8s-meta.conf
 else
     rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf
 fi
