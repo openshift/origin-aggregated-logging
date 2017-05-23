@@ -59,7 +59,12 @@ IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \(
 export IPADDR4 IPADDR6
 
 export BUFFER_QUEUE_LIMIT=${BUFFER_QUEUE_LIMIT:-1024}
-export BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
+export BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
+export MUX_CPU_LIMIT=${MUX_CPU_LIMIT:-500m}
+export MUX_MEMORY_LIMIT=${MUX_MEMORY_LIMIT:-2Gi}
+
+mkdir /var/fluentd
+chmod 0700 /var/fluentd
 
 CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then

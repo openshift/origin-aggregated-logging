@@ -43,6 +43,10 @@ openshift_logging_es_log_appenders=['console']
 openshift_logging_use_mux=${USE_MUX:-false}
 openshift_logging_mux_allow_external=${MUX_ALLOW_EXTERNAL:-false}
 openshift_logging_use_mux_client=${USE_MUX_CLIENT:-false}
+$SET_MUX_CPU_LIMIT
+$SET_MUX_MEMORY_LIMIT
+$SET_MUX_BUFFER_QUEUE_LIMIT
+$SET_MUX_BUFFER_SIZE_LIMIT
 $ES_ALLOW_EXTERNAL
 $ES_HOSTNAME
 $ES_OPS_ALLOW_EXTERNAL

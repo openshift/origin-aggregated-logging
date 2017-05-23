@@ -44,6 +44,12 @@ export USE_MUX=${USE_MUX:-false}
 if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true ] ; then
     export USE_MUX=true
 fi
+if [ "$MUX_ALLOW_EXTERNAL" = true ] ; then
+    export SET_MUX_CPU_LIMIT="openshift_logging_mux_cpu_limit=${MUX_CPU_LIMIT:-500m}"
+    export SET_MUX_MEMORY_LIMIT="openshift_logging_mux_memory_limit=${MUX_MEMORY_LIMIT:-2Gi}"
+    export SET_MUX_BUFFER_QUEUE_LIMIT="openshift_logging_mux_buffer_queue_limit=${MUX_BUFFER_QUEUE_LIMIT:-1024}"
+    export SET_MUX_BUFFER_SIZE_LIMIT="openshift_logging_mux_buffer_size_limit=${MUX_BUFFER_SIZE_LIMIT:-1048576}"
+fi
 
 # use a few tools from the deployer
 source "$OS_O_A_L_DIR/deployer/scripts/util.sh"
