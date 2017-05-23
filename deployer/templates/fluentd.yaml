@@ -308,3 +308,11 @@ parameters:
   description: 'Read the journal starting from the very beginning (false|true).'
   name: JOURNAL_READ_FROM_HEAD
   value: "false"
+-
+  description: 'Fluentd buffer queue limit (0.12 only)'
+  name: BUFFER_QUEUE_LIMIT
+  value: "1024"
+-
+  description: 'Fluentd buffer size limit'
+  name: BUFFER_SIZE_LIMIT
+  value: "1048576"
