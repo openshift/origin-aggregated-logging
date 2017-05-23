@@ -22,6 +22,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       ruby-devel \
       libcurl-devel \
       make \
+      bc \
       iproute && \
     yum clean all
 RUN mkdir -p ${HOME} && \
