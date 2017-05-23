@@ -343,4 +343,4 @@ parameters:
 -
   description: 'Fluentd buffer size limit'
   name: BUFFER_SIZE_LIMIT
-  value: "16777216"
+  value: "1048576"
