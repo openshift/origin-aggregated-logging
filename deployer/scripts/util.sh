@@ -420,7 +420,7 @@ function curl_es() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 function query_es_from_es() {
-    curl_es "$1" "/${2}*/${3}\?q=${4}:${5}" --connect-timeout 1
+    curl_es "$1" "/${2}*/${3}?q=${4}:${5}" --connect-timeout 1
 }
 
 # $1 is es pod
