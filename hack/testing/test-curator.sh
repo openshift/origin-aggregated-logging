@@ -340,12 +340,7 @@ basictest() {
     # see what the current time and timezone are in the curator pod
     oc exec $curpod -- date
     # calculate the runhour and runminute to run 5 minutes from now
-    # There is apparently a bug in el7 - this doesn't work:
-    # date +%H --date="TZ=\"Region/City\" 5 minutes hence"
-    ## date: invalid date ‘TZ="Region/City" 5 minutes hence’
-    # so for now, just use UTC
-    #tz=`timedatectl | awk '/Time zone:/ {print $3}'`
-    tz=UTC
+    tz=`timedatectl | awk '/Time zone:/ {print $3}'`
     runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
     runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
