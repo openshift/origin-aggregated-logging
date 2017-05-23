@@ -35,8 +35,32 @@ IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \
 IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \([a-f0-9:]*\).*/\1/"`
 export IPADDR4 IPADDR6
 
+BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
+FLUENTD_CPU_LIMIT=${FLUENTD_CPU_LIMIT:-100m}
+FLUENTD_MEMORY_LIMIT=${FLUENTD_MEMORY_LIMIT:-512Mi}
+
 CFG_DIR=/etc/fluent/configs.d
 ruby generate_throttle_configs.rb
+
+TOTAL_MEMORY_LIMIT=`echo $FLUENTD_MEMORY_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
+BUFFER_SIZE_LIMIT=`echo $BUFFER_SIZE_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
+if [ $BUFFER_SIZE_LIMIT -eq 0 ]; then
+    BUFFER_SIZE_LIMIT=1048576
+fi
+
+DIV=1
+if [ "$ES_HOST" != "$OPS_HOST" ] || [ "$ES_PORT" != "$OPS_PORT" ] ; then
+    # using ops cluster
+    DIV=`expr $DIV \* 2`
+fi
+
+# MEMORY_LIMIT per buffer
+MEMORY_LIMIT=`expr $TOTAL_MEMORY_LIMIT / $DIV`
+BUFFER_QUEUE_LIMIT=`expr $MEMORY_LIMIT / $BUFFER_SIZE_LIMIT`
+if [ $BUFFER_QUEUE_LIMIT -eq 0 ]; then
+    BUFFER_QUEUE_LIMIT=1024
+fi
+export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT
 
 OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
 OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"
