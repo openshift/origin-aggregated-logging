@@ -7,7 +7,7 @@ set -o pipefail
 STARTTIME=$(date +%s)
 
 prefix="${PREFIX:-docker.io/openshift/origin-}"
-version="${OS_TAG:-latest}" 
+version="${OS_TAG:-latest}"
 
 source_root=$(dirname "${0}")/..
 
@@ -18,8 +18,6 @@ declare -A source_for=(
   [logging-kibana]=kibana
   [logging-curator]=curator
   [logging-auth-proxy]=kibana-proxy
-  [logging-deployer]=deployer
-  [logging-deployment]=deployer
 )
 for component in ${!source_for[@]} ; do
   BUILD_STARTTIME=$(date +%s)
