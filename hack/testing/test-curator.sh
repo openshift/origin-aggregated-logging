@@ -11,7 +11,7 @@ set -o nounset
 set -o pipefail
 
 if ! type get_running_pod > /dev/null 2>&1 ; then
-    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
+    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh1
 fi
 
 if [[ $# -ne 1 || "$1" = "false" ]]; then
@@ -374,6 +374,18 @@ project3-qe:
   delete:
     days: 7
 EOF
+
+    echo "[DEBUG] \$today=${today}"
+    echo "[DEBUG] \$yesterday=${yesterday}"
+    echo "[DEBUG] \$lastweek=${lastweek}"
+    echo "[DEBUG] \$fourweeksago=${fourweeksago}"
+    echo "[DEBUG] \$thirtyonedaysago=${thirtyonedaysago}"
+    echo "[DEBUG] \$twomonthsago=${twomonthsago}"
+    echo "[DEBUG] \$pod_time=$( oc exec $curpod -- date -u +"$tf" )"
+    echo "[DEBUG] \$runhour=${runhour}"
+    echo "[DEBUG] \$runminute=${runminute}"
+    echo "[DEBUG] config yaml: $( cat "${curtest}" )"
+
     update_config_and_restart $curtest
     # wait for curator run 1 to finish
     wait_for_curator_run $curpod 1
