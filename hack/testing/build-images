@@ -31,5 +31,5 @@ os::cmd::expect_success "oc process -o yaml \
    | build_filter | oc create -f -"
 post_build
 os::cmd::expect_success "wait_for_builds_complete"
-imageprefix=`oc get is | awk '$1 == "logging-elasticsearch" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
+imageprefix=`oc get svc/docker-registry -n default -o jsonpath='{.spec.clusterIP}:{.spec.ports[?(@.name == "5000-tcp")].port}/logging/'`
 sleep 5
