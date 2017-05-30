@@ -158,13 +158,11 @@ os::start::router
 
 os::test::junit::declare_suite_start "logging"
 ######### logging specific code starts here ####################
-# not sure how/where this could be created before this . . .
-oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
-os::cmd::expect_success "oc project logging > /dev/null"
-
 #initialize logging stack
 source $OS_O_A_L_DIR/hack/testing/init-log-stack
 source $OS_O_A_L_DIR/hack/testing/lib/test-functions
+
+os::cmd::expect_success "oc project logging > /dev/null"
 
 # see if expected pods are running
 os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
@@ -191,24 +189,6 @@ else
     USE_CLUSTER=
     ops_host=logging-es
 fi
-
-### many of the tests require the logging-fluentd-template ###
-### remove this when we port the tests not to use the template ###
-lfds=`mktemp`
-oc get daemonset logging-fluentd -o yaml | grep -A 1 "nodeSelector:" | \
-    sed 's/^/    /' > $lfds
-# have to indent the value from the daemonset by 4 because we are inserting it
-# into a template
-sed "/serviceAccountName/r$lfds" $OS_O_A_L_DIR/deployer/templates/fluentd.yaml | \
-oc new-app --param MASTER_URL=${MASTER_URL:-https://kubernetes.default.svc.cluster.local} \
-   --param ES_HOST=logging-es --param OPS_HOST=$ops_host \
-   --param IMAGE_VERSION_DEFAULT=latest --param IMAGE_PREFIX_DEFAULT=$imageprefix \
-   --param USE_JOURNAL=${USE_JOURNAL:-""} \
-   --param JOURNAL_SOURCE=${JOURNAL_SOURCE:-""} \
-   --param JOURNAL_READ_FROM_HEAD=${JOURNAL_READ_FROM_HEAD:-false} \
-   -f -
-rm -f $lfds
-### remove this when we port the tests not to use the template ###
 
 # when fluentd starts up it may take a while before it catches up with all of the logs
 # let's wait until that happens
@@ -300,72 +280,16 @@ else
     ./e2e-test.sh $USE_CLUSTER
     # test-* tests modify data and are not generally safe to use
     # in production environments
-    for test in test-*.sh ; do
-        if [ $test = test-upgrade.sh ] ; then
-            echo SKIPPING upgrade test for now
-            continue
-        fi
-        if [ -x ./$test ] ; then
-            echo running test $test
-            (. ./$test $USE_CLUSTER)
-        fi
-    done
+
+    ## Commenting out component tests for now...
+    #for test in test-*.sh ; do
+    #    if [ -x ./$test ] ; then
+    #        echo running test $test
+    #        (. ./$test $USE_CLUSTER)
+    #    fi
+    #done
+    ## Commenting out component tests for now...
 fi
-
-function reinstall() {
-  echo "running with reinstall mode"
-
-  os::cmd::expect_success "oc new-app \
-                        logging-deployer-template \
-                        -p IMAGE_PREFIX=$imageprefix \
-                        ${masterurlhack} ${pvc_params} \
-                        -p MODE=reinstall"
-
-  REINSTALL_POD=$(get_latest_pod "logging-infra=deployer")
-
-  # Giving the upgrade process a bit more time to run to completion... failed last time at 10 minutes
-  os::cmd::try_until_text "oc get pods $REINSTALL_POD" "Completed" "$(( 5 * TIME_MIN ))"
-
-  os::cmd::try_until_text "oc get pods -l component=es" "Running" "$(( 3 * TIME_MIN ))"
-  os::cmd::try_until_text "oc get pods -l component=kibana" "Running" "$(( 3 * TIME_MIN ))"
-  os::cmd::try_until_text "oc get pods -l component=curator" "Running" "$(( 3 * TIME_MIN ))"
-  os::cmd::try_until_text "oc get pods -l component=fluentd" "Running" "$(( 3 * TIME_MIN ))"
-}
-
-echo SKIPPING reinstall test for now
-exit 0
-
-TEST_DIVIDER="------------------------------------------"
-echo $TEST_DIVIDER
-reinstall
-
-os::cmd::try_until_text "oc get dc -o name -l component=es-ops" "ops"
-ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
-os::cmd::expect_success "oc patch $ops_dc \
-   -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
-barename=`echo $ops_dc|sed 's,deploymentconfig/,,'`
-
-# first cancel any current deployments
-deploy_num=`oc deploy $ops_dc --cancel=true | awk -F'[ #]+' '/^Cancelled deployment/ {print $3}'`
-if [ -n "${deploy_num}" ]; then
-  echo "Cancelling deployment ${deploy_num} for ${ops_dc}"
-  os::cmd::try_until_failure "oc describe pod/${barename}-${deploy_num}-deploy > /dev/null" "$(( 3 * TIME_MIN ))"
-else
-  echo No currently running deployments...
-fi
-
-# get the deployment number
-deploynum=`oc deploy $ops_dc --latest | awk -F'[ #]+' '/^Started deployment/ {print $3}'`
-if [ -z "${deploynum:-}" ] ; then
-    echo Error attempting to deploy $ops_dc
-    exit 1
-fi
-# look for a deployment with the given deployment number
-os::cmd::try_until_text "oc get pods -l deployment=${barename}-${deploynum}" "Running"  "$(( 3 * TIME_MIN ))"
-
-./e2e-test.sh $USE_CLUSTER
-
-popd
 ### finished logging tests ###
 
 ### END ###
