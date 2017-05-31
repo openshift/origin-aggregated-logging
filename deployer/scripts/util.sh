@@ -221,7 +221,7 @@ function wait_for_latest_build_complete() {
 function wait_for_new_builds_complete() {
 
   retries=30
-  for bc in $(oc get bc -l logging-infra -o jsonpath='{.items[*].metadata.name}'); do
+  for bc in $(oc get bc -l logging -o jsonpath='{.items[*].metadata.name}'); do
 
     for (( i = 1; i <= retries; i++ )); do
 
