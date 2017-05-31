@@ -373,11 +373,13 @@ function get_latest_pod() {
 
 # set the test_token, test_name, and test_ip for token auth
 function get_test_user_token() {
+    local current_project; current_project="$( oc project -q )"
     oc login --username=${LOG_ADMIN_USER:-${1:-admin}} --password=${LOG_ADMIN_PW:-${2:-admin}} > /dev/null
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
     test_ip="127.0.0.1"
     oc login --username=system:admin > /dev/null
+    oc project "${current_project}" > /dev/null
 }
 
 # $1 - kibana pod name
