@@ -109,8 +109,8 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
 
     # Set JVM HEAP size to half of available space
     num=$(($num/2/BYTES_PER_MEG))
-    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
-    info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
+    export ES_HEAP_SIZE="${num}m"
+    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
