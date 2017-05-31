@@ -158,6 +158,9 @@ os::start::router
 
 os::test::junit::declare_suite_start "logging"
 ######### logging specific code starts here ####################
+oc get project logging > /dev/null 2>&1 || os::cmd::expect_success "oadm new-project logging --node-selector=''"
+os::cmd::expect_success "oc project logging > /dev/null"
+
 #initialize logging stack
 source $OS_O_A_L_DIR/hack/testing/init-log-stack
 source $OS_O_A_L_DIR/hack/testing/lib/test-functions
