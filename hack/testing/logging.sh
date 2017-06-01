@@ -71,7 +71,7 @@ hsh["log-driver"] = "journald"
 json.dumps(hsh,indent=2)
 ' | sudo tee /etc/docker/daemon.json.new
         sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
-        sudo systemctl restart docker
+      sudo systemctl restart docker
     fi
     if grep -q -- '--log-driver=json-file' /etc/sysconfig/docker ; then
         sudo sed -i.bak 's/--log-driver=json-file/--log-driver=journald/' /etc/sysconfig/docker
@@ -92,10 +92,10 @@ fi
 export LOG_DIR=${LOG_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/logs}
 export ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging/artifacts}
 # include all the origin test libs we need
-if [ -f ${OS_ROOT}/hack/lib/init.sh ] ; then
+if [ -f "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh" ] ; then
     # disallow init.sh from calling setup_tmpdir_vars
     export OS_TMP_ENV_SET=origin-aggregated-logging
-    source ${OS_ROOT}/hack/lib/init.sh # one stop shopping
+    source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh" # one stop shopping
     os::util::environment::setup_tmpdir_vars origin-aggregated-logging
 else
     for lib in "${OS_ROOT}"/hack/{util.sh,text.sh} \

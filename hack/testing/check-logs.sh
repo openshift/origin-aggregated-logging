@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "${OS_ROOT}/hack/lib/init.sh"
+source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 
 docker_uses_journal() {
     # note the unintuitive logic - in this case, a 0 return means true, and a 1

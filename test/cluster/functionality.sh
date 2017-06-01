@@ -25,7 +25,7 @@
 #               USER
 #               PW
 #               }: credentials for the admin user
-source "${OS_ROOT}/hack/lib/init.sh"
+source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 os::util::environment::setup_time_vars
 
