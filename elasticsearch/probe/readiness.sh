@@ -17,7 +17,7 @@
 #
 
 # TODO: try re-use code from ./run.sh
-ES_REST_BASEURL=https://localhost:9200
+ES_REST_BASEURL=${ES_REST_BASEURL:-https://logging-es:9200}
 EXPECTED_RESPONSE_CODE=200
 secret_dir=/etc/elasticsearch/secret
 max_time=${max_time:-4}
@@ -33,6 +33,6 @@ response_code=$(curl -s -X HEAD \
 if [ ${response_code} == ${EXPECTED_RESPONSE_CODE} ]; then
   exit 0
 else
-  echo "Elasticsearch node is not ready to accept HTTP requests yet [response code: ${response_code}]"
+  echo "Elasticsearch node is not ready to accept HTTP requests at ${ES_REST_BASEURL} [response code: ${response_code}]"
   exit 1
 fi
