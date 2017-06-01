@@ -50,7 +50,6 @@ objects:
             -
               name: "elasticsearch"
               image: ${IMAGE_PREFIX}logging-elasticsearch:${IMAGE_VERSION}
-              imagePullPolicy: Always
               resources:
                 limits:
                   memory: "${INSTANCE_RAM}i"

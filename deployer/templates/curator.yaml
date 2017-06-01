@@ -60,7 +60,6 @@ objects:
           containers:
           - name: curator
             image: ${IMAGE_PREFIX}logging-curator:${IMAGE_VERSION}
-            imagePullPolicy: Always
             resources:
               limits:
                 cpu: 100m
