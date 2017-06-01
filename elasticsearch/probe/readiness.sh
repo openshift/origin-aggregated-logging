@@ -20,7 +20,7 @@
 ES_REST_BASEURL=https://localhost:9200
 EXPECTED_RESPONSE_CODE=200
 secret_dir=/etc/elasticsearch/secret
-max_time=${max_time:-4}
+max_time=${READINESS_PROBE_TIMEOUT:-30}
 
 response_code=$(curl -s -X HEAD \
     --cacert $secret_dir/admin-ca \
