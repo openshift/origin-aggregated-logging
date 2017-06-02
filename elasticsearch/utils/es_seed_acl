@@ -1,0 +1,41 @@
+#!/bin/bash -e
+
+source "logging"
+
+MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
+
+info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
+
+config=/usr/share/elasticsearch/config/elasticsearch.yml
+index=$(python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
+
+now=0
+numretries=0
+loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
+while ! /usr/share/elasticsearch/plugins/openshift-elasticsearch/sgadmin.sh \
+    -cd ${HOME}/sgconfig \
+    -i $index \
+    -ks /etc/elasticsearch/secret/searchguard.key \
+    -kst JKS \
+    -kspass kspass \
+    -ts /etc/elasticsearch/secret/searchguard.truststore \
+    -tst JKS \
+    -tspass tspass \
+    -nhnv \
+    -icl ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
+do
+    if ! expr $numretries % $loginterval ; then
+        warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"
+        warn "Seeding will continue to fail until the cluster status is YELLOW"
+        info "Remaining red indices: $(QUERY=_cat/indices es_util | grep "^red" | wc -l)"
+    fi
+    numretries=$((numretries+1))
+    sleep 10
+    now=$((now+40)) #wait plus 30s timeout from sgadmin
+done
+
+if [ ${now} -ge ${MAX_WAIT_SEED} ]; then
+    error "Giving up trying to seed ACL"
+    exit 1
+fi
+info "Seeded the searchguard ACL index"

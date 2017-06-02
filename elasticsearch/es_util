@@ -3,15 +3,17 @@
 # Utility to grab documents from the ES
 # instance using the admin certs and keys
 
-QUERY=${QUERY:-""} 
+QUERY=${QUERY:-""}
 INDEX=${INDEX:-"project.*"}
+TYPE=${TYPE:-"_search"}
 SIZE=${SIZE:-10}
 SORT=${SORT:-"@timestamp:desc"}
+OPTIONS=${OPTIONS:-"size=$SIZE&sort=$SORT&pretty"}
 
 BASE=${BASE:-https://localhost:9200}
 
 if [ -z "${QUERY:-}" ]; then
-  QUERY="$BASE/$INDEX/_search?size=$SIZE&sort=$SORT"
+  QUERY="$INDEX/$TYPE?$OPTIONS"
 fi
 
-curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key $QUERY | python -mjson.tool
+curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY"
