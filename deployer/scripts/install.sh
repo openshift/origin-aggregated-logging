@@ -85,6 +85,17 @@ function initialize_install_vars() {
   kibana_ops_memory_limit=${input_vars[kibana-ops-memory-limit]:-736Mi}
   kibana_ops_proxy_memory_limit=${input_vars[kibana-ops-proxy-memory-limit]:-96Mi}
 
+  es_min_masters=$(echo "$es_cluster_size / 2 + 1" | bc)
+  if [ "$es_cluster_size" -eq "1" ]; then
+    es_min_masters=1
+  fi
+
+  es_ops_min_masters=$(echo "$es_ops_cluster_size / 2 + 1" | bc)
+  if [ "$es_ops_cluster_size" -eq "1" ]; then
+    es_ops_min_masters=1
+  fi
+
+
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
   # *_NODESELECTOR
@@ -343,7 +354,7 @@ function generate_kibana_template(){
         --param KIBANA_MEMORY_LIMIT=${kibana_ops_memory_limit} \
         --param KIBANA_PROXY_MEMORY_LIMIT=${kibana_ops_proxy_memory_limit} \
         --param ES_HOST=logging-es-ops \
-        $image_params
+        "$image_params"
     fi
 }
 
@@ -352,14 +363,14 @@ function generate_curator_template(){
     --param ES_HOST=logging-es \
     --param MASTER_URL=${master_url} \
     --param CURATOR_DEPLOY_NAME=curator \
-    $image_params
+    "$image_params"
 
   if [ "${input_vars[enable-ops-cluster]}" == true ]; then
     create_template_optional_nodeselector "${input_vars[curator-ops-nodeselector]}" curator \
       --param ES_HOST=logging-es-ops \
       --param MASTER_URL=${master_url} \
       --param CURATOR_DEPLOY_NAME=curator-ops \
-      $image_params
+      "$image_params"
   fi
 }
 
@@ -377,7 +388,7 @@ function generate_fluentd_template(){
     --param USE_JOURNAL=${use_journal} \
     --param JOURNAL_READ_FROM_HEAD=${journal_read_from_head} \
     --param JOURNAL_SOURCE=${journal_source} \
-    $image_params
+    "$image_params"
 } #generate_fluentd_template()
 
 ######################################
@@ -421,8 +432,7 @@ function generate_es() {
   for ((n=1;n<=${es_cluster_size};n++)); do
     pvc="${es_pvc_prefix}$n"
     if [ "${pvcs[$pvc]}" != 1 -a "${es_pvc_size}" != "" ]; then # doesn't exist, create it
-      oc new-app logging-pvc-${es_dynamic}template \
-         --param "NAME=$pvc" --param "SIZE=${es_pvc_size}"
+      oc new-app logging-pvc-${es_dynamic}template -p "NAME=$pvc" -p "SIZE=${es_pvc_size}"
       pvcs["$pvc"]=1
     fi
     if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
@@ -443,8 +453,7 @@ function generate_es() {
     for ((n=1;n<=${es_ops_cluster_size};n++)); do
       pvc="${es_ops_pvc_prefix}$n"
       if [ "${pvcs[$pvc]}" != 1 -a "${es_ops_pvc_size}" != "" ]; then # doesn't exist, create it
-        oc new-app logging-pvc-${es_ops_dynamic}template \
-           --param "NAME=$pvc" --param "SIZE=${es_ops_pvc_size}"
+        oc new-app logging-pvc-${es_ops_dynamic}template -p "NAME=$pvc" -p "SIZE=${es_ops_pvc_size}"
         pvcs["$pvc"]=1
       fi
       if [ "${pvcs[$pvc]}" = 1 ]; then # exists (now), attach it
