@@ -40,7 +40,8 @@ ADD probe/ /usr/share/elasticsearch/probe/
 ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
-ADD es_util /usr/local/bin
+COPY utils/** /usr/local/bin/
+RUN ln -s /usr/local/bin/logging ${HOME}/logging
 
 WORKDIR ${HOME}
 USER 1000
