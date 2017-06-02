@@ -7,45 +7,7 @@ if [ ${DEBUG:-""} = "true" ]; then
     LOGLEVEL=7
 fi
 
-LOGLEVEL=${LOGLEVEL:-6}
-loglevelint=6
-case $LOGLEVEL in
-    debug) loglevelint=7 ;;
-    info) loglevelint=6 ;;
-    warn) loglevelint=5 ;;
-    error) loglevelint=4 ;;
-    [1-7]) loglevelint=$LOGLEVEL ;;
-    *) echo ERROR: LOGLEVEL must be a number from 1-7
-       echo 7 is DEBUG, 4 is ERROR, default 6 is INFO
-       exit 1 ;;
-esac
-
-log() {
-    lvlint=$1
-    if [ $loglevelint -ge $lvlint ] ; then
-        shift
-        lvl=$1
-        shift
-        printf "[%.23s][%-5s][container.run            ] " "`date -u +'%F %T,%N'`" $lvl
-        echo "$@"
-    fi
-}
-
-debug() {
-    log 7 DEBUG "$@"
-}
-
-info() {
-    log 6 INFO "$@"
-}
-
-warn() {
-    log 5 WARN "$@"
-}
-
-error() {
-    log 4 ERROR "$@"
-}
+source "logging"
 
 info Begin Elasticsearch startup script
 
@@ -128,56 +90,30 @@ wait_for_port_open() {
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
         $ES_REST_BASEURL) || test $response_code != "200"
-do
-    sleep $RETRY_INTERVAL
-    (( retry -= 1 )) || :
-    if (( retry == 0 )) ; then
-        timeouted=true
-        break
-    fi
-done
+    do
+        sleep $RETRY_INTERVAL
+        (( retry -= 1 )) || :
+        if (( retry == 0 )) ; then
+            timeouted=true
+            break
+        fi
+    done
 
-if [ $timeouted = true ] ; then
-    error "Timed out waiting for Elasticsearch to be ready"
-else
-    rm -f $LOG_FILE
-    info Elasticsearch is ready and listening at $ES_REST_BASEURL
-    return 0
-fi
-cat $LOG_FILE
-rm -f $LOG_FILE
-exit 1
-}
-
-seed_searchguard(){
-    info Seeding the searchguard ACL index
-
-    config=/usr/share/elasticsearch/config/elasticsearch.yml
-    index=$(python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
-
-    /usr/share/elasticsearch/plugins/openshift-elasticsearch/sgadmin.sh \
-        -cd ${HOME}/sgconfig \
-        -i $index \
-        -ks /etc/elasticsearch/secret/searchguard.key \
-        -kst JKS \
-        -kspass kspass \
-        -ts /etc/elasticsearch/secret/searchguard.truststore \
-        -tst JKS \
-        -tspass tspass \
-        -nhnv \
-        -icl ${DEBUG:+-dg}
-    
-    if [ $? -eq 0 ]; then
-      info "Seeded the searchguard ACL index"
+    if [ $timeouted = true ] ; then
+        error "Timed out waiting for Elasticsearch to be ready"
     else
-      error "Error seeding the searchguard ACL index"
-      exit 1
+        rm -f $LOG_FILE
+        info Elasticsearch is ready and listening at $ES_REST_BASEURL
+        return 0
     fi
+    cat $LOG_FILE
+    rm -f $LOG_FILE
+    exit 1
 }
 
 verify_or_add_index_templates() {
     wait_for_port_open
-    seed_searchguard
+    es_seed_acl
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # Give up on timeout and continue...
     # curl -v -s -X GET \
