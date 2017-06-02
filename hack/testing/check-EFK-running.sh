@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source "${OS_ROOT}/hack/lib/init.sh"
+source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 
 oal_expected_deploymentconfigs=( "logging-kibana" "logging-curator" )
 oal_expected_routes=( "logging-kibana" )

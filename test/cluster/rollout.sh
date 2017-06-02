@@ -13,7 +13,7 @@
 #                  ROUTES
 #                  }: $IFS-delimited lists of
 #    OpenShift ojects that are expected to exist
-source "${OS_ROOT}/hack/lib/init.sh"
+source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 
 os::test::junit::declare_suite_start "test/cluster/rollout"
 
