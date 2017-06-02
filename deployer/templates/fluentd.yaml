@@ -203,7 +203,7 @@ parameters:
 -
   description: "Hostname (or IP) for reaching ElasticSearch to write cluster logs"
   name: OPS_HOST
-  value: "logging-es"
+  value: "logging-es-ops"
 -
   description: "Port number for reaching ElasticSearch to write cluster logs"
   name: OPS_PORT
