@@ -343,6 +343,7 @@ basictest() {
     tz=`timedatectl | awk '/Time zone:/ {print $3}'`
     runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
     runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runtime=`TZ=$tz date +%s --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
 .defaults:
   delete:
@@ -387,8 +388,10 @@ EOF
        --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
        show indices --all-indices
 
-    echo sleeping $sleeptime seconds to see if runhour and runminute are working . . .
-    sleep $sleeptime
+    current_time="$( TZ=$tz date +%s )"
+    remaining_time="$(( runtime - current_time ))"
+    echo sleeping $remaining_time seconds to see if runhour and runminute are working . . .
+    sleep $remaining_time
     # wait for curator run 2 to finish
     wait_for_curator_run $curpod 2
     echo verify indices deletion again
