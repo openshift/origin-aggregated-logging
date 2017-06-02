@@ -128,30 +128,30 @@ wait_for_port_open() {
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
         $ES_REST_BASEURL) || test $response_code != "200"
-do
-    sleep $RETRY_INTERVAL
-    (( retry -= 1 )) || :
-    if (( retry == 0 )) ; then
-        timeouted=true
-        break
-    fi
-done
+    do
+        sleep $RETRY_INTERVAL
+        (( retry -= 1 )) || :
+        if (( retry == 0 )) ; then
+            timeouted=true
+            break
+        fi
+    done
 
-if [ $timeouted = true ] ; then
-    error "Timed out waiting for Elasticsearch to be ready"
-else
+    if [ $timeouted = true ] ; then
+        error "Timed out waiting for Elasticsearch to be ready"
+    else
+        rm -f $LOG_FILE
+        info Elasticsearch is ready and listening at $ES_REST_BASEURL
+        return 0
+    fi
+    cat $LOG_FILE
     rm -f $LOG_FILE
-    info Elasticsearch is ready and listening at $ES_REST_BASEURL
-    return 0
-fi
-cat $LOG_FILE
-rm -f $LOG_FILE
-exit 1
+    exit 1
 }
 
-seed_searchguard(){
-    info Seeding the searchguard ACL index
-    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
+seed_searchguard() {
+    info "Seeding the searchguard ACL index"
+    while ! /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
         -cd ${HOME}/sgconfig \
         -i .searchguard.${HOSTNAME} \
         -ks /etc/elasticsearch/secret/searchguard.key \
@@ -162,13 +162,11 @@ seed_searchguard(){
         -tspass tspass \
         -nhnv \
         -icl ${DEBUG:+-dg}
-    
-    if [ $? -eq 0 ]; then
-      info "Seeded the searchguard ACL index"
-    else
-      error "Error seeding the searchguard ACL index"
-      exit 1
-    fi
+    do
+        warn "Error seeding the searchguard ACL index... retrying in 10 seconds"
+        sleep 10
+    done
+    info "Seeded the searchguard ACL index"
 }
 
 verify_or_add_index_templates() {
