@@ -28,8 +28,9 @@ oc process -o yaml \
 os::cmd::expect_success "oc process -o yaml \
    -f $OS_O_A_L_DIR/hack/templates/$dev_build_template \
    -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \
-   | build_filter | oc create -f -"
+   | build_filter | oc create -n logging -f -"
 post_build
-os::cmd::expect_success "wait_for_builds_complete"
-imageprefix=`oc get is | awk '$1 == "logging-elasticsearch" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
+os::cmd::expect_success "wait_for_new_builds_complete"
+oc get is --all-namespaces
+imageprefix=`oc get svc/docker-registry -n default -o jsonpath='{.spec.clusterIP}:{.spec.ports[?(@.name == "5000-tcp")].port}/logging/'`
 sleep 5
