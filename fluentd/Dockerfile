@@ -28,8 +28,11 @@ RUN mkdir -p ${HOME} && \
     gem install -N --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
+      'elasticsearch-transport:<5' \
+      'elasticsearch-api:<5' \
+      'elasticsearch:<5' \
       fluent-plugin-kubernetes_metadata_filter \
-      fluent-plugin-elasticsearch \
+      'fluent-plugin-elasticsearch:>1.9.2' \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
       fluent-plugin-rewrite-tag-filter \
