@@ -26,7 +26,11 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
-oadm new-project testproj --node-selector=''
+if oc get project testproj > /dev/null 2>&1 ; then
+    echo using existing project testproj
+else
+    oadm new-project testproj --node-selector='' > /dev/null
+fi
 
 print_message() {
     if [ "${VERBOSE:-false}" = true ] ; then
@@ -385,7 +389,11 @@ echo "fluentd forwards kibana and system logs with tag test.bogus.mux and no CON
 # results: system logs are stored in project.mux-undefined.*
 #
 
-oadm new-project mux-undefined --node-selector=''
+if oc get project mux-undefined > /dev/null 2>&1 ; then
+    echo using existing project mux-undefined
+else
+    oadm new-project mux-undefined --node-selector=''
+fi
 
 update_current_fluentd $NO_PROJECT_TAG
 
