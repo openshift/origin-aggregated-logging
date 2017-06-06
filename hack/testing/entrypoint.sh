@@ -40,7 +40,6 @@ expected_failures=(
 	"test-mux"
 	"test-upgrade"
 	"test-viaq-data-model"
-	"test-datetime-future"
 )
 
 function run_suite() {
