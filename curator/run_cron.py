@@ -46,8 +46,8 @@ if not curlvl in logging._levelNames:
 #allowed_units = {'hours': 'hours', 'days': 'days', 'weeks': 'weeks', 'months': 'months'}
 allowed_units = {'days': 'days', 'weeks': 'weeks', 'months': 'months'}
 
-# allowed operations, currently we'll just allow delete
-allowed_operations = {'delete': 'delete'}
+# allowed operations, currently we'll just allow close, delete, and optimize
+allowed_operations = {'close': 'close', 'delete': 'delete', 'optimize': 'optimize'}
 curator_settings = {'delete': {}}
 
 filename = os.getenv('CURATOR_CONF_LOCATION', '/etc/curator/settings/config.yaml')
