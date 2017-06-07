@@ -6,7 +6,8 @@ ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
   FLUENTD_VERSION=0.12.31 \
-  GEM_HOME=/opt/app-root/src
+  GEM_HOME=/opt/app-root/src \
+  DATA_VERSION=1.6.0
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
   io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
