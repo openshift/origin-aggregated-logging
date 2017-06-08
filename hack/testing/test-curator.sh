@@ -11,7 +11,7 @@ set -o nounset
 set -o pipefail
 
 if ! type get_running_pod > /dev/null 2>&1 ; then
-    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
+    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh1
 fi
 
 if [[ $# -ne 1 || "$1" = "false" ]]; then
@@ -340,7 +340,12 @@ basictest() {
     # see what the current time and timezone are in the curator pod
     oc exec $curpod -- date
     # calculate the runhour and runminute to run 5 minutes from now
-    tz=`timedatectl | awk '/Time zone:/ {print $3}'`
+    # There is apparently a bug in el7 - this doesn't work:
+    # date +%H --date="TZ=\"Region/City\" 5 minutes hence"
+    ## date: invalid date ‘TZ="Region/City" 5 minutes hence’
+    # so for now, just use UTC
+    #tz=`timedatectl | awk '/Time zone:/ {print $3}'`
+    tz=UTC
     runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
     runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
     runtime=`TZ=$tz date +%s --date="TZ=\"$tz\" $sleeptime seconds hence"`
@@ -370,6 +375,18 @@ project3-qe:
   delete:
     days: 7
 EOF
+
+    echo "[DEBUG] \$today=${today}"
+    echo "[DEBUG] \$yesterday=${yesterday}"
+    echo "[DEBUG] \$lastweek=${lastweek}"
+    echo "[DEBUG] \$fourweeksago=${fourweeksago}"
+    echo "[DEBUG] \$thirtyonedaysago=${thirtyonedaysago}"
+    echo "[DEBUG] \$twomonthsago=${twomonthsago}"
+    echo "[DEBUG] \$pod_time=$( oc exec $curpod -- date -u +"$tf" )"
+    echo "[DEBUG] \$runhour=${runhour}"
+    echo "[DEBUG] \$runminute=${runminute}"
+    echo "[DEBUG] config yaml: $( cat "${curtest}" )"
+
     update_config_and_restart $curtest
     # wait for curator run 1 to finish
     wait_for_curator_run $curpod 1
