@@ -30,7 +30,6 @@ os::cmd::expect_success "oc process -o yaml \
    -p LOGGING_FORK_URL=$GIT_URL -p LOGGING_FORK_BRANCH=$GIT_BRANCH \
    | build_filter | oc create -f -"
 post_build
-os::cmd::expect_success "start_logging_builds"
-os::cmd::expect_success "wait_for_logging_builds_to_complete"
+os::cmd::expect_success "wait_for_builds_complete"
 imageprefix=`oc get is | awk '$1 == "logging-elasticsearch" {print gensub(/^([^/]*\/logging\/).*$/, "\\\1", 1, $2)}'`
 sleep 5
