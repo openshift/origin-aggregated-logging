@@ -58,11 +58,11 @@ IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \
 IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \([a-f0-9:]*\).*/\1/"`
 export IPADDR4 IPADDR6
 
-export BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
-export MUX_CPU_LIMIT=${MUX_CPU_LIMIT:-500m}
-export MUX_MEMORY_LIMIT=${MUX_MEMORY_LIMIT:-2Gi}
-export FLUENTD_CPU_LIMIT=${FLUENTD_CPU_LIMIT:-100m}
-export FLUENTD_MEMORY_LIMIT=${FLUENTD_MEMORY_LIMIT:-512Mi}
+BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
+MUX_CPU_LIMIT=${MUX_CPU_LIMIT:-500m}
+MUX_MEMORY_LIMIT=${MUX_MEMORY_LIMIT:-2Gi}
+FLUENTD_CPU_LIMIT=${FLUENTD_CPU_LIMIT:-100m}
+FLUENTD_MEMORY_LIMIT=${FLUENTD_MEMORY_LIMIT:-512Mi}
 
 CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then
