@@ -3,7 +3,7 @@
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2016.10.12.0"
+        "version": "2017.06.06.0"
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -35,6 +35,32 @@
             "match": "*",
             "match_mapping_type": "string"
           }
+        },
+        {
+          "aushape_generic_nested_fields": {
+            "mapping": {
+              "index": "analyzed",
+              "type": "string"
+            },
+            "path_match": "aushape.data.*.*.*"
+          }
+        },
+        {
+          "aushape_generic_fields": {
+            "mapping": {
+              "index": "analyzed",
+              "type": "string"
+            },
+            "path_match": "aushape.data.*.*"
+          }
+        },
+        {
+          "aushape_generic_records": {
+            "mapping": {
+              "type": "object"
+            },
+            "path_match": "aushape.data.*"
+          }
         }
       ],
       "properties": {
@@ -48,9 +74,59 @@
               "type": "string"
             }
           },
-          "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
+          "format": "yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
           "index": "not_analyzed",
           "type": "date"
+        },
+        "aushape": {
+          "properties": {
+            "data": {
+              "properties": {
+                "avc": {
+                  "type": "nested"
+                },
+                "execve": {
+                  "doc_values": false,
+                  "index": "analyzed",
+                  "type": "string"
+                },
+                "netfilter_cfg": {
+                  "type": "nested"
+                },
+                "obj_pid": {
+                  "type": "nested"
+                },
+                "path": {
+                  "type": "nested"
+                }
+              }
+            },
+            "error": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "node": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "serial": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "long"
+            },
+            "text": {
+              "doc_values": false,
+              "index": "analyzed",
+              "type": "string"
+            },
+            "trimmed": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            }
+          }
         },
         "docker": {
           "properties": {
@@ -169,10 +245,43 @@
           },
           "type": "string"
         },
+        "namespace_name": {
+          "doc_values": false,
+          "index": "not_analyzed",
+          "type": "string"
+        },
+        "namespace_uuid": {
+          "doc_values": true,
+          "index": "not_analyzed",
+          "type": "string"
+        },
         "offset": {
           "doc_values": true,
           "index": "not_analyzed",
           "type": "long"
+        },
+        "ovirt": {
+          "properties": {
+            "engine": {
+              "properties": {
+                "fqdn": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              }
+            },
+            "entity": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "host_id": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            }
+          }
         },
         "pid": {
           "doc_values": true,
@@ -557,6 +666,65 @@
           "doc_values": false,
           "index": "analyzed",
           "type": "string"
+        },
+        "tlog": {
+          "properties": {
+            "id": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "long"
+            },
+            "in_bin": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "short"
+            },
+            "in_txt": {
+              "doc_values": false,
+              "index": "analyzed",
+              "type": "string"
+            },
+            "out_bin": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "short"
+            },
+            "out_txt": {
+              "doc_values": false,
+              "index": "analyzed",
+              "type": "string"
+            },
+            "pos": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "long"
+            },
+            "session": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "long"
+            },
+            "term": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "timing": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "user": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "ver": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "long"
+            }
+          }
         }
       }
     }
@@ -567,4 +735,3 @@
   },
   "template": "project.*"
 }
-
