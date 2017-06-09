@@ -30,7 +30,8 @@ ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
     yum install -y --setopt=tsflags=nodocs \
                 java-1.8.0-openjdk-headless \
-                elasticsearch-${ES_VER} && \
+                elasticsearch-${ES_VER} \
+                PyYAML && \
     yum clean all
 
 ADD sgconfig/ ${HOME}/sgconfig/
