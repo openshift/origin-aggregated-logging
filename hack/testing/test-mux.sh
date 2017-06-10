@@ -3,7 +3,7 @@
 # test the mux route and service
 # - can accept secure_forward from a "client" fluentd
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ]; then
   set -ex
 else
   set -e
@@ -33,7 +33,7 @@ else
 fi
 
 print_message() {
-    if [ "${VERBOSE:-false}" = true ] ; then
+    if [ -n "${VERBOSE:-}" ] ; then
         query_es_from_es $espod $myproject _search $myfield $mymessage >> $MUXDEBUG
 
         local es_pod=`get_running_pod es`
@@ -207,7 +207,7 @@ write_and_verify_logs() {
 
     local rc=0
 
-    if [ "${VERBOSE:-false}" = true ] ; then
+    if [ -n "${VERBOSE:-}" ] ; then
         MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.$no_project_tag.log
     else
         MUXDEBUG="/dev/null"

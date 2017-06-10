@@ -2,7 +2,7 @@
 # This tests for raw .operations index performance - write a bunch of messages
 # to the system log and see how long it takes all of them to show up in ES
 
-if [[ $VERBOSE ]]; then
+if [ -n "${VERBOSE:-}" ] ; then
   set -ex
 else
   set -e
