@@ -108,7 +108,12 @@ exit 1
 }
 
 seed_searchguard(){
-    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
+    info Seeding the searchguard ACL index
+
+    config=/usr/share/elasticsearch/config/elasticsearch.yml
+    index=$(python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
+
+    /usr/share/elasticsearch/plugins/openshift-elasticsearch/sgadmin.sh \
         -cd ${HOME}/sgconfig \
         -i .searchguard.${HOSTNAME} \
         -ks /etc/elasticsearch/secret/searchguard.key \
