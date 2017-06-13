@@ -883,6 +883,11 @@
               },
               "type": "string"
             },
+            "master_url": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
             "namespace_id": {
               "doc_values": true,
               "index": "not_analyzed",
