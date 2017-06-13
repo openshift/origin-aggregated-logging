@@ -20,7 +20,7 @@ mkdir -p "${fluentd_prior_log_dir}"
 
 for fluentd_pod in $( oc get pods --selector component=fluentd  -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Ensuring Fluentd pod ${fluentd_pod} timezone matches node timezone..."
-	os::cmd::expect_success_and_text "oc exec ${fluentd_pod} -- date +%z" "$( date +%z )"
+	os::cmd::expect_success_and_text "oc exec ${fluentd_pod} -- date +%Z" "$( date +%Z )"
 	oc logs "${fluentd_pod}" > "${fluentd_prior_log_dir}/${fluentd_pod}.log"
 done
 
