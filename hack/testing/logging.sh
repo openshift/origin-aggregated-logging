@@ -307,7 +307,7 @@ else
         fi
         if [ -x ./$test ] ; then
             echo running test $test
-            (. ./$test $USE_CLUSTER)
+            (./$test $USE_CLUSTER)
         fi
     done
 fi
