@@ -66,3 +66,8 @@ start and stop order.
 Determining the health of an EFK deployment and if it is running can be assessed
 by running the `check-EFK-running.sh` and `check-logs.sh` [e2e tests](hack/testing/).
 Additionally, see [Checking EFK Health](docs/checking-efk-health.md)
+
+## Issues
+
+Any issues against the origin stack can be filed at https://github.com/openshift/origin-aggregated-logging/issues.  Please
+include as many [details](docs/issues.md) as possible in order to assist us in resolving the issue.
