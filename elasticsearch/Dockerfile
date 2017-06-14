@@ -42,6 +42,7 @@ ADD install.sh ${HOME}/
 RUN ${HOME}/install.sh
 ADD run.sh ${HOME}/
 COPY utils/** /usr/local/bin/
+RUN ln -s /usr/local/bin/logging ${HOME}/logging
 
 WORKDIR ${HOME}
 USER 1000
