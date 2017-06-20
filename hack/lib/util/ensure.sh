@@ -15,7 +15,7 @@
 function os::util::ensure::system_binary_exists() {
 	local binary="$1"
 
-	if ! os::util::find::system_binary "${binary}" >/dev/null 2>&1; then
+if ! os::util::find::system_binary "${binary}" >/dev/null 2>&1; then
 		os::log::fatal "Required \`${binary}\` binary was not found in \$PATH."
 	fi
 }
@@ -45,11 +45,11 @@ function os::util::ensure::built_binary_exists() {
 
 	if ! os::util::find::built_binary "${binary}" >/dev/null 2>&1; then
 		if [[ -z "${target}" ]]; then
-			if [[ -d "${OS_ROOT}/../origin/cmd/${binary}" ]]; then
+			if [[ -d "${OS_ROOT}/cmd/${binary}" ]]; then
 				target="cmd/${binary}"
-			elif [[ -d "${OS_ROOT}/../origin/tools/${binary}" ]]; then
+			elif [[ -d "${OS_ROOT}/tools/${binary}" ]]; then
 				target="tools/${binary}"
-			elif [[ -d "${OS_ROOT}/../origin/tools/rebasehelpers/${binary}" ]]; then
+			elif [[ -d "${OS_ROOT}/tools/rebasehelpers/${binary}" ]]; then
 				target="tools/rebasehelpers/${binary}"
 			fi
 		fi
@@ -57,7 +57,7 @@ function os::util::ensure::built_binary_exists() {
 		if [[ -n "${target}" ]]; then
 			os::log::warning "No compiled \`${binary}\` binary was found. Attempting to build one using:
   $ hack/build-go.sh ${target}"
-			"${OS_ROOT}/../origin/hack/build-go.sh" "${target}"
+			"${OS_ROOT}/hack/build-go.sh" "${target}"
 		else
 			os::log::fatal "No compiled \`${binary}\` binary was found and no build target could be determined.
 Provide the binary and try running $0 again."
