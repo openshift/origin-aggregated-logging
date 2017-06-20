@@ -125,7 +125,6 @@ items:
     spec:
       containers:
       - image: ${IMAGE_PREFIX}logging-deployment:${IMAGE_VERSION}
-        imagePullPolicy: Always
         name: deployer
         volumeMounts:
         - name: empty
