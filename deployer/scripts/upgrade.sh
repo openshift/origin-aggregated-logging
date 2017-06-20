@@ -666,6 +666,18 @@ function update_es_for_235() {
   done
 }
 
+#https://bugzilla.redhat.com/show_bug.cgi?id=1462277
+function update_es_max_local_storage() {
+    if oc get configmap logging-elasticsearch -o yaml | grep -q max_local_storage_nodes > /dev/null ; then
+        return 0
+    fi
+
+    oc get configmap logging-elasticsearch -o yaml | \
+        sed -e '/^  elasticsearch.yml: /a\
+    data: true' -e '/^  elasticsearch.yml: /a\
+    data: true\n  max_local_storage_nodes: 1' | oc replace -f -
+}
+
 # https://bugzilla.redhat.com/show_bug.cgi?id=1439554
 function update_es_for_min_masters() {
   echo "Fixing MIN_MASTERS in elasticsearch.yaml conf"
@@ -978,6 +990,8 @@ function upgrade_logging() {
       update_kibana_memory_limits $dc
     fi
   done
+
+  update_es_max_local_storage
 
   scaleUp
 
