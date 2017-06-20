@@ -77,6 +77,7 @@ function generate_JKS_chain() {
         -file $dir/ca.crt  \
         -keystore $dir/truststore.jks   \
         -storepass $ts_pass  \
+	-trustcacerts \
         -noprompt -alias sig-ca
 
     echo All done for $NODE_NAME
