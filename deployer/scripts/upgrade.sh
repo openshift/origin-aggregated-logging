@@ -124,11 +124,15 @@ function getPodName() {
 }
 
 function checkESStarted() {
-
   local pod=$1
   local cluster_service
+  local log_cmd="oc log $pod"
 
-  if ! cluster_service=$(waitForValue "oc logs $pod | grep '\[cluster\.service[[:space:]]*\]'"); then
+  if oc get configmap logging-elasticsearch -o yaml | grep -oEq "rootLogger:.*(file)" ; then
+      log_cmd="oc exec $pod -- cat /elasticsearch/logging-es/logs/logging-es.log"
+  fi
+
+  if ! cluster_service=$(waitForValue "$log_cmd | grep '\[cluster\.service[[:space:]]*\]'"); then
     echo "Unable to find log message from cluster.service from pod $pod within $TIMES seconds"
     return 1
   fi
@@ -144,7 +148,7 @@ function checkESStarted() {
   # Check that instance started.
   #  check for output from "[node " with "] started"
 
-  if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started')\" ]]"; then
+  if ! waitFor "[[ -n \"\$($log_cmd | grep '\[node[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*started')\" ]]"; then
     echo "Unable to find log message from node that ES pod $pod started within $TIMES seconds"
     return 1
   fi
@@ -152,7 +156,7 @@ function checkESStarted() {
   # Check that it recovered its indices after starting if a master
   #  check for output from "[gateway" with "] recovered[:num:] indices into cluster state"
   if [[ -n "$master" ]]; then
-    if ! waitFor "[[ -n \"\$(oc logs $pod | grep '\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state')\" ]]"; then
+    if ! waitFor "[[ -n \"\$($log_cmd | grep '\[gateway[[:space:]]*\][[:space:]]*\[.*\][[:space:]]*recovered[[:space:]]*\[[[:digit:]]*\][[:space:]]*indices into cluster_state')\" ]]"; then
       echo "Unable to find log message from gateway that ES pod $pod recovered its indices within $TIMES seconds"
       return 1
     fi
