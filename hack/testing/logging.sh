@@ -229,26 +229,32 @@ os::cmd::expect_success "oc project logging > /dev/null"
 os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod 30 .searchguard.$espod/rolesmapping/0
+config_index_name=$(oc exec $espod -- python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+sg_index=$(oc exec $espod -- bash -c "eval 'echo $config_index_name'")
+os::log::info "The searguard index for $espod is: $sg_index"
+wait_for_es_ready $espod 30 "$sg_index/rolesmapping/0"
 
 oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
    --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping/0 | \
+   https://localhost:9200/$sg_index/rolesmapping/0 | \
     python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
     oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
+       https://localhost:9200/$sg_index/rolesmapping/0 -XPUT -d@- | \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod 30 .searchguard.$esopspod/rolesmapping/0
+    config_index_name=$(oc exec $esopspod -- python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+    sg_opsindex=$(oc exec $esopspod -- bash -c "eval 'echo $config_index_name'")
+    os::log::info "The searguard index for $esopspod is: $sg_opsindex"
+    wait_for_es_ready $esopspod 30 "$sg_opsindex/rolesmapping/0"
     oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
        --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 | \
+       https://localhost:9200/$sg_opsindex/rolesmapping/0 | \
         python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
         oc exec -i $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
            --key /etc/elasticsearch/secret/admin-key \
-           https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 -XPUT -d@- | \
+           https://localhost:9200/$sg_opsindex/rolesmapping/0 -XPUT -d@- | \
         python -mjson.tool
 fi
 
