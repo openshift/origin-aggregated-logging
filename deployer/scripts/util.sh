@@ -68,6 +68,7 @@ function generate_JKS_chain() {
         -keystore $dir/keystore.jks \
         -storepass $ks_pass \
         -noprompt \
+        -trustcacerts \
         -alias $NODE_NAME
 
     echo "Import CA to truststore for validating client certs"
@@ -155,6 +156,7 @@ function generate_JKS_client_cert() {
         -keystore $dir/$NODE_NAME.jks \
         -storepass $ks_pass \
         -noprompt \
+        -trustcacerts \
         -alias $NODE_NAME
 
     echo All done for $NODE_NAME
