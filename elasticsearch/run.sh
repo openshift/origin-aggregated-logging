@@ -152,4 +152,8 @@ verify_or_add_index_templates() {
 
 verify_or_add_index_templates &
 
+HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
+info Setting heap dump location "$HEAP_DUMP_LOCATION"
+export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+
 exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
