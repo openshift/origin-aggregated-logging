@@ -276,7 +276,7 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
-       https://logging-es-ops:9200/_cluster/health -o /dev/null -w '%{response_code}')
+       https://$ops_host:9200/_cluster/health -o /dev/null -w '%{response_code}')
     os::cmd::expect_success "test $status = 200"
 fi
 
@@ -287,7 +287,31 @@ nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernet
        get_count_from_json`
 if [ ${nrecs:-0} -lt 1 ] ; then
     echo ERROR: $LOG_NORMAL_USER cannot access project.logging.* indices
-    curl_es_from_kibana $kibpod logging-es "project.logging." _count message a | \
+    curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernetes.namespace_name logging | \
+        python -mjson.tool
+    exit 1
+fi
+
+# verify normal user has no access to default indices
+get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
+oc project logging > /dev/null
+nrecs=`curl_es_from_kibana $kibpod logging-es "project.default." _count kubernetes.namespace_name default | \
+       get_count_from_json`
+if [ ${nrecs:-0} -gt 0 ] ; then
+    echo ERROR: $LOG_NORMAL_USER should not be able to access project.default.* indices
+    curl_es_from_kibana $kibpod logging-es "project.default." _count kubernetes.namespace_name default | \
+        python -mjson.tool
+    exit 1
+fi
+
+# verify normal user has no access to operations indices
+get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
+oc project logging > /dev/null
+nrecs=`curl_es_from_kibana $kibpod $ops_host ".operations." _count message a | \
+       get_count_from_json`
+if [ ${nrecs:-0} -gt 0 ] ; then
+    echo ERROR: $LOG_NORMAL_USER should not be able to access .operations.* indices
+    curl_es_from_kibana $kibpod $ops_host ".operations." _count message a | \
         python -mjson.tool
     exit 1
 fi
