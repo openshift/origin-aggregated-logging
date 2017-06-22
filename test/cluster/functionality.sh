@@ -27,6 +27,8 @@
 #               }: credentials for the admin user
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+
+trap os::test::junit::reconcile_output EXIT
 os::util::environment::setup_time_vars
 
 query_size="${OAL_QUERY_SIZE:-"500"}"
@@ -96,8 +98,26 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 
 		for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 			os::log::info "Cheking for index ${index} with Kibana pod ${kibana_pod}..."
-			# As we're checking system log files, we need to use `sudo`
-			os::cmd::expect_success "sudo -E VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
+			elasticsearch_data="$(
+				oc exec "${kibana_pod}" -c kibana -- curl --silent \
+                                                          --key /etc/kibana/keys/key   \
+                                                          --cert /etc/kibana/keys/cert \
+                                                          --cacert /etc/kibana/keys/ca \
+                                                          --header "X-Forwarded-For: ${test_ip}"         \
+                                                          --header "X-Proxy-Remote-User: ${test_user}"   \
+                                                          --header "Authorization: Bearer ${test_token}" \
+                                                          --data "fields=message"     \
+                                                          --data "size=${query_size}" \
+                                                          --request GET "https://${elasticsearch_api}/${index}.*/_search"
+			)"
+
+			while read -r line; do
+				if [[ "${USE_JOURNAL:-}" == "true" ]]; then
+					os::cmd::expect_success "sudo journalctl 'MESSAGE=${line}'"
+				else
+					os::cmd::expect_success "sudo grep '${line}' '${index_search_path}'"
+				fi
+			done < <( go run "${OS_O_A_L_DIR}/hack/testing/extract_messages.go" <<<"${elasticsearch_data}" )
 		done
 	done
 
