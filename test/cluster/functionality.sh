@@ -98,26 +98,8 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 
 		for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 			os::log::info "Cheking for index ${index} with Kibana pod ${kibana_pod}..."
-			elasticsearch_data="$(
-				oc exec "${kibana_pod}" -c kibana -- curl --silent \
-                                                          --key /etc/kibana/keys/key   \
-                                                          --cert /etc/kibana/keys/cert \
-                                                          --cacert /etc/kibana/keys/ca \
-                                                          --header "X-Forwarded-For: ${test_ip}"         \
-                                                          --header "X-Proxy-Remote-User: ${test_user}"   \
-                                                          --header "Authorization: Bearer ${test_token}" \
-                                                          --data "fields=message"     \
-                                                          --data "size=${query_size}" \
-                                                          --request GET "https://${elasticsearch_api}/${index}.*/_search"
-			)"
-
-			while read -r line; do
-				if [[ "${USE_JOURNAL:-}" == "true" ]]; then
-					os::cmd::expect_success "sudo journalctl 'MESSAGE=${line}'"
-				else
-					os::cmd::expect_success "sudo grep '${line}' '${index_search_path}'"
-				fi
-			done < <( go run "${OS_O_A_L_DIR}/hack/testing/extract_messages.go" <<<"${elasticsearch_data}" )
+			# As we're checking system log files, we need to use `sudo`
+			os::cmd::expect_success "sudo -E VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
 		done
 	done
 
