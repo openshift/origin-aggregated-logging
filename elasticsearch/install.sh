@@ -5,8 +5,14 @@ set -ex
 mkdir -p ${HOME}
 ln -s /usr/share/elasticsearch /usr/share/java/elasticsearch
 
-/usr/share/elasticsearch/bin/plugin install io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
-/usr/share/elasticsearch/bin/plugin install io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+if [ -z "${ES_CLOUD_K8S_URL:-}" ] ; then
+    ES_CLOUD_K8S_URL=io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
+fi
+/usr/share/elasticsearch/bin/plugin install ${ES_CLOUD_K8S_URL}
+if [ -z "${OSE_ES_URL:-}" ] ; then
+    OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+fi
+/usr/share/elasticsearch/bin/plugin install ${OSE_ES_URL}
 
 
 mkdir /elasticsearch

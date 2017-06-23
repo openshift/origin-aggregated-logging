@@ -7,7 +7,6 @@ EXPOSE 9300
 USER 0
 
 ENV HOME=/opt/app-root/src \
-  JAVA_VER=1.8.0 \
   ES_VER=2.4.4 \
   ES_CLOUD_K8S_VER=2.4.4 \
   OSE_ES_VER=2.4.4.9 \
@@ -19,6 +18,11 @@ ENV HOME=/opt/app-root/src \
   RECOVER_AFTER_TIME=5m \
   PLUGIN_LOGLEVEL=INFO \
   ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true"
+
+ARG ES_CLOUD_K8S_VER=2.4.4
+ARG OSE_ES_VER=2.4.4.5
+ARG ES_CLOUD_K8S_URL
+ARG OSE_ES_URL
 
 LABEL io.k8s.description="Elasticsearch container to serve as EFK aggregated logging backend" \
   io.k8s.display-name="Elasticsearch ${ES_VER}" \
