@@ -5,7 +5,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.36 \
+  FLUENTD_VERSION=0.12.37 \
   GEM_HOME=/opt/app-root/src \
   DATA_VERSION=1.6.0
 
