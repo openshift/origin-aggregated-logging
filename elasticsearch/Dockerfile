@@ -10,7 +10,7 @@ ENV HOME=/opt/app-root/src \
   JAVA_VER=1.8.0 \
   ES_VER=2.4.4 \
   ES_CLOUD_K8S_VER=2.4.4 \
-  OSE_ES_VER=2.4.4.5 \
+  OSE_ES_VER=2.4.4.9 \
   ES_CONF=/usr/share/elasticsearch/config \
   INSTANCE_RAM=512G \
   NODE_QUORUM=1 \
@@ -33,6 +33,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
                 elasticsearch-${ES_VER} \
                 PyYAML && \
     yum clean all
+
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ /usr/share/elasticsearch/index_templates/
