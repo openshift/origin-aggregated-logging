@@ -29,7 +29,7 @@ if [[ "${KIBANA_MEMORY_LIMIT:-}" =~ $regex ]]; then
         ((num = $DEFAULT_MIN))
     fi
 
-    export NODE_OPTIONS="--max-old-space-size=$((num / ${BYTES_PER_MEG}))"
+    export NODE_OPTIONS="--max_old_space_size=$((num / ${BYTES_PER_MEG}))"
 
 else
     echo "Unable to process the KIBANA_MEMORY_LIMIT: '${KIBANA_MEMORY_LIMIT}'.  It must be in the format of: /${regex}/"
