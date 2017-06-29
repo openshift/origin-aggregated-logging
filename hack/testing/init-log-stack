@@ -11,16 +11,38 @@ ES_HOSTNAME=${ES_HOST:+openshift_logging_es_hostname=$ES_HOST}
 ES_OPS_ALLOW_EXTERNAL=${ES_OPS_HOST:+openshift_logging_es_ops_allow_external=True}
 ES_OPS_HOSTNAME=${ES_OPS_HOST:+openshift_logging_es_ops_hostname=$ES_OPS_HOST}
 
+SET_MUX_CPU_LIMIT=""
+SET_MUX_MEMORY_LIMIT=""
+SET_MUX_BUFFER_QUEUE_LIMIT=""
+SET_MUX_BUFFER_SIZE_LIMIT=""
+SET_MUX_FILE_BUFFER_STORAGE_TYPE=""
+SET_MUX_FILE_BUFFER_PVC_NAME=""
+SET_MUX_FILE_BUFFER_PVC_SIZE=""
 if [ "$MUX_ALLOW_EXTERNAL" = true ] ; then
     SET_MUX_CPU_LIMIT="openshift_logging_mux_cpu_limit=${MUX_CPU_LIMIT:-500m}"
     SET_MUX_MEMORY_LIMIT="openshift_logging_mux_memory_limit=${MUX_MEMORY_LIMIT:-2Gi}"
     SET_MUX_BUFFER_QUEUE_LIMIT="openshift_logging_mux_buffer_queue_limit=${MUX_BUFFER_QUEUE_LIMIT:-1024}"
     SET_MUX_BUFFER_SIZE_LIMIT="openshift_logging_mux_buffer_size_limit=${MUX_BUFFER_SIZE_LIMIT:-1048576}"
-else
-    SET_MUX_CPU_LIMIT=""
-    SET_MUX_MEMORY_LIMIT=""
-    SET_MUX_BUFFER_QUEUE_LIMIT=""
-    SET_MUX_BUFFER_SIZE_LIMIT=""
+    SET_MUX_FILE_BUFFER_STORAGE_TYPE="openshift_logging_mux_file_buffer_storage_type=${MUX_FILE_BUFFER_STORAGE_TYPE:-emptydir}"
+    if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "pvc" ]; then
+      SET_MUX_FILE_BUFFER_PVC_NAME="openshift_logging_mux_file_buffer_pvc_name=logging-mux-pvc"
+      SET_MUX_FILE_BUFFER_PVC_SIZE="openshift_logging_mux_file_buffer_pvc_size=6Gi"
+      echo "### Prepare pvc storage for testing"
+      echo "apiVersion: \"v1\"
+kind: \"PersistentVolume\"
+metadata:
+  name: logging-muxpv-1
+spec:
+  capacity:
+    storage: \"6Gi\"
+  accessModes:
+    - \"ReadWriteOnce\"
+  hostPath:
+    path: ${FILE_BUFFER_PATH:-/var/log/mux/filebufferstorage}" > /tmp/host-pv.yaml
+          cat /tmp/host-pv.yaml
+          cat /tmp/host-pv.yaml | oc create -f -
+      echo "###################################"
+    fi
 fi
 
 source $OS_O_A_L_DIR/hack/testing/build-images
@@ -64,7 +86,9 @@ $SET_MUX_CPU_LIMIT
 $SET_MUX_MEMORY_LIMIT
 $SET_MUX_BUFFER_QUEUE_LIMIT
 $SET_MUX_BUFFER_SIZE_LIMIT
-
+$SET_MUX_FILE_BUFFER_STORAGE_TYPE
+$SET_MUX_FILE_BUFFER_PVC_NAME
+$SET_MUX_FILE_BUFFER_PVC_SIZE
 EOL
 
 echo "### Created host inventory file ###"
