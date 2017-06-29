@@ -11,7 +11,7 @@ OS_ANSIBLE_BRANCH=${CI_OS_ANSIBLE_BRANCH:-release-1.5}
 OS_ANSIBLE_DIR=$WORKDIR/openhift-ansible
 
 sudo yum makecache fast
-sudo yum install python2-pip $RUAMEL_YAML_RPM $ANSIBLE_RPM -y
+sudo yum install python2-pip $RUAMEL_YAML_RPM $ANSIBLE_RPM bc -y
 
 git clone $OS_ANSIBLE_REPO $OS_ANSIBLE_DIR -b $OS_ANSIBLE_BRANCH --depth=1
 
