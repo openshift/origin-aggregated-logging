@@ -213,7 +213,6 @@ rm -f $lfds
 # when fluentd starts up it may take a while before it catches up with all of the logs
 # let's wait until that happens
 wait_for_fluentd_ready
-wait_for_fluentd_to_catch_up
 
 # add admin user and normal user for kibana and token auth testing
 export LOG_ADMIN_USER=admin
@@ -244,6 +243,7 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
         curl_es_input $esopspod /$sg_opsindex/rolesmapping/0 -XPUT -d@- | \
         python -mjson.tool
 fi
+wait_for_fluentd_to_catch_up
 
 # verify that $LOG_ADMIN_USER user has access to cluster stats
 sleep 5
