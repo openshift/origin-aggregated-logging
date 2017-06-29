@@ -5,7 +5,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.29 \
+  FLUENTD_VERSION=0.12.39 \
   GEM_HOME=/opt/app-root/src
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
@@ -29,12 +29,14 @@ RUN mkdir -p ${HOME} && \
     gem install -N --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
+      'public_suffix:<3' \
       fluent-plugin-kubernetes_metadata_filter \
       fluent-plugin-elasticsearch \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
       fluent-plugin-rewrite-tag-filter \
-      fluent-plugin-secure-forward
+      fluent-plugin-secure-forward \
+      excon
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
