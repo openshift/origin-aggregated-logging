@@ -62,10 +62,8 @@ IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \(
 export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
-MUX_CPU_LIMIT=${MUX_CPU_LIMIT:-500m}
-MUX_MEMORY_LIMIT=${MUX_MEMORY_LIMIT:-2Gi}
-FLUENTD_CPU_LIMIT=${FLUENTD_CPU_LIMIT:-100m}
 FLUENTD_MEMORY_LIMIT=${FLUENTD_MEMORY_LIMIT:-512Mi}
+MUX_MEMORY_LIMIT=${MUX_MEMORY_LIMIT:-2Gi}
 
 CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then
@@ -107,16 +105,7 @@ else
     rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf
 fi
 
-if [ "${USE_MUX:-}" = "true" ] ; then
-    TOTAL_MEMORY_LIMIT=`echo $MUX_MEMORY_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
-else
-    TOTAL_MEMORY_LIMIT=`echo $FLUENTD_MEMORY_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
-fi
-BUFFER_SIZE_LIMIT=`echo $BUFFER_SIZE_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
-if [ $BUFFER_SIZE_LIMIT -eq 0 ]; then
-    BUFFER_SIZE_LIMIT=1048576
-fi
-
+# How many outputs?
 DIV=1
 if [ "$ES_HOST" != "$OPS_HOST" ] || [ "$ES_PORT" != "$OPS_PORT" ] ; then
     # using ops cluster
@@ -126,13 +115,58 @@ if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
     DIV=`expr $DIV \* 2`
 fi
 
-# MEMORY_LIMIT per buffer
-MEMORY_LIMIT=`expr $TOTAL_MEMORY_LIMIT / $DIV`
-BUFFER_QUEUE_LIMIT=`expr $MEMORY_LIMIT / $BUFFER_SIZE_LIMIT`
-if [ $BUFFER_QUEUE_LIMIT -eq 0 ]; then
-    BUFFER_QUEUE_LIMIT=1024
+# Default buffer_type: file if FILE_BUFFER_PATH is specified.
+FILE_BUFFER_PATH=${FILE_BUFFER_PATH:-""}
+if [ "$BUFFER_TYPE" = "file" -a "$FILE_BUFFER_PATH" != "" ] ; then
+    if [ ! -d $FILE_BUFFER_PATH ]; then
+        mkdir -p $FILE_BUFFER_PATH
+    fi
+    # Get the available disk size; use 1/4 of it
+    DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
+    DF_LIMIT=${DF_LIMIT:-0}
+    DF_LIMIT=$(expr $DF_LIMIT / 4)
+    # Given buffer limit per output
+    TOTAL_LIMIT=$(echo ${FILE_BUFFER_LIMIT:-0} | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
+    # In total
+    TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $DIV)
+    # Available disk space is less than the specified size.
+    if [ $DF_LIMIT -gt 0 -a $DF_LIMIT -lt $TOTAL_LIMIT ]; then
+        TOTAL_LIMIT=$DF_LIMIT
+    fi
+    # Adding the buffer_path to each output config
+    for esconf in $CFG_DIR/openshift/es-*.conf $CFG_DIR/openshift/output-es-*.conf; do
+        estmp=$(basename $esconf)
+        esfile=${estmp%.*}
+        cat $esconf | sed "/buffer_path .*/d" > $esconf.tmp
+        cat $esconf.tmp | sed "/buffer_type/ a\
+\ \ \ \ \ \ buffer_path $FILE_BUFFER_PATH/$esfile" > $esconf
+      rm $esconf.tmp
+    done
+else
+    if [ "${USE_MUX:-}" = "true" ] ; then
+        TOTAL_LIMIT=$(echo $MUX_MEMORY_LIMIT | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
+    else
+        TOTAL_LIMIT=$(echo $FLUENTD_MEMORY_LIMIT | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
+    fi
+    # Use 75% of the avialble memory
+    TOTAL_LIMIT=$(expr $(expr $TOTAL_LIMIT \* 3) / 4)
+    BUFFER_TYPE="memory"
 fi
-export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT
+if [ -z $TOTAL_LIMIT -o $TOTAL_LIMIT -eq 0 ]; then
+    # 75 % of 512M
+    TOTAL_LIMIT=$(expr $(expr 536870912 \* 3) / 4)
+fi
+
+BUFFER_SIZE_LIMIT=$(echo $BUFFER_SIZE_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
+BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-1048576}
+
+# MEMORY_LIMIT per buffer
+MEMORY_LIMIT=`expr $TOTAL_LIMIT / $DIV`
+BUFFER_QUEUE_LIMIT=`expr $MEMORY_LIMIT / $BUFFER_SIZE_LIMIT`
+if [ -z $BUFFER_QUEUE_LIMIT -o $BUFFER_QUEUE_LIMIT -eq 0 ]; then
+    BUFFER_QUEUE_LIMIT=256
+fi
+export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT BUFFER_TYPE
 
 OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
 OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"
@@ -145,7 +179,8 @@ OPS_COPY_PASSWORD="${OPS_COPY_PASSWORD:-$ES_COPY_PASSWORD}"
 export OPS_COPY_HOST OPS_COPY_PORT OPS_COPY_SCHEME OPS_COPY_CLIENT_CERT \
        OPS_COPY_CLIENT_KEY OPS_COPY_CA OPS_COPY_USERNAME OPS_COPY_PASSWORD
 
-if [ "$ES_COPY" = "true" ] ; then
+# When USE_MUX_CLIENT is true, logs are forwarded to MUX; COPY won't work with it.
+if [ "$ES_COPY" = "true" -a "${USE_MUX_CLIENT:-}" != "true" ] ; then
     # user wants to split the output of fluentd into two different elasticsearch
     # user will provide the necessary COPY environment variables as above
     cp $CFG_DIR/{openshift,dynamic}/es-copy-config.conf

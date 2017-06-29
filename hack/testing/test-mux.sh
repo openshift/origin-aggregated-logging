@@ -16,8 +16,8 @@ if ! type get_running_pod > /dev/null 2>&1 ; then
     . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
 fi
 
-if [ "$USE_MUX_CLIENT" == "false" -o "$MUX_ALLOW_EXTERNAL" == "false" ]; then
-    echo "Skipping -- This test requires both USE_MUX_CLIENT and MUX_ALLOW_EXTERNAL are true."
+if [ "$MUX_ALLOW_EXTERNAL" != "true" ]; then
+    echo "Skipping -- This test requires MUX_ALLOW_EXTERNAL = true."
     exit 0
 fi
 
@@ -53,6 +53,8 @@ cleanup_forward() {
   oc label node --all logging-infra-fluentd-
 
   wait_for_pod_ACTION stop $fpod
+
+  oc set env daemonset/logging-fluentd USE_MUX_CLIENT=false
 
   # Revert configmap if we haven't yet
   oc get configmap/logging-fluentd -o yaml | \
@@ -319,6 +321,14 @@ fi
 if [ -z "`get_running_pod es`" ] ; then
     echo Error: es is not running
     exit 1
+fi
+
+if [ "MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" ]; then
+    echo file_buffer_storage_type: pvc >> $MUXDEBUG
+    oc get pv >> $MUXDEBUG
+    echo "" >> $MUXDEBUG
+    oc get pvc >> $MUXDEBUG
+    echo "" >> $MUXDEBUG
 fi
 
 # run test to make sure fluentd is working normally 
