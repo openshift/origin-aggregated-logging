@@ -415,6 +415,50 @@ function curl_es() {
 }
 
 # $1 - es pod name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es_input() {
+    local pod="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/elasticsearch/secret/"
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                --key "${secret_dir}admin-key"   \
+                                --cert "${secret_dir}admin-cert" \
+                                "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             -H "X-Proxy-Remote-User: $test_name" \
+                             -H "Authorization: Bearer $test_token" \
+                             -H "X-Forwarded-For: 127.0.0.1" \
+                             "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token_and_input() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                -H "X-Proxy-Remote-User: $test_name" \
+                                -H "Authorization: Bearer $test_token" \
+                                -H "X-Forwarded-For: 127.0.0.1" \
+                                "https://localhost:9200${endpoint}"
+}
+
+# $1 - es pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
 # $3 - index name (e.g. project.logging, project.test, .operations, etc.)
 # $4 - _count or _search
@@ -453,6 +497,11 @@ function wait_for_es_ready() {
 
 function get_count_from_json() {
     python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
+}
+
+# https://github.com/ViaQ/integration-tests/issues/8
+function get_count_from_json_from_search() {
+    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0)'
 }
 
 # $1 - unique value to search for in es
