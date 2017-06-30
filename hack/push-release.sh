@@ -38,8 +38,6 @@ images=(
   ${PREFIX}logging-elasticsearch
   ${PREFIX}logging-kibana
   ${PREFIX}logging-auth-proxy
-  ${PREFIX}logging-deployer
-  ${PREFIX}logging-deployment
 )
 
 PUSH_OPTS=""
