@@ -17,4 +17,4 @@ if [ -z "${QUERY:-}" ]; then
   QUERY="$INDEX/$TYPE?$OPTIONS"
 fi
 
-curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY"
+curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY" "$@"

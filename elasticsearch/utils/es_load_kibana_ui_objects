@@ -1,0 +1,67 @@
+#!/bin/bash -e
+
+source "logging"
+
+set -euo pipefail
+
+if [ -n "${DEBUG:-}" -o $loglevelint = 7 ] ; then
+    set -x
+    curl_output() {
+        python -mjson.tool
+    }
+else
+    curl_output() {
+        cat > /dev/null 2>&1
+    }
+fi
+
+usage() {
+    error Usage: $0 user-name
+    error The kibana index for the given user must already exist
+}
+
+if [ -z "${1:-}" ] ; then
+    usage
+    exit 1
+fi
+
+kibindex=$( get_kibana_index_name "$1" )
+
+resp_code=$( QUERY="/$kibindex" es_util -XHEAD -w '%{response_code}' )
+
+if [ "$resp_code" != 200 ] ; then
+    error Could not find kibana index $kibindex for user $1: $resp_code
+    exit 1
+fi
+
+info Adding Kibana dashboards and other UI objects for user $1 index $kibindex
+
+INDEX_PATTERN=${INDEX_PATTERN:-project.*}
+INDEX_PATTERN_FILE=${INDEX_PATTERN_FILE:-/usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json}
+INDEX_PATTERN_TYPE=${INDEX_PATTERN_TYPE:-index-pattern}
+KIBANA_UI_OBJECTS_DIR=${KIBANA_UI_OBJECTS_DIR:-/usr/share/elasticsearch/kibana_ui_objects}
+
+info Adding the index pattern for "$INDEX_PATTERN" . . .
+
+cat $INDEX_PATTERN_FILE | \
+    sed "s/[$]TITLE[$]/$INDEX_PATTERN/g" | \
+    QUERY="/$kibindex/$INDEX_PATTERN_TYPE/$INDEX_PATTERN" es_util -XPUT --data-binary @- | curl_output
+
+info Adding the Kibana UI objects . . .
+{
+    for file in $KIBANA_UI_OBJECTS_DIR/*.json ; do
+        cat "$file" | python -c '
+import sys
+import json
+obj = json.load(sys.stdin)
+for doc in obj:
+  hdr = {"create":{"_type":doc["_type"],"_id":doc["_id"]}}
+  json.dump(hdr, sys.stdout)
+  sys.stdout.write("\n")
+  json.dump(doc["_source"], sys.stdout)
+  sys.stdout.write("\n")
+'
+    done
+} | QUERY="/$kibindex/_bulk" es_util -XPOST --data-binary @- | curl_output
+
+info Success

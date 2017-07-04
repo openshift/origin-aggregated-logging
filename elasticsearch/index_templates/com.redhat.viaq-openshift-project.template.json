@@ -190,6 +190,22 @@
         },
         "kubernetes": {
           "properties": {
+            "container_name": {
+              "doc_values": true,
+              "fields": {
+                "raw": {
+                  "doc_values": true,
+                  "ignore_above": 256,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              },
+              "index": "not_analyzed",
+              "norms": {
+                "enabled": true
+              },
+              "type": "string"
+            },
             "host": {
               "doc_values": true,
               "index": "not_analyzed",
@@ -197,6 +213,38 @@
                 "enabled": true
               },
               "type": "string"
+            },
+            "labels": {
+              "properties": {
+                "component": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "deployment": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "deploymentconfig": {
+                  "doc_values": true,
+                  "fields": {
+                    "raw": {
+                      "doc_values": true,
+                      "ignore_above": 64,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    }
+                  },
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "provider": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              }
             },
             "master_url": {
               "doc_values": true,
