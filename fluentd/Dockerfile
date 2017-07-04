@@ -12,7 +12,7 @@ ENV HOME=/opt/app-root/src \
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
   io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
   io.openshift.expose-services="9200:http, 9300:http" \
-  io.openshift.tags="logging,elk,fluentd"
+  io.openshift.tags="logging,efk,fluentd"
 
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
