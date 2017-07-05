@@ -148,6 +148,10 @@ for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     add_message_to_index $proj "" $espod
 done
 
+# if you ever want to run this test again on the same machine, you'll need to
+# use different usernames, otherwise you'll get this odd error:
+# # oc login --username=loguser --password=loguser
+# error: The server was unable to respond - verify you have provided the correct host and port and that the server is currently running.
 LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser}
 LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser}
 
@@ -157,9 +161,15 @@ LOG_PW2=${LOG_PW2:-loguser2}
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
 
-hack_msearch_access $LOG_NORMAL_USER multi-tenancy-1 multi-tenancy-2
+# test failure
+os::cmd::expect_failure_and_text "hack_msearch_access" "Usage:"
+os::cmd::expect_failure_and_text "hack_msearch_access no-such-user no-such-project" "user no-such-user not found"
+os::cmd::expect_failure_and_text "hack_msearch_access $LOG_NORMAL_USER no-such-project" "project no-such-project not found"
+os::cmd::expect_failure_and_text "hack_msearch_access $LOG_NORMAL_USER default" "$LOG_NORMAL_USER does not have access to view logs in project default"
+
+os::cmd::expect_success "hack_msearch_access $LOG_NORMAL_USER multi-tenancy-1 multi-tenancy-2"
 cleanup_msearch_access="$cleanup_msearch_access $LOG_NORMAL_USER"
-hack_msearch_access $LOG_USER2 multi-tenancy-2 multi-tenancy-3
+os::cmd::expect_success "hack_msearch_access $LOG_USER2 --all"
 cleanup_msearch_access="$cleanup_msearch_access $LOG_USER2"
 
 oc login --username=system:admin > /dev/null

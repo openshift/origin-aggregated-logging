@@ -90,7 +90,11 @@ function curl_es_input() {
 
 usage() {
     echo Usage: $0 user-name [project-1 ... project-N]
+    echo  or
+    echo Usage: $0 user-name --all
     echo If no projects are specified, the msearch access will be removed.
+    echo If --all is specified, look up and use all of the projects that
+    echo the user has access to.
     echo This script assumes the logging components are in the namespace
     echo   $LOGGING_PROJECT.  Set the environment variable
     echo   LOGGING_PROJECT=project-name if the Elasticsearch pods are running
@@ -112,9 +116,21 @@ fi
 
 user="$1" ; shift
 
+if [ "x${1:-}" = "x--all" ] ; then
+    echo Finding all projects that user "$user" has access to . . .
+    set -- $( oc get --as="$user" projects -o jsonpath='{.items[*].metadata.name}' )
+fi
+
 for proj in "$@" ; do
     if oc get project "$proj"  > /dev/null 2>&1 ; then
-        echo Using project "$proj" . . .
+        # make sure user has log access to project
+        hasaccess=$( oc policy can-i -n "$proj" get pods/log --user="$user" )
+        if [ "$hasaccess" = yes ] ; then
+            echo User "$user" has access to project "$proj"
+        else
+            echo Error: user "$user" does not have access to view logs in project "$proj"
+            exit 1
+        fi
     else
         echo Error: project "$proj" not found
         usage
