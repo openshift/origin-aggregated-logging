@@ -5,14 +5,14 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 ENV HOME=/opt/app-root/src \
   PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
   RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.37 \
+  FLUENTD_VERSION=0.14.18 \
   GEM_HOME=/opt/app-root/src \
   DATA_VERSION=1.6.0
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
   io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
   io.openshift.expose-services="9200:http, 9300:http" \
-  io.openshift.tags="logging,elk,fluentd"
+  io.openshift.tags="logging,efk,fluentd"
 
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
