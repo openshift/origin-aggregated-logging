@@ -40,3 +40,10 @@ error() {
     log 4 ERROR "$@"
 }
 
+get_hash() {
+    printf "%s" "$1" | sha1sum | awk '{print $1}'
+}
+
+get_kibana_index_name() {
+    echo .kibana.$(get_hash "$1")
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "_id": "k8s-logs",
+    "_type": "search",
+    "_source": {
+      "title": "k8s-logs",
+      "description": "",
+      "hits": 0,
+      "columns": [
+        "kubernetes.namespace_name",
+        "kubernetes.labels.deploymentconfig",
+        "kubernetes.pod_name",
+        "kubernetes.container_name",
+        "message"
+      ],
+      "sort": [
+        "@timestamp",
+        "desc"
+      ],
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"project.*\",\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true}},\"filter\":[],\"highlight\":{\"pre_tags\":[\"@kibana-highlighted-field@\"],\"post_tags\":[\"@/kibana-highlighted-field@\"],\"fields\":{\"*\":{}},\"require_field_match\":false,\"fragment_size\":2147483647}}"
+      }
+    }
+  }
+]

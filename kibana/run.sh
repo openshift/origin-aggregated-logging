@@ -25,6 +25,10 @@ regex='^([[:digit:]]+)([GgMm])?i?$'
 
 export NODE_OPTIONS=""
 
+if [ -n "${KIBANA_DEFAULTAPPID:-}" ] ; then
+    KIBANA_OPTS="${KIBANA_OPTS:-} --kibana.defaultAppId=$KIBANA_DEFAULTAPPID"
+fi
+
 if [[ "${KIBANA_MEMORY_LIMIT:-}" =~ $regex ]]; then
     num=${BASH_REMATCH[1]}
     unit=${BASH_REMATCH[2]}
@@ -50,4 +54,4 @@ fi
 
 echo "Using NODE_OPTIONS: '$NODE_OPTIONS' Memory setting is in MB"
 
-exec ${KIBANA_HOME}/bin/kibana
+exec ${KIBANA_HOME}/bin/kibana ${KIBANA_OPTS:-}
