@@ -1,0 +1,49 @@
+#!/bin/bash -e
+
+LOGLEVEL=${LOGLEVEL:-6}
+loglevelint=6
+case $LOGLEVEL in
+    debug) loglevelint=7 ;;
+    info) loglevelint=6 ;;
+    warn) loglevelint=5 ;;
+    error) loglevelint=4 ;;
+    [1-7]) loglevelint=$LOGLEVEL ;;
+    *) echo ERROR: LOGLEVEL must be a number from 1-7
+       echo 7 is DEBUG, 4 is ERROR, default 6 is INFO
+       exit 1 ;;
+esac
+
+log() {
+    lvlint=$1
+    if [ $loglevelint -ge $lvlint ] ; then
+        shift
+        lvl=$1
+        shift
+        printf "[%.23s][%-5s][container.run            ] " "`date -u +'%F %T,%N'`" $lvl
+        echo "$@"
+    fi
+}
+
+debug() {
+    log 7 DEBUG "$@"
+}
+
+info() {
+    log 6 INFO "$@"
+}
+
+warn() {
+    log 5 WARN "$@"
+}
+
+error() {
+    log 4 ERROR "$@"
+}
+
+get_hash() {
+    printf "%s" "$1" | sha1sum | awk '{print $1}'
+}
+
+get_kibana_index_name() {
+    echo .kibana.$(get_hash "$1")
+}
