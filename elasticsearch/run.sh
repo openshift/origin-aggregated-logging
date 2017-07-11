@@ -3,14 +3,19 @@
 set -euo pipefail
 
 if [ ${DEBUG:-""} = "true" ]; then
- set -x
+    set -x
+    LOGLEVEL=7
 fi
 
-export KUBERNETES_AUTH_TRYKUBECONFIG="false"
-ES_REST_BASEURL=https://localhost:9200
-LOG_FILE=elasticsearch_connect_log.txt
-RETRY_COUNT=300		# how many times
-RETRY_INTERVAL=1	# how often (in sec)
+source "logging"
+
+info Begin Elasticsearch startup script
+
+export KUBERNETES_AUTH_TRYKUBECONFIG=${KUBERNETES_AUTH_TRYKUBECONFIG:-"false"}
+ES_REST_BASEURL=${ES_REST_BASEURL:-https://localhost:9200}
+LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
+RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
+RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
@@ -39,34 +44,37 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
     fi
 
     #determine if req is less then max recommended by ES
-    echo "Comparing the specificed RAM to the maximum recommended for ElasticSearch..."
+    info "Comparing the specified RAM to the maximum recommended for Elasticsearch..."
     if [ ${MAX_ES_MEMORY_BYTES} -lt ${num} ]; then
         ((num = ${MAX_ES_MEMORY_BYTES}))
-        echo "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
+        warn "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
     fi
 
     #determine max allowable memory
-    echo "Inspecting the maximum RAM available..."
+    info "Inspecting the maximum RAM available..."
     mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
     if [ -r "${mem_file}" ]; then
         max_mem="$(cat ${mem_file})"
         if [ ${max_mem} -lt ${num} ]; then
             ((num = ${max_mem}))
-            echo "Setting the maximum allowable RAM to $(($num / BYTES_PER_MEG))m which is the largest amount available"
+            warn "Setting the maximum allowable RAM to $(($num / BYTES_PER_MEG))m which is the largest amount available"
         fi
     else
-        echo "Unable to determine the maximum allowable RAM for this host in order to configure ElasticSearch"
+        error "Unable to determine the maximum allowable RAM for this host in order to configure Elasticsearch"
         exit 1
     fi
 
     if [[ $num -lt $MIN_ES_MEMORY_BYTES ]]; then
-        echo "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
+        error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms128M -Xmx$(($num/2/BYTES_PER_MEG))m"
-    echo "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
+
+    # Set JVM HEAP size to half of available space
+    num=$(($num/2/BYTES_PER_MEG))
+    export ES_HEAP_SIZE="${num}m"
+    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
 else
-    echo "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
+    error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
 fi
 
@@ -74,60 +82,38 @@ fi
 wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
-    echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
-    while ! response_code=$(curl -s \
+    info "Checking if Elasticsearch is ready on $ES_REST_BASEURL"
+    while ! response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
         --max-time $max_time \
         -o $LOG_FILE -w '%{response_code}' \
         $ES_REST_BASEURL) || test $response_code != "200"
-do
-    echo -n "."
-    sleep $RETRY_INTERVAL
-    (( retry -= 1 ))
-    if (( retry == 0 )) ; then
-        timeouted=true
-        break
-    fi
-done
+    do
+        sleep $RETRY_INTERVAL
+        (( retry -= 1 )) || :
+        if (( retry == 0 )) ; then
+            timeouted=true
+            break
+        fi
+    done
 
-if [ $timeouted = true ] ; then
-    echo -n "[timeout] "
-else
-    rm -f $LOG_FILE
-    return 0
-fi
-echo "failed"
-cat $LOG_FILE
-rm -f $LOG_FILE
-exit 1
-}
-
-seed_searchguard(){
-    /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
-        -cd ${HOME}/sgconfig \
-        -i .searchguard.${HOSTNAME} \
-        -ks /etc/elasticsearch/secret/searchguard.key \
-        -kst JKS \
-        -kspass kspass \
-        -ts /etc/elasticsearch/secret/searchguard.truststore \
-        -tst JKS \
-        -tspass tspass \
-        -nhnv \
-        -icl
-    
-    if [ $? -eq 0 ]; then
-      echo "Seeded the searchguard ACL index"  
+    if [ $timeouted = true ] ; then
+        error "Timed out waiting for Elasticsearch to be ready"
     else
-      echo "Error seeding the searchguard ACL index"  
-      exit 1
+        rm -f $LOG_FILE
+        info Elasticsearch is ready and listening at $ES_REST_BASEURL
+        return 0
     fi
+    cat $LOG_FILE
+    rm -f $LOG_FILE
+    exit 1
 }
 
 verify_or_add_index_templates() {
     wait_for_port_open
-    seed_searchguard
+    es_seed_acl
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # Give up on timeout and continue...
     # curl -v -s -X GET \
@@ -136,22 +122,23 @@ verify_or_add_index_templates() {
     #     --key  $secret_dir/admin-key \
     #     "$ES_REST_BASEURL/_cluster/health?wait_for_status=yellow&timeout=${max_time}s"
 
+    info Adding index templates
     shopt -s failglob
     for template_file in /usr/share/elasticsearch/index_templates/*.json
     do
         template=`basename $template_file`
         # Check if index template already exists
-        response_code=$(curl -s -X HEAD \
+        response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
             --cacert $secret_dir/admin-ca \
             --cert $secret_dir/admin-cert \
             --key  $secret_dir/admin-key \
             -w '%{response_code}' \
             $ES_REST_BASEURL/_template/$template)
         if [ $response_code == "200" ]; then
-            echo "Index template '$template' already present in ES cluster"
+            info "Index template '$template' already present in ES cluster"
         else
-            echo "Create index template '$template'"
-            curl -v -s -X PUT \
+            info "Create index template '$template'"
+            curl ${DEBUG:+-v} -s -X PUT \
                 --cacert $secret_dir/admin-ca \
                 --cert $secret_dir/admin-cert \
                 --key  $secret_dir/admin-key \
@@ -160,6 +147,7 @@ verify_or_add_index_templates() {
         fi
     done
     shopt -u failglob
+    info Finished adding index templates
 }
 
 verify_or_add_index_templates &

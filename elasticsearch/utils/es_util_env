@@ -1,0 +1,7 @@
+set -o pipefail
+
+if [[ ! -z "${DEBUG:-}" ]]; then
+  set -x
+fi
+
+ES_BASE=${ES_BASE:-https://localhost:9200}
