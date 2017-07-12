@@ -10,8 +10,14 @@ function cleanup() {
 trap "cleanup" EXIT
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin"}"
-os::build::image "${tag_prefix}-logging-fluentd"       fluentd
-os::build::image "${tag_prefix}-logging-elasticsearch" elasticsearch
-os::build::image "${tag_prefix}-logging-kibana"        kibana
-os::build::image "${tag_prefix}-logging-curator"       curator
-os::build::image "${tag_prefix}-logging-auth-proxy"          kibana-proxy
+docker_suffix=''
+if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
+  docker_suffix='.rhel7'
+fi
+dockerfile="Dockerfile${docker_suffix}"
+
+OS_BUILD_IMAGE_ARGS="-f fluentd/${dockerfile}" os::build::image "${tag_prefix}-logging-fluentd"             fluentd
+OS_BUILD_IMAGE_ARGS="-f elasticsearch/${dockerfile}" os::build::image "${tag_prefix}-logging-elasticsearch" elasticsearch
+OS_BUILD_IMAGE_ARGS="-f kibana/${dockerfile}" os::build::image "${tag_prefix}-logging-kibana"               kibana
+OS_BUILD_IMAGE_ARGS="-f curator/${dockerfile}" os::build::image "${tag_prefix}-logging-curator"             curator
+OS_BUILD_IMAGE_ARGS="-f kibana-proxy/Dockerfile" os::build::image "${tag_prefix}-logging-auth-proxy"     kibana-proxy

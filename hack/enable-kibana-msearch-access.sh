@@ -155,9 +155,9 @@ fi
 
 role_name="multi_index_access_for_user_$user"
 
-config_index_name=$( oc exec -n $LOGGING_PROJECT $espod -- python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" )
+config_index_name=$( oc exec -n $LOGGING_PROJECT $espod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" )
 if [ -z "$config_index_name" ] ; then
-    echo Error: could not extract the searchguard index name from $espod /usr/share/elasticsearch/config/elasticsearch.yml
+    echo Error: could not extract the searchguard index name from $espod /usr/share/java/elasticsearch/config/elasticsearch.yml
     exit 1
 fi
 

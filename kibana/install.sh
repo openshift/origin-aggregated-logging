@@ -1,24 +1,34 @@
-mkdir -p -m 755 ${KIBANA_HOME}/installedPlugins/origin-kibana
-cd ${KIBANA_HOME}/installedPlugins/origin-kibana
-wget -q ${AOP_KIBANA_PLUGIN_REPO}/releases/download/${AOP_KIBANA_PLUGIN_VER}/origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-tar -xvzf origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-rm origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
+#!/bin/bash
+
+set -ex
+set -o nounset
+set -o pipefail
+
+chmod -R og+w "${KIBANA_CONF_DIR}"
+kibana_plugin_dir=${KIBANA_HOME}/installedPlugins/origin-kibana/
+mkdir -p -m 755 "${kibana_plugin_dir}"
+
+source "${HOME}/prep-install.${RELEASE_STREAM}"
 
 # Kibana starts up slowly because it tries to optimize and cache bundles
 # so we start it up as part of install and then stop it
-mv ${KIBANA_HOME}/config/kibana.yml ${KIBANA_HOME}/config/hidden_kibana.yml
-touch ${KIBANA_HOME}/config/kibana.yml
+mv "${KIBANA_CONF_DIR}/kibana.yml" "${KIBANA_CONF_DIR}/hidden_kibana.yml"
+touch "${KIBANA_CONF_DIR}/kibana.yml"
 
-${KIBANA_HOME}/bin/kibana > ${KIBANA_HOME}/kibana.out &
+touch "${KIBANA_HOME}/kibana.out"
+"${NODE_BIN}" "${KIBANA_HOME}/src/cli" > "${KIBANA_HOME}/kibana.out" &
 pid=$!
 
-until [ -n "$(grep 'Optimization of bundles for kibana and statusPage complete' ${KIBANA_HOME}/kibana.out)" ]; do
+until [ ! -z "${pid}" ] && [ -n "$(grep 'Optimization of bundles for kibana and statusPage complete' ${KIBANA_HOME}/kibana.out)" ]; do
   sleep 1
 done
-kill $pid
 
-rm ${KIBANA_HOME}/kibana.out
-rm ${KIBANA_HOME}/config/kibana.yml
-mv ${KIBANA_HOME}/config/hidden_kibana.yml ${KIBANA_HOME}/config/kibana.yml
-chmod -R og+w ${HOME}
-chmod -R og+rw ${KIBANA_HOME}
+if [ ! -z "${pid}" ] ; then
+  kill $pid
+fi
+
+rm "${KIBANA_HOME}/kibana.out"
+rm "${KIBANA_CONF_DIR}/kibana.yml"
+mv "${KIBANA_CONF_DIR}/hidden_kibana.yml" "${KIBANA_CONF_DIR}/kibana.yml"
+chmod -R og+w "${HOME}"
+chmod -R og+rw "${KIBANA_HOME}"

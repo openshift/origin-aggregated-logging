@@ -224,7 +224,7 @@ os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin $LOG
 oc project logging > /dev/null
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-config_index_name=$(oc exec $espod -- python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+config_index_name=$(oc exec $espod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
 sg_index=$(oc exec $espod -- bash -c "eval 'echo $config_index_name'")
 os::log::info "The searchguard index for $espod is: $sg_index"
 wait_for_es_ready $espod 30 "$sg_index/rolesmapping/0"
@@ -235,7 +235,7 @@ curl_es $espod /$sg_index/rolesmapping/0 | \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    config_index_name=$(oc exec $esopspod -- python -c "import yaml; print yaml.load(open('/usr/share/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+    config_index_name=$(oc exec $esopspod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
     sg_opsindex=$(oc exec $esopspod -- bash -c "eval 'echo $config_index_name'")
     os::log::info "The searchguard index for $esopspod is: $sg_opsindex"
     wait_for_es_ready $esopspod 30 "$sg_opsindex/rolesmapping/0"

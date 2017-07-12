@@ -104,8 +104,8 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	done
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
-	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
-	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
+	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/java/elasticsearch/index_templates"
+	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/java/elasticsearch/index_templates ); do
 		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' -X HEAD -w '%{response_code}'" '200'
 	done
 done

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo ">>>>>> ENVIRONMENT VARS <<<<<"
+env | sort
+echo ">>>>>>>>>>>>><<<<<<<<<<<<<<<<"
+
 if [[ $VERBOSE ]]; then
   set -ex
   fluentdargs="-vv"

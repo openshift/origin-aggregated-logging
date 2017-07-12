@@ -37,9 +37,9 @@ fi
 info Adding Kibana dashboards and other UI objects for user $1 index $kibindex
 
 INDEX_PATTERN=${INDEX_PATTERN:-project.*}
-INDEX_PATTERN_FILE=${INDEX_PATTERN_FILE:-/usr/share/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json}
+INDEX_PATTERN_FILE=${INDEX_PATTERN_FILE:-/usr/share/java/elasticsearch/index_patterns/com.redhat.viaq-openshift.index-pattern.json}
 INDEX_PATTERN_TYPE=${INDEX_PATTERN_TYPE:-index-pattern}
-KIBANA_UI_OBJECTS_DIR=${KIBANA_UI_OBJECTS_DIR:-/usr/share/elasticsearch/kibana_ui_objects}
+KIBANA_UI_OBJECTS_DIR=${KIBANA_UI_OBJECTS_DIR:-/usr/share/java/elasticsearch/kibana_ui_objects}
 
 info Adding the index pattern for "$INDEX_PATTERN" . . .
 
