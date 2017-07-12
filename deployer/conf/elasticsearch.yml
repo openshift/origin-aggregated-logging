@@ -62,7 +62,7 @@ path:
 searchguard:
   authcz.admin_dn:
   - CN=system.admin,OU=OpenShift,O=Logging
-  config_index_name: ".searchguard.${HOSTNAME}"
+  config_index_name: ".searchguard.${DC_NAME}"
   ssl:
     transport:
       enabled: true
