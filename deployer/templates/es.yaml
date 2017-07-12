@@ -92,6 +92,9 @@ objects:
               -
                 name: RECOVER_AFTER_TIME
                 value: ${RECOVER_AFTER_TIME}
+              -
+                name: DC_NAME
+                value: ${ES_DEPLOYMENT_NAME}
               volumeMounts:
                 - name: elasticsearch
                   mountPath: /etc/elasticsearch/secret

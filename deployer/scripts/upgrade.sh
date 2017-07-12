@@ -668,6 +668,41 @@ function update_es_for_235() {
     waitForChange $currentVersion $dc &
     patchPIDs+=( $!)
   done
+} 
+
+#https://bugzilla.redhat.com/show_bug.cgi?id=1470368
+function update_searchguard_index_name () {
+
+  if oc get configmap logging-elasticsearch -o yaml | grep -q DC_NAME > /dev/null ; then
+    echo "ConfigMap logging-elasticsearch uses the DC_NAME for searchguard.  No need to update"
+  else
+    echo "Fixing SearchGuard index name in elasticsearch.yaml conf"
+    oc get configmap logging-elasticsearch -o yaml | \
+         sed -i 's/HOSTNAME/DC_NAME/' | oc replace -f -
+  fi
+
+  patchPIDs=()
+  local dc
+
+  for dc in $(get_es_dcs); do
+    # wait incase another patch is deploying latest
+    waitForLatestDeployment $dc
+
+    if oc get $dc -o yaml | grep -q DC_NAME > /dev/null ; then
+      echo "DeploymentConfig $dc the DC_NAME for searchguard.  No need to update"
+    else
+      currentVersion=$(oc get $dc -o jsonpath='{.status.latestVersion}')
+      name=$(oc get $dc -o jsonpath='{.metadata.name}')
+      echo "Adding DC_NAME var to ES deploymentconfig $name"
+      patch=$(join , \
+        "{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/env/0\", \"value\": { \"name\": \"DC_NAME\", \"value\": \"$name\" }}")
+      oc patch $dc --type=json --patch "[$patch]"
+
+      oc deploy $dc --latest
+      waitForChange $currentVersion $dc &
+      patchPIDs+=( $!)
+    fi
+  done
 }
 
 #https://bugzilla.redhat.com/show_bug.cgi?id=1462277
@@ -996,6 +1031,8 @@ function upgrade_logging() {
   done
 
   update_es_max_local_storage
+
+  update_searchguard_index_name
 
   scaleUp
 
