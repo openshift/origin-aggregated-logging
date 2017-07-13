@@ -115,9 +115,17 @@ if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
     DIV=`expr $DIV \* 2`
 fi
 
+if [ "$BUFFER_TYPE" = "file" -a -z "$FILE_BUFFER_PATH" ]; then
+    echo "ERROR: File is set to buffer_type but FILE_BUFFER_PATH is empty.  Using memory buffer"
+fi
+
+FILE_BUFFER_PATH_ES=""
+FILE_BUFFER_PATH_ESOPS=""
+FILE_BUFFER_PATH_ES_COPY=""
+FILE_BUFFER_PATH_ESOPS_COPY=""
 # Default buffer_type: file if FILE_BUFFER_PATH is specified.
-FILE_BUFFER_PATH=${FILE_BUFFER_PATH:-""}
-if [ "$BUFFER_TYPE" = "file" -a "$FILE_BUFFER_PATH" != "" ] ; then
+BUFFER_TYPE=${FILE_BUFFER_PATH:+file}
+if [ "$BUFFER_TYPE" = "file" ]; then
     if [ ! -d $FILE_BUFFER_PATH ]; then
         mkdir -p $FILE_BUFFER_PATH
     fi
@@ -125,24 +133,28 @@ if [ "$BUFFER_TYPE" = "file" -a "$FILE_BUFFER_PATH" != "" ] ; then
     DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
     DF_LIMIT=${DF_LIMIT:-0}
     DF_LIMIT=$(expr $DF_LIMIT / 4)
-    # Given buffer limit per output
-    TOTAL_LIMIT=$(echo ${FILE_BUFFER_LIMIT:-0} | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
-    # In total
-    TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $DIV)
-    # Available disk space is less than the specified size.
-    if [ $DF_LIMIT -gt 0 -a $DF_LIMIT -lt $TOTAL_LIMIT ]; then
-        TOTAL_LIMIT=$DF_LIMIT
+    if [ $DF_LIMIT -eq 0 ]; then
+        echo "ERROR: No disk space is available for file buffer in $FILE_BUFFER_PATH.  Using memory buffer."
+        BUFFER_TYPE="memory"
+    else
+        # Given buffer limit per output
+        TOTAL_LIMIT=$(echo ${FILE_BUFFER_LIMIT:-0} | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
+        # In total
+        TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $DIV)
+        # Available disk space is less than the specified size.
+        if [ $DF_LIMIT -lt $TOTAL_LIMIT ]; then
+            echo "WARNING: Available disk space is less than the user specified file buffer limit $FILE_BUFFER_LIMIT."
+            TOTAL_LIMIT=$DF_LIMIT
+        fi
+        FILE_BUFFER_PATH_ES=${FILE_BUFFER_PATH}/es
+        FILE_BUFFER_PATH_ESOPS=${FILE_BUFFER_PATH}/esops
+        FILE_BUFFER_PATH_ES_COPY=${FILE_BUFFER_PATH}/escopy
+        FILE_BUFFER_PATH_ESOPS_COPY=${FILE_BUFFER_PATH}/esopscopy
     fi
-    # Adding the buffer_path to each output config
-    for esconf in $CFG_DIR/openshift/es-*.conf $CFG_DIR/openshift/output-es-*.conf; do
-        estmp=$(basename $esconf)
-        esfile=${estmp%.*}
-        cat $esconf | sed "/buffer_path .*/d" > $esconf.tmp
-        cat $esconf.tmp | sed "/buffer_type/ a\
-\ \ \ \ \ \ buffer_path $FILE_BUFFER_PATH/$esfile" > $esconf
-      rm $esconf.tmp
-    done
 else
+    BUFFER_TYPE="memory"
+fi
+if [ "$BUFFER_TYPE" = "memory" ] ; then
     if [ "${USE_MUX:-}" = "true" ] ; then
         TOTAL_LIMIT=$(echo $MUX_MEMORY_LIMIT | sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc)
     else
@@ -150,7 +162,6 @@ else
     fi
     # Use 75% of the avialble memory
     TOTAL_LIMIT=$(expr $(expr $TOTAL_LIMIT \* 3) / 4)
-    BUFFER_TYPE="memory"
 fi
 if [ -z $TOTAL_LIMIT -o $TOTAL_LIMIT -eq 0 ]; then
     # 75 % of 512M
@@ -167,6 +178,7 @@ if [ -z $BUFFER_QUEUE_LIMIT -o $BUFFER_QUEUE_LIMIT -eq 0 ]; then
     BUFFER_QUEUE_LIMIT=256
 fi
 export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT BUFFER_TYPE
+export FILE_BUFFER_PATH_ES FILE_BUFFER_PATH_ESOPS FILE_BUFFER_PATH_ES_COPY FILE_BUFFER_PATH_ESOPS_COPY
 
 OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
 OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"
