@@ -17,6 +17,9 @@ if [[ "${KIBANA_MEMORY_LIMIT:-}" =~ $regex ]]; then
     num=${BASH_REMATCH[1]}
     unit=${BASH_REMATCH[2]}
 
+    #set max_old_space_size to half of memory limit to allow some heap for other V8 spaces
+    num=$((num/2))
+
     if [[ $unit =~ [Gg] ]]; then
         ((num = num * ${BYTES_PER_GIG})) # enables math to work out for odd Gi
     elif [[ $unit =~ [Mm] ]]; then
