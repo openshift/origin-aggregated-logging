@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: "Template"
 metadata:
-  name: logging-dev-build-wo-deployer-template
+  name: logging-dev-build-template
   annotations:
     description: "Template for creating local builds of logging components from source."
     tags: "infrastructure"
@@ -46,19 +46,6 @@ objects:
     name: logging-auth-proxy
   spec: {}
 - apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
-      build: logging-deployment
-    name: origin
-  spec:
-    dockerImageRepository: openshift/origin
-    tags:
-    - name: v1.5.0-alpha.2
-      from:
-        kind: DockerImage
-        name: openshift/origin:v1.5.0-alpha.2
-- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
@@ -78,7 +65,7 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-        dockerfilePath: Dockerfile
+        dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
           name: openshift/base-centos7
@@ -106,7 +93,7 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-        dockerfilePath: Dockerfile
+        dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
           name: openshift/base-centos7
@@ -134,7 +121,7 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-        dockerfilePath: Dockerfile
+        dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
           name: openshift/base-centos7
@@ -161,7 +148,7 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-        dockerfilePath: Dockerfile
+        dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
           name: openshift/base-centos7
@@ -188,6 +175,7 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
+        dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
           name: library/node:0.10.36

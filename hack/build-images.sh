@@ -10,9 +10,9 @@ function cleanup() {
 trap "cleanup" EXIT
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin"}"
-docker_suffix=''
+docker_suffix='.centos7'
 if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
-  docker_suffix='.rhel7'
+  docker_suffix=''
 fi
 dockerfile="Dockerfile${docker_suffix}"
 
