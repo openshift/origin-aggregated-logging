@@ -327,7 +327,7 @@ wait_for_pod_ACTION() {
     fi
     while [ $ii -gt 0 ] ; do
         if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod $curpod still running
             fi
         elif [ $1 = start ] && [ -z "$curpod" ] ; then
@@ -337,7 +337,7 @@ wait_for_pod_ACTION() {
                     return 1
                 fi
             fi
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod for component=$2 not running yet
             fi
         else
