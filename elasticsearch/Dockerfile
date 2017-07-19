@@ -20,7 +20,12 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
     RECOVER_AFTER_TIME=5m \
-    RELEASE_STREAM=prod 
+    RELEASE_STREAM=prod
+
+ARG ES_CLOUD_K8S_VER=2.4.4
+ARG OSE_ES_VER=2.4.4.9
+ARG ES_CLOUD_K8S_URL
+ARG OSE_ES_URL
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
@@ -44,9 +49,11 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
     rpm -V $packages && \
     yum clean all
 
+
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
+ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
