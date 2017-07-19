@@ -47,7 +47,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
-ADD kibana_ui_objects/ /usr/share/elasticsearch/kibana_ui_objects/
+ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
