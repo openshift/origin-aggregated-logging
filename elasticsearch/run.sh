@@ -78,6 +78,19 @@ else
     exit 1
 fi
 
+# Initialize internal users
+if [ -f /etc/elasticsearch/secret/prometheus.passwd ] ; then
+  passwd=$(cat /etc/elasticsearch/secret/prometheus.passwd)
+fi
+cat > ${HOME}/sgconfig/sg_internal_users.yml << CONF
+---
+  prometheus:
+    hash: ${passwd:-(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 20 | head -n 1)}
+    roles:
+    - sg_role_prometheus
+CONF
+unset passwd
+
 # Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
 wait_for_port_open() {
     rm -f $LOG_FILE

@@ -25,3 +25,11 @@ searchguard:
           challenge: false
         authentication_backend:
           type: noop
+      prometheus_domain:
+        enabled: true
+        order: 2
+        http_authenticator:
+          type: basic
+          challange: true
+        authentication_backend:
+          type: intern

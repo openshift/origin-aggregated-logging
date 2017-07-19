@@ -8,6 +8,8 @@
 #  - the Kibana cert and key are functional
 #  - indices have been successfully created by Fluentd
 #    in Elasticsearch
+#  - Expected plugins are installed on every Elasticsearch node
+#  - Prometheus exporter plugin yields metrics
 #
 # This script expects the following environment
 # variables:
@@ -97,7 +99,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 		index="$( rev <<<"${index}" | cut -d"." -f 4- | rev )"
 
 		for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
-			os::log::info "Cheking for index ${index} with Kibana pod ${kibana_pod}..."
+			os::log::info "Checking for index ${index} with Kibana pod ${kibana_pod}..."
 			# As we're checking system log files, we need to use `sudo`
 			os::cmd::expect_success "sudo -E VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
 		done
@@ -108,6 +110,33 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/java/elasticsearch/index_templates ); do
 		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200'
 	done
+
+	os::log::debug "Checking that Elasticsearch pod ${elasticsearch_pod} has expected plugins installed"
+	curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&v'
+	matching_plugins=0
+	found_plugins=$( curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&h=component' )
+	for plugin in $found_plugins[@] ; do
+		os::log::info "Installed plugin: ${plugin}"
+		if [ "${plugin}" = "cloud-kubernetes" ]; then
+			(( matching_plugins+=1 ))
+		elif [ "${plugin}" = "openshift-elasticsearch" ]; then
+			(( matching_plugins+=1 ))
+		elif [ "${plugin}" = "prometheus-exporter" ]; then
+			(( matching_plugins+=1 ))
+		fi
+	done
+	if [ "$matching_plugins" -lt "3" ]; then
+		os::log::fatal "Elasticsearch pod is missing expected plugin(s). Exp cloud-kubernetes, openshift-elasticsearch, prometheus-exporter, found: ${found_plugins[*]}"
+	else
+		os::log::info "Elasticsearch pod ${elasticsearch_pod} contains expected plugin(s)"
+	fi
+
+#	WIP, uncommented unless we figure out how to get user name
+#	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
+#	user_name="prometheus" #?
+#	barer_token="_na_"     #?
+#	prometheus_metrics=$( curl_es_with_token "${elasticsearch_pod}" '/_prometheus/metrics' "$user_name" "$barer_token" )
+
 done
 
 os::test::junit::declare_suite_end
