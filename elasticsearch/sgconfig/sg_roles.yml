@@ -7,6 +7,10 @@ sg_role_kibana:
       '*':
         - ALL
 
+sg_role_prometheus:
+  cluster:
+    - cluster:monitor/_prometheus/metrics
+
 sg_role_fluentd:
   indices:
     '*':
