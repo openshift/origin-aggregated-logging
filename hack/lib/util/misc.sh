@@ -181,7 +181,7 @@ function os::util::curl_etcd() {
 			               -out "${etcd_client_cert_p12}" \
 			               -password "pass:${etcd_client_cert_p12_password}"
 		fi
-b
+
 		curl --fail --silent --cacert "${ca_bundle}" \
 		     --cert "${etcd_client_cert_p12}:${etcd_client_cert_p12_password}" "${full_url}"
 	else
@@ -233,3 +233,19 @@ function os::util::list_go_src_files() {
 	\) -name '*.go' | sort -u
 }
 readonly -f os::util::list_go_src_files
+
+# os::util::list_go_src_dirs lists dirs in origin/ and cmd/ dirs excluding
+# cmd/cluster-capacity and cmd/service-catalog and doc.go useful for tools that
+# iterate over source to provide vetting or linting, or for godep-save etc.
+#
+# Globals:
+#  None
+# Arguments:
+#  None
+# Returns:
+#  None
+function os::util::list_go_src_dirs() {
+	os::util::list_go_src_files | cut -d '/' -f 1-2 | grep -v ".go$" | grep -v "^./cmd" | LC_ALL=C sort -u
+	os::util::list_go_src_files | grep "^./cmd/"| cut -d '/' -f 1-3 | grep -v ".go$" | LC_ALL=C sort -u
+}
+readonly -f os::util::list_go_src_dirs
