@@ -17,7 +17,7 @@ if ! type get_running_pod > /dev/null 2>&1 ; then
 fi
 
 if [ "$USE_MUX_CLIENT" == "false" -o "$MUX_ALLOW_EXTERNAL" == "false" ]; then
-    echo "Skipping -- This test requires both USE_MUX_CLIENT and MUX_ALLOW_EXTERNAL are true."
+    echo "Skipping -- This test requires USE_MUX_CLIENT and MUX_ALLOW_EXTERNAL are true."
     exit 0
 fi
 
