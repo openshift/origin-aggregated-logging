@@ -92,6 +92,13 @@ if [ "${USE_MUX:-}" = "true" ] ; then
 else
     ruby generate_throttle_configs.rb
     rm -f $CFG_DIR/openshift/*mux*.conf
+    # assume mux doesn't actually read from the journal file
+    if [ "${USE_JOURNAL:-}" = "true" ] ; then
+        # have output plugins handle back pressure
+        # if you want the old behavior to be forced anyway, set env
+        # BUFFER_QUEUE_FULL_ACTION=exception
+        export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
+    fi
 fi
 
 if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
