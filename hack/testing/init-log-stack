@@ -25,10 +25,10 @@ if [ "$MUX_ALLOW_EXTERNAL" = true ] ; then
     SET_MUX_MEMORY_LIMIT="openshift_logging_mux_memory_limit=${MUX_MEMORY_LIMIT:-2Gi}"
     SET_MUX_BUFFER_QUEUE_LIMIT="openshift_logging_mux_buffer_queue_limit=${MUX_BUFFER_QUEUE_LIMIT:-1024}"
     SET_MUX_BUFFER_SIZE_LIMIT="openshift_logging_mux_buffer_size_limit=${MUX_BUFFER_SIZE_LIMIT:-1048576}"
-    if [ "$BUFFER_TYPE" = "file" ]; then
+    if [ "${BUFFER_TYPE:-}" = "file" ]; then
         SET_MUX_BUFFER_TYPE="openshift_logging_mux_buffer_type=file"
         SET_MUX_FILE_BUFFER_STORAGE_TYPE="openshift_logging_mux_file_buffer_storage_type=${MUX_FILE_BUFFER_STORAGE_TYPE:-emptydir}"
-        if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" ]; then
+        if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "pvc" ]; then
           SET_MUX_FILE_BUFFER_PVC_NAME="openshift_logging_mux_file_buffer_pvc_name=logging-mux-pvc"
           SET_MUX_FILE_BUFFER_PVC_SIZE="openshift_logging_mux_file_buffer_pvc_size=6Gi"
           echo "### Prepare pvc storage for testing"
@@ -52,7 +52,7 @@ spec:
     fi
 fi
 
-if [ "$BUFFER_TYPE" = "file" ]; then
+if [ "${BUFFER_TYPE:-}" = "file" ]; then
     SET_FLUENTD_BUFFER_TYPE="openshift_logging_fluentd_buffer_type=file"
 else
     SET_FLUENTD_BUFFER_TYPE="openshift_logging_fluentd_buffer_type=memory"
