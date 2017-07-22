@@ -118,8 +118,7 @@ else
 fi
 
 if [ "$BUFFER_TYPE" = "file" -a -z "$FILE_BUFFER_PATH" ]; then
-    BUFFER_TYPE=memory
-    echo "ERROR: File is set to buffer_type but FILE_BUFFER_PATH is empty.  Using memory buffer"
+    echo "ERROR: BUFFER_TYPE is set to file but FILE_BUFFER_PATH is empty.  Please specify a FILE_BUFFER_PATH.  Exiting."
 fi
 
 FILE_BUFFER_PATH_ES=""
@@ -127,7 +126,7 @@ FILE_BUFFER_PATH_ESOPS=""
 FILE_BUFFER_PATH_ES_COPY=""
 FILE_BUFFER_PATH_ESOPS_COPY=""
 # Default buffer_type: file if FILE_BUFFER_PATH is specified.
-if [ "$BUFFER_TYPE" = "file" ]; then
+if [ "${BUFFER_TYPE:-}" = "file" ]; then
     if [ ! -d $FILE_BUFFER_PATH ]; then
         mkdir -p $FILE_BUFFER_PATH
     fi
