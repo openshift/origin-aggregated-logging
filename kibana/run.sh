@@ -37,7 +37,7 @@ BYTES_PER_GIG=$((1024*BYTES_PER_MEG))
 DEFAULT_MIN=$((128 * BYTES_PER_MEG)) #This is a guess
 regex='^([[:digit:]]+)([GgMm])?i?$'
 
-if [[ "${KIBANA_MEMORY_LIMIT:-}" =~ $regex ]]; then
+if [[ "${KIBANA_MEMORY_LIMIT:-736M}" =~ $regex ]]; then
     num=${BASH_REMATCH[1]}
     unit=${BASH_REMATCH[2]}
 
