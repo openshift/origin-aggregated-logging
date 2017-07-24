@@ -22,7 +22,7 @@ regex='^([[:digit:]]+)([GgMm])?i?$'
 
 export NODE_OPTIONS=""
 
-if [[ "${KIBANA_MEMORY_LIMIT:-}" =~ $regex ]]; then
+if [[ "${KIBANA_MEMORY_LIMIT:-736M}" =~ $regex ]]; then
     num=${BASH_REMATCH[1]}
     unit=${BASH_REMATCH[2]}
 
