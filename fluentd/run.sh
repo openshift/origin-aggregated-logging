@@ -119,6 +119,7 @@ fi
 
 if [ "$BUFFER_TYPE" = "file" -a -z "$FILE_BUFFER_PATH" ]; then
     echo "ERROR: BUFFER_TYPE is set to file but FILE_BUFFER_PATH is empty.  Please specify a FILE_BUFFER_PATH.  Exiting."
+    exit 1
 fi
 
 FILE_BUFFER_PATH_ES=""
