@@ -49,6 +49,20 @@ There are environment variables for the logging-mux DC config:
 * `FORWARD_LISTEN_HOST` - hostname to listen for secure_forward protocol log
   messages - this is the same as the FQDN in the mux server cert
 
+These are environment variables for the logging-fluentd daemonset config:
+
+* `USE_MUX_CLIENT` - `true`/`false` - default is `false` - if `true`, fluentd
+  will not send logs directly to Elasticsearch, instead it will use
+  `secure_forward` to send logs to mux.
+* `MUX_CLIENT_MODE` - `minimal`/`full_no_k8s_meta` - default is unset - if
+  `minimal`, this is the same behavior as `USE_MUX_CLIENT true`.  If
+  `full_no_k8s_meta`, then fluentd will perform *all* of the data processing
+  and filtering *except* the Kubernetes metadata annotation.  The records will
+  be sent to mux for Kubernetes metadata annotation before sending the logs to
+  Elasticsearch.  In this case, it is assumed you want to deploy mux to be as
+  lightweight as possible, and move the processing burden to the individual
+  nodes.
+
 logging-mux must be deployed with `MUX_ALLOW_EXTERNAL true` in order to receive
 records sent from outside the cluster.
 
@@ -208,6 +222,13 @@ written to Elasticsearch in the index
 container records are written.
 
 Flow:![External Cluster mux](mux-logging-service-diag3.png)
+
+With Fluentd configured with `MUX_CLIENT_MODE full_no_k8s_meta`:
+
+Fluentd will perform *all* processing and formatting of log records read from
+files or journald *except* that it will not perform Kubernetes metadata
+processing.  Mux will perform the Kubernetes metadata annotation before
+submitting the records to Elasticsearch.
 
 ### Details ###
 
