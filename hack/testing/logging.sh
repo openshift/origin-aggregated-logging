@@ -41,7 +41,7 @@ ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
 export MUX_ALLOW_EXTERNAL=${MUX_ALLOW_EXTERNAL:-false}
 export USE_MUX_CLIENT=${USE_MUX_CLIENT:-false}
 export USE_MUX=${USE_MUX:-false}
-if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true ] ; then
+if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
     export USE_MUX=true
 fi
 

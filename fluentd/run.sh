@@ -101,18 +101,33 @@ else
     fi
 fi
 
-if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
-    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift
+# this is the list of keys to remove when the record is transformed from the raw systemd journald
+# output to the viaq data model format
+K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
+
+if [ -n "${MUX_CLIENT_MODE:-}" -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
+    mux_client_filename=filter-pre-mux-client.conf
+    if [ "${MUX_CLIENT_MODE:-}" = full_no_k8s_meta ] ; then
+        mux_client_filename=output-pre-mux-client.conf
+        # do not remove the CONTAINER_ fields - pass them through to mux
+        # sed assumes CONTAINER_ fields are not first nor last fields in list
+        K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
+                                  sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
+    fi
+    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     # copy any user defined files, possibly overwriting the standard ones
     if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
-        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift
+        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
     # rm k8s meta plugin - do not hit the API server
-    rm $CFG_DIR/openshift/filter-k8s-meta.conf
-    touch $CFG_DIR/openshift/filter-k8s-meta.conf
+    if [ "${MUX_CLIENT_MODE:-}" = full_no_k8s_meta -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
+        rm $CFG_DIR/openshift/filter-k8s-meta.conf
+        touch $CFG_DIR/openshift/filter-k8s-meta.conf
+    fi
 else
-    rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf
+    rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
 fi
+export K8S_FILTER_REMOVE_KEYS
 
 if [ "${USE_MUX:-}" = "true" ] ; then
     TOTAL_MEMORY_LIMIT=`echo $MUX_MEMORY_LIMIT |  sed -e "s/[Kk]/*1024/g;s/[Mm]/*1024*1024/g;s/[Gg]/*1024*1024*1024/g;s/i//g" | bc`
@@ -129,7 +144,7 @@ if [ "$ES_HOST" != "$OPS_HOST" ] || [ "$ES_PORT" != "$OPS_PORT" ] ; then
     # using ops cluster
     DIV=`expr $DIV \* 2`
 fi
-if [ "${USE_MUX_CLIENT:-}" = "true" ] ; then
+if [ -n "${MUX_CLIENT_MODE:-}" -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
     DIV=`expr $DIV \* 2`
 fi
 
