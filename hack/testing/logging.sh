@@ -38,10 +38,11 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
+# MUX_ALLOW_EXTERNAL is now only for setting up the service to have
+# an externalIP
 export MUX_ALLOW_EXTERNAL=${MUX_ALLOW_EXTERNAL:-false}
-export USE_MUX_CLIENT=${USE_MUX_CLIENT:-false}
 export USE_MUX=${USE_MUX:-false}
-if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
+if [ "$MUX_ALLOW_EXTERNAL" = true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
     export USE_MUX=true
 fi
 

@@ -29,11 +29,6 @@ docker_uses_journal() {
     return 1
 }
 
-if [ "${MUX_ALLOW_EXTERNAL:-}" = "true" ] ; then
-    # mux service implies mux
-    export USE_MUX=true
-fi
-
 if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
     if [ -z "${USE_JOURNAL:-}" -o "${USE_JOURNAL:-}" = true ] ; then
         if [ -z "${JOURNAL_SOURCE:-}" ] ; then
@@ -70,25 +65,14 @@ FLUENTD_MEMORY_LIMIT=${FLUENTD_MEMORY_LIMIT:-512Mi}
 CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then
     # copy our standard mux configs to the openshift dir
-    cp $CFG_DIR/input-*-mux.conf $CFG_DIR/openshift
+    cp $CFG_DIR/input-*-mux.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
     # copy any user defined files, possibly overwriting the standard ones
-    for file in $CFG_DIR/user/input-*-mux.conf ; do
+    for file in $CFG_DIR/user/input-*-mux.conf $CFG_DIR/user/filter-*-mux.conf ; do
         if [ -f "$file" ] ; then
             cp -f $file $CFG_DIR/openshift
         fi
     done
     rm -f $CFG_DIR/dynamic/input-docker-* $CFG_DIR/dynamic/input-syslog-*
-    if [ "${MUX_ALLOW_EXTERNAL:-}" = "true" ] ; then
-        cp $CFG_DIR/mux-post-input*.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
-        # copy any user defined files, possibly overwriting the standard ones
-        for file in $CFG_DIR/user/mux-post-input*.conf $CFG_DIR/user/filter-*-mux.conf ; do
-            if [ -f "$file" ] ; then
-                cp -f $file $CFG_DIR/openshift
-            fi
-        done
-    else
-        rm -f $CFG_DIR/openshift/mux-post-input*.conf $CFG_DIR/openshift/filter-*-mux.conf
-    fi
 else
     ruby generate_throttle_configs.rb
     rm -f $CFG_DIR/openshift/*mux*.conf
@@ -105,12 +89,12 @@ fi
 # output to the viaq data model format
 K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
 
-if [ -n "${MUX_CLIENT_MODE:-}" -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
+if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     mux_client_filename=filter-pre-mux-client.conf
-    if [ "${MUX_CLIENT_MODE:-}" = full_no_k8s_meta ] ; then
+    if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
         mux_client_filename=output-pre-mux-client.conf
         # do not remove the CONTAINER_ fields - pass them through to mux
-        # sed assumes CONTAINER_ fields are not first nor last fields in list
+        # sed assumes CONTAINER_ fields are neither first nor last fields in list
         K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
                                   sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
     fi
@@ -120,7 +104,7 @@ if [ -n "${MUX_CLIENT_MODE:-}" -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
     # rm k8s meta plugin - do not hit the API server
-    if [ "${MUX_CLIENT_MODE:-}" = full_no_k8s_meta -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
+    if [ "${MUX_CLIENT_MODE:-}" = maximal -o "${MUX_CLIENT_MODE:-}" = minimal ] ; then
         rm $CFG_DIR/openshift/filter-k8s-meta.conf
         touch $CFG_DIR/openshift/filter-k8s-meta.conf
     fi
@@ -144,7 +128,7 @@ if [ "$ES_HOST" != "$OPS_HOST" ] || [ "$ES_PORT" != "$OPS_PORT" ] ; then
     # using ops cluster
     DIV=`expr $DIV \* 2`
 fi
-if [ -n "${MUX_CLIENT_MODE:-}" -o "${USE_MUX_CLIENT:-}" = "true" ] ; then
+if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     DIV=`expr $DIV \* 2`
 fi
 
