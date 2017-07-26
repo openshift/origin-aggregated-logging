@@ -92,6 +92,7 @@ wait_for_port_open() {
             break
         fi
     done
+}
 
 seed_searchguard(){
     /usr/share/elasticsearch/plugins/search-guard-2/tools/sgadmin.sh \
@@ -162,9 +163,4 @@ HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
 
-<<<<<<< fccc46b478f4cf9c93305e811f6d53bb55b9c669
-exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
-=======
-exec /usr/share/elasticsearch/bin/elasticsearch -Epath.conf=$ES_CONF
-#--security.manager.enabled false
->>>>>>> Elasticsearch 5.3.1 without SearchGuard
+exec ${ES_HOME}/bin/elasticsearch -Epath.conf=$ES_CONF

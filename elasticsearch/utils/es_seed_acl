@@ -22,7 +22,9 @@ while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -tst JKS \
     -tspass tspass \
     -nhnv \
-    -icl ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
+    -h ${ES_API_SERVICE}-cluster \
+    -cn ${ES_API_SERVICE} \
+    ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
 do
     if ! expr $numretries % $loginterval ; then
         warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"

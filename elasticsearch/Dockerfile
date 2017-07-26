@@ -10,7 +10,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     ES_CONF=/usr/share/java/elasticsearch/config \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/java/elasticsearch \
-    ES_VER=2.4.4 \
+    ES_VER=5.4.0 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
@@ -22,10 +22,10 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=prod
 
-ARG ES_CLOUD_K8S_VER=2.4.4
-ARG OSE_ES_VER=2.4.4.9
+ARG ES_CLOUD_K8S_VER=5.4.0
 ARG ES_CLOUD_K8S_URL
-ARG OSE_ES_URL
+ARG SG_VER=5.4.0-12
+ARG SG_URL
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \

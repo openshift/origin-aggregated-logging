@@ -1,17 +1,20 @@
 sg_role_kibana:
   cluster:
-    - cluster:monitor/nodes/info
-    - cluster:monitor/health
+    - CLUSTER_MONITOR
+    - CLUSTER_COMPOSITE_OPS
   indices:
     '?kibana':
       '*':
-        - ALL
+        - INDICES_ALL
 
 sg_role_fluentd:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
   indices:
     '*':
       '*':
-        - WRITE
+        - CRUD
         - CREATE_INDEX
 
 sg_role_curator:
