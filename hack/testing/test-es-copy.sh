@@ -13,8 +13,8 @@ if ! type get_running_pod > /dev/null 2>&1 ; then
     . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
 fi
 
-if [ "$USE_MUX_CLIENT" = "true" ] ; then
-    echo "Skipping -- This test is exclusive to USE_MUX_CLIENT != true."
+if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
+    echo "Skipping -- This test does not work with MUX_CLIENT_MODE."
     exit 0
 fi
 
