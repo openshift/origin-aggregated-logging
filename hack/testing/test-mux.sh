@@ -26,6 +26,12 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+if [ "${VERBOSE:-false}" = true ] ; then
+    MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.$no_project_tag.log
+else
+    MUXDEBUG="/dev/null"
+fi
+
 if oc get project testproj > /dev/null 2>&1 ; then
     echo using existing project testproj
 else
@@ -53,6 +59,8 @@ cleanup_forward() {
   oc label node --all logging-infra-fluentd-
 
   wait_for_pod_ACTION stop $fpod
+
+  oc set env daemonset/logging-fluentd USE_MUX_CLIENT=false
 
   # Revert configmap if we haven't yet
   oc get configmap/logging-fluentd -o yaml | \
@@ -91,6 +99,7 @@ reset_fluentd_daemonset() {
 }
 
 # OPTIONS:
+ENABLE_SECURE_FORWARD=0
 SET_CONTAINER_VALS=1
 NO_CONTAINER_VALS=2
 MISMATCH_NAMESPACE_TAG=3
@@ -159,7 +168,7 @@ update_current_fluentd() {
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>"}]'
-  else
+  elif [ $myoption -eq $NO_PROJECT_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <match journal>\n\
         @type rewrite_tag_filter\n\
@@ -173,6 +182,8 @@ update_current_fluentd() {
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         </record>\n\
       </filter>"}]'
+  else
+      echo "Enabling secure forward"
   fi
 
   reset_fluentd_daemonset
@@ -207,11 +218,6 @@ write_and_verify_logs() {
 
     local rc=0
 
-    if [ "${VERBOSE:-false}" = true ] ; then
-        MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.$no_project_tag.log
-    else
-        MUXDEBUG="/dev/null"
-    fi
     echo "DEBUG PRINT is_testproj $is_testproj no_container_vals $no_container_vals ====================================" > $MUXDEBUG
 
     espod=$es_pod
@@ -299,6 +305,25 @@ restart_fluentd() {
     oc logs $fpod  > $ARTIFACT_DIR/$fpod.log
 }
 
+reset_ES_HOST() {
+    es_host=${1:-"bogus"}
+    ops_host=${2:-"bogus"}
+
+    oc set env dc logging-mux ES_HOST="$es_host" OPS_HOST="$ops_host"
+
+    wait_for_pod_ACTION start mux
+
+    sleep 10
+
+    while terminating=$(oc get pods | egrep Terminating) || :
+    do
+        if [ "$terminating" = "" ]; then
+            break
+        fi
+        sleep 2
+    done
+}
+
 TEST_DIVIDER="------------------------------------------"
 
 # make sure we are in logging
@@ -321,6 +346,14 @@ if [ -z "`get_running_pod es`" ] ; then
     exit 1
 fi
 
+if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" ]; then
+    echo file_buffer_storage_type: pvc >> $MUXDEBUG
+    oc get pv >> $MUXDEBUG
+    echo "" >> $MUXDEBUG
+    oc get pvc >> $MUXDEBUG
+    echo "" >> $MUXDEBUG
+fi
+
 # run test to make sure fluentd is working normally 
 write_and_verify_logs 1 0 0 || {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
@@ -333,6 +366,56 @@ cleanup() {
     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
 }
 trap "cleanup" INT TERM EXIT
+
+if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then
+    echo "------- Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE -------"
+
+    update_current_fluentd $ENABLE_SECURE_FORWARD
+
+    ES_HOST_BAK=${ES_HOST:-"logging-es"}
+    OPS_HOST_BAK=${OPS_HOST:-"logging-es-ops"}
+
+    # set ES_HOST and OPS_HOST to bogus
+    reset_ES_HOST
+
+    uuid_es=`uuidgen`
+    uuid_es_ops=`uuidgen`
+
+    logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
+    add_test_message $uuid_es
+
+    # wait long enough to make the test messages are in the buffer
+    sleep 10
+
+    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
+    oc exec $MPOD -- ls -l /var/lib/fluentd/buffer
+    oc logs $MPOD >> $MUXDEBUG
+
+    # set ES_HOST and OPS_HOST to original
+    reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK
+
+    expected=1
+    # kibana logs with kibana container/pod values
+    myproject=project.logging
+    espod=`get_running_pod es`
+    mymessage=$uuid_es
+    if wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
+        echo good - found 1 record project $myproject for $uuid_es
+    else
+        echo failed - not found 1 record project $myproject for $uuid_es
+        rc=1
+    fi
+
+    myproject=.operations
+    espod=`get_running_pod es-ops`
+    mymessage=$uuid_es_ops
+    if wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
+        echo good - found 1 record project $myproject for $uuid_es_ops
+    else
+        echo failed - not found 1 record project $myproject for $uuid_es_ops
+        rc=1
+    fi
+fi
 
 echo "------- Test case $SET_CONTAINER_VALS -------"
 echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values."
