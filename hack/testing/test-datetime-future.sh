@@ -9,6 +9,10 @@ fi
 set -o nounset
 set -o pipefail
 
+if ! type get_running_pod > /dev/null 2>&1 ; then
+    . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
+fi
+
 if [[ $# -ne 1 || "$1" = "false" ]]; then
   # assuming not using OPS cluster
   CLUSTER="false"
@@ -26,79 +30,7 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
-oc login --username=kibtest --password=kibtest
-test_token="$(oc whoami -t)"
-test_name="$(oc whoami)"
-test_ip="127.0.0.1"
-oc login --username=system:admin
-
-# $1 - shell command or function to call to test if wait is over -
-#      this command/function should return true if the condition
-#      has been met, or false if still waiting for condition to be met
-# $2 - shell command or function to call if we timed out for error handling
-# $3 - timeout in seconds - should be a multiple of $4 (interval)
-# $4 - loop interval in seconds
-wait_until_cmd_or_err() {
-    let ii=$3
-    interval=${4:-1}
-    while [ $ii -gt 0 ] ; do
-        $1 && break
-        sleep $interval
-        let ii=ii-$interval
-    done
-    if [ $ii -le 0 ] ; then
-        $2
-        return 1
-    fi
-    return 0
-}
-
-get_running_pod() {
-    # $1 is component for selector
-    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
-}
-
-# $1 - kibana pod name
-# $2 - es hostname (e.g. logging-es or logging-es-ops)
-# $3 - project name (e.g. logging, test, .operations, etc.)
-# $4 - _count or _search
-# $5 - field to search
-# $6 - search string
-# stdout is the JSON output from Elasticsearch
-# stderr is curl errors
-curl_es_from_kibana() {
-    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
-       --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
-       -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
-       https://${2}:9200/${3}*/${4}\?q=${5}:${6}
-}
-
-# stdin is JSON output from Elasticsearch for _count search
-# stdout is the integer count
-# stderr is JSON parsing errors if bogus input (i.e. search error, empty JSON)
-get_count_from_json() {
-    python -c 'import json, sys; print json.loads(sys.stdin.read())["count"]'
-}
-
-# return true if the actual count matches the expected count, false otherwise
-test_count_expected() {
-    myfield=${myfield:-message}
-    nrecs=`curl_es_from_kibana $kpod $myhost $myproject _count $myfield $mymessage | \
-           get_count_from_json`
-    test "$nrecs" = $expected
-}
-
-# display an appropriate error message if the expected count did not match
-# the actual count
-test_count_err() {
-    myfield=${myfield:-message}
-    nrecs=`curl_es_from_kibana $kpod $myhost $myproject _count $myfield $mymessage | \
-           get_count_from_json`
-    echo Error: found $nrecs for project $myproject message $mymessage - expected $expected
-    for thetype in _count _search ; do
-        curl_es_from_kibana $kpod $myhost $myproject $thetype $myfield $mymessage | python -mjson.tool
-    done
-}
+get_test_user_token
 
 write_and_verify_logs() {
     # expected number of matches
