@@ -3,7 +3,7 @@
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2017.06.06.0"
+        "version": "2017.07.05.0"
       },
       "_source": {
         "excludes": [

@@ -364,7 +364,8 @@ https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#_SE
 
 type: string
 
-https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#_SOURCE_REALTIME_TIMESTAMP= This is converted to RFC 3339 NS format
+https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#_SOURCE_REALTIME_TIMESTAMP=
+This is converted to RFC 3339 NS format
 
 
 ==== systemd.t.SYSTEMD_CGROUP
@@ -465,6 +466,27 @@ type: string
 https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#MESSAGE_ID=
 
 
+==== systemd.u.SYSLOG_FACILITY
+
+type: string
+
+https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#SYSLOG_FACILITY=
+
+
+==== systemd.u.SYSLOG_IDENTIFIER
+
+type: string
+
+https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#SYSLOG_FACILITY=
+
+
+==== systemd.u.SYSLOG_PID
+
+type: string
+
+https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#SYSLOG_FACILITY=
+
+
 ==== systemd.u.RESULT
 
 type: string
@@ -491,12 +513,6 @@ Namespace for kubernetes-specific metadata
 type: string
 
 The name of the pod
-
-
-[[exported-fields-kubernetes.labels]]
-=== kubernetes.labels Fields
-
-Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
 
 
 ==== kubernetes.pod_id
@@ -534,10 +550,60 @@ type: string
 Kubernetes Master URL
 
 
+==== kubernetes.container_name
+
+type: string
+
+The name of the container in Kubernetes.
+
+
 [[exported-fields-kubernetes.annotations]]
 === kubernetes.annotations Fields
 
 Annotations associated with the OpenShift object
+
+
+[[exported-fields-kubernetes.labels]]
+=== kubernetes.labels Fields
+
+Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
+
+
+
+==== kubernetes.labels.deployment
+
+type: string
+
+example: logging-kibana-3
+
+The deployment associated with this Kubernetes object
+
+
+==== kubernetes.labels.deploymentconfig
+
+type: string
+
+example: logging-kibana
+
+The deploymentconfig associated with this Kubernetes object
+
+
+==== kubernetes.labels.component
+
+type: string
+
+example: kibana
+
+The component associated with this Kubernetes object
+
+
+==== kubernetes.labels.provider
+
+type: string
+
+example: openshift
+
+The provider associated with this Kubernetes object
 
 
 [[exported-fields-docker]]
