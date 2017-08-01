@@ -237,6 +237,10 @@ else
     umount /var/lib/docker/containers/*/shm || :
 fi
 
+if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
+    sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
