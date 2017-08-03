@@ -77,6 +77,7 @@ function generate_JKS_chain() {
         -file $dir/ca.crt  \
         -keystore $dir/truststore.jks   \
         -storepass $ts_pass  \
+	-trustcacerts \
         -noprompt -alias sig-ca
 
     echo All done for $NODE_NAME
@@ -326,7 +327,7 @@ wait_for_pod_ACTION() {
     fi
     while [ $ii -gt 0 ] ; do
         if [ $1 = stop ] && oc describe pod/$curpod > /dev/null 2>&1 ; then
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod $curpod still running
             fi
         elif [ $1 = start ] && [ -z "$curpod" ] ; then
@@ -336,7 +337,7 @@ wait_for_pod_ACTION() {
                     return 1
                 fi
             fi
-            if [ -n "$VERBOSE" ] ; then
+            if [ -n "${VERBOSE:-}" ] ; then
                 echo pod for component=$2 not running yet
             fi
         else
@@ -374,7 +375,7 @@ function get_latest_pod() {
 # set the test_token, test_name, and test_ip for token auth
 function get_test_user_token() {
     local current_project; current_project="$( oc project -q )"
-    oc login --username=${LOG_ADMIN_USER:-${1:-admin}} --password=${LOG_ADMIN_PW:-${2:-admin}} > /dev/null
+    oc login --username=${1:-${LOG_ADMIN_USER:-admin}} --password=${2:-${LOG_ADMIN_PW:-admin}} > /dev/null
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
     test_ip="127.0.0.1"
@@ -411,6 +412,50 @@ function curl_es() {
                              --key "${secret_dir}admin-key"   \
                              --cert "${secret_dir}admin-cert" \
                              "https://localhost:9200${endpoint}"
+}
+
+# $1 - es pod name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es_input() {
+    local pod="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/elasticsearch/secret/"
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                --key "${secret_dir}admin-key"   \
+                                --cert "${secret_dir}admin-cert" \
+                                "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             -H "X-Proxy-Remote-User: $test_name" \
+                             -H "Authorization: Bearer $test_token" \
+                             -H "X-Forwarded-For: 127.0.0.1" \
+                             "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token_and_input() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                -H "X-Proxy-Remote-User: $test_name" \
+                                -H "Authorization: Bearer $test_token" \
+                                -H "X-Forwarded-For: 127.0.0.1" \
+                                "https://localhost:9200${endpoint}"
 }
 
 # $1 - es pod name
@@ -452,6 +497,11 @@ function wait_for_es_ready() {
 
 function get_count_from_json() {
     python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
+}
+
+# https://github.com/ViaQ/integration-tests/issues/8
+function get_count_from_json_from_search() {
+    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0)'
 }
 
 # $1 - unique value to search for in es

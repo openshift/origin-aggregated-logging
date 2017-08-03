@@ -4,6 +4,10 @@
 # copy of hack/lib from Origin and re-apply all
 # the [carry] commits on top.
 
+set -o errexit
+set -o nounset
+set -o pipefail
+
 for sha in $( git log --pretty='%H' -- hack/lib/ ); do
 	subject="$( git log -n 1 --pretty='%s' "${sha}" )"
 	if [[ "${subject}" =~ ^"Vendor origin/hack/lib at "([0-9a-z]+) ]]; then
@@ -27,6 +31,12 @@ pushd "${origin_tmp}"
 origin_head="$( git log -n 1 --pretty=%h )"
 changelog="$( git log --pretty='%h %s' "${last_origin_commit}..HEAD" --no-merges -- hack/lib )"
 popd
+
+if [[ -n "${DRY_RUN:-}" ]]; then
+	echo "Would update hack/lib from Origin ${last_vendor_commit} to ${origin_head}."
+	echo "Would re-apply the following carry commits: ${carry_commits[*]}"
+	exit 0
+fi
 
 rm -rf hack/lib
 cp -r "${origin_tmp}/hack/lib" hack/

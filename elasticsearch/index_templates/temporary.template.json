@@ -1,0 +1,55 @@
+{
+  "aliases": {},
+  "mappings": {
+    "_default_": {
+      "_meta": {
+        "version": "2017.06.06.0"
+      },
+      "date_detection": false,
+      "dynamic_templates": [
+        {
+          "message_field": {
+            "mapping": {
+              "index": "analyzed",
+              "omit_norms": true,
+              "type": "string"
+            },
+            "match": "message",
+            "match_mapping_type": "string"
+          }
+        }
+      ],
+      "properties": {
+        "@timestamp": {
+          "doc_values": true,
+          "fields": {
+            "raw": {
+              "doc_values": true,
+              "ignore_above": 256,
+              "index": "not_analyzed",
+              "type": "string"
+            }
+          },
+          "format": "yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
+          "index": "not_analyzed",
+          "type": "date"
+        },
+
+        "message": {
+          "doc_values": false,
+          "index": "analyzed",
+          "norms": {
+            "enabled": false
+          },
+          "type": "string"
+        }
+      }
+    }
+  },
+  "order": 10,
+  "settings": {
+    "index.refresh_interval": "5s"
+  },
+  "template": ".operations.*"
+}
+

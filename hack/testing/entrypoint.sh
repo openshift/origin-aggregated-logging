@@ -16,6 +16,7 @@
 #    run. Test suite entrypoints exist under hack/testing/
 #    with the test- prefix. The regex in $SUITE is a simple
 #    filter.
+#  - JUNIT_REPORT: generate a jUnit XML report for tests
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
@@ -31,6 +32,10 @@ if [[ -z "${TEST_ONLY:-}" ]]; then
 	"${OS_O_A_L_DIR}/hack/testing/setup.sh"
 elif [[ -z "${KUBECONFIG:-}" ]]; then
 	os::log::fatal "A \$KUBECONFIG must be specified with \$TEST_ONLY."
+fi
+
+if [[ -n "${JUNIT_REPORT:-}" ]]; then
+	export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
 fi
 
 expected_failures=(

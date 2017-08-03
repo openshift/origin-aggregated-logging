@@ -68,11 +68,8 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-
-    # Set JVM HEAP size to half of available space
-    num=$(($num/2/BYTES_PER_MEG))
-    export ES_HEAP_SIZE="${num}m"
-    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms$(($num/2/BYTES_PER_MEG))m -Xmx$(($num/2/BYTES_PER_MEG))m"
+    echo "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
@@ -82,8 +79,8 @@ fi
 wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
-    info "Checking if Elasticsearch is ready on $ES_REST_BASEURL"
-    while ! response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
+    echo -n "Checking if Elasticsearch is ready on $ES_REST_BASEURL "
+    while ! response_code=$(curl ${DEBUG:+-v} -s --head \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
@@ -98,24 +95,13 @@ wait_for_port_open() {
             break
         fi
     done
-
-    if [ $timeouted = true ] ; then
-        error "Timed out waiting for Elasticsearch to be ready"
-    else
-        rm -f $LOG_FILE
-        info Elasticsearch is ready and listening at $ES_REST_BASEURL
-        return 0
-    fi
-    cat $LOG_FILE
-    rm -f $LOG_FILE
-    exit 1
 }
 
 verify_or_add_index_templates() {
     wait_for_port_open
     es_seed_acl
-    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # Give up on timeout and continue...
+    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
     # curl -v -s -X GET \
     #     --cacert $secret_dir/admin-ca \
     #     --cert $secret_dir/admin-cert \
@@ -124,21 +110,23 @@ verify_or_add_index_templates() {
 
     info Adding index templates
     shopt -s failglob
-    for template_file in /usr/share/elasticsearch/index_templates/*.json
+    for template_file in ${ES_HOME}/index_templates/*.json
     do
         template=`basename $template_file`
         # Check if index template already exists
-        response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
+	info Adding template $template
+        response_code=$(curl ${DEBUG:+-v} -s --head \
             --cacert $secret_dir/admin-ca \
             --cert $secret_dir/admin-cert \
             --key  $secret_dir/admin-key \
             -w '%{response_code}' \
+            --max-time $max_time \
             $ES_REST_BASEURL/_template/$template)
         if [ $response_code == "200" ]; then
             info "Index template '$template' already present in ES cluster"
         else
-            info "Create index template '$template'"
-            curl ${DEBUG:+-v} -s -X PUT \
+            echo "Create index template '$template'"
+            curl -v -s -X PUT \
                 --cacert $secret_dir/admin-ca \
                 --cert $secret_dir/admin-cert \
                 --key  $secret_dir/admin-key \
@@ -146,10 +134,18 @@ verify_or_add_index_templates() {
                 $ES_REST_BASEURL/_template/$template
         fi
     done
-    shopt -u failglob
+#    shopt -u failglob
     info Finished adding index templates
 }
 
-verify_or_add_index_templates &
+if [ $IS_MASTER == "false" ]; then
+  verify_or_add_index_templates &
+fi
 
-exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
+
+HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
+info Setting heap dump location "$HEAP_DUMP_LOCATION"
+export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+
+exec ${ES_HOME}/bin/elasticsearch -Epath.conf=$ES_CONF

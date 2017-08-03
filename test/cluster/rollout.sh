@@ -14,6 +14,7 @@
 #                  }: $IFS-delimited lists of
 #    OpenShift ojects that are expected to exist
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
+trap os::test::junit::reconcile_output EXIT
 
 os::test::junit::declare_suite_start "test/cluster/rollout"
 

@@ -1399,12 +1399,6 @@ type: string
 The name of the pod
 
 
-[[exported-fields-kubernetes.labels]]
-=== kubernetes.labels Fields
-
-Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
-
-
 ==== kubernetes.pod_id
 
 type: string
@@ -1440,9 +1434,59 @@ type: string
 Kubernetes Master URL
 
 
+==== kubernetes.container_name
+
+type: string
+
+The name of the container in Kubernetes.
+
+
 [[exported-fields-kubernetes.annotations]]
 === kubernetes.annotations Fields
 
 Annotations associated with the OpenShift object
+
+
+[[exported-fields-kubernetes.labels]]
+=== kubernetes.labels Fields
+
+Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
+
+
+
+==== kubernetes.labels.deployment
+
+type: string
+
+example: logging-kibana-3
+
+The deployment associated with this Kubernetes object
+
+
+==== kubernetes.labels.deploymentconfig
+
+type: string
+
+example: logging-kibana
+
+The deploymentconfig associated with this Kubernetes object
+
+
+==== kubernetes.labels.component
+
+type: string
+
+example: kibana
+
+The component associated with this Kubernetes object
+
+
+==== kubernetes.labels.provider
+
+type: string
+
+example: openshift
+
+The provider associated with this Kubernetes object
 
 

@@ -1,4 +1,4 @@
-FROM centos:centos7
+FROM rhel7.3:7.3-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -6,43 +6,60 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV HOME=/opt/app-root/src \
-  JAVA_VER=1.8.0 \
-  ES_VER=2.4.4 \
-  ES_CLOUD_K8S_VER=2.4.4 \
-  OSE_ES_VER=2.4.4.5 \
-  ES_CONF=/usr/share/elasticsearch/config \
-  INSTANCE_RAM=512G \
-  NODE_QUORUM=1 \
-  RECOVER_AFTER_NODES=1 \
-  RECOVER_EXPECTED_NODES=1 \
-  RECOVER_AFTER_TIME=5m \
-  PLUGIN_LOGLEVEL=INFO \
-  ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true"
+ENV ES_CLOUD_K8S_VER=2.4.4 \
+    ES_CONF=/usr/share/java/elasticsearch/config \
+    ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
+    ES_HOME=/usr/share/java/elasticsearch \
+    ES_VER=5.4.0 \
+    HOME=/opt/app-root/src \
+    INSTANCE_RAM=512G \
+    JAVA_VER=1.8.0 \
+    NODE_QUORUM=1 \
+    OSE_ES_VER=2.4.4.11 \
+    PLUGIN_LOGLEVEL=INFO \
+    RECOVER_AFTER_NODES=1 \
+    RECOVER_EXPECTED_NODES=1 \
+    RECOVER_AFTER_TIME=5m \
+    RELEASE_STREAM=prod
 
-LABEL io.k8s.description="Elasticsearch container to serve as EFK aggregated logging backend" \
-  io.k8s.display-name="Elasticsearch ${ES_VER}" \
-  io.openshift.expose-services="9200:https, 9300:https" \
-  io.openshift.tags="logging,elasticsearch"
+ARG ES_CLOUD_K8S_VER=5.4.0
+ARG ES_CLOUD_K8S_URL
+ARG SG_VER=5.4.0-12
+ARG SG_URL
 
-ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
-# install the RPMs in a separate step so it can be cached
-RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
-    yum install -y --setopt=tsflags=nodocs \
-                java-1.8.0-openjdk-headless \
-                elasticsearch-${ES_VER} \
-                PyYAML && \
+LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
+      io.k8s.display-name="Elasticsearch ${ES_VER}" \
+      io.openshift.expose-services="9200:https, 9300:https" \
+      io.openshift.tags="logging,elk,elasticsearch" \
+      com.redhat.component=logging-elasticsearch-docker \
+      architecture=x86_64 \
+      name="openshift3/logging-elasticsearch" \
+      version="3.6.0" \
+      release="1"
+
+RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
+                   --enable rhel-7-server-extras-rpms  && \
+    packages="elasticsearch-${ES_VER} \
+              elasticsearch-cloud-kubernetes-${ES_CLOUD_K8S_VER}.redhat_1 \
+              java-${JAVA_VER}-openjdk-headless \
+              openshift-elasticsearch-plugin-${OSE_ES_VER}__redhat_1 \
+              PyYAML  \
+              zip" && \
+    yum install -y --setopt=tsflags=nodocs ${packages} && \
+    rpm -V $packages && \
     yum clean all
 
+
 ADD sgconfig/ ${HOME}/sgconfig/
-ADD index_templates/ /usr/share/elasticsearch/index_templates/
-ADD index_patterns/ /usr/share/elasticsearch/index_patterns/
-ADD probe/ /usr/share/elasticsearch/probe/
-ADD install.sh ${HOME}/
-RUN ${HOME}/install.sh
-ADD run.sh ${HOME}/
+ADD index_templates/ ${ES_HOME}/index_templates/
+ADD index_patterns/ ${ES_HOME}/index_patterns/
+ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
+ADD probe/ ${ES_HOME}/probe/
+ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 RUN ln -s /usr/local/bin/logging ${HOME}/logging
+
+RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}
 USER 1000

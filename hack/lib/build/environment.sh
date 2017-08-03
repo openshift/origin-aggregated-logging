@@ -155,8 +155,8 @@ function os::build::environment::withsource() {
 
   if [[ -n "${OS_BUILD_ENV_FROM_ARCHIVE-}" ]]; then
     # Generate version definitions. Tree state is clean because we are pulling from git directly.
-    OS_GIT_TREE_STATE=clean os::build::get_version_vars
-    os::build::save_version_vars "/tmp/os-version-defs"
+    OS_GIT_TREE_STATE=clean os::build::version::get_vars
+    os::build::version::save_vars "/tmp/os-version-defs"
 
     os::log::debug "Generating source code archive"
     tar -cf - -C /tmp/ os-version-defs | docker cp - "${container}:/tmp"
@@ -203,6 +203,11 @@ function os::build::environment::run() {
       os::log::debug "Removing volume ${volume}"
       docker volume rm "${volume}"
     fi
+  fi
+
+  if [[ -n "${OS_BUILD_ENV_PULL_IMAGE:-}" ]]; then
+    os::log::info "Pulling the ${OS_BUILD_ENV_IMAGE} image to update it..."
+    docker pull "${OS_BUILD_ENV_IMAGE}"
   fi
 
   os::log::debug "Using commit ${commit}"

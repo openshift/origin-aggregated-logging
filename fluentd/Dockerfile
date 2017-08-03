@@ -1,45 +1,45 @@
-FROM centos:centos7
+FROM rhel7.3:7.3-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
-ENV HOME=/opt/app-root/src \
-  PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
-  RUBY_VERSION=2.0 \
-  FLUENTD_VERSION=0.12.31 \
-  GEM_HOME=/opt/app-root/src \
-  DATA_VERSION=1.6.0
+ENV DATA_VERSION=1.6.0 \
+    FLUENTD_VERSION=0.12.37 \
+    FLUENTD_ES=1.9.5-2 \
+    FLUENTD_FLATTEN_HASH=0.4.0-1 \
+    FLUENTD_KUBE_METADATA=0.27.0-1 \
+    FLUENTD_REWRITE_TAG=1.5.6-1 \
+    FLUENTD_SECURE_FWD=0.4.5-2 \
+    FLUENTD_SYSTEMD=0.0.8-1 \
+    FLUENTD_VIAQ_DATA_MODEL=0.0.3-1 \
+    GEM_HOME=/opt/app-root/src \
+    HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
+    RUBY_VERSION=2.0
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
-  io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
-  io.openshift.expose-services="9200:http, 9300:http" \
-  io.openshift.tags="logging,elk,fluentd"
+      io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
+      io.openshift.tags="logging,elk,fluentd" \
+      com.redhat.component=logging-fluentd-docker \
+      name="openshift3/logging-fluentd" \
+      version="3.6.0" \
+      release="1" \
+      architecture=x86_64
 
-# activesupport version 5.x requires ruby 2.2
-# iproute needed for ip command to get ip addresses
-RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
-    yum install -y --setopt=tsflags=nodocs \
-      gcc-c++ \
-      ruby \
-      ruby-devel \
-      libcurl-devel \
-      make \
-      bc \
-      iproute && \
-    yum clean all
-RUN mkdir -p ${HOME} && \
-    gem install -N --conservative --minimal-deps \
-      fluentd:${FLUENTD_VERSION} \
-      'activesupport:<5' \
-      'elasticsearch-transport:<5' \
-      'elasticsearch-api:<5' \
-      'elasticsearch:<5' \
-      fluent-plugin-kubernetes_metadata_filter \
-      'fluent-plugin-elasticsearch:>1.9.2' \
-      'fluent-plugin-systemd:<0.1.0' \
-      systemd-journal \
-      fluent-plugin-rewrite-tag-filter \
-      fluent-plugin-secure-forward \
-      fluent-plugin-viaq_data_model
+RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
+  INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
+                hostname \
+                bc \
+                iproute \
+                rubygem-fluent-plugin-elasticsearch \
+                rubygem-fluent-plugin-flatten-hash \
+                rubygem-fluent-plugin-kubernetes_metadata_filter \
+                rubygem-fluent-plugin-rewrite-tag-filter \
+                rubygem-fluent-plugin-secure-forward \
+                rubygem-fluent-plugin-systemd \
+                rubygem-fluent-plugin-viaq_data_model" && \
+  yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
+  rpm -V $INSTALL_PKGS && \
+  yum clean all
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
@@ -49,5 +49,5 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
 WORKDIR ${HOME}
-USER 0
+
 CMD ["sh", "run.sh"]

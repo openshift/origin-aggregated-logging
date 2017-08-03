@@ -204,3 +204,48 @@ function os::util::host_platform() {
 	echo "$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 }
 readonly -f os::util::host_platform
+
+# os::util::list_go_src_files lists files we consider part of our project
+# source code, useful for tools that iterate over source to provide vet-
+# ting or linting, etc.
+#
+# Globals:
+#  None
+# Arguments:
+#  None
+# Returns:
+#  None
+function os::util::list_go_src_files() {
+	find . -not \( \
+		\( \
+		-wholename './_output' \
+		-o -wholename './.*' \
+		-o -wholename './pkg/assets/bindata.go' \
+		-o -wholename './pkg/assets/*/bindata.go' \
+		-o -wholename './pkg/bootstrap/bindata.go' \
+		-o -wholename './openshift.local.*' \
+		-o -wholename './test/extended/testdata/bindata.go' \
+		-o -wholename '*/vendor/*' \
+		-o -wholename './cmd/service-catalog/*' \
+		-o -wholename './cmd/cluster-capacity/*' \
+		-o -wholename './assets/bower_components/*' \
+		\) -prune \
+	\) -name '*.go' | sort -u
+}
+readonly -f os::util::list_go_src_files
+
+# os::util::list_go_src_dirs lists dirs in origin/ and cmd/ dirs excluding
+# cmd/cluster-capacity and cmd/service-catalog and doc.go useful for tools that
+# iterate over source to provide vetting or linting, or for godep-save etc.
+#
+# Globals:
+#  None
+# Arguments:
+#  None
+# Returns:
+#  None
+function os::util::list_go_src_dirs() {
+	os::util::list_go_src_files | cut -d '/' -f 1-2 | grep -v ".go$" | grep -v "^./cmd" | LC_ALL=C sort -u
+	os::util::list_go_src_files | grep "^./cmd/"| cut -d '/' -f 1-3 | grep -v ".go$" | LC_ALL=C sort -u
+}
+readonly -f os::util::list_go_src_dirs
