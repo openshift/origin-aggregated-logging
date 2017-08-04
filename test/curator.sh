@@ -201,8 +201,8 @@ trap "cleanup" EXIT
 
 os::log::info Starting curator test at $( date )
 
-espod=$( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT:-es}" -o jsonpath='{ .items[*].metadata.name }' | head -1 )
-esopspod=$( oc get pods --selector component="${OAL_ELASTICSEARCH_OPS_COMPONENT:-es-ops}" -o jsonpath='{ .items[*].metadata.name }' | head -1 )
+espod=$( get_es_pod es )
+esopspod=$( get_es_pod es-ops )
 
 os::log::debug "$( oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
 os::log::info Enabled debug for dc/logging-curator - rolling out . . .

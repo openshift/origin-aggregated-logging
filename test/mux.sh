@@ -239,8 +239,8 @@ else
     os::log::debug "$( oadm new-project testproj --node-selector='' 2>&1 )"
 fi
 
-es_pod=$( get_running_pod es )
-es_ops_pod=$( get_running_pod es-ops )
+es_pod=$( get_es_pod es )
+es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
 muxpod=$( get_running_pod mux )
