@@ -3,14 +3,14 @@ FROM rhel7.3:7.3-released
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.37 \
+    FLUENTD_VERSION=0.12.39 \
     FLUENTD_ES=1.9.5-2 \
     FLUENTD_FLATTEN_HASH=0.4.0-1 \
-    FLUENTD_KUBE_METADATA=0.27.0-1 \
+    FLUENTD_KUBE_METADATA=0.28.0-1 \
     FLUENTD_REWRITE_TAG=1.5.6-1 \
     FLUENTD_SECURE_FWD=0.4.5-2 \
     FLUENTD_SYSTEMD=0.0.8-1 \
-    FLUENTD_VIAQ_DATA_MODEL=0.0.3-1 \
+    FLUENTD_VIAQ_DATA_MODEL=0.0.5-1 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
