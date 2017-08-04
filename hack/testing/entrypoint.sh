@@ -21,8 +21,50 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 
+# start a fluentd performance monitor
+monitor_fluentd_top() {
+    while true ; do
+        fpod=$( get_running_pod fluentd )
+        if [ -n "$fpod" ] ; then
+            oc exec $fpod -- top -b -d 1 || :
+        else
+            # if we got here, the fluentd pod was restarted
+            echo $( date --rfc-3339=ns ) fluentd is not running
+            sleep 1
+        fi
+    done > $ARTIFACT_DIR/monitor_fluentd_top.log
+}
+
+monitor_fluentd_pos() {
+    while true ; do
+        if sudo test -s /var/log/journal.pos ; then
+            local startts=$( date +%s )
+            local count=$( sudo journalctl -c $( sudo cat /var/log/journal.pos ) | wc -l )
+            local endts=$( date +%s )
+            echo $endts $( expr $endts - $startts ) $count
+        else
+            echo $( date --rfc-3339=ns ) no /var/log/journal.pos
+        fi
+        sleep 1
+    done > $ARTIFACT_DIR/monitor_fluentd_pos.log
+}
+
+monitor_journal_lograte() {
+    local interval=60
+    while true ; do
+        count=$( sudo journalctl -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
+        echo $( date +%s ) $count
+        sleep $interval
+    done  > $ARTIFACT_DIR/monitor_journal_lograte.log
+}
+
+monitor_fluentd_top & killpids=$!
+monitor_fluentd_pos & killpids="$killpids $!"
+monitor_journal_lograte & killpids="$killpids $!"
+
 function cleanup() {
   return_code=$?
+  kill $killpids
   os::cleanup::all "${return_code}"
   exit "${return_code}"
 }
