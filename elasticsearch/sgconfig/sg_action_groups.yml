@@ -51,6 +51,10 @@ INDEX_ANY_OPERATIONS:
 INDEX_PROJECT:
   - INDEX_ANY_ADMIN
 
+USER_CLUSTER_OPERATIONS:
+  - "indices:data/read/msearch"
+  - "indices:data/read/scroll*"
+
 # CLUSTER
 CLUSTER_ALL:
   - cluster:*
