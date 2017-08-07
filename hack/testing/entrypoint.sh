@@ -179,18 +179,19 @@ function run_suite() {
 	fi
 }
 
-EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
-for suite_selector in ${SUITE:-".*"} ; do
-  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
-	run_suite "${test}"
-  done
-done
+#EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
+#for suite_selector in ${SUITE:-".*"} ; do
+#  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
+#	run_suite "${test}"
+#  done
+#done
 
-for suite_selector in ${SUITE:-".*"} ; do
-  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
-	run_suite "${test}"
-  done
-done
+#for suite_selector in ${SUITE:-".*"} ; do
+#  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
+#	run_suite "${test}"
+#  done
+#done
+run_suite "${OS_O_A_L_DIR}/hack/testing/test-cucumber.sh"
 
 if [[ -n "${failed:-}" ]]; then
     exit 1
