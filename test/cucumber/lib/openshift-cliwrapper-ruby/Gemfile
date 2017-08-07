@@ -1,0 +1,8 @@
+source 'https://rubygems.org'
+
+gem 'multi_json'
+gem 'json_pure'
+
+group :test do
+    gem 'rspec', '3.5.0'
+end

@@ -3,8 +3,10 @@
 ## Assumptions & Requirements
 
 1. Directory paths should be well formed such that they can be run from any directory.
-1. Test scripts in the `origin-aggregated-logging/test` directory assume they are run against a functional Openshift cluster that was setup prior to the execution of the test script.
-1. Each script in `origin-aggregated-logging/test` should has a companion script in `origin-aggregated-logging/hack/testing` which can be used to launch the test and do requisite setup steps.
+1. Test scripts in the `origin-aggregated-logging/test` directory assume they are run against a functional Openshift 
+cluster that was setup prior to the execution of the test script.
+1. Each script in `origin-aggregated-logging/test` should have a companion script in `origin-aggregated-logging/hack/testing` 
+which is used to launch the test and do requisite setup steps.
 1. Each script in `origin-aggregated-logging/test` performs cleanup logic to reset the state of the cluster and logging stack
 
 ```sh
