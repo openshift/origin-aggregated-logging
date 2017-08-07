@@ -38,8 +38,12 @@ RUN mkdir -p ${HOME} && \
       fluent-plugin-rewrite-tag-filter \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
-      fluent-plugin-viaq_data_model \
       systemd-journal
+
+COPY fluent-plugin-viaq_data_model-0.0.6.gem ${HOME}/
+RUN cd ${HOME} && \
+    gem install -N --conservative --minimal-deps --no-ri \
+      --local fluent-plugin-viaq_data_model-0.0.6.gem
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
