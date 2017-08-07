@@ -50,12 +50,15 @@ There are environment variables for the logging-mux DC config:
 
 These are environment variables for the logging-fluentd daemonset config:
 
-* `MUX_CLIENT_MODE` - `minimal`/`maximal` - default is unset If `maximal`, then
-  fluentd will do as much processing as possible at the node before sending the
-  records to mux.  This is the current recommended way to use mux due to
-  current scaling issues.  In this case, it is assumed you want to deploy mux
-  to be as lightweight as possible, and move as much of the processing burden
-  as possible to the individual Fluentd collector pods running on each node.
+* `MUX_CLIENT_MODE` - `minimal`/`maximal` - default is unset - If this is not
+  set, Fluentd will perform all of the processing, including Kubernetes
+  metadata processing, and will send the records directly to Elasticseach.
+  If `maximal`, then fluentd will do as much processing as possible at the node
+  before sending the records to mux.  This is the current recommended way to
+  use mux due to current scaling issues.  In this case, it is assumed you want
+  to deploy mux to be as lightweight as possible, and move as much of the
+  processing burden as possible to the individual Fluentd collector pods
+  running on each node.
   If `minimal`, then fluentd will perform *no* processing and send the raw logs
   to mux for processing.  We do not currently recommend using this mode, and
   ansible will warn you about this.
@@ -78,11 +81,12 @@ There are several new Ansible parameters which can be used with the
 * `openshift_logging_use_mux` - `True`/`False` - default `False` - if
   `True`, create the mux Service, DeploymentConfig, Secrets, ConfigMap, etc.
 - `openshift_logging_mux_client_mode`: Values - `minimal`, `maximal`.
-  Default is unset.  Setting this value will cause the Fluentd node agent to
-  send logs to mux rather than directly to Elasticsearch.  The value
-  `maximal` means that Fluentd will do as much processing as possible at the
-  node before sending the records to mux.  This is the current recommended
-  way to use mux due to current scaling issues.
+  Default is unset.  If this value is is unset, Fluentd will perform all of the
+  processing, including Kubernetes metadata processing, and will send the
+  records directly to Elasticseach.
+  The value `maximal` means that Fluentd will do as much processing as possible
+  at the node before sending the records to mux.  This is the current
+  recommended way to use mux due to current scaling issues.
   The value `minimal` means that Fluentd will do *no* processing at all, and
   send the raw logs to mux for processing.  We do not currently recommend using
   this mode, and ansible will warn you about this.
@@ -249,10 +253,12 @@ storage cluster component of OpenShift logging.
 
 ### Basic Flow ###
 
-This is what the flow looks like normally, with no mux:![Normal Flow](mux-logging-service-diag1.png)
+This is what the flow looks like normally, when `MUX_CLIENT_MODE` is
+unset.  mux is not used at all, Fluentd does all of the processing and sends
+logs directly to Elasticsearch:![Normal Flow](mux-logging-service-diag1.png)
 
 With Fluentd configured with `MUX_CLIENT_MODE minimal`, and with mux configured
-with `USE_MUX true`:
+with `USE_MUX true` (`minimal` is not currently recommended to use):
 
 OpenShift Fluentd node collector sends raw records, collected from `json-file`
 or `journald` or both, to the mux service via secure_forward.
@@ -281,7 +287,8 @@ With Fluentd configured with `MUX_CLIENT_MODE maximal`:
 
 Fluentd will perform as much of the processing and formatting as possible of
 log records read from files or journald.  Mux will perform the Kubernetes
-metadata annotation before submitting the records to Elasticsearch.
+metadata annotation before submitting the records to Elasticsearch.  `maximal`
+mode is the currently recommended mode to use with mux.
 
 Flow:![mux with MUX_CLIENT_MODE=maximal](mux-logging-service-diag4.png)
 
