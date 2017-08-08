@@ -1,4 +1,4 @@
-FROM rhel7.3:7.3-released
+FROM rhscl/nodejs-6-rhel7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -13,7 +13,7 @@ ENV AOP_KIBANA_PLUGIN_VER=4.5.1 \
     CONFIG_PATH=/etc/kibana \
     NODE_ENV=production \
     KIBANA_VER=4.6.4 \
-    NODE_BIN=/usr/bin/node \
+    NODE_BIN=/opt/rh/rh-nodejs6/root/usr/bin/node \
     RELEASE_STREAM=prod
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
@@ -26,7 +26,11 @@ LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggreg
       version="3.6.0" \
       release="1"
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
+USER 0
+
+RUN yum repolist > /dev/null && \
+    yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
+    yum-config-manager --disable epel >/dev/null || : && \
     INSTALLED_PKGS="kibana-${KIBANA_VER} \
                     origin-kibana-${AOP_KIBANA_PLUGIN_VER}" && \
     yum install -y --setopt=tsflags=nodocs  ${INSTALLED_PKGS} && \
