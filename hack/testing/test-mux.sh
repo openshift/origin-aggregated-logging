@@ -16,8 +16,8 @@ if ! type get_running_pod > /dev/null 2>&1 ; then
     . ${OS_O_A_L_DIR:-../..}/deployer/scripts/util.sh
 fi
 
-if [ "$USE_MUX_CLIENT" == "false" -o "$MUX_ALLOW_EXTERNAL" == "false" ]; then
-    echo "Skipping -- This test requires USE_MUX_CLIENT and MUX_ALLOW_EXTERNAL are true."
+if [ -z "${MUX_CLIENT_MODE:-}" -o "${MUX_ALLOW_EXTERNAL:-false}" == "false" ]; then
+    echo "Skipping -- This test requires MUX_CLIENT_MODE is set and MUX_ALLOW_EXTERNAL is true."
     exit 0
 fi
 
@@ -60,7 +60,7 @@ cleanup_forward() {
 
   wait_for_pod_ACTION stop $fpod
 
-  oc set env daemonset/logging-fluentd USE_MUX_CLIENT=false
+  oc set env daemonset/logging-fluentd MUX_CLIENT_MODE-
 
   # Revert configmap if we haven't yet
   oc get configmap/logging-fluentd -o yaml | \
@@ -78,7 +78,8 @@ cleanup_forward() {
 }
 
 reset_fluentd_daemonset() {
-  oc set env daemonset/logging-fluentd USE_MUX_CLIENT=true
+  # this test only works with MUX_CLIENT_MODE=minimal for now
+  oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal
 
   muxcerts=`oc get daemonset logging-fluentd -o yaml | egrep muxcerts` || :
 
@@ -443,7 +444,7 @@ echo "fluentd forwards kibana and system logs with tag project.testproj.mux with
 #                with k8s.namespace_name: testproj
 #                     k8s.container_name: mux-mux
 #                     k8s.pod_name: mux
-#                     (set in mux-post-input-filter-tag.conf)
+#                     (set in update_current_fluentd)
 #
 update_current_fluentd $NO_CONTAINER_VALS
 
