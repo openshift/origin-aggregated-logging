@@ -27,9 +27,9 @@ else
     exit 0
 fi
 
-# save setting
-use_mux_client=${USE_MUX_CLIENT:-}
-mux_client_mode=${MUX_CLIENT_MODE:-}
+# save daemonset
+saveds=$( mktemp )
+oc get daemonset logging-fluentd -o yaml > $saveds
 
 cleanup() {
     local return_code="$?"
@@ -47,19 +47,11 @@ cleanup() {
     if [ -n "${muxpod:-}" ] ; then
         oc logs $muxpod > $ARTIFACT_DIR/$muxpod.log 2>&1
     fi
-    envvars=""
-    if [ -n "${use_mux_client:-}" ] ; then
-        envvars="$envvars USE_MUX_CLIENT=$use_mux_client"
-    fi
-    if [ -n "${mux_client_mode:-}" ] ; then
-        envvars="$envvars MUX_CLIENT_MODE=$mux_client_mode"
-    fi
-    if [ -n "$envvars" ] ; then
-        # these will restart fluentd - but don't wait for restart
-        os::log::debug "$( oc set env daemonset/logging-fluentd $envvars )"
-    else
-        # just remove it
-        os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE- )"
+    if [ -n "${saveds:-}" ] ; then
+        if [ -f "${saveds:-}" ]; then
+            os::log::debug "$( oc replace -f $saveds )"
+            rm -f $saveds
+        fi
     fi
     os::log::debug "$( oc label node --all logging-infra-fluentd=true || : )"
     # this will call declare_test_end, suite_end, etc.
@@ -67,6 +59,25 @@ cleanup() {
     exit $return_code
 }
 trap "cleanup" EXIT
+
+reset_fluentd_daemonset() {
+  muxcerts=`oc get daemonset logging-fluentd -o yaml | egrep muxcerts` || :
+
+  if [ "$muxcerts" = "" ]; then
+    oc get daemonset logging-fluentd -o yaml | sed '/volumes:/ a\
+      - name: muxcerts\
+        secret:\
+          defaultMode: 420\
+          secretName: logging-mux\
+' | oc replace -f -
+
+    oc get daemonset logging-fluentd -o yaml | sed '/volumeMounts:/ a\
+        - mountPath: /etc/fluent/muxkeys\
+          name: muxcerts\
+          readOnly: true\
+' | oc replace -f -
+  fi
+}
 
 os::log::info Starting mux-client-mode test at $( date )
 
@@ -77,17 +88,19 @@ os::log::info configure fluentd to use MUX_CLIENT_MODE=minimal - verify logs get
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_failure "oc get pod $fpod"
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
+reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=`get_running_pod fluentd`
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
 
-# configure fluentd to use MUX_CLIENT_MODE=full_no_k8s_meta - verify logs get through
-os::log::info configure fluentd to use MUX_CLIENT_MODE=full_no_k8s_meta - verify logs get through
+# configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
+os::log::info configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_failure "oc get pod $fpod"
-os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=full_no_k8s_meta )"
+os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal )"
+reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=`get_running_pod fluentd`
