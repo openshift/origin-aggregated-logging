@@ -21,6 +21,19 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 
+# HACK HACK HACK
+# There seems to be some sort of performance problem - richm 2017-08-15
+# not sure what has changed, but now running an all-in-one for CI, with both
+# openshift master and node running as systemd services logging to the journal
+#, and the default/logging pods, and the os, are spewing too much for fluentd
+# to keep up with when it has 100m cpu (default), on a aws m4.xlarge system
+# for now, remove the limits on fluentd to unblock the tests
+oc get -n logging daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
+if [ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" ] ; then
+    oc patch -n logging daemonset/logging-fluentd --type=json --patch '[
+          {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
+fi
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     while true ; do
