@@ -1,8 +1,4 @@
-mkdir -p -m 755 ${KIBANA_HOME}/installedPlugins/origin-kibana
-cd ${KIBANA_HOME}/installedPlugins/origin-kibana
-wget -q ${AOP_KIBANA_PLUGIN_REPO}/releases/download/${AOP_KIBANA_PLUGIN_VER}/origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-tar -xvzf origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-rm origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
+chmod -R 755 ${KIBANA_HOME}/installedPlugins/origin-kibana
 
 # Kibana starts up slowly because it tries to optimize and cache bundles
 # so we start it up as part of install and then stop it
