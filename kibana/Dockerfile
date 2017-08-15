@@ -8,9 +8,7 @@ ENV KIBANA_VER=4.5.4 \
     ES_HOST=localhost \
     ES_PORT=9200 \
     HOME=/opt/app-root/src \
-    KIBANA_HOME=/opt/kibana \
-    AOP_KIBANA_PLUGIN_VER=v4.5.1-1 \
-    AOP_KIBANA_PLUGIN_REPO=https://github.com/openshift/origin-kibana
+    KIBANA_HOME=/opt/kibana
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
   io.k8s.display-name="Kibana" \
@@ -26,6 +24,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 
 COPY kibana.yml ${KIBANA_HOME}/config/kibana.yml
 COPY run.sh install.sh ${HOME}/
+ADD lib/origin-kibana ${KIBANA_HOME}/installedPlugins/origin-kibana
 RUN sh install.sh
 
 USER default
