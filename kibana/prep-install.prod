@@ -3,11 +3,4 @@
 set -o nounset
 set -o pipefail
 
-pushd /usr/share/origin-kibana
-cp index.js ${kibana_plugin_dir}
-cp package.json ${kibana_plugin_dir}
-cp -R public/ ${kibana_plugin_dir}
-touch ${kibana_plugin_dir}/public/styles/overrides.css
-popd
-
 set -a && source /etc/sysconfig/kibana
