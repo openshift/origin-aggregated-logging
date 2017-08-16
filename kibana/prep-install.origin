@@ -5,9 +5,3 @@ set -o pipefail
 
 #normalize files with downstream
 touch /etc/sysconfig/kibana
-
-pushd ${kibana_plugin_dir}
-wget -q ${AOP_KIBANA_PLUGIN_REPO}/releases/download/${AOP_KIBANA_PLUGIN_VER}/origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-tar -xvzf origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-rm origin-kibana-${AOP_KIBANA_PLUGIN_VER}.tgz
-popd
