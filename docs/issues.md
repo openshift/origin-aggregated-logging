@@ -1,9 +1,9 @@
 # Filing An Issue
-The Openshift Aggregated Logging integration is a multicomponent technology stack whose individual 
-parts must all work together to gather and archive logs.  It is important to include as much information 
-as possible when issues arise in order to properly debug and diagnose.  Run 
-**ADD SCRIPT OR UTILITY HERE** which will gather the desired information.  Alternatively, you can gather 
-them manually. 
+The Openshift Aggregated Logging integration is a multicomponent technology stack whose individual
+parts must all work together to gather and archive logs.  It is important to include as much information
+as possible when issues arise in order to properly debug and diagnose.  Run
+[logging gathering script](../hack/logging-dump.sh) which will gather the desired information.  Alternatively, you can gather
+them manually.
 
 **NOTE:** It is your responsiblity as the reporter of an issue to redact any sensitive information from
 any and all artifacts that are included as part of the issue.
@@ -26,8 +26,7 @@ Please include as much of the following to help us expedite a resolution:
 4. Ansible installer logs
 
 ### Logging Component Details
-**MAYBE WE CAN GRAB SOME OF THESE BY LABEL**
-1. Elasticsearch logs: `SOME NON-OC LOGS COMMAND`
+1. Elasticsearch logs: `oc logs -l component=es $PODNAME`
 2. Other component logs: `oc logs $PODNAME`
 3. Fluentd spec: `oc get ds logging-fluentd -o yaml`
 4. Other component specs: `oc get dc $DCNAME -o yaml`
