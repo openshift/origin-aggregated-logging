@@ -95,11 +95,9 @@ fi
 
 expected_failures=(
 	"test-fluentd-forward"
-	"test-json-parsing"
 	"test-es-copy"
 	"test-mux"
 	"test-upgrade"
-	"test-viaq-data-model"
 )
 
 function run_suite() {
