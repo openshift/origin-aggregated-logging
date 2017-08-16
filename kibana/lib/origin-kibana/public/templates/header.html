@@ -1,0 +1,9 @@
+<div class='container-header' ng-controller="OSHeaderController">
+  <div class="container-brand"></div>
+  <div class='logout'>
+    <span class="pficon pficon-user"></span>
+    <a href="/auth/logout">Log out</a>
+  </div>
+  <h4 ng-if='containerName'>Logs for <span ng-bind="containerName"></span></h4>
+  <a ng-if="goBack" ng-href="{{goBack}}"><i class="fa fa-arrow-left"></i> Back</a>
+</div>

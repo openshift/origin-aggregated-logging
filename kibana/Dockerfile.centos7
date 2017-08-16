@@ -4,9 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 EXPOSE 5601
 
-ENV AOP_KIBANA_PLUGIN_REPO=https://github.com/openshift/origin-kibana \
-    AOP_KIBANA_PLUGIN_VER=v4.5.1-2 \
-    ES_HOST=localhost \
+ENV ES_HOST=localhost \
     ES_PORT=9200 \
     HOME=/opt/app-root/src \
     KIBANA_HOME=/opt/kibana \
@@ -29,6 +27,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 
 ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
+ADD lib/origin-kibana ${KIBANA_HOME}/installedPlugins/origin-kibana
 ADD run.sh install.sh prep-install.${RELEASE_STREAM} ${HOME}/
 RUN ${HOME}/install.sh
 

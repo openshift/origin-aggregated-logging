@@ -5,8 +5,7 @@ set -o nounset
 set -o pipefail
 
 chmod -R og+w "${KIBANA_CONF_DIR}"
-kibana_plugin_dir=${KIBANA_HOME}/installedPlugins/origin-kibana/
-mkdir -p -m 755 "${kibana_plugin_dir}"
+chmod -R 755 ${KIBANA_HOME}/installedPlugins/origin-kibana
 
 source "${HOME}/prep-install.${RELEASE_STREAM}"
 
@@ -19,9 +18,20 @@ touch "${KIBANA_HOME}/kibana.out"
 "${NODE_BIN}" "${KIBANA_HOME}/src/cli" > "${KIBANA_HOME}/kibana.out" &
 pid=$!
 
-until [ ! -z "${pid}" ] && [ -n "$(grep 'Optimization of bundles for kibana and statusPage complete' ${KIBANA_HOME}/kibana.out)" ]; do
+maxwait=$((5*60)) #5 min
+slept=0
+until [ ! -z "${pid}" ] && [ ${slept} -gt ${maxwait} ] ; do
+  if [ -n "$(grep 'Optimization of bundles for kibana and statusPage complete' ${KIBANA_HOME}/kibana.out)" ] ; then
+      break
+  fi
+  slept=$((slept+1))
   sleep 1
 done
+
+if [ ${slept} -ge ${maxwait} ] ; then
+   echo "Timed out trying to optimize bundle. Dumping log and continuing..."
+   cat "${KIBANA_HOME}/kibana.out"
+fi
 
 if [ ! -z "${pid}" ] ; then
   kill $pid
