@@ -97,7 +97,6 @@ expected_failures=(
 	"test-fluentd-forward"
 	"test-es-copy"
 	"test-upgrade"
-	"test-viaq-data-model"
 )
 
 function run_suite() {
