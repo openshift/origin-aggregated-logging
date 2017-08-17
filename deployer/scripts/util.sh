@@ -571,6 +571,7 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es_ops=`uuidgen`
     local expected=${3:-1}
     local timeout=300
+    local project=${4:-logging}
 
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
@@ -581,7 +582,7 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
 
-    if espod=$es_pod myproject=project.logging mymessage=$uuid_es expected=$expected \
+    if espod=$es_pod myproject=project.$project mymessage=$uuid_es expected=$expected \
             wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
         os::log::debug good - $FUNCNAME: found $expected record project logging for $uuid_es
     else
