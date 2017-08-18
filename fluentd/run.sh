@@ -237,6 +237,14 @@ else
     umount /var/lib/docker/containers/*/shm || :
 fi
 
+if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
+    # The symlink is a workaround for https://github.com/openshift/origin-aggregated-logging/issues/604
+    ln -s /opt/app-root/src/gems/fluent-plugin-remote-syslog*/lib/fluentd/plugin/*.rb /etc/fluent/plugin/
+    if [[ $REMOTE_SYSLOG_HOST ]] ; then
+        ruby generate_syslog_config.rb
+    fi
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
