@@ -96,7 +96,6 @@ fi
 expected_failures=(
 	"test-fluentd-forward"
 	"test-es-copy"
-	"test-mux"
 	"test-upgrade"
 )
 
