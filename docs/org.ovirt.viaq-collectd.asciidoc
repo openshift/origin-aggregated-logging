@@ -231,7 +231,7 @@ Corresponds to collectd's processes plugin.
 
 ==== collectd.processes.ps_state
 
-type: integer
+type: long
 
 collectd's ps_state type of processes plugin.
 
@@ -259,35 +259,35 @@ TODO
 
 ==== collectd.processes.ps_vm
 
-type: integer
+type: long
 
 collectd's ps_vm type of processes plugin.
 
 
 ==== collectd.processes.ps_rss
 
-type: integer
+type: long
 
 collectd's ps_rss type of processes plugin.
 
 
 ==== collectd.processes.ps_data
 
-type: integer
+type: long
 
 collectd's ps_data type of processes plugin.
 
 
 ==== collectd.processes.ps_code
 
-type: integer
+type: long
 
 collectd's ps_code type of processes plugin.
 
 
 ==== collectd.processes.ps_stacksize
 
-type: integer
+type: long
 
 collectd's ps_stacksize type of processes plugin.
 
@@ -322,14 +322,14 @@ collectd's ps_count type of processes plugin.
 
 ==== collectd.processes.ps_count.processes
 
-type: integer
+type: long
 
 TODO
 
 
 ==== collectd.processes.ps_count.threads
 
-type: integer
+type: long
 
 TODO
 
@@ -476,7 +476,7 @@ TODO
 
 ==== collectd.disk.pending_operations
 
-type: integer
+type: long
 
 collectd's pending_operations type of disk plugin.
 
@@ -791,7 +791,7 @@ Corresponds to collectd's entropy plugin.
 
 ==== collectd.entropy.entropy
 
-type: integer
+type: long
 
 collectd's entropy type of entropy plugin.
 
@@ -805,7 +805,7 @@ Corresponds to collectd's nfs plugin.
 
 ==== collectd.nfs.nfs_procedure
 
-type: integer
+type: long
 
 collectd's nfs_procedure type of nfs plugin.
 
@@ -840,14 +840,14 @@ Corresponds to collectd's swap plugin.
 
 ==== collectd.swap.swap
 
-type: integer
+type: long
 
 collectd's swap type of swap plugin.
 
 
 ==== collectd.swap.swap_io
 
-type: integer
+type: long
 
 collectd's swap_io type of swap plugin.
 
@@ -910,273 +910,273 @@ Corresponds to collectd's statsd plugin.
 
 ==== collectd.statsd.host_cpu
 
-type: integer
+type: long
 
 collectd's cpu type of statsd plugin.
 
 
 ==== collectd.statsd.host_elapsed_time
 
-type: integer
+type: long
 
 collectd's elapsed_time type of statsd plugin.
 
 
 ==== collectd.statsd.host_memory
 
-type: integer
+type: long
 
 collectd's memory type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_speed
 
-type: integer
+type: long
 
 collectd's nic_speed type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_rx
 
-type: integer
+type: long
 
 collectd's nic_rx type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_tx
 
-type: integer
+type: long
 
 collectd's nic_tx type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_rx_dropped
 
-type: integer
+type: long
 
 collectd's nic_rx_dropped type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_tx_dropped
 
-type: integer
+type: long
 
 collectd's nic_tx_dropped type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_rx_errors
 
-type: integer
+type: long
 
 collectd's nic_rx_errors type of statsd plugin.
 
 
 ==== collectd.statsd.host_nic_tx_errors
 
-type: integer
+type: long
 
 collectd's nic_tx_errors type of statsd plugin.
 
 
 ==== collectd.statsd.host_storage
 
-type: integer
+type: long
 
 collectd's storage type of statsd plugin.
 
 
 ==== collectd.statsd.host_swap
 
-type: integer
+type: long
 
 collectd's swap type of statsd plugin.
 
 
 ==== collectd.statsd.host_vdsm
 
-type: integer
+type: long
 
 collectd's vdsm type of statsd plugin.
 
 
 ==== collectd.statsd.host_vms
 
-type: integer
+type: long
 
 collectd's vms type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_tx_dropped
 
-type: integer
+type: long
 
 collectd's nic_tx_dropped type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_rx_bytes
 
-type: integer
+type: long
 
 collectd's nic_rx_bytes type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_tx_bytes
 
-type: integer
+type: long
 
 collectd's nic_tx_bytes type of statsd plugin.
 
 
 ==== collectd.statsd.vm_balloon_min
 
-type: integer
+type: long
 
 collectd's balloon_min type of statsd plugin.
 
 
 ==== collectd.statsd.vm_balloon_max
 
-type: integer
+type: long
 
 collectd's balloon_max type of statsd plugin.
 
 
 ==== collectd.statsd.vm_balloon_target
 
-type: integer
+type: long
 
 collectd's balloon_target type of statsd plugin.
 
 
 ==== collectd.statsd.vm_balloon_cur
 
-type: integer
+type: long
 
 collectd's balloon_cur type of statsd plugin.
 
 
 ==== collectd.statsd.vm_cpu_sys
 
-type: integer
+type: long
 
 collectd's cpu_sys type of statsd plugin.
 
 
 ==== collectd.statsd.vm_cpu_usage
 
-type: integer
+type: long
 
 collectd's cpu_usage type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_read_ops
 
-type: integer
+type: long
 
 collectd's disk_read_ops type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_write_ops
 
-type: integer
+type: long
 
 collectd's disk_write_ops type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_flush_latency
 
-type: integer
+type: long
 
 collectd's disk_flush_latency type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_apparent_size
 
-type: integer
+type: long
 
 collectd's disk_apparent_size type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_write_bytes
 
-type: integer
+type: long
 
 collectd's disk_write_bytes type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_write_rate
 
-type: integer
+type: long
 
 collectd's disk_write_rate type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_true_size
 
-type: integer
+type: long
 
 collectd's disk_true_size type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_read_rate
 
-type: integer
+type: long
 
 collectd's disk_read_rate type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_write_latency
 
-type: integer
+type: long
 
 collectd's disk_write_latency type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_read_latency
 
-type: integer
+type: long
 
 collectd's disk_read_latency type of statsd plugin.
 
 
 ==== collectd.statsd.vm_disk_read_bytes
 
-type: integer
+type: long
 
 collectd's disk_read_bytes type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_rx_dropped
 
-type: integer
+type: long
 
 collectd's nic_rx_dropped type of statsd plugin.
 
 
 ==== collectd.statsd.vm_cpu_user
 
-type: integer
+type: long
 
 collectd's cpu_user type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_rx_errors
 
-type: integer
+type: long
 
 collectd's nic_rx_errors type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_tx_errors
 
-type: integer
+type: long
 
 collectd's nic_tx_errors type of statsd plugin.
 
 
 ==== collectd.statsd.vm_nic_speed
 
-type: integer
+type: long
 
 collectd's nic_speed type of statsd plugin.
 
@@ -1190,42 +1190,42 @@ Corresponds to collectd's postgresql plugin.
 
 ==== collectd.postgresql.pg_n_tup_g
 
-type: integer
+type: long
 
 collectd's type pg_n_tup_g of plugin postgresql.
 
 
 ==== collectd.postgresql.pg_n_tup_c
 
-type: integer
+type: long
 
 collectd's type pg_n_tup_c of plugin postgresql.
 
 
 ==== collectd.postgresql.pg_numbackends
 
-type: integer
+type: long
 
 collectd's type pg_numbackends of plugin postgresql.
 
 
 ==== collectd.postgresql.pg_xact
 
-type: integer
+type: long
 
 collectd's type pg_xact of plugin postgresql.
 
 
 ==== collectd.postgresql.pg_db_size
 
-type: integer
+type: long
 
 collectd's type pg_db_size of plugin postgresql.
 
 
 ==== collectd.postgresql.pg_blks
 
-type: integer
+type: long
 
 collectd's type pg_blks of plugin postgresql.
 

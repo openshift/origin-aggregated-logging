@@ -196,7 +196,7 @@
                 "pending_operations": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -212,7 +212,7 @@
                 "entropy": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -328,7 +328,7 @@
                 "nfs_procedure": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -350,32 +350,32 @@
                 "pg_blks": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "pg_db_size": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "pg_n_tup_c": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "pg_n_tup_g": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "pg_numbackends": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "pg_xact": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -390,19 +390,19 @@
                 "ps_code": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "ps_count": {
                   "properties": {
                     "processes": {
                       "doc_values": true,
                       "index": "not_analyzed",
-                      "type": "integer"
+                      "type": "long"
                     },
                     "threads": {
                       "doc_values": true,
                       "index": "not_analyzed",
-                      "type": "integer"
+                      "type": "long"
                     }
                   }
                 },
@@ -423,7 +423,7 @@
                 "ps_data": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "ps_disk_octets": {
                   "properties": {
@@ -470,22 +470,22 @@
                 "ps_rss": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "ps_stacksize": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "ps_state": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "ps_vm": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -495,197 +495,197 @@
                 "host_cpu": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_elapsed_time": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_memory": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_rx": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_rx_dropped": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_rx_errors": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_speed": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_tx": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_tx_dropped": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_nic_tx_errors": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_storage": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_swap": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_vdsm": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "host_vms": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_balloon_cur": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_balloon_max": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_balloon_min": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_balloon_target": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_cpu_sys": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_cpu_usage": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_cpu_user": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_apparent_size": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_flush_latency": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_read_bytes": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_read_latency": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_read_ops": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_read_rate": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_true_size": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_write_bytes": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_write_latency": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_write_ops": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_disk_write_rate": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_rx_bytes": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_rx_dropped": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_rx_errors": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_speed": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_tx_bytes": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_tx_dropped": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "vm_nic_tx_errors": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
@@ -695,12 +695,12 @@
                 "swap": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 },
                 "swap_io": {
                   "doc_values": true,
                   "index": "not_analyzed",
-                  "type": "integer"
+                  "type": "long"
                 }
               }
             },
