@@ -98,7 +98,6 @@ expected_failures=(
 	"test-es-copy"
 	"test-mux"
 	"test-upgrade"
-	"test-viaq-data-model"
 )
 
 function run_suite() {
