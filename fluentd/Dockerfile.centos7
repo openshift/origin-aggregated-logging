@@ -29,6 +29,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
 RUN mkdir -p ${HOME} && \
     gem install -N --conservative --minimal-deps --no-ri \
      'activesupport:<5' \
+     'public_suffix:<3' \
      'elasticsearch-transport:<5' \
      'elasticsearch-api:<5' \
      'elasticsearch:<5' \
