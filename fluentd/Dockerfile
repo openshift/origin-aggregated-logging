@@ -4,7 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
     FLUENTD_VERSION=0.12.39 \
-    FLUENTD_ES=1.9.5-2 \
+    FLUENTD_ES=1.9.5.1-1 \
     FLUENTD_FLATTEN_HASH=0.4.0-1 \
     FLUENTD_KUBE_METADATA=0.29.0-1 \
     FLUENTD_REWRITE_TAG=1.5.6-1 \
