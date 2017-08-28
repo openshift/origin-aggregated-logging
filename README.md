@@ -6,7 +6,7 @@ consists of multiple [components](#Components) abbreviated as the "EFK"
 stack: Elasticsearch, Fluentd, Kibana.
 
 The primary features this integration provides:
-* Multitenant support to isolate logs from various project namespaces
+* [Multitenant support](docs/access-control.md) to isolate logs from various project namespaces
 * Openshift OAuth2 integration
 * Historical log discovery and visualization
 * Log aggregation of pod and node logs
