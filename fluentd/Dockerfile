@@ -1,4 +1,4 @@
-FROM rhel7.3:7.3-released
+FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -21,11 +21,11 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       io.openshift.tags="logging,elk,fluentd" \
       com.redhat.component=logging-fluentd-docker \
       name="openshift3/logging-fluentd" \
-      version="3.6.0" \
+      version="v3.7.0" \
       release="1" \
       architecture=x86_64
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
+RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
                 hostname \
                 bc \
