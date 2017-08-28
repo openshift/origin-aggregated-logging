@@ -38,10 +38,11 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
+# MUX_ALLOW_EXTERNAL is now only for setting up the service to have
+# an externalIP
 export MUX_ALLOW_EXTERNAL=${MUX_ALLOW_EXTERNAL:-false}
-export USE_MUX_CLIENT=${USE_MUX_CLIENT:-false}
 export USE_MUX=${USE_MUX:-false}
-if [ "$MUX_ALLOW_EXTERNAL" = true -o "$USE_MUX_CLIENT" = true ] ; then
+if [ "$MUX_ALLOW_EXTERNAL" = true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
     export USE_MUX=true
 fi
 
@@ -213,44 +214,37 @@ rm -f $lfds
 # when fluentd starts up it may take a while before it catches up with all of the logs
 # let's wait until that happens
 wait_for_fluentd_ready
-wait_for_fluentd_to_catch_up
 
 # add admin user and normal user for kibana and token auth testing
 export LOG_ADMIN_USER=admin
 export LOG_ADMIN_PW=admin
-export LOG_NORMAL_USER=loguser
-export LOG_NORMAL_PW=loguser
 os::cmd::expect_success "oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oadm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER"
-os::cmd::expect_success "oc login --username=$LOG_NORMAL_USER --password=$LOG_NORMAL_PW"
-os::cmd::expect_success "oc login --username=system:admin"
-os::cmd::expect_success "oc project logging > /dev/null"
-os::cmd::expect_success "oadm policy add-role-to-user view $LOG_NORMAL_USER"
+oc project logging > /dev/null
 # also give $LOG_ADMIN_USER access to cluster stats
 espod=`get_running_pod es`
-wait_for_es_ready $espod 30 .searchguard.$espod/rolesmapping/0
+config_index_name=$(oc exec $espod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+sg_index=$(oc exec $espod -- bash -c "eval 'echo $config_index_name'")
+os::log::info "The searchguard index for $espod is: $sg_index"
+wait_for_es_ready $espod 30 "$sg_index/rolesmapping/0"
 
-oc exec $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-   --key /etc/elasticsearch/secret/admin-key \
-   https://localhost:9200/.searchguard.$espod/rolesmapping/0 | \
+curl_es $espod /$sg_index/rolesmapping/0 | \
     python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
-    oc exec -i $espod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-       --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$espod/rolesmapping/0 -XPUT -d@- | \
+    curl_es_input $espod /$sg_index/rolesmapping/0 -XPUT -d@- | \
     python -mjson.tool
 if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     esopspod=`get_running_pod es-ops`
-    wait_for_es_ready $esopspod 30 .searchguard.$esopspod/rolesmapping/0
-    oc exec $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-       --key /etc/elasticsearch/secret/admin-key \
-       https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 | \
+    config_index_name=$(oc exec $esopspod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']")
+    sg_opsindex=$(oc exec $esopspod -- bash -c "eval 'echo $config_index_name'")
+    os::log::info "The searchguard index for $esopspod is: $sg_opsindex"
+    wait_for_es_ready $esopspod 30 "$sg_opsindex/rolesmapping/0"
+    curl_es $esopspod /$sg_opsindex/rolesmapping/0 | \
         python -c 'import json, sys; hsh = json.loads(sys.stdin.read())["_source"]; hsh["sg_role_admin"]["users"].append("'$LOG_ADMIN_USER'"); print json.dumps(hsh)' | \
-        oc exec -i $esopspod -- curl -s -k --cert /etc/elasticsearch/secret/admin-cert \
-           --key /etc/elasticsearch/secret/admin-key \
-           https://localhost:9200/.searchguard.$esopspod/rolesmapping/0 -XPUT -d@- | \
+        curl_es_input $esopspod /$sg_opsindex/rolesmapping/0 -XPUT -d@- | \
         python -mjson.tool
 fi
+wait_for_fluentd_to_catch_up
 
 # verify that $LOG_ADMIN_USER user has access to cluster stats
 sleep 5
@@ -270,20 +264,8 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     status=$(oc exec $kibpod -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
-       https://logging-es-ops:9200/_cluster/health -o /dev/null -w '%{response_code}')
+       https://$ops_host:9200/_cluster/health -o /dev/null -w '%{response_code}')
     os::cmd::expect_success "test $status = 200"
-fi
-
-# verify normal user has access to logging indices
-get_test_user_token $LOG_NORMAL_USER $LOG_NORMAL_PW
-oc project logging > /dev/null
-nrecs=`curl_es_from_kibana $kibpod logging-es "project.logging." _count kubernetes.namespace_name logging | \
-       get_count_from_json`
-if [ ${nrecs:-0} -lt 1 ] ; then
-    echo ERROR: $LOG_NORMAL_USER cannot access project.logging.* indices
-    curl_es_from_kibana $kibpod logging-es "project.logging." _count message a | \
-        python -mjson.tool
-    exit 1
 fi
 
 if [ "$TEST_PERF" = "true" ] ; then

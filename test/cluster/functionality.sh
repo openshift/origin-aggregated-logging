@@ -27,6 +27,8 @@
 #               }: credentials for the admin user
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+
+trap os::test::junit::reconcile_output EXIT
 os::util::environment::setup_time_vars
 
 query_size="${OAL_QUERY_SIZE:-"500"}"
@@ -102,8 +104,8 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	done
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
-	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/elasticsearch/index_templates"
-	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/elasticsearch/index_templates ); do
+	os::cmd::expect_success "oc exec ${elasticsearch_pod} -- ls -1 /usr/share/java/elasticsearch/index_templates"
+	for template in $( oc exec "${elasticsearch_pod}" -- ls -1 /usr/share/java/elasticsearch/index_templates ); do
 		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' -X HEAD -w '%{response_code}'" '200'
 	done
 done

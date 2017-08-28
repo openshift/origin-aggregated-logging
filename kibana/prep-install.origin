@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -o nounset
+set -o pipefail
+
+#normalize files with downstream
+touch /etc/sysconfig/kibana

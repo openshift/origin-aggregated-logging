@@ -41,16 +41,37 @@ There are environment variables for the logging-mux DC config:
   on each node.  This allows the per-node Fluentd collectors to read and ship
   logs off the node as fast as possible to the logging-mux service, which will
   normalize and enrich with Kubernetes metadata, and store in Elasticsearch.
-* `MUX_ALLOW_EXTERNAL` - `true`/`false` - default is `false` - if `true`, the
-  logging-mux service will be able to handle log records sent from outside of
-  the cluster, as described below.
+  This will also be able to process records sent from outside of the cluster,
+  if the service has exposed an externalIP.
 * `FORWARD_LISTEN_PORT` - default `24284` - port to listen for secure_forward
   protocol log messages
 * `FORWARD_LISTEN_HOST` - hostname to listen for secure_forward protocol log
   messages - this is the same as the FQDN in the mux server cert
 
-logging-mux must be deployed with `MUX_ALLOW_EXTERNAL true` in order to receive
-records sent from outside the cluster.
+These are environment variables for the logging-fluentd daemonset config:
+
+* `MUX_CLIENT_MODE` - `minimal`/`maximal` - default is unset - If this is not
+  set, Fluentd will perform all of the processing, including Kubernetes
+  metadata processing, and will send the records directly to Elasticseach.
+  If `maximal`, then fluentd will do as much processing as possible at the node
+  before sending the records to mux.  This is the current recommended way to
+  use mux due to current scaling issues.  In this case, it is assumed you want
+  to deploy mux to be as lightweight as possible, and move as much of the
+  processing burden as possible to the individual Fluentd collector pods
+  running on each node.
+  If `minimal`, then fluentd will perform *no* processing and send the raw logs
+  to mux for processing.  We do not currently recommend using this mode, and
+  ansible will warn you about this.
+
+At the present time, the only scalable way to use mux is with
+`MUX_CLIENT_MODE=maximal`, which pushes as much of the log processing burden as
+possible on to every node running Fluentd.  With `minimal`, mux quickly becomes
+overwhelmed with processing all of the log records, and requires scaling up a
+large number of pods to keep up with the load.  However, this may change in the
+future.
+
+The logging-mux Service must be configured with an externalIP in order to
+receive records sent from outside the cluster.
 
 ### Ansible Configuration ###
 
@@ -59,12 +80,18 @@ There are several new Ansible parameters which can be used with the
 
 * `openshift_logging_use_mux` - `True`/`False` - default `False` - if
   `True`, create the mux Service, DeploymentConfig, Secrets, ConfigMap, etc.
-* `openshift_logging_use_mux_client` - `True`/`False` - default `False` - if
-  `True`, configure the Fluentd collectors running on each node to send the raw
-  logs to mux instead of directly to Elasticsearch
-* `openshift_logging_use_mux_service` - `True`/`False` - default `False` - if
-  `True`, expose the mux service external to the cluster, and configure the mux
-  fluentd to accept logs from outside the cluster
+- `openshift_logging_mux_client_mode`: Values - `minimal`, `maximal`.
+  Default is unset.  If this value is is unset, Fluentd will perform all of the
+  processing, including Kubernetes metadata processing, and will send the
+  records directly to Elasticseach.
+  The value `maximal` means that Fluentd will do as much processing as possible
+  at the node before sending the records to mux.  This is the current
+  recommended way to use mux due to current scaling issues.
+  The value `minimal` means that Fluentd will do *no* processing at all, and
+  send the raw logs to mux for processing.  We do not currently recommend using
+  this mode, and ansible will warn you about this.
+* `openshift_logging_mux_allow_external` - `True`/`False` - default `False` - if
+  `True`, expose the mux service external to the cluster
 * `openshift_logging_mux_hostname` - default
   "mux."`openshift_master_default_subdomain`.  This is the hostname that
   clients outside the cluster will use, the one used in the mux TLS server cert
@@ -179,12 +206,59 @@ namespace templates such as found in the
 mux Fluentd Config Details
 --------------------------
 
+### About the Diagrams ###
+
+A Fluentd node collector agent can read from either the systemd journal or from
+log files.  `Input /var/log` and `Input journald` mean that Fluentd will read
+from whichever of these it is configured to read from.
+
+`Filter k8s` takes the json-file or journald container log input and formats it
+using the ViaQ data model (i.e. the `kubernetes` and `docker` namespaces).
+
+`Filter syslog` takes the `/var/log/messages` or journald system log input and
+formats it using the ViaQ data model (i.e. the `systemd` namespace).
+
+`Filter k8s meta` looks up Kubernetes metadata for container log records from
+the Kubernetes server such as namespace\_uuid, pod\_uuid, labels, and
+annotations.
+
+`Filter viaq` removes empty fields and makes sure the time field is
+`@timestamp`.
+
+`Filter mux` determines what type of processing the log record needs - full
+processing, k8s meta only, or no further processing, and sends the log record
+to the appropriate processing pipeline, with the appropriate tagging and
+annotations.
+
+`Filter pre mux` prepares records received by mux and processed in the `Filter
+mux` step for Kubernetes metadata annotation.
+
+`Filter post mux` removes any temporary log record annotations added by
+previous mux filtering steps.
+
+A `raw` log is a log that is directly from the source, with no filtering or
+formatting applied to it yet.
+
+`viaq format` means that the log record is in the ViaQ format at this stage in
+the pipeline, ready to be sent to Elasticsearch, or secure_forward to an
+external logging system.
+
+`secure_forward` is the Fluentd secure_forward protocol.  If there is a dashed
+or broken line in the box around it, that means it is an optional component
+e.g. for shipping logs out of the cluster to another logging system.
+
+The `Elasticsearch` output inside of a larger box means the Elasticsearch
+output plugin.  The large, standalone `Elasticsearch` means the Elasticsearch
+storage cluster component of OpenShift logging.
+
 ### Basic Flow ###
 
-This is what the flow looks like normally, with no mux:![Normal Flow](mux-logging-service-diag1.png)
+This is what the flow looks like normally, when `MUX_CLIENT_MODE` is
+unset.  mux is not used at all, Fluentd does all of the processing and sends
+logs directly to Elasticsearch:![Normal Flow](mux-logging-service-diag1.png)
 
-With Fluentd configured with `USE_MUX_CLIENT true`, and with mux configured
-With `USE_MUX true` and `MUX_ALLOW_EXTERNAL false`:
+With Fluentd configured with `MUX_CLIENT_MODE minimal`, and with mux configured
+with `USE_MUX true` (`minimal` is not currently recommended to use):
 
 OpenShift Fluentd node collector sends raw records, collected from `json-file`
 or `journald` or both, to the mux service via secure_forward.
@@ -193,7 +267,7 @@ and sends the logs to Elasticsearch.
 
 Flow:![Internal Cluster mux](mux-logging-service-diag2.png)
 
-With `USE_MUX true` and `MUX_ALLOW_EXTERNAL true`:
+With `USE_MUX true`:
 
 In addition to the above, mux will examine the tags of the incoming
 `secure_forward` records, which can come from `secure_forward` clients outside
@@ -208,6 +282,15 @@ written to Elasticsearch in the index
 container records are written.
 
 Flow:![External Cluster mux](mux-logging-service-diag3.png)
+
+With Fluentd configured with `MUX_CLIENT_MODE maximal`:
+
+Fluentd will perform as much of the processing and formatting as possible of
+log records read from files or journald.  Mux will perform the Kubernetes
+metadata annotation before submitting the records to Elasticsearch.  `maximal`
+mode is the currently recommended mode to use with mux.
+
+Flow:![mux with MUX_CLIENT_MODE=maximal](mux-logging-service-diag4.png)
 
 ### Details ###
 
@@ -247,31 +330,39 @@ is much easier to add/rewrite a field than to rewrite a tag, which is why the
 k8s meta filter plugin is configured to use the `journald` fields rather than
 the `json-file` Fluentd tags.
 
-The next thing is this match:
+The next stage in the pipeline is this match:
 
     <match journal system.var.log.messages system.var.log.messages.** kubernetes.var.log.containers.**>
 
 This uses the `relabel` plugin to redirect the standard OpenShift logging tags
 to their usual destination via the `@INGRESS` label.
 
-This is all of the processing done if `USE_MUX true` and
-`MUX_ALLOW_EXTERNAL false`.
+The next stage in the pipeline is this match:
 
-If `MUX_ALLOW_EXTERNAL true`, there is some additional processing for tags
-matching `project.**`, and for tags which do not match any of the above.
+    <match journal.container** journal.system>
 
-The first thing is this filter:
+Records with these tags are operations logs and have already been processed and
+formatted by an OpenShift Fluentd.  These are retagged with `mux.ops` and sent
+to the `@INGRESS` label, where they will skip the filtering stages and go to
+the output stages.
+
+The next stage in the pipeline is this filter:
 
     <filter **>
 
 This examines the tag to see if it is of the form
 `project.namespacename.whatever`, and sets the field `mux_namespace_name` to
-the value of `namespacename` if it exists, or `mux-undefined` otherwise.  This
-also examines the record to see if the `kubernetes.metadata_uuid` field exists
-and has a value, to see if the record can bypass the k8s metadata plugin, and
-adds the field `mux_need_k8s_meta` with a value of `true` or `false`.
+the value of `namespacename` if it is in that form, or `mux-undefined`
+otherwise.  This also examines the record to see if the
+`kubernetes.metadata_uuid` field exists and has a value, to see if the record
+can bypass the k8s metadata plugin, and adds the field `mux_need_k8s_meta` with
+a value of `true` or `false`.  This also handles logs coming from inside the
+cluster that have been sent from a fluentd running in
+`MUX_CLIENT_MODE=maximal`.  In that case, the records will not have a
+`project.*` tag, but will have a `kubernetes.*` tag and/or fields
+such as `CONTAINER_NAME` which will be used to perform the k8s metadata lookup.
 
-The next thing is a rewrite tag filter:
+The next stage in the pipeline is a rewrite tag filter:
 
     <match **>
 
@@ -289,13 +380,13 @@ and will match that plugin's tag match pattern (if for some reason it is using t
 record filters.
 
 Then all records are passed to the `@INGRESS` label, where there are two
-additional filters.  The first one is this:
+additional mux related filters.  The first one is this:
 
     <filter kubernetes.mux.var.log.containers.mux-mux.mux-mux_**>
 
 This filter will add the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields to the
-record if they do not already exists so that the k8s meta filter plugin will
-add the `kubernetes.namespace_uuid` to the record.
+record if they do not already exist so that the k8s meta filter plugin will
+add the Kubernetes `namespace_uuid`, labels, and annotations.
 
 The next filter is this:
 

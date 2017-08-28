@@ -1,0 +1,21 @@
+[
+  {
+    "_id": "Kubernetes-Overview",
+    "_type": "dashboard",
+    "_source": {
+      "title": "Kubernetes Overview",
+      "hits": 0,
+      "description": "",
+      "panelsJSON": "[{\"id\":\"Kubernetes-Logs-by-Namespace,-DC,-Pod,-Container\",\"type\":\"visualization\",\"panelIndex\":1,\"size_x\":4,\"size_y\":4,\"col\":1,\"row\":1},{\"id\":\"Kubernetes-Logs-over-Time-w-slash-Container-Name\",\"type\":\"visualization\",\"panelIndex\":2,\"size_x\":8,\"size_y\":4,\"col\":5,\"row\":1},{\"id\":\"k8s-logs\",\"type\":\"search\",\"panelIndex\":3,\"size_x\":12,\"size_y\":18,\"col\":1,\"row\":5,\"columns\":[\"kubernetes.namespace_name\",\"kubernetes.labels.deploymentconfig\",\"kubernetes.pod_name\",\"kubernetes.container_name\",\"message\"],\"sort\":[\"@timestamp\",\"desc\"]}]",
+      "optionsJSON": "{\"darkTheme\":false}",
+      "uiStateJSON": "{}",
+      "version": 1,
+      "timeRestore": true,
+      "timeTo": "now",
+      "timeFrom": "now-1h/h",
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"filter\":[{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true}}}]}"
+      }
+    }
+  }
+]

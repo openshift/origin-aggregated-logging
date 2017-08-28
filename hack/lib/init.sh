@@ -37,8 +37,7 @@ OS_O_A_L_DIR="${OS_ROOT}"
 export OS_O_A_L_DIR
 cd "${OS_ROOT}"
 
-library_files=( $( find "${OS_ROOT}/hack/lib" -type f -name '*.sh' -not -path '*/hack/lib/init.sh' ) )
-for library_file in "${library_files[@]}"; do
+for library_file in $( find "${OS_ROOT}/hack/lib" -type f -name '*.sh' -not -path '*/hack/lib/init.sh' ); do
 	source "${library_file}"
 done
 

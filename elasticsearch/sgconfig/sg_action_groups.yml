@@ -33,8 +33,31 @@ GET:
   - "indices:data/read/get*"
   - "indices:data/read/mget*"
 
+INDEX_ANY_ADMIN:
+  - indices:admin/mappings/fields/get*
+  - indices:admin/validate/query*
+  - indices:admin/get*
+  - READ
+
+INDEX_KIBANA:
+  - ALL
+INDEX_ANY_KIBANA:
+  - INDEX_ANY_ADMIN
+  - MANAGE
+INDEX_OPERATIONS:
+  - INDEX_ANY_ADMIN
+INDEX_ANY_OPERATIONS:
+  - INDEX_ANY_ADMIN
+INDEX_PROJECT:
+  - INDEX_ANY_ADMIN
+
 # CLUSTER
 CLUSTER_ALL:
   - cluster:*
 CLUSTER_MONITOR:
   - cluster:monitor/*
+CLUSTER_MONITOR_KIBANA:
+  - cluster:monitor/nodes/info
+  - cluster:monitor/health
+CLUSTER_OPERATIONS:
+  - ALL

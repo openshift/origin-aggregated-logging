@@ -124,7 +124,7 @@ verify_or_add_index_templates() {
 
     info Adding index templates
     shopt -s failglob
-    for template_file in /usr/share/elasticsearch/index_templates/*.json
+    for template_file in ${ES_HOME}/index_templates/*.json
     do
         template=`basename $template_file`
         # Check if index template already exists
@@ -152,4 +152,8 @@ verify_or_add_index_templates() {
 
 verify_or_add_index_templates &
 
-exec /usr/share/elasticsearch/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
+info Setting heap dump location "$HEAP_DUMP_LOCATION"
+export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+
+exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
