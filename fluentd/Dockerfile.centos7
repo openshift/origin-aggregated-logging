@@ -35,6 +35,7 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'elasticsearch:<5' \
       fluentd:${FLUENTD_VERSION} \
       fluent-plugin-kubernetes_metadata_filter \
+      'fluent-plugin-record-modifier:<1.0.0' \
       fluent-plugin-rewrite-tag-filter \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
