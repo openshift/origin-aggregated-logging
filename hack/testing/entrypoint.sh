@@ -94,7 +94,6 @@ if [[ -n "${JUNIT_REPORT:-}" ]]; then
 fi
 
 expected_failures=(
-	"test-fluentd-forward"
 	"test-upgrade"
 )
 
