@@ -134,12 +134,26 @@ OPS_COPY_PASSWORD="${OPS_COPY_PASSWORD:-$ES_COPY_PASSWORD}"
 export OPS_COPY_HOST OPS_COPY_PORT OPS_COPY_SCHEME OPS_COPY_CLIENT_CERT \
        OPS_COPY_CLIENT_KEY OPS_COPY_CA OPS_COPY_USERNAME OPS_COPY_PASSWORD
 
+# Check the existing main fluent.conf has the @OUTPUT label
+# If it exists, we could use the label and take advantage.
+# If not, give up one output tag per plugin for now.
+output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
+if [ "$output_label" = "" ]; then
+    echo "WARNING: There is no @OUTPUT label declared in /etc/fluent/fluent.conf."
+    echo "         Disabling \"One output tag per plugin feature\" in this deployment."
+    echo "         To enable it, please set <label @OUTPUT> just before the output section."
+fi
+
 # How many outputs?
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     # A fluentd collector configured as a mux client has just one output: sending to a mux.
     NUM_OUTPUTS=1
     if [ "$ES_COPY" = "true" ] ; then
         echo "WARNING: When MUX_CLIENT_MODE is set, logs are forwarded to MUX; COPY won't work with it."
+    fi
+    rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf
+    if [ "$output_label" != "" ]; then
+        cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
     fi
 else
     # check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
@@ -148,11 +162,20 @@ else
         NUM_OUTPUTS=1
         # Disable "output-es-ops-config.conf in output-operations.conf"
         echo > $CFG_DIR/dynamic/output-es-ops-config.conf
+        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
+        if [ "$output_label" != "" ]; then
+            cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
+        fi
     else
         NUM_OUTPUTS=2
         # Enable "output-es-ops-config.conf in output-operations.conf"
         cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
+        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
+        if [ "$output_label" != "" ]; then
+            cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
+        fi
     fi
+    # Retagging tags into one to avoid buffer chunk switch (except mux.** and **.fluentd)
     if [ "$ES_COPY" = "true" ]; then
         if [ -z $ES_COPY_HOST ]; then
             echo "ERROR: Although ES_COPY is true, the environment variable ES_COPY_HOST for Elasticsearch host name is not set."
