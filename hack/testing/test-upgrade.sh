@@ -23,10 +23,11 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
 if [ "function" = "`type -t get_es_dcs 2> /dev/null`" ] ; then
     : # already sourced
 else
-    source ../../deployer/scripts/util.sh
+    source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 fi
 
 if [ -z "${imageprefix:-}" ] ; then
@@ -34,7 +35,6 @@ if [ -z "${imageprefix:-}" ] ; then
 fi
 
 USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-true}
-OS_O_A_L_DIR=${OS_O_A_L_DIR:-$(dirname "${BASH_SOURCE}")/../..}
 ENABLE_OPS_CLUSTER=${ENABLE_OPS_CLUSTER:-$CLUSTER}
 masterurlhack=${masterurlhack:-"-p MASTER_URL=https://172.30.0.1:443"}
 my_pvc_params=""

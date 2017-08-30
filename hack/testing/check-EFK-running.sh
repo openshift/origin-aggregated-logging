@@ -10,7 +10,7 @@ oal_expected_daemonsets=( "logging-fluentd" )
 oal_elasticseach_components=( "es" )
 oal_kibana_components=( "kibana" )
 
-if [[ $# -eq 1 ]]; then
+if [ "$1" = "true" ]; then
 	# There is an ops cluster set up, so we
 	# need to expect to see more objects.
 	oal_expected_deploymentconfigs+=( "logging-kibana-ops" "logging-curator-ops" )
@@ -43,7 +43,7 @@ if [[ "$( wc -w <<<"${es_dcs}" )" -ne 1 ]]; then
 fi
 
 oal_expected_deploymentconfigs+=( ${es_dcs} )
-if [[ $# -eq 1 ]]; then
+if [ "$1" = "true" ]; then
 	es_ops_dcs="$( get_es_dc es-ops )"
 	if [[ "$( wc -w <<<"${es_ops_dcs}" )" -ne 1 ]]; then
 		os::log::fatal "Expected to find one OPS Elasticsearch DeploymentConfig, got: '${es_ops_dcs:-"<none>"}'"
