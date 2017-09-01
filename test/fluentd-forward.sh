@@ -49,6 +49,11 @@ create_forwarding_fluentd() {
     oc create configmap logging-forward-fluentd \
        --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf
 
+    # create a directory for file buffering so as not to conflict with fluentd
+    if [ ! -d /var/lib/fluentd/forward ] ; then
+        sudo mkdir -p /var/lib/fluentd/forward
+    fi
+
     # create forwarding daemonset
     oc get daemonset/logging-fluentd -o yaml | \
         sed -e 's/logging-infra-fluentd: "true"/logging-infra-forward-fluentd: "true"/' \
@@ -58,6 +63,11 @@ create_forwarding_fluentd() {
         ports: \
           - containerPort: 24284' | \
         oc create -f -
+
+    # make it use a different hostpath than fluentd
+    oc set volumes daemonset/logging-forward-fluentd --add --overwrite \
+       --name=filebufferstorage --type=hostPath \
+       --path=/var/lib/fluentd/forward --mount-path=/var/lib/fluentd
 
     os::log::debug "$( oc label node --all logging-infra-forward-fluentd=true )"
 
