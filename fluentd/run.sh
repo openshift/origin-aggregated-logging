@@ -69,6 +69,8 @@ if [ "${USE_MUX:-}" = "true" ] ; then
         fi
     done
     rm -f $CFG_DIR/dynamic/input-docker-* $CFG_DIR/dynamic/input-syslog-*
+    # mux is a normalizer
+    export PIPELINE_TYPE=normalizer
 else
     ruby generate_throttle_configs.rb
     rm -f $CFG_DIR/openshift/*mux*.conf
@@ -93,6 +95,8 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
         # sed assumes CONTAINER_ fields are neither first nor last fields in list
         K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
                                   sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
+        # tell the viaq filter not to construct an elasticsearch index name
+        # for project because we have no kubernetes metadata yet
     fi
     cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     # copy any user defined files, possibly overwriting the standard ones
@@ -104,10 +108,12 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
         rm $CFG_DIR/openshift/filter-k8s-meta.conf
         touch $CFG_DIR/openshift/filter-k8s-meta.conf
     fi
+    # mux clients do not create elasticsearch index names
+    ENABLE_ES_INDEX_NAME=false
 else
     rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
 fi
-export K8S_FILTER_REMOVE_KEYS
+export K8S_FILTER_REMOVE_KEYS ENABLE_ES_INDEX_NAME
 
 # How many outputs?
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
