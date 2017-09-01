@@ -38,9 +38,10 @@ RUN mkdir -p ${HOME} && \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
-      systemd-journal
+      systemd-journal \
+      excon
 
-RUN curl -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/download/v1.9.5.1/fluent-plugin-elasticsearch-1.9.5.1.gem > ${HOME}/fluent-plugin-elasticsearch-1.9.5.1.gem && \
+RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/download/v1.9.5.1/fluent-plugin-elasticsearch-1.9.5.1.gem > ${HOME}/fluent-plugin-elasticsearch-1.9.5.1.gem && \
     cd ${HOME} && \
     gem install -N --conservative --minimal-deps --no-ri --local fluent-plugin-elasticsearch-1.9.5.1.gem
 
