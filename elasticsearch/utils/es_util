@@ -20,6 +20,9 @@
 set -euo pipefail
 source es_util_env
 
+extra_args=("")
+index=0
+
 while (($#))
 do
 case $1 in
@@ -27,7 +30,8 @@ case $1 in
       QUERY=${1#*=}
       ;;
     *)
-      echo Ignoring unknown argument $1
+      extra_args[$index]=${1}
+      index=$((index+1))
       ;;
   esac
   shift
@@ -46,4 +50,9 @@ if [ -z "${QUERY:-}" ]; then
   QUERY="$INDEX/$TYPE?$OPTIONS"
 fi
 
-curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY" "$@"
+curl_args=""
+for arg in ${extra_args[@]}; do
+  curl_args="${curl_args} ${arg}"
+done
+
+curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY" ${curl_args}
