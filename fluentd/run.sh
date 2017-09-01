@@ -131,10 +131,13 @@ fi
 FILE_BUFFER_PATH=/var/lib/fluentd
 mkdir -p $FILE_BUFFER_PATH
 
-# Get the available disk size; use 1/4 of it
+# Get the available disk size.
 DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
 DF_LIMIT=${DF_LIMIT:-0}
-DF_LIMIT=$(expr $DF_LIMIT / 4) || :
+if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then
+    # Use 1/4 of the disk space for hostmount.
+    DF_LIMIT=$(expr $DF_LIMIT / 4) || :
+fi
 if [ $DF_LIMIT -eq 0 ]; then
     echo "ERROR: No disk space is available for file buffer in $FILE_BUFFER_PATH."
     exit 1
