@@ -125,10 +125,16 @@ function run_suite() {
 suite_selector="${SUITE:-".*"}"
 for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | sort ); do
 	run_suite "${test}"
+        if [[ -n "${failed:-}" ]]; then
+           exit 1
+        fi
 done
 
 for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | sort ); do
 	run_suite "${test}"
+        if [[ -n "${failed:-}" ]]; then
+           exit 1
+        fi
 done
 
 if [[ -n "${failed:-}" ]]; then
