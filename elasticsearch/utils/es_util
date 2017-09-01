@@ -27,7 +27,7 @@ case $1 in
       QUERY=${1#*=}
       ;;
     *)
-      echo Ignoring unknown argument $1
+      break;
       ;;
   esac
   shift
