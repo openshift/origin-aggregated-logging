@@ -1,15 +1,15 @@
 # Docker Event Collection
 ## Overview
-Docker events are not collected or stored by the Openshift cluster.  Certain customers are [required](https://trello.com/c/qxoFsKz9/) to audit these events (e.g. security).  This document is the architecture and design proposal for gathering Docker events for persistence.
+Docker events are not collected or stored by the Openshift cluster.  Certain customers are [required](https://trello.com/c/qxoFsKz9/) to audit these events (e.g. security).  This document is the architecture and design proposal for gathering Docker events for persistence as log entries interleaved with other operational logs.
 
 ## Requirements
 ### Security 
-Docker events shall only be visible by users in a cluster admin role.
+Docker event log entries shall have the same visibility as other operational log entries.
 ### Storage and Retention
 Docker events shall be stored for the same retention period as other log event messages.  The default curation period is 31 days.  The default indices are the operations indices
 
 # Proposal
-Openshift is deployed with [ProjectAtomic Docker](https://github.com/projectatomic/docker/blob/docker-1.12.6/api/server/middleware/audit_linux.go) that enhances audit logging of container events.  These events are logged to the audit file on the node.  The log collector for the logging stack already has access to the file system and will collect docker events from this log.  
+Openshift is deployed with [ProjectAtomic Docker](https://github.com/projectatomic/docker/blob/docker-1.12.6/api/server/middleware/audit_linux.go) that enhances audit logging of container events.  These events are logged to the audit file on the node.  The log collector for the logging stack already has access to the file system and will collect docker events from this file.  
 
 **NOTE:** Only Docker Events will be parsed from the audit log; all others will be dropped.
 
@@ -80,7 +80,11 @@ docker:
  * [ProjectAtomic Docker](https://github.com/projectatomic/docker) version 1.12.6 - Docker fork with patch for enhanced auditing
 
 # Alternative Considerations
-* Utilize a fluentd plugin to connect directly to the docker daemon
-* Utilize the event information present in the docker journal log
+## Fluentd plugin to connect directly to the docker daemon
+This requires the creation of a custom plugin to fluentd to watch docker events.  The watcher can periodically disconnect which requires a reconnect strategy.  This possibly could result in message loss if not properly handled.  Additionally it would add the burden of maintaining and releasing a custom solution.
+
+## Event information present in the docker journal log
+The event information present in the journal log does not include enough information to be useful.
+
 
 
