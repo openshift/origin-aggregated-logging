@@ -106,4 +106,3 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* 
 fpod=`get_running_pod fluentd`
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
-

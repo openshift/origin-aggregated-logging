@@ -52,8 +52,8 @@ oc get configmap logging-fluentd -o yaml > $savecm
 
 os::log::info Starting viaq-data-model test at $( date )
 
-es_pod=$( get_running_pod es )
-es_ops_pod=$( get_running_pod es-ops )
+es_pod=$( get_es_pod es )
+es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
 fpod=$( get_running_pod fluentd )
