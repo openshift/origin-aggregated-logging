@@ -27,6 +27,9 @@ ARG OSE_ES_VER=2.4.4.14-SNAPSHOT
 ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
 
+ADD openshift-elasticsearch-plugin-2.4.4.14-SNAPSHOT.zip /
+ENV OSE_ES_URL=file:///openshift-elasticsearch-plugin-2.4.4.14-SNAPSHOT.zip
+
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
       io.openshift.expose-services="9200:https, 9300:https" \
