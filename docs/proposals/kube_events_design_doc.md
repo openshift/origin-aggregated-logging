@@ -4,28 +4,23 @@ By kubernetes events we understand log messages internal to kubernetes, accessib
 
 How are the logs collected
 ---
-By default, fluentd is able to read any pod’s STDOUT and insert as an enriched log message to Elasticsearch. The eventrouter outputs the events as a JSON string, parseable by fluentd which sets the event related fields in the `_default_` namespace. The desired structure is achieved using a [fluentd filter record_transformer](https://github.com/openshift/origin-aggregated-logging/pull/573).
+By default, fluentd is able to read any pod’s STDOUT and insert as an enriched log message to Elasticsearch. The eventrouter outputs the events as a JSON string, parseable by fluentd which sets the event related fields in the `_default_` namespace. The desired structure is achieved in PR to [ViaQ data model fluentd plugin](https://github.com/ViaQ/fluent-plugin-viaq_data_model/pull/9).
 
 Selected implementation consists of:
 - [eventrouter](https://github.com/openshift/openshift-ansible/pull/4973) - scraping the events from kubernetes API and printing as separate messages to STDOUT for further processing.
-- [fluentd record_transformer](https://github.com/openshift/origin-aggregated-logging/pull/573) - transforming the log message to adhere to desired data model moving event related fields to nest under the `kubernetes` field.
+- [fluentd ViaQ data model plugin](https://github.com/ViaQ/fluent-plugin-viaq_data_model/pull/9) - transforming the log message to adhere to desired data model moving event related fields to nest under the `kubernetes` field.
     
 ![design_proposal_image](https://cdn.rawgit.com/wozniakjan/origin-aggregated-logging/37bb71012f7a0008b929bb88352f78ad023dbe15/docs/proposals/kube_event_collection.svg)
 
 What do the event logs contain
 ---
 The logs contain all of the standard fields and metadata as described in [ViaQ CDM](https://github.com/ViaQ/elasticsearch-templates/tree/master/namespaces). Additionally, there are following fields from the event nested under the `kubernetes` field for deduplication:
-- message <- event.message
-- kubernetes.event.source_component <- event.source.component
-
-In case the event was triggered by a pod, additional deduplication occurs:
-- kubernetes.pod_name <- event.involvedObject.name
-- kubernetes.namespace_name <- event.involvedObject.namespace
-- kubernetes.pod_id is deleted
-- kubernetes.namespace_id is deleted
-- kubernetes.container_name is deleted
-- kubernetes.annotations is deleted
-- kubernetes.labels is deleted
+```
+pipeline_metadata.collector.original_raw_message <- message
+message                                          <- event.message
+@timestamp                                       <- event.metadata.creationTimestamp
+kubernetes.event                                 <- event
+```
 
 How are the logs stored
 ---
@@ -36,69 +31,66 @@ The eventrouter is deployed by default to the `default` namespace, therefore, fl
 Example of a log containing event:
 ```
 {
-  "_index" : ".operations.2017.08.07",
-  "_type" : "com.redhat.viaq.common",
-  "_id" : "AV28LhKeHnu-8fxLW30H",
-  "_score" : 1.0,
-  "_source" : {
-    "docker" : {
-      "container_id" : "020f49711f0d441dbeec0665a8ebd702aa6ec4ffc829aa2bd69f79c6a211b00e"
+  docker" : {
+    "container_id" : "a29c7d9cb2af947609d406308f366c4f862675d5211e4172dbfa3249ec4dfd66"
+  },
+  "kubernetes" : {
+    "container_name" : "kube-eventrouter",
+    "namespace_name" : "default",
+    "pod_name" : "logging-eventrouter-1-jlwnd",
+    "pod_id" : "29a7e785-8f1f-11e7-948b-5254002f560c",
+    "labels" : {
+      "component" : "eventrouter",
+      "deployment" : "logging-eventrouter-1",
+      "deploymentconfig" : "logging-eventrouter",
+      "logging-infra" : "eventrouter",
+      "provider" : "openshift"
     },
-    "kubernetes" : {
-      "event" : {
-        "verb" : "ADDED",
-        "metadata" : {
-          "name" : "java-mainclass-1.14d888a4cfc24890",
-          "namespace" : "javaj",
-          "selfLink" : "/api/v1/namespaces/javaj/events/java-mainclass-1.14d888a4cfc24890",
-          "uid" : "d828ac69-7b58-11e7-9cf5-5254002f560c",
-          "resourceVersion" : "311987",
-          "creationTimestamp" : "2017-08-07T10:11:57Z"
-        },
-        "involvedObject" : {
-          "kind" : "ReplicationController",
-          "namespace" : "javaj",
-          "name" : "java-mainclass-1",
-          "uid" : "e6bff941-76a8-11e7-8193-5254002f560c",
-          "apiVersion" : "v1",
-          "resourceVersion" : "308882"
-        },
-        "reason" : "SuccessfulCreate",
-        "source_component" : "replication-controller",
-        "firstTimestamp" : "2017-08-07T10:11:57Z",
-        "count" : 1,
-        "type" : "Normal"
+    "host" : "fed2",
+    "master_url" : "https://kubernetes.default.svc.cluster.local",
+    "namespace_id" : "46f37f2e-3fa8-11e7-a651-5254002f560c",
+    "event" : {
+      "metadata" : {
+        "name" : "logging-kibana.14e042131d1e19e3",
+        "namespace" : "logging",
+        "selfLink" : "/api/v1/namespaces/logging/events/logging-kibana.14e042131d1e19e3",
+        "uid" : "113cb573-8f1f-11e7-948b-5254002f560c",
+        "resourceVersion" : "194435",
       },
-      "container_name" : "kube-eventrouter",
-      "namespace_name" : "default",
-      "pod_name" : "logging-eventrouter-2-7sgxj",
-      "pod_id" : "0e4b95d2-7b44-11e7-9cf5-5254002f560c",
-      "labels" : {
-        "component" : "eventrouter",
-        "deployment" : "logging-eventrouter-2",
-        "deploymentconfig" : "logging-eventrouter",
-        "logging-infra" : "eventrouter",
-        "provider" : "openshift"
+      "involvedObject" : {
+        "kind" : "DeploymentConfig",
+        "namespace" : "logging",
+        "name" : "logging-kibana",
+        "uid" : "113820c8-8f1f-11e7-948b-5254002f560c",
+        "apiVersion" : "v1",
+        "resourceVersion" : "194433"
       },
-      "host" : "fed2",
-      "master_url" : "https://kubernetes.default.svc.cluster.local",
-      "namespace_id" : "46f37f2e-3fa8-11e7-a651-5254002f560c"
-    },
-    "hostname" : "fed2",
-    "message" : "Created pod: java-mainclass-1-1wd39",
-    "pipeline_metadata" : {
-      "collector" : {
-        "ipaddr4" : "10.128.1.207",
-        "ipaddr6" : "fe80::1c0c:1fff:feef:4e16",
-        "inputname" : "fluent-plugin-in_tail",
-        "name" : "fluentd openshift",
-        "received_at" : "2017-08-07T10:11:57.203593565Z",
-        "version" : "0.12.37 1.6.0"
-      }
-    },
-    "level" : "info",
-    "@timestamp" : "2017-08-07T10:11:57Z"
-  }
+      "reason" : "DeploymentCreated",
+      "source" : {
+        "component" : "deploymentconfig-controller"
+      },
+      "firstTimestamp" : "2017-09-01T14:08:45Z",
+      "lastTimestamp" : "2017-09-01T14:08:45Z",
+      "count" : 1,
+      "type" : "Normal",
+      "verb" : "ADDED"
+    }
+  },
+  "hostname" : "fed2",
+  "message" : "Readiness probe failed: Get https://10.128.1.84:5000/healthz: http2: no cached connection was available",
+  "pipeline_metadata" : {
+    "collector" : {
+      "ipaddr4" : "10.128.1.156",
+      "ipaddr6" : "fe80::2024:92ff:fe9f:b693",
+      "inputname" : "fluent-plugin-in_tail",
+      "name" : "fluentd openshift",
+      "received_at" : "2017-09-01T14:09:30.920071487Z",
+      "version" : "0.12.37 1.6.0",
+      "original_raw_message" : "{\"verb\":\"ADDED\",\"event\":{\"metadata\":{\"name\":\"docker-registry-1-p08jj.14dffd4b9a4130eb\",\"namespace\":\"default\",\"selfLink\":\"/api/v1/namespaces/default/events/docker-registry-1-p08jj.14dffd4b9a4130eb\",\"uid\":\"897e67b4-8f16-11e7-948b-5254002f560c\",\"resourceVersion\":\"193589\",\"creationTimestamp\":\"2017-09-01T13:07:41Z\"},\"involvedObject\":{\"kind\":\"Pod\",\"namespace\":\"default\",\"name\":\"docker-registry-1-p08jj\",\"uid\":\"137a74fd-3fa9-11e7-a651-5254002f560c\",\"apiVersion\":\"v1\",\"resourceVersion\":\"174440\",\"fieldPath\":\"spec.containers{registry}\"},\"reason\":\"Unhealthy\",\"message\":\"Readiness probe failed: Get https://10.128.1.84:5000/healthz: http2: no cached connection was available\",\"source\":{\"component\":\"kubelet\",\"host\":\"fed2\"},\"firstTimestamp\":\"2017-08-31T17:08:21Z\",\"lastTimestamp\":\"2017-09-01T13:16:51Z\",\"count\":6,\"type\":\"Warning\"}}\n"
+    }
+  },
+  "level" : "info",
+  "@timestamp" : "2017-09-01T14:08:45Z"
 }
 ```
 
