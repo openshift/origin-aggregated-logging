@@ -3,8 +3,8 @@
 # test the mux route and service
 # - can accept secure_forward from a "client" fluentd
 
-if [ -z "${MUX_CLIENT_MODE:-}" -o "${MUX_ALLOW_EXTERNAL:-false}" = "false" ]; then
-    echo "Skipping -- This test requires MUX_CLIENT_MODE and MUX_ALLOW_EXTERNAL are true."
+if [ "${USE_MUX:-false}" = "false" ]; then
+    echo "Skipping -- This test requires USE_MUX=true."
     exit 0
 fi
 
