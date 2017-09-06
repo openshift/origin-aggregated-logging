@@ -103,10 +103,9 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
-    # rm k8s meta plugin - do not hit the API server
+    # rm k8s meta plugin - do not hit the API server - just do json parsing
     if [ "${MUX_CLIENT_MODE:-}" = maximal -o "${MUX_CLIENT_MODE:-}" = minimal ] ; then
-        rm $CFG_DIR/openshift/filter-k8s-meta.conf
-        touch $CFG_DIR/openshift/filter-k8s-meta.conf
+        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-k8s-meta.conf
     fi
     # mux clients do not create elasticsearch index names
     ENABLE_ES_INDEX_NAME=false
