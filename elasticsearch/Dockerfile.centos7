@@ -6,7 +6,7 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CLOUD_K8S_VER=2.4.4 \
+ENV ES_CLOUD_K8S_VER=2.4.4_01 \
     ES_CONF=/usr/share/java/elasticsearch/config \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/java/elasticsearch \
@@ -22,7 +22,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=origin
 
-ARG ES_CLOUD_K8S_VER=2.4.4
+ARG ES_CLOUD_K8S_VER=2.4.4_01
 ARG OSE_ES_VER=2.4.4.13
 ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
