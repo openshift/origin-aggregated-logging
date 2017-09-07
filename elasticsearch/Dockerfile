@@ -15,7 +15,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
-    OSE_ES_VER=2.4.4.13 \
+    OSE_ES_VER=2.4.4.14-SNAPSHOT \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -23,9 +23,12 @@ ENV ES_CLOUD_K8S_VER=2.4.4 \
     RELEASE_STREAM=prod
 
 ARG ES_CLOUD_K8S_VER=2.4.4
-ARG OSE_ES_VER=2.4.4.13
+ARG OSE_ES_VER=2.4.4.14-SNAPSHOT
 ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
+
+ADD openshift-elasticsearch-plugin-2.4.4.14-SNAPSHOT.zip /
+ENV OSE_ES_URL=file:///openshift-elasticsearch-plugin-2.4.4.14-SNAPSHOT.zip
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
