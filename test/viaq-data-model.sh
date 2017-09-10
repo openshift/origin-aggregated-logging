@@ -43,6 +43,15 @@ cleanup() {
 }
 trap "cleanup" EXIT
 
+# Make sure all the pods are running at the beginning of the test suite.
+os::cmd::try_until_text "oc get pods -l component=es" "^logging-es.* Running "
+os::cmd::try_until_text "oc get pods -l component=kibana" "^logging-kibana-.* Running "
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+if [ "${USE_MUX:-}" = "true" ]; then
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
+fi
+os::log::debug "$( oc get pods )"
+
 # save current fluentd daemonset
 saveds=$( mktemp )
 oc get daemonset logging-fluentd -o yaml > $saveds
