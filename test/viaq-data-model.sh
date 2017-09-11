@@ -109,10 +109,12 @@ get_logmessage2() {
 # default - undefined fields are passed through untouched
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$logmessage | \
+fullmsg="GET /${logmessage} 404 "
+qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test1"
-
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$logmessage2 | \
+qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
+os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test1"
 
 # these fields are present because it is a kibana log message - we
@@ -128,10 +130,12 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* 
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$logmessage | \
+fullmsg="GET /${logmessage} 404 "
+qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test2"
-
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$logmessage2 | \
+qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
+os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test2"
 
 # TEST 3
@@ -141,10 +145,13 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* 
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$logmessage | \
+fullmsg="GET /${logmessage} 404 "
+qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test3"
 
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$logmessage2 | \
+qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
+os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test3"
 
 # TEST 4
@@ -154,10 +161,13 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* 
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$logmessage | \
+fullmsg="GET /${logmessage} 404 "
+qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test4"
 
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$logmessage2 | \
+qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
+os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test4"
 
 # TEST 5
@@ -174,10 +184,13 @@ fi
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$logmessage | \
+fullmsg="GET /${logmessage} 404 "
+qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$logmessage2 | \
+qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
+os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 
 if oc set env daemonset/logging-fluentd --list | grep -q ^MUX_CLIENT_MODE=maximal ; then
