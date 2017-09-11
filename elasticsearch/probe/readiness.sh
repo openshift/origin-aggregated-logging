@@ -43,13 +43,13 @@ function check_if_ready() {
 }
 
 check_if_ready "/" "Elasticsearch node is not ready to accept HTTP requests yet"
-check_if_ready "/.searchguard.$DC_NAME" "Searchguard index '.searchguard.$DC_NAME' is missing in ES cluster"
+check_if_ready "/.searchguard.$NODE_NAME" "Searchguard index '.searchguard.$NODE_NAME' is missing in ES cluster"
 sg_doc_count=$(curl -s --get \
   --cacert $secret_dir/admin-ca \
   --cert $secret_dir/admin-cert \
   --key  $secret_dir/admin-key \
   --max-time $max_time \
-  "${ES_REST_BASEURL}/.searchguard.$DC_NAME/_search?size=0" \
+  "${ES_REST_BASEURL}/.searchguard.$NODE_NAME/_search?size=0" \
   | python -c "import sys, json; print json.load(sys.stdin)['hits']['total']")
 
 if [ "$sg_doc_count" != $EXPECTED_SG_DOCUMENT_COUNT ]; then
