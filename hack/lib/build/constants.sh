@@ -19,7 +19,7 @@ readonly OS_OUTPUT_PKGDIR="${OS_OUTPUT}/pkgdir"
 readonly OS_GO_PACKAGE=github.com/openshift/origin
 
 readonly OS_SDN_COMPILE_TARGETS_LINUX=(
-  pkg/sdn/plugin/sdn-cni-plugin
+  pkg/network/sdn-cni-plugin
   vendor/github.com/containernetworking/cni/plugins/ipam/host-local
   vendor/github.com/containernetworking/cni/plugins/main/loopback
 )
@@ -53,6 +53,9 @@ readonly OPENSHIFT_BINARY_SYMLINKS=(
   openshift-recycle
   openshift-sti-build
   openshift-docker-build
+  openshift-git-clone
+  openshift-manage-dockerfile
+  openshift-extract-image-content
   origin
   osc
   oadm
