@@ -42,7 +42,7 @@ get_uuid_es() {
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_uuid_es
 
-es_pod=$( get_running_pod es )
+es_pod=$( get_es_pod es )
 
 os::log::info Testing if record is in correct format . . .
 os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$json_test_uuid | \

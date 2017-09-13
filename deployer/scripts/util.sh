@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if ! type -t os::log::info > /dev/null ; then
+    source "${OS_O_A_L_DIR:-..}/hack/lib/init.sh"
+fi
+
 function generate_JKS_chain() {
     dir=${SCRATCH_DIR:-_output}
     ADD_OID=$1
@@ -357,9 +361,18 @@ wait_for_pod_ACTION() {
     return 0
 }
 
+function get_es_pod() {
+    # $1 - cluster name postfix
+    if [ -z $(oc get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
+      oc get pods -l component=${1} --no-headers | awk '$3 == "Running" {print $1}'
+    else
+      oc get pods -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '$3 == "Running" {print $1}'
+    fi
+}
+
 function get_running_pod() {
     # $1 is component for selector
-    oc get pods -l component=$1 | awk -v sel=$1 '$1 ~ sel && $3 == "Running" {print $1}'
+    oc get pods -l component=$1 --no-headers | awk '$3 == "Running" {print $1}'
 }
 
 function get_latest_pod() {
@@ -395,7 +408,7 @@ curl_es_from_kibana() {
     oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
        --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
        -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
-       https://${2}:9200/${3}*/${4}\?q=${5}:${6}
+       "https://${2}:9200/${3}*/${4}\?q=${5}:${6}"
 }
 
 # $1 - es pod name
@@ -459,11 +472,10 @@ function curl_es_with_token_and_input() {
 }
 
 # $1 - es pod name
-# $2 - es hostname (e.g. logging-es or logging-es-ops)
-# $3 - index name (e.g. project.logging, project.test, .operations, etc.)
-# $4 - _count or _search
-# $5 - field to search
-# $6 - search string
+# $2 - index name (e.g. project.logging, project.test, .operations, etc.)
+# $3 - _count or _search
+# $4 - field to search
+# $5 - search string
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 function query_es_from_es() {
@@ -535,7 +547,7 @@ function wait_until_cmd_or_err() {
 # return true if the actual count matches the expected count, false otherwise
 function test_count_expected() {
     myfield=${myfield:-message}
-    local nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
+    local nrecs=`query_es_from_es $espod $myproject _count $myfield "$mymessage" | \
            get_count_from_json`
     test "$nrecs" = $expected
 }
@@ -544,11 +556,11 @@ function test_count_expected() {
 # the actual count
 function test_count_err() {
     myfield=${myfield:-message}
-    nrecs=`query_es_from_es $espod $myproject _count $myfield $mymessage | \
+    nrecs=`query_es_from_es $espod $myproject _count $myfield "$mymessage" | \
            get_count_from_json`
-    echo Error: found $nrecs for project $myproject message $mymessage - expected $expected
+    os::log::error found $nrecs for project $myproject message "$mymessage" - expected $expected
     for thetype in _count _search ; do
-        query_es_from_es $espod $myproject $thetype $myfield $mymessage | python -mjson.tool
+        query_es_from_es $espod $myproject $thetype $myfield "$mymessage" | python -mjson.tool
     done
 }
 
@@ -556,53 +568,55 @@ function test_count_err() {
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches
 function wait_for_fluentd_to_catch_up() {
-    local starttime=`date +%s`
-    echo START wait_for_fluentd_to_catch_up at `date -u --rfc-3339=ns`
-    local es_pod=`get_running_pod es`
-    local es_ops_pod=`get_running_pod es-ops`
-    if [ -z "$es_ops_pod" ] ; then
-        es_ops_pod=$es_pod
-    fi
-    local uuid_es=`uuidgen`
-    local uuid_es_ops=`uuidgen`
+    local starttime=$( date +%s )
+    os::log::debug START wait_for_fluentd_to_catch_up at $( date -u --rfc-3339=ns )
+    local es_pod=$( get_es_pod es )
+    local es_ops_pod=$( get_es_pod es-ops )
+    es_ops_pod=${es_ops_pod:-$es_pod}
+    local uuid_es=$( uuidgen )
+    local uuid_es_ops=$( uuidgen )
     local expected=${3:-1}
-    local timeout=300
+    local timeout=${TIMEOUT:-300}
     local project=${4:-logging}
 
     add_test_message $uuid_es
-    echo added es message $uuid_es
+    os::log::debug added es message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
-    echo added es-ops message $uuid_es_ops
+    os::log::debug added es-ops message $uuid_es_ops
 
     local rc=0
 
     # poll for logs to show up
-
-    if espod=$es_pod myproject=project.$project mymessage=$uuid_es expected=$expected \
-            wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
-        echo good - $FUNCNAME: found $expected record project logging for $uuid_es
+    local fullmsg="GET /${uuid_es} 404 "
+    local qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
+    if os::cmd::try_until_text "curl_es ${es_pod} /project.logging.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+        os::log::debug good - $FUNCNAME: found $expected record project logging for \'$fullmsg\'
     else
-        echo failed - $FUNCNAME: not found $expected record project logging for $uuid_es after $timeout seconds
-        echo "Checking journal for $uuid_es..."
-        if sudo journalctl | grep $uuid_es ; then
-            echo "Found $uuid_es in journal"
+        os::log::error $FUNCNAME: not found $expected record project logging for \'$fullmsg\' after $timeout seconds
+        os::log::debug "$( curl_es ${es_pod} /project.logging.*/_search -X POST -d "$qs" )"
+        os::log::error "Checking journal for '$fullmsg' ..."
+        if sudo journalctl | grep -q "$fullmsg" ; then
+            os::log::error "Found '$fullmsg' in journal"
+            os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
         else
-            echo "Unable to find $uuid_es in journal"
+            os::log::error "Unable to find '$fullmsg' in journal"
         fi
 
         rc=1
     fi
 
-    if espod=$es_ops_pod myproject=.operations mymessage=$uuid_es_ops expected=$expected myfield=systemd.u.SYSLOG_IDENTIFIER \
-            wait_until_cmd_or_err test_count_expected test_count_err $timeout ; then
-        echo good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
+    qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
+    if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+        os::log::debug good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
     else
-        echo failed - $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
-        echo "Checking journal for $uuid_es_ops..."
-        if sudo journalctl | grep $uuid_es_ops ; then
-            echo "Found $uuid_es_ops in journal"
+        os::log::error $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
+        os::log::debug "$( curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" )"
+        os::log::error "Checking journal for $uuid_es_ops..."
+        if sudo journalctl | grep -q $uuid_es_ops ; then
+            os::log::error "Found $uuid_es_ops in journal"
+            os::log::debug "$( sudo journalctl | grep $uuid_es_ops )"
         else
-            echo "Unable to find $uuid_es_ops in journal"
+            os::log::error "Unable to find $uuid_es_ops in journal"
         fi
         rc=1
     fi
@@ -614,7 +628,7 @@ function wait_for_fluentd_to_catch_up() {
         $2 $uuid_es_ops
     fi
     local endtime=`date +%s`
-    echo END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
+    os::log::debug END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
     return $rc
 }
 
@@ -642,7 +656,7 @@ wait_for_fluentd_ready() {
     # wait until fluentd is actively reading from the source (journal or files)
     if docker_uses_journal ; then
         journal_pos_err() {
-            echo Error: timed out waiting for /var/log/journal.pos - check Fluentd pod log
+            os::log::error timed out waiting for /var/log/journal.pos - check Fluentd pod log
             return 1
         }
         if wait_until_cmd_or_err "test -f /var/log/journal.pos" journal_pos_err ${1:-60} ; then
@@ -650,12 +664,12 @@ wait_for_fluentd_ready() {
         fi
     else
         node_pos_err() {
-            echo Error: timed out waiting for /var/log/node.log.pos - check Fluentd pod log
+            os::log::error timed out waiting for /var/log/node.log.pos - check Fluentd pod log
             return 1
         }
         if wait_until_cmd_or_err "test -f /var/log/node.log.pos" node_pos_err ${1:-60} ; then
             cont_pos_err() {
-                echo Error: timed out waiting for /var/log/es-containers.log.pos - check Fluentd pod log
+                os::log::error timed out waiting for /var/log/es-containers.log.pos - check Fluentd pod log
                 return 1
             }
             if wait_until_cmd_or_err "test -f /var/log/es-containers.log.pos" cont_pos_err ${1:-60} ; then
