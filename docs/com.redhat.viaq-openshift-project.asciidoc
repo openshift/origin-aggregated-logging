@@ -24,8 +24,10 @@ The fields are grouped in the following categories:
 * <<exported-fields-aushape>>
 * <<exported-fields-tlog>>
 
+
+'''
 [[exported-fields-Default]]
-=== Top Level Fields
+=== [big]*Top Level Fields*
 
 The top level fields are common to every application, and may be present in every record.
 For the Elasticsearch template, this is what populates the actual mappings
@@ -178,8 +180,10 @@ uuid given in kubernetes.namespace_uuid.  This will also cause
 the Kubernetes metadata lookup to be skipped for this log record.
 
 
+
+'''
 [[exported-fields-rsyslog]]
-=== rsyslog Fields
+=== [big]*rsyslog Fields*
 
 RFC5424 based metadata.
 
@@ -220,15 +224,19 @@ type: string
 syslog's APP-NAME. If APP-NAME is same as programname, we only fill top-level field 'service'. If APP-NAME is not equal to programname, this field will hold APP-NAME. See syslog specification for more information
 
 
+
+'''
 [[exported-fields-systemd]]
-=== systemd Fields
+=== [big]*systemd Fields*
 
 Contains common fields specific to systemd journal.  For more information please see https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html Applications may write their own fields to the journal.  These will be available under the `systemd.u` namespace.  `RESULT` and `UNIT` are two such fields.
 
 
 
+
+'''
 [[exported-fields-systemd.k]]
-=== systemd.k Fields
+=== [big]*systemd.k Fields*
 
 systemd's kernel-specific metadata.
 
@@ -269,8 +277,10 @@ type: string
 https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#_UDEV_SYSNAME=
 
 
+
+'''
 [[exported-fields-systemd.t]]
-=== systemd.t Fields
+=== [big]*systemd.t Fields*
 
 trusted journal fields, fields that are implicitly added by the journal and cannot be altered by client code.
 
@@ -424,8 +434,10 @@ type: string
 https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#_PID=
 
 
+
+'''
 [[exported-fields-systemd.u]]
-=== systemd.u Fields
+=== [big]*systemd.u Fields*
 
 fields that are directly passed from clients and stored in the journal.
 
@@ -501,8 +513,10 @@ type: string
 For private use only.
 
 
+
+'''
 [[exported-fields-kubernetes]]
-=== kubernetes Fields
+=== [big]*kubernetes Fields*
 
 Namespace for kubernetes-specific metadata
 
@@ -557,14 +571,18 @@ type: string
 The name of the container in Kubernetes.
 
 
+
+'''
 [[exported-fields-kubernetes.annotations]]
-=== kubernetes.annotations Fields
+=== [big]*kubernetes.annotations Fields*
 
 Annotations associated with the OpenShift object
 
 
+
+'''
 [[exported-fields-kubernetes.labels]]
-=== kubernetes.labels Fields
+=== [big]*kubernetes.labels Fields*
 
 Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
 
@@ -606,8 +624,192 @@ example: openshift
 The provider associated with this Kubernetes object
 
 
+
+'''
+[[exported-fields-kubernetes.event]]
+=== [big]*kubernetes.event Fields*
+
+The kubernetes event obtained from kubernetes master API The event is already JSON object and as whole nested under kubernetes field This description should loosely follow 'type Event' in https://github.com/kubernetes/kubernetes/blob/master/pkg/api/types.go
+
+
+
+==== kubernetes.event.verb
+
+type: string
+
+example: ADDED
+
+The type of event, can be ADDED, MODIFIED, DELETED
+
+
+
+'''
+[[exported-fields-kubernetes.event.metadata]]
+=== [big]*kubernetes.event.metadata Fields*
+
+Information related to the location and time of the event creation
+
+
+
+==== kubernetes.event.metadata.name
+
+type: string
+
+example: java-mainclass-1.14d888a4cfc24890
+
+Name of the object that triggered the event creation
+
+
+==== kubernetes.event.metadata.namespace
+
+type: string
+
+example: default
+
+The name of the namespace which induced the event It differs from namespace_name, which will be in case of every event the 'eventrouter'
+
+
+==== kubernetes.event.metadata.selfLink
+
+type: string
+
+example: /api/v1/namespaces/javaj/events/java-mainclass-1.14d888a4cfc24890
+
+Link to the event itself
+
+
+==== kubernetes.event.metadata.uid
+
+type: string
+
+example: d828ac69-7b58-11e7-9cf5-5254002f560c
+
+Event's unique ID
+
+
+==== kubernetes.event.metadata.resourceVersion
+
+type: integer
+
+example: 311987
+
+String that identifies the server's internal version of the event that can be used by clients to determine when objects have changed
+
+
+
+'''
+[[exported-fields-kubernetes.event.involvedObject]]
+=== [big]*kubernetes.event.involvedObject Fields*
+
+Description of the object involved in the event creation
+
+
+
+==== kubernetes.event.involvedObject.kind
+
+type: string
+
+example: ReplicationController
+
+Type of the object
+
+
+==== kubernetes.event.involvedObject.namespace
+
+type: string
+
+example: default
+
+The name of the namespace in which the object triggered the event In case this event is not triggered by a pod then it differs from kubernetes.namespace_name, which will be in case of every event eventrouter's namespace
+
+
+==== kubernetes.event.involvedObject.name
+
+type: string
+
+example: java-mainclass-1
+
+Name of the object that triggered the event
+
+
+==== kubernetes.event.involvedObject.uid
+
+type: string
+
+example: e6bff941-76a8-11e7-8193-5254002f560c
+
+Object's unique ID
+
+
+==== kubernetes.event.involvedObject.apiVersion
+
+type: string
+
+example: v1
+
+Version of kubernetes master API
+
+
+==== kubernetes.event.involvedObject.resourceVersion
+
+type: string
+
+example: 308882
+
+String that identifies the server's internal version of the pod triggering the event that can be used by clients to determine when objects have changed
+
+
+==== kubernetes.event.reason
+
+type: string
+
+example: SuccessfulCreate
+
+Short, machine understandable string that gives the reason for this event being generated 
+
+
+==== kubernetes.event.source_component
+
+type: string
+
+example: replication-controller
+
+Component which reported this event
+
+
+==== kubernetes.event.firstTimestamp
+
+type: date
+
+example: 2017-08-07 10:11:57
+
+format: yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime
+
+The time at which the event was first recorded
+
+
+==== kubernetes.event.count
+
+type: integer
+
+example: 1
+
+The number of times this event has occurred
+
+
+==== kubernetes.event.type
+
+type: string
+
+example: Normal
+
+Type of this event (Normal, Warning), new types could be added in the future
+
+
+
+'''
 [[exported-fields-docker]]
-=== docker Fields
+=== [big]*docker Fields*
 
 Namespace for docker container-specific metadata
 
@@ -620,8 +822,10 @@ type: string
 Docker container id
 
 
+
+'''
 [[exported-fields-pipeline_metadata]]
-=== pipeline_metadata Fields
+=== [big]*pipeline_metadata Fields*
 
 Metadata related to ViaQ log collection pipeline. Everything about log collector, normalizers, mappings goes here. Data in this subgroup is stored for troublehsooting purposes mostly.
 
@@ -636,8 +840,10 @@ example: TODO
 Version of “com.redhat.viaq” mapping the document is intended to adhere by the normalizer. It must be set by the normalizer. The value must correspond to the [_meta][version].
 
 
+
+'''
 [[exported-fields-pipeline_metadata.collector]]
-=== pipeline_metadata.collector Fields
+=== [big]*pipeline_metadata.collector Fields*
 
 The section contains metadata specific to the collector.
 
@@ -701,8 +907,10 @@ type: string
 The original non-parsed log message, collected by collector or as close to the source as possible.
 
 
+
+'''
 [[exported-fields-pipeline_metadata.normalizer]]
-=== pipeline_metadata.normalizer Fields
+=== [big]*pipeline_metadata.normalizer Fields*
 
 The section contains metadata specific to the normalizer.
 
@@ -775,8 +983,10 @@ example: rsyslog,8.16,2016.02.01 logstash,1.5,2016.03.03
 The field records the trace of the message. Each collector/normalizer appends information about itself and the date/time when the message was processed.
 
 
+
+'''
 [[exported-fields-ovirt]]
-=== ovirt Fields
+=== [big]*ovirt Fields*
 
 Namespace for ovirt metadata.
 
@@ -796,22 +1006,24 @@ type: string
 The oVirt host UUID.
 
 
-[[exported-fields-ovirt.engine]]
-=== ovirt.engine Fields
-
-Namespace for oVirt engine related metadata.
-
-
-
-==== ovirt.engine.fqdn
+==== ovirt.engine_fqdn
 
 type: string
 
 FQDN of the oVirt engine.
 
 
+==== ovirt.cluster_name
+
+type: string
+
+Cluster name of the oVirt host.
+
+
+
+'''
 [[exported-fields-aushape]]
-=== aushape Fields
+=== [big]*aushape Fields*
 
 Audit events converted with aushape.  For more information please see https://github.com/Scribery/aushape
 
@@ -852,8 +1064,10 @@ type: string
 An array log record strings representing the original audit event
 
 
+
+'''
 [[exported-fields-aushape.data]]
-=== aushape.data Fields
+=== [big]*aushape.data Fields*
 
 Parsed audit event data
 
@@ -879,8 +1093,10 @@ type: nested
 
 type: nested
 
+
+'''
 [[exported-fields-tlog]]
-=== tlog Fields
+=== [big]*tlog Fields*
 
 Tlog terminal I/O recording messages.  For more information please see https://github.com/Scribery/tlog
 
