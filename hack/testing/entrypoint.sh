@@ -94,7 +94,6 @@ if [[ -n "${JUNIT_REPORT:-}" ]]; then
 fi
 
 expected_failures=(
-	"test-es-copy"
 	"test-upgrade"
 )
 
