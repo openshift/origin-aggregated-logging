@@ -490,7 +490,8 @@ function wait_for_es_ready() {
     secret_dir=/etc/elasticsearch/secret
     local ii=$2
     local path=${3:-.searchguard.$1}
-    while ! response_code=$(oc exec $1 -- curl -s -X HEAD \
+    while ! response_code=$(oc exec $1 -- curl -s \
+        --request HEAD --head --output /dev/null \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \

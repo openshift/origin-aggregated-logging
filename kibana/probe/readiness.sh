@@ -23,6 +23,8 @@ max_time="${max_time:-4}"
 response_code="$(
     curl --silent                          \
          --request HEAD                    \
+         --head                            \
+         --output /dev/null                \
          --max-time "${max_time}"          \
          --write-out '%{response_code}'    \
          "${KIBANA_REST_BASEURL}/"
