@@ -83,7 +83,8 @@ wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
     info "Checking if Elasticsearch is ready on $ES_REST_BASEURL"
-    while ! response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
+    while ! response_code=$(curl ${DEBUG:+-v} -s \
+        --request HEAD --head \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
@@ -128,7 +129,8 @@ verify_or_add_index_templates() {
     do
         template=`basename $template_file`
         # Check if index template already exists
-        response_code=$(curl ${DEBUG:+-v} -s -X HEAD \
+        response_code=$(curl ${DEBUG:+-v} -s \
+            --request HEAD --head --output /dev/null \
             --cacert $secret_dir/admin-ca \
             --cert $secret_dir/admin-cert \
             --key  $secret_dir/admin-key \

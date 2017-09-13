@@ -27,7 +27,9 @@ fi
 
 kibindex=$( get_kibana_index_name "$1" )
 
-resp_code=$( QUERY="/$kibindex" es_util -XHEAD -w '%{response_code}' )
+resp_code=$( QUERY="/$kibindex" es_util \
+                  --request HEAD --head --output /dev/null \
+                  -w '%{response_code}' )
 
 if [ "$resp_code" != 200 ] ; then
     error Could not find kibana index $kibindex for user $1: $resp_code
