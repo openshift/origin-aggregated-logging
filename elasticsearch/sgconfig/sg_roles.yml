@@ -9,7 +9,7 @@ sg_role_kibana:
 
 sg_role_prometheus:
   cluster:
-    - indices:data/read/_prometheus
+    - "*"
 #    - cluster:monitor/_prometheus/metrics
 
 sg_role_fluentd:
