@@ -42,7 +42,7 @@ function initialize_install_vars() {
     done
   fi
   # if legacy variables set, use them to fill unset inputs
-  for var in KIBANA_HOSTNAME KIBANA_OPS_HOSTNAME PUBLIC_MASTER_URL ENABLE_OPS_CLUSTER IMAGE_PULL_SECRET \
+  for var in KIBANA_HOSTNAME KIBANA_OPS_HOSTNAME PUBLIC_MASTER_URL ENABLE_OPS_CLUSTER IMAGE_PULL_SECRET ES_OID \
              ES{_OPS,}_{INSTANCE_RAM,PVC_SIZE,PVC_PREFIX,PVC_DYNAMIC,CLUSTER_SIZE,NODE_QUORUM,RECOVER_AFTER_NODES,RECOVER_EXPECTED_NODES,RECOVER_AFTER_TIME} \
              {ES,ES_OPS,KIBANA,KIBANA_OPS,CURATOR,CURATOR_OPS,FLUENTD}_NODESELECTOR
   do
@@ -60,6 +60,7 @@ function initialize_install_vars() {
   storage_group=${input_vars[storage-group]:-65534}
   # ES cluster parameters:
   es_instance_ram=${input_vars[es-instance-ram]:-512M}
+  es_oid=${input_vars[es-oid]:-1.3.6.1.4.1.2312.17.100.2.1}
   es_pvc_size=${input_vars[es-pvc-size]:-}
   es_pvc_prefix=${input_vars[es-pvc-prefix]:-}
   es_pvc_dynamic=${input_vars[es-pvc-dynamic]:-}
@@ -201,12 +202,12 @@ function generate_config() {
 
     # generate common node key for the SearchGuard plugin
     # we use a JKS chain for inter-node communication
-    generate_JKS_chain true elasticsearch "$(join , logging-es{,-ops})"
+    generate_JKS_chain elasticsearch "$(join , logging-es{,-ops})" "$es_oid"
     mv $dir/keystore.jks $dir/searchguard_node_key
     mv $dir/truststore.jks $dir/searchguard_node_truststore
 
     # generate java store/trust for the ES SearchGuard plugin
-    generate_JKS_chain false logging-es "$(join , logging-es{,-ops}{,-cluster}{,.${project}.svc.cluster.local})"
+    generate_JKS_chain logging-es "$(join , logging-es{,-ops}{,-cluster}{,.${project}.svc.cluster.local})"
 
     # generate proxy session
     cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 200 | head -n 1 > "$dir/session-secret"

@@ -6,9 +6,9 @@ fi
 
 function generate_JKS_chain() {
     dir=${SCRATCH_DIR:-_output}
-    ADD_OID=$1
-    NODE_NAME=$2
-    CERT_NAMES=${3:-$NODE_NAME}
+    NODE_NAME=$1
+    CERT_NAMES=${2:-$NODE_NAME}
+    OPENSHIFT_OID=${3:-''}
     ks_pass=${KS_PASS:-kspass}
     ts_pass=${TS_PASS:-tspass}
     rm -rf $NODE_NAME
@@ -18,8 +18,8 @@ function generate_JKS_chain() {
         extension_names="${extension_names},dns:${name}"
     done
 
-    if [ "$ADD_OID" = true ]; then
-        extension_names="${extension_names},oid:1.2.3.4.5.5"
+    if [ -n "$OPENSHIFT_OID" ]; then
+        extension_names="${extension_names},oid:${OPENSHIFT_OID}"
     fi
 
     echo Generating keystore and certificate for node $NODE_NAME
