@@ -1,6 +1,3 @@
-[submodule "deployer/common"]
-	path = deployer/common
-	url = https://github.com/openshift/origin-integration-common
 [submodule "kibana-proxy"]
 	path = kibana-proxy
 	url = https://github.com/fabric8io/openshift-auth-proxy.git
