@@ -3,7 +3,7 @@
 # This is a test suite for the fluentd secure_forward feature
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/fluentd-forward"
