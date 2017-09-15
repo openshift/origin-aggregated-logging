@@ -19,7 +19,7 @@
 #  - JUNIT_REPORT: generate a jUnit XML report for tests
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
 # HACK HACK HACK
 # There seems to be some sort of performance problem - richm 2017-08-15
@@ -36,6 +36,10 @@ fi
 
 # start a fluentd performance monitor
 monitor_fluentd_top() {
+    # assumes running in a subshell
+    cp $KUBECONFIG $ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
+    export KUBECONFIG=$ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
+    oc project logging > /dev/null
     while true ; do
         fpod=$( get_running_pod fluentd )
         if [ -n "$fpod" ] ; then
@@ -93,8 +97,9 @@ if [[ -n "${JUNIT_REPORT:-}" ]]; then
 	export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
 fi
 
+# if there is a script that is expected to fail, add it here
 expected_failures=(
-	"test-upgrade"
+    NONE
 )
 
 function run_suite() {
