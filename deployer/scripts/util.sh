@@ -599,8 +599,11 @@ function wait_for_fluentd_to_catch_up() {
         if sudo journalctl | grep -q "$fullmsg" ; then
             os::log::error "Found '$fullmsg' in journal"
             os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
+        elif sudo grep -q "$fullmsg" /var/log/containers/* ; then
+            os::log::error "Found '$fullmsg' in /var/log/containers/*"
+            os::log::debug "$( sudo grep "$fullmsg" /var/log/containers/* )"
         else
-            os::log::error "Unable to find '$fullmsg' in journal"
+            os::log::error "Unable to find '$fullmsg' in journal or /var/log/containers/*"
         fi
 
         rc=1
@@ -643,11 +646,11 @@ docker_uses_journal() {
     # otherwise, look for /etc/sysconfig/docker
     if type -p docker > /dev/null && sudo docker info | grep -q 'Logging Driver: journald' ; then
         return 0
-    elif grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
-        if grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
+    elif sudo grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
+        if sudo grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
             return 0
         fi
-    elif grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
+    elif sudo grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
         return 0
     fi
     return 1
@@ -660,7 +663,7 @@ wait_for_fluentd_ready() {
             os::log::error timed out waiting for /var/log/journal.pos - check Fluentd pod log
             return 1
         }
-        if wait_until_cmd_or_err "test -f /var/log/journal.pos" journal_pos_err ${1:-60} ; then
+        if wait_until_cmd_or_err "sudo test -f /var/log/journal.pos" journal_pos_err ${1:-60} ; then
             return 0
         fi
     else
@@ -668,12 +671,12 @@ wait_for_fluentd_ready() {
             os::log::error timed out waiting for /var/log/node.log.pos - check Fluentd pod log
             return 1
         }
-        if wait_until_cmd_or_err "test -f /var/log/node.log.pos" node_pos_err ${1:-60} ; then
+        if wait_until_cmd_or_err "sudo test -f /var/log/node.log.pos" node_pos_err ${1:-60} ; then
             cont_pos_err() {
                 os::log::error timed out waiting for /var/log/es-containers.log.pos - check Fluentd pod log
                 return 1
             }
-            if wait_until_cmd_or_err "test -f /var/log/es-containers.log.pos" cont_pos_err ${1:-60} ; then
+            if wait_until_cmd_or_err "sudo test -f /var/log/es-containers.log.pos" cont_pos_err ${1:-60} ; then
                 return 0
             fi
         fi

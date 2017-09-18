@@ -22,6 +22,36 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
 
 # HACK HACK HACK
+# richm 2017-09-18 rsyslog is rate limiting the journal when running
+# with json-file - messages show up in the journal but not in
+# /var/log/messages - increase the limits for testing
+if docker_uses_journal ; then
+    os::log::info docker uses journal, skipping
+else
+    os::log::info docker uses json-file - increase rate limits for rsyslog
+    restart=
+    if sudo grep -q -i '^[$]IMJournalRatelimitInterval' /etc/rsyslog.conf ; then
+        os::log::info Keeping limit $( sudo grep -i '^[$]IMJournalRatelimitInterval' /etc/rsyslog.conf )
+    else
+        # default is 600, so increase by a factor of 10
+        sudo sed -i '/^[$]IMJournalStateFile/a\
+$IMJournalRatelimitInterval 60' /etc/rsyslog.conf
+        restart=1
+    fi
+    if sudo grep -q -i '^[$]IMJournalRatelimitBurst' /etc/rsyslog.conf ; then
+        os::log::info Keeping limit $( sudo grep -i '^[$]IMJournalRatelimitBurst' /etc/rsyslog.conf )
+    else
+        # default is 20000
+        sudo sed -i '/^[$]IMJournalStateFile/a\
+$IMJournalRatelimitBurst 20000' /etc/rsyslog.conf
+        restart=1
+    fi
+    if [ -n "$restart" ] ; then
+        sudo systemctl restart rsyslog
+    fi
+fi
+
+# HACK HACK HACK
 # There seems to be some sort of performance problem - richm 2017-08-15
 # not sure what has changed, but now running an all-in-one for CI, with both
 # openshift master and node running as systemd services logging to the journal
