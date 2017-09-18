@@ -206,7 +206,7 @@ function wait_for_fluentd_to_catch_up() {
             os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
         elif sudo grep -q "$fullmsg" /var/log/containers/* ; then
             os::log::error "Found '$fullmsg' in /var/log/containers/*"
-            os::log::debug "$( sudo grep "$fullmsg" /var/log/containers/* )"
+            os::log::debug "$( sudo grep -q "$fullmsg" /var/log/containers/* )"
         else
             os::log::error "Unable to find '$fullmsg' in journal or /var/log/containers/*"
         fi
