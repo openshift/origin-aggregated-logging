@@ -26,7 +26,7 @@
 #               PW
 #               }: credentials for the admin user
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::setup_time_vars

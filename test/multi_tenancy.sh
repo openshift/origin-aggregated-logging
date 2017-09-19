@@ -10,7 +10,7 @@
 # {"query" : {"match_all" : {}}}
 # cat msearch.json | curl https://localhost:9200/_msearch -XPOST --data-binary @-
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::use_sudo
 
