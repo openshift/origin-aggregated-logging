@@ -6,7 +6,7 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CLOUD_K8S_VER=2.4.4_01 \
+ENV ES_CLOUD_K8S_VER=2.4.4.01 \
     ES_CONF=/usr/share/java/elasticsearch/config \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/java/elasticsearch \
@@ -22,7 +22,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4_01 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=prod
 
-ARG ES_CLOUD_K8S_VER=2.4.4_01
+ARG ES_CLOUD_K8S_VER=2.4.4.01
 ARG OSE_ES_VER=2.4.4.15
 ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
@@ -35,14 +35,14 @@ LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging sto
       architecture=x86_64 \
       name="openshift3/logging-elasticsearch" \
       version="v3.7.0" \
-      release="0.123.0.0"
+      release="0.127.0.0"
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
+RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms \
                    --enable rhel-7-server-extras-rpms  && \
     packages="elasticsearch-${ES_VER} \
-              elasticsearch-cloud-kubernetes-${ES_CLOUD_K8S_VER}.redhat_1 \
+              elasticsearch-cloud-kubernetes \
               java-${JAVA_VER}-openjdk-headless \
-              openshift-elasticsearch-plugin-${OSE_ES_VER}__redhat_1 \
+              openshift-elasticsearch-plugin \
               PyYAML  \
               zip" && \
     yum install -y --setopt=tsflags=nodocs ${packages} && \
