@@ -87,6 +87,8 @@ objects:
             - name: dockercfg
               mountPath: /etc/sysconfig/docker
               readOnly: true
+            - name: filebufferstorage
+              mountPath: /var/lib/fluentd
             env:
             - name: "K8S_HOST_URL"
               value: ${MASTER_URL}
@@ -150,6 +152,10 @@ objects:
               value: ${JOURNAL_SOURCE}
             - name: "JOURNAL_READ_FROM_HEAD"
               value: ${JOURNAL_READ_FROM_HEAD}
+            - name: "BUFFER_QUEUE_LIMIT"
+              value: ${BUFFER_QUEUE_LIMIT}
+            - name: "BUFFER_SIZE_LIMIT"
+              value: ${BUFFER_SIZE_LIMIT}
           volumes:
           - name: runlogjournal
             hostPath:
@@ -175,6 +181,9 @@ objects:
           - name: dockercfg
             hostPath:
               path: /etc/sysconfig/docker
+          - name: filebufferstorage
+            hostPath:
+              path: /var/lib/fluentd
 parameters:
 -
   description: "Internal url for reaching the master API to query pod labels"
