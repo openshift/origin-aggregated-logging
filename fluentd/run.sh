@@ -123,17 +123,6 @@ if [ -z $ES_PORT ]; then
     exit 1
 fi
 
-OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
-OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"
-OPS_COPY_SCHEME="${OPS_COPY_SCHEME:-$ES_COPY_SCHEME}"
-OPS_COPY_CLIENT_CERT="${OPS_COPY_CLIENT_CERT:-$ES_COPY_CLIENT_CERT}"
-OPS_COPY_CLIENT_KEY="${OPS_COPY_CLIENT_KEY:-$ES_COPY_CLIENT_KEY}"
-OPS_COPY_CA="${OPS_COPY_CA:-$ES_COPY_CA}"
-OPS_COPY_USERNAME="${OPS_COPY_USERNAME:-$ES_COPY_USERNAME}"
-OPS_COPY_PASSWORD="${OPS_COPY_PASSWORD:-$ES_COPY_PASSWORD}"
-export OPS_COPY_HOST OPS_COPY_PORT OPS_COPY_SCHEME OPS_COPY_CLIENT_CERT \
-       OPS_COPY_CLIENT_KEY OPS_COPY_CA OPS_COPY_USERNAME OPS_COPY_PASSWORD
-
 # Check the existing main fluent.conf has the @OUTPUT label
 # If it exists, we could use the label and take advantage.
 # If not, give up one output tag per plugin for now.
@@ -148,9 +137,6 @@ fi
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     # A fluentd collector configured as a mux client has just one output: sending to a mux.
     NUM_OUTPUTS=1
-    if [ "$ES_COPY" = "true" ] ; then
-        echo "WARNING: When MUX_CLIENT_MODE is set, logs are forwarded to MUX; COPY won't work with it."
-    fi
     rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf
     if [ "$output_label" != "" ]; then
         cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
@@ -173,53 +159,6 @@ else
         rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
         if [ "$output_label" != "" ]; then
             cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
-        fi
-    fi
-    # Retagging tags into one to avoid buffer chunk switch (except mux.** and **.fluentd)
-    if [ "$ES_COPY" = "true" ]; then
-        if [ -z $ES_COPY_HOST ]; then
-            echo "ERROR: Although ES_COPY is true, the environment variable ES_COPY_HOST for Elasticsearch host name is not set."
-            exit 1
-        fi
-        if [ -z $ES_COPY_PORT ]; then
-            echo "ERROR: Although ES_COPY is true, the environment variable ES_COPY_PORT for Elasticsearch port number is not set."
-            exit 1
-        fi
-        if [ "$ES_HOST" = "$ES_COPY_HOST" -a $ES_PORT -eq $ES_COPY_PORT ]; then
-            echo "WARNING: The environment variable pair ES_COPY_HOST and ES_COPY_PORT is identical to the primary pair ($ES_HOST, $ES_PORT).  Disabling the copy."
-            # create empty files for the ES copy config
-            echo > $CFG_DIR/dynamic/es-copy-config.conf
-        else
-            NUM_OUTPUTS=`expr $NUM_OUTPUTS + 1`
-            # user wants to split the output of fluentd into two different elasticsearch
-            # user will provide the necessary COPY environment variables as above
-            if [ -s $CFG_DIR/user/es-copy-config.conf ]; then
-                cp $CFG_DIR/{user,dynamic}/es-copy-config.conf
-            else
-                cp $CFG_DIR/{openshift,dynamic}/es-copy-config.conf
-            fi
-            if [ "${SET_ES_COPY_HOST_ALIAS:-false}" = "true" ]; then
-                es_ip_host=$( getent hosts $ES_HOST )
-                echo $es_ip_host $ES_COPY_HOST >> /etc/hosts
-            fi
-        fi
-        if [ ${OPS_HOST:-""} = "$OPS_COPY_HOST" -a $OPS_PORT -eq $OPS_COPY_PORT ]; then
-            echo "WARNING: The environment variable pair OPS_COPY_HOST and OPS_COPY_PORT is identical to the primary pair ($OPS_HOST, $OPS_PORT).  Disabling the copy."
-            # create empty files for the ES copy config
-            echo > $CFG_DIR/dynamic/es-ops-copy-config.conf
-        else
-            NUM_OUTPUTS=`expr $NUM_OUTPUTS + 1`
-            # user wants to split the output of fluentd into two different elasticsearch
-            # user will provide the necessary COPY environment variables as above
-            if [ -s $CFG_DIR/user/es-ops-copy-config.conf ]; then
-                cp $CFG_DIR/{user,dynamic}/es-ops-copy-config.conf
-            else
-                cp $CFG_DIR/{openshift,dynamic}/es-ops-copy-config.conf
-            fi
-            if [ "${SET_ES_COPY_HOST_ALIAS:-false}" = "true" ]; then
-                es_ip_host=$( getent hosts $OPS_HOST )
-                echo $es_ip_host $OPS_COPY_HOST >> /etc/hosts
-            fi
         fi
     fi
 fi
