@@ -11,10 +11,9 @@ Check Fluentd logs for the message that it has read in its config file:
 ```
 
 Verify that Fluentd has been able to start reading in log files
-by checking the contents of `/var/log/node.log.pos` and `/var/log/es-containers.log.pos`.
-The `node.log.pos` file is a position file that keeps track of where Fluentd is in reading the syslog log files.  
-The `es-containers.log.pos` is a similiar file to keep track of where fluentd is in reading the docker log files (i.e `/var/log/containers`).  
-If the OpenShift node is configured to use the systemd journal as the log source, the position file is `/var/log/journal.pos`.
+by checking the contents of `/var/log/es-containers.log.pos` and `/var/log/journal.pos`.
+The `es-containers.log.pos` keeps track of where fluentd is in reading the docker log files (i.e `/var/log/containers`).  
+The `/var/log/journal.pos` keeps track of where fluentd is in reading the journal.
 
 You can view the journal starting at the location where fluentd last read it by using a command like the following (as root):
 

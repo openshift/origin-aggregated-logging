@@ -259,10 +259,10 @@ docker_uses_journal() {
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
     # wait until fluentd is actively reading from the source (journal or files)
+    os::cmd::try_until_success "sudo test -f /var/log/journal.pos" $(( timeout * second ))
     if docker_uses_journal ; then
-        os::cmd::try_until_success "sudo test -f /var/log/journal.pos" $(( timeout * second ))
+        : # done
     else
-        os::cmd::try_until_success "sudo test -f /var/log/node.log.pos" $(( timeout * second ))
         os::cmd::try_until_success "sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
     fi
 }
