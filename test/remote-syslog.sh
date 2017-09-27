@@ -17,7 +17,7 @@ oc export ds/logging-fluentd -o yaml > $saveds
 # restore configs back to how it was before we ran our tests
 function reset_fluentd_daemonset() {
   os::log::info Restoring original fluentd daemonset environment variable
-  os::log::info "$(oc replace -f $saveds)"
+  os::log::debug "$( oc replace -f $saveds )"
 }
 
 
@@ -26,15 +26,17 @@ os::log::info Starting fluentd-plugin-remote-syslog tests at $( date )
 
 os::log::info Test 1, expecting generate_syslog_config.rb to have created configuration file
 
-fpod=$(get_running_pod fluentd)
+# make sure fluentd is running after previous test
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+fpod=$( get_running_pod fluentd )
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_failure "oc get pod $fpod"
 
-os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1)"
+os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
-fpod=$(get_running_pod fluentd)
+fpod=$( get_running_pod fluentd )
 os::cmd::try_until_success "oc exec $fpod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf" 
 
 
@@ -43,12 +45,12 @@ os::log::info Test 2, expecting generate_syslog_config.rb to not create a config
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_failure "oc get pod $fpod"
 
-os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST-)"
+os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
 
-fpod=$(get_running_pod fluentd)
+fpod=$( get_running_pod fluentd )
 os::cmd::try_until_failure "oc exec $fpod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf" 
 
 
@@ -57,12 +59,12 @@ os::log::info Test 3, expecting generate_syslog_config.rb to generate multiple s
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_failure "oc get pod $fpod"
 
-os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1)"
+os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
-fpod=$(get_running_pod fluentd)
-os::cmd::try_until_text "oc exec $fpod grep '<store>' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf | wc " "2"
+fpod=$( get_running_pod fluentd )
+os::cmd::try_until_text "oc exec $fpod grep '<store>' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf | wc " '^2$'
 
 
 reset_fluentd_daemonset
