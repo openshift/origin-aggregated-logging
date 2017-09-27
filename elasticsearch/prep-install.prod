@@ -4,7 +4,7 @@ mkdir -p /usr/share/elasticsearch
 # prep the plugins we need
 es_plugins=()
 pushd /usr/share/java
-for es_plugin in openshift-elasticsearch-plugin elasticsearch-cloud-kubernetes
+for es_plugin in openshift-elasticsearch-plugin elasticsearch-cloud-kubernetes elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}
 do
     es_plugin_file=/tmp/${es_plugin}.zip
     pushd $es_plugin
