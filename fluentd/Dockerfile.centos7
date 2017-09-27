@@ -40,6 +40,7 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
      'fluent-plugin-remote-syslog:1.1' \
+      fluent-plugin-viaq_docker_audit_log_parser \
       systemd-journal \
       excon
 

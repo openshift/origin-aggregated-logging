@@ -243,7 +243,14 @@ fi
 
 if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
     sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
+fi
 
+if [ "${AUDIT_CONTAINER_ENGINE:-}" = "true" ] ; then
+    cp -f $CFG_DIR/input-pre-audit-log.conf $CFG_DIR/openshift
+    cp -f $CFG_DIR/filter-pre-a-audit-exclude.conf $CFG_DIR/openshift
+else
+    touch $CFG_DIR/openshift/input-pre-audit-log.conf
+    touch $CFG_DIR/openshift/filter-pre-a-audit-exclude.conf
 fi
 
 if [[ $DEBUG ]] ; then
