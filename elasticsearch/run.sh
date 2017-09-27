@@ -78,6 +78,12 @@ else
     exit 1
 fi
 
+cat <<CONF >> ${HOME}/sgconfig/sg_roles_mapping.yml
+sg_role_prometheus:
+  users:
+    - "${PROMETHEUS_USER:-system:serviceaccount:prometheus:prometheus}"
+CONF
+
 # Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
 wait_for_port_open() {
     rm -f $LOG_FILE
