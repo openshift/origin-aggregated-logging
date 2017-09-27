@@ -216,7 +216,9 @@ from whichever of these it is configured to read from.
 using the ViaQ data model (i.e. the `kubernetes` and `docker` namespaces).
 
 `Filter syslog` takes the `/var/log/messages` or journald system log input and
-formats it using the ViaQ data model (i.e. the `systemd` namespace).
+formats it using the ViaQ data model (i.e. the `systemd` namespace).  **NOTE**
+reading from `/var/log/messages` is no longer supported.  `journald` is always
+used for system logs.
 
 `Filter k8s meta` looks up Kubernetes metadata for container log records from
 the Kubernetes server such as namespace\_uuid, pod\_uuid, labels, and

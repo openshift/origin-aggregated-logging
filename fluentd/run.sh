@@ -30,21 +30,17 @@ docker_uses_journal() {
 }
 
 if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
-    if [ -z "${USE_JOURNAL:-}" -o "${USE_JOURNAL:-}" = true ] ; then
-        if [ -z "${JOURNAL_SOURCE:-}" ] ; then
-            if [ -d /var/log/journal ] ; then
-                export JOURNAL_SOURCE=/var/log/journal
-            else
-                export JOURNAL_SOURCE=/run/log/journal
-            fi
+    if [ -z "${JOURNAL_SOURCE:-}" ] ; then
+        if [ -d /var/log/journal ] ; then
+            export JOURNAL_SOURCE=/var/log/journal
+        else
+            export JOURNAL_SOURCE=/run/log/journal
         fi
-        if [ -z "${USE_JOURNAL:-}" ] ; then
-            if docker_uses_journal ; then
-                export USE_JOURNAL=true
-            else
-                export USE_JOURNAL=false
-            fi
-        fi
+    fi
+    if docker_uses_journal ; then
+        export USE_JOURNAL=true
+    else
+        export USE_JOURNAL=false
     fi
 else
     # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
@@ -74,13 +70,10 @@ if [ "${USE_MUX:-}" = "true" ] ; then
 else
     ruby generate_throttle_configs.rb
     rm -f $CFG_DIR/openshift/*mux*.conf
-    # assume mux doesn't actually read from the journal file
-    if [ "${USE_JOURNAL:-}" = "true" ] ; then
-        # have output plugins handle back pressure
-        # if you want the old behavior to be forced anyway, set env
-        # BUFFER_QUEUE_FULL_ACTION=exception
-        export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
-    fi
+    # have output plugins handle back pressure
+    # if you want the old behavior to be forced anyway, set env
+    # BUFFER_QUEUE_FULL_ACTION=exception
+    export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
 fi
 
 # this is the list of keys to remove when the record is transformed from the raw systemd journald
@@ -243,6 +236,11 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     if [[ $REMOTE_SYSLOG_HOST ]] ; then
         ruby generate_syslog_config.rb
     fi
+fi
+
+if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
+    sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
+
 fi
 
 if [[ $DEBUG ]] ; then

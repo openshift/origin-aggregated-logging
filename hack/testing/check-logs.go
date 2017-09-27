@@ -16,7 +16,7 @@ func main() {
 	kibana_pod := args[0]
 	es_svc := args[1]
 	index := args[2]
-	filePath := args[3]
+	filePath := args[3] // set to "journal" to look in the journal
 	querySize := args[4]
 	userName := args[5]
 	userToken := args[6]
@@ -94,7 +94,7 @@ func main() {
 		message := record.Fields.Message[0]
 
 		searchCmd := ""
-		if journal == "true" {
+		if filePath == "journal" || journal == "true" {
 			// escape certain characters that were being interpreted by bash
 			message = strings.Replace(message, `\`, `\\`, -1)
 			message = strings.Replace(message, `"`, `\"`, -1)
