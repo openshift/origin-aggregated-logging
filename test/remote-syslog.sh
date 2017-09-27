@@ -64,7 +64,7 @@ os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=tr
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
 fpod=$( get_running_pod fluentd )
-os::cmd::try_until_text "oc exec $fpod grep '<store>' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf | wc " '^2$'
+os::cmd::try_until_text "oc exec $fpod grep '<store>' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf | wc -l" '^2$'
 
 
 reset_fluentd_daemonset
