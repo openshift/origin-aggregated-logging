@@ -82,8 +82,8 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	for index in $( curl_es "${elasticsearch_pod}" '/_cat/indices?h=index' ); do
 		if [[ "${index}" == ".operations"* ]]; then
 			# If this is an operations index, we will be searching
-			# on disk for it
-			index_search_path="/var/log/messages"
+			# the journal for it
+			index_search_path="journal"
 		elif [[ "${index}" == "project."* ]]; then
 			# Otherwise, we will find it in the container log, which
 			# we can identify with the UUID
