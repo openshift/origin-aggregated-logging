@@ -137,7 +137,7 @@ newenvvars="$newenvvars ES_COPY=true ES_COPY_SCHEME=https OPS_COPY_SCHEME=https 
 
 modcmap=$( mktemp )
 sed -n '{
-s/^ *@include configs.d\/openshift\/output-operations.conf/    <match journal.system** system.var.log** **_default_** **_openshift_** **_openshift-infra_** mux.ops>\
+s/^ *@include configs.d\/openshift\/output-operations.conf/    <match output_ops_tag journal.system** system.var.log** **_default_** **_openshift_** **_openshift-infra_** mux.ops>\
      @type copy\
      @include configs.d\/dynamic\/output-es-ops-config.conf\
      @include configs.d\/user\/output-ops-extra-*.conf\
