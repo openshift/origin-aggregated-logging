@@ -120,11 +120,6 @@ fi
 # If it exists, we could use the label and take advantage.
 # If not, give up one output tag per plugin for now.
 output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
-if [ "$output_label" = "" ]; then
-    echo "WARNING: There is no @OUTPUT label declared in /etc/fluent/fluent.conf."
-    echo "         Disabling \"One output tag per plugin feature\" in this deployment."
-    echo "         To enable it, please set <label @OUTPUT> just before the output section."
-fi
 
 # How many outputs?
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
