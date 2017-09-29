@@ -62,7 +62,7 @@ function curl_es() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              --key "${secret_dir}admin-key"   \
                              --cert "${secret_dir}admin-cert" \
                              "https://localhost:9200${endpoint}"
@@ -78,7 +78,7 @@ function curl_es_input() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
                                 --key "${secret_dir}admin-key"   \
                                 --cert "${secret_dir}admin-cert" \
                                 "https://localhost:9200${endpoint}"
@@ -91,7 +91,7 @@ function curl_es_with_token() {
     local test_token="$4"
     shift; shift; shift; shift
     local args=( "${@:-}" )
-    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              -H "X-Proxy-Remote-User: $test_name" \
                              -H "Authorization: Bearer $test_token" \
                              -H "X-Forwarded-For: 127.0.0.1" \
@@ -105,7 +105,7 @@ function curl_es_with_token_and_input() {
     local test_token="$4"
     shift; shift; shift; shift
     local args=( "${@:-}" )
-    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
                                 -H "X-Proxy-Remote-User: $test_name" \
                                 -H "Authorization: Bearer $test_token" \
                                 -H "X-Forwarded-For: 127.0.0.1" \
@@ -131,7 +131,7 @@ function wait_for_es_ready() {
     secret_dir=/etc/elasticsearch/secret
     local ii=$2
     local path=${3:-.searchguard.$1}
-    while ! response_code=$(oc exec $1 -- curl -s \
+    while ! response_code=$(oc exec -c elasticsearch $1 -- curl -s \
         --request HEAD --head --output /dev/null \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
