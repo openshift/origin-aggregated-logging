@@ -47,8 +47,8 @@ trap cleanup EXIT
 
 # test error conditions
 for pod in $espod $esopspod ; do
-    os::cmd::expect_failure_and_text "oc exec $pod -- es_load_kibana_ui_objects" "Usage:"
-    os::cmd::expect_failure_and_text "oc exec $pod -- es_load_kibana_ui_objects no-such-user" "Could not find kibana index"
+    os::cmd::expect_failure_and_text "oc exec -c elasticsearch $pod -- es_load_kibana_ui_objects" "Usage:"
+    os::cmd::expect_failure_and_text "oc exec -c elasticsearch $pod -- es_load_kibana_ui_objects no-such-user" "Could not find kibana index"
 done
 
 # use admin user created in logging framework
