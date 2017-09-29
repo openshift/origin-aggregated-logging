@@ -43,8 +43,8 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
   yum clean all
 
 ADD configs.d/ /etc/fluent/configs.d/
-ADD run.sh generate_throttle_configs.rb ${HOME}/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
+ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
