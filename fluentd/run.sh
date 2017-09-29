@@ -65,6 +65,9 @@ if [ "${USE_MUX:-}" = "true" ] ; then
         fi
     done
     rm -f $CFG_DIR/dynamic/input-docker-* $CFG_DIR/dynamic/input-syslog-*
+    # disable systemd input
+    rm -f $CFG_DIR/openshift/input-pre-systemd.conf
+    touch $CFG_DIR/openshift/input-pre-systemd.conf
     # mux is a normalizer
     export PIPELINE_TYPE=normalizer
 else
