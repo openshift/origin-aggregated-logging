@@ -3,20 +3,20 @@
 # test the mux route and service
 # - can accept secure_forward from a "client" fluentd
 
-if [ "${USE_MUX:-false}" = "false" ]; then
-    echo "Skipping -- This test requires USE_MUX=true."
-    exit 0
-fi
-
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-os::test::junit::declare_suite_start "test/mux"
-
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
+# only works if there is a mux dc
+if oc get dc/logging-mux > /dev/null 2>&1 ; then
+    os::log::debug "$( oc get dc/logging-mux )"
+else
+    os::log::debug "$( oc get dc/logging-mux )"
+    os::log::info dc/logging-mux is not present - skipping test
+    exit 0
 fi
+
+os::test::junit::declare_suite_start "test/mux"
 
 reset_fluentd_daemonset() {
   # this test only works with MUX_CLIENT_MODE=minimal for now
@@ -47,12 +47,27 @@ update_current_fluentd() {
   # update configmap filter-pre-mux-test-client.conf
   if [ $myoption -eq $NO_CONTAINER_VALS ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <filter kubernetes.var.log.containers.**kibana**>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        </record>\n\
+      </filter>\n\
+      <match kubernetes.var.log.containers.**kibana**>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE !.+ project.testproj.external\n\
+        rewriterule2 MESSAGE .+ project.testproj.external\n\
+      </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
-        rewriterule1 MESSAGE .+ project.testproj.mux\n\
-        rewriterule2 message .+ project.testproj.mux\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE .+ project.testproj.external\n\
+        rewriterule2 message .+ project.testproj.external\n\
       </match>\n\
-      <filter project.testproj.mux>\n\
+      <filter project.testproj.external>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
@@ -61,12 +76,19 @@ update_current_fluentd() {
       </filter>"}]'
   elif [ $myoption -eq $SET_CONTAINER_VALS ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <match kubernetes.var.log.containers.**kibana**>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE !.+ project.testproj.external\n\
+        rewriterule2 MESSAGE .+ project.testproj.external\n\
+      </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
-        rewriterule1 MESSAGE .+ project.testproj.mux\n\
-        rewriterule2 message .+ project.testproj.mux\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE .+ project.testproj.external\n\
+        rewriterule2 message .+ project.testproj.external\n\
       </match>\n\
-      <filter project.testproj.mux>\n\
+      <filter project.testproj.external>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
@@ -77,12 +99,27 @@ update_current_fluentd() {
       </filter>"}]'
   elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <filter kubernetes.var.log.containers.**kibana**>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        </record>\n\
+      </filter>\n\
+      <match kubernetes.var.log.containers.**kibana**>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE !.+ project.bogus.external\n\
+        rewriterule2 MESSAGE .+ project.bogus.external\n\
+      </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
-        rewriterule1 MESSAGE .+ project.bogus.mux\n\
-        rewriterule2 message .+ project.bogus.mux\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE .+ project.bogus.external\n\
+        rewriterule2 message .+ project.bogus.external\n\
       </match>\n\
-      <filter project.bogus.mux>\n\
+      <filter project.bogus.external>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
@@ -93,12 +130,27 @@ update_current_fluentd() {
       </filter>"}]'
   elif [ $myoption -eq $NO_PROJECT_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <filter kubernetes.var.log.containers.**kibana**>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        </record>\n\
+      </filter>\n\
+      <match kubernetes.var.log.containers.**kibana**>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE !.+ test.bogus.external\n\
+        rewriterule2 MESSAGE .+ test.bogus.external\n\
+      </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
-        rewriterule1 MESSAGE .+ test.bogus.mux\n\
-        rewriterule2 message .+ test.bogus.mux\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE .+ test.bogus.external\n\
+        rewriterule2 message .+ test.bogus.external\n\
       </match>\n\
-      <filter test.bogus.mux>\n\
+      <filter test.bogus.external>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
@@ -143,35 +195,45 @@ write_and_verify_logs() {
     os::log::debug "is_testproj $is_testproj no_container_vals $no_container_vals ===================================="
 
     espod=$es_pod
+    mymessage="GET /$uuid_es 404 "
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
         # kibana logs with project.testproj tag and given container/pod values
-        myfield="message"
-        mymessage=$uuid_es
         myproject=project.testproj
     else
         # kibana logs with kibana container/pod values
-        myfield="message"
-        mymessage=$uuid_es
         myproject=project.logging
     fi
-    os::cmd::try_until_success "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    # could be different fields depending on the container log driver - so just
+    # search for the exact phrase in all fields
+    startqs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}},"must_not":['
+    comma=""
+    # make sure record does not have any of the following fields:
+    # docker,kubernetes,CONTAINER_NAME,CONTAINER_ID_FULL,mux_namespace_name,mux_need_k8s_meta,namespace_name,namespace_uuid
+    for notfield in docker kubernetes CONTAINER_NAME CONTAINER_ID_FULL mux_namespace_name \
+                    mux_need_k8s_meta namespace_name namespace_uuid ; do
+        startqs="${startqs}${comma}{\"exists\":{\"field\":\"${notfield}\"}}"
+        comma=","
+    done
+    qs="${startqs}]}}}"
+    os::log::debug "query string is $qs"
+    os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))"
 
     if [ $is_testproj -eq 1 ]; then
         # other logs with project.testproj tag
-        myfield="MESSAGE"
+        myfield="SYSLOG_IDENTIFIER"
         myproject=project.testproj
         espod=$es_pod
     elif [ $no_project_tag -eq 1 ]; then
-        myfield="MESSAGE"
+        myfield="SYSLOG_IDENTIFIER"
         myproject=project.mux-undefined
         espod=$es_pod
     else
-        myfield="message"
+        myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
         espod=$es_ops_pod
     fi
     mymessage=$uuid_es_ops
-    os::cmd::try_until_success "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))"
 }
 
 reset_ES_HOST() {
@@ -203,6 +265,9 @@ cleanup() {
         fi
     fi
     $mycmd mux test finished at $( date )
+    # get indices at the end
+    curl_es $es_pod /_cat/indices > $ARTIFACT_DIR/es.indices.after 2>&1
+    curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.after 2>&1
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
@@ -215,6 +280,10 @@ cleanup() {
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
+    # delete indices created by this test
+    curl_es $es_pod /project.testproj.* -XDELETE
+    curl_es $es_pod /project.default.* -XDELETE
+    curl_es $es_pod /project.mux-undefined.* -XDELETE
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     os::log::debug "$( oc delete project testproj 2>&1 || : )"
@@ -243,6 +312,10 @@ fi
 es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
+
+# save indices at the start
+curl_es $es_pod /_cat/indices > $ARTIFACT_DIR/es.indices.before 2>&1
+curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.before 2>&1
 
 muxpod=$( get_running_pod mux )
 
@@ -295,7 +368,7 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
 fi
 
 os::log::info "------- Test case $SET_CONTAINER_VALS -------"
-os::log::info "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values."
+os::log::info "fluentd forwards kibana and system logs with tag project.testproj.external and CONTAINER values."
 #
 # prerequisite: project testproj
 # results: logs are stored in project.testproj.*
@@ -309,7 +382,7 @@ update_current_fluentd $SET_CONTAINER_VALS
 write_and_verify_logs 1 1 0
 
 os::log::info "------- Test case $NO_CONTAINER_VALS -------"
-os::log::info "fluentd forwards kibana and system logs with tag project.testproj.mux without CONTAINER values."
+os::log::info "fluentd forwards kibana and system logs with tag project.testproj.external without CONTAINER values."
 #
 # prerequisite: project testproj
 # results: kibana logs are stored in the default index project.logging with kibana container/pod info.
@@ -324,7 +397,7 @@ update_current_fluentd $NO_CONTAINER_VALS
 write_and_verify_logs 1 1 1
 
 os::log::info "------- Test case $MISMATCH_NAMESPACE_TAG -------"
-os::log::info "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values, which namespace names do not match."
+os::log::info "fluentd forwards kibana and system logs with tag project.testproj.external and CONTAINER values, which namespace names do not match."
 #
 # prerequisite: project testproj
 # results: logs are stored in project.testproj.*
@@ -338,7 +411,7 @@ update_current_fluentd $MISMATCH_NAMESPACE_TAG
 write_and_verify_logs 1 1 0 1
 
 os::log::info "------- Test case $NO_PROJECT_TAG -------"
-os::log::info "fluentd forwards kibana and system logs with tag test.bogus.mux and no CONTAINER values, which will use a namespace of mux-undefined."
+os::log::info "fluentd forwards kibana and system logs with tag test.bogus.external and no CONTAINER values, which will use a namespace of mux-undefined."
 #
 # results: system logs are stored in project.mux-undefined.*
 #
