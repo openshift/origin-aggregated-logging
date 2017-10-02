@@ -57,7 +57,7 @@ get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
 for pod in $espod $esopspod ; do
     curl_es_with_token $pod "/" "$test_name" "$test_token" | curl_output
     # add the ui objects
-    os::cmd::expect_success_and_text "oc exec $pod -- es_load_kibana_ui_objects $LOG_ADMIN_USER" "Success"
+    os::cmd::expect_success_and_text "oc exec -c elasticsearch $pod -- es_load_kibana_ui_objects $LOG_ADMIN_USER" "Success"
 done
 
 os::log::info Finished with test - login to kibana and kibana-ops to verify the admin user can load and view the dashboards with no errors
