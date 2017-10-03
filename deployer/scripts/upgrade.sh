@@ -386,7 +386,7 @@ function patchIfValid() {
 
   if oc patch $object --type=json -p="[$(join , "${actualPatch[@]}")]"; then
     if [[ $isDC = true ]]; then
-      [[ $installedVersion -ge 2 ]] && oc deploy $object --latest
+      [[ $installedVersion -ge 1 ]] && oc deploy $object --latest
 
       waitForChange $currentVersion $object &
       patchPIDs+=( $!)
