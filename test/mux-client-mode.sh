@@ -6,26 +6,16 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-os::test::junit::declare_suite_start "test/curator"
-
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
-    curl_output() {
-        python -mjson.tool
-    }
+# only works if there is a mux dc
+if oc get dc/logging-mux > /dev/null 2>&1 ; then
+    os::log::debug "$( oc get dc/logging-mux )"
 else
-    curl_output() {
-        cat > /dev/null 2>&1
-    }
-fi
-
-# only works if USE_MUX=true
-if [ "${USE_MUX:-false}" = true ] ; then
-    :
-else
-    os::log::info USE_MUX set to [${USE_MUX:-}] instead of true - skipping test
+    os::log::debug "$( oc get dc/logging-mux )"
+    os::log::info dc/logging-mux is not present - skipping test
     exit 0
 fi
+
+os::test::junit::declare_suite_start "test/mux-client-mode"
 
 # save daemonset
 saveds=$( mktemp )
@@ -34,12 +24,6 @@ oc get daemonset logging-fluentd -o yaml > $saveds
 cleanup() {
     local return_code="$?"
     set +e
-    if [ $return_code = 0 ] ; then
-        mycmd=os::log::info
-    else
-        mycmd=os::log::error
-    fi
-    $mycmd mux-client-mode test finished at $( date )
     # dump the pods before we restart them
     if [ -n "${fpod:-}" ] ; then
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
@@ -62,28 +46,16 @@ cleanup() {
 trap "cleanup" EXIT
 
 reset_fluentd_daemonset() {
-  muxcerts=`oc get daemonset logging-fluentd -o yaml | egrep muxcerts` || :
+  muxcerts=$( oc get daemonset logging-fluentd -o yaml | egrep muxcerts ) || :
 
   if [ "$muxcerts" = "" ]; then
-    oc get daemonset logging-fluentd -o yaml | sed '/volumes:/ a\
-      - name: muxcerts\
-        secret:\
-          defaultMode: 420\
-          secretName: logging-mux\
-' | oc replace -f -
-
-    oc get daemonset logging-fluentd -o yaml | sed '/volumeMounts:/ a\
-        - mountPath: /etc/fluent/muxkeys\
-          name: muxcerts\
-          readOnly: true\
-' | oc replace -f -
+      os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --overwrite \
+               --name=muxcerts --default-mode=0400 -t secret -m /etc/fluent/muxkeys --secret-name logging-mux 2>&1 )"
   fi
 }
 
-os::log::info Starting mux-client-mode test at $( date )
-
-fpod=`get_running_pod fluentd`
-muxpod=`get_running_pod mux`
+fpod=$( get_running_pod fluentd )
+muxpod=$( get_running_pod mux )
 
 os::log::info configure fluentd to use MUX_CLIENT_MODE=minimal - verify logs get through
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
@@ -92,7 +64,7 @@ os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal 
 reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-fpod=`get_running_pod fluentd`
+fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
 
@@ -104,6 +76,6 @@ os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal 
 reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-fpod=`get_running_pod fluentd`
+fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
