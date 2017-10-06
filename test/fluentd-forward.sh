@@ -6,7 +6,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-FLUENTD_WAIT_TIME=$(( 2 * minute ))
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/fluentd-forward"
 
@@ -43,6 +43,7 @@ update_current_fluentd() {
     # redeploy fluentd
     os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
+    os::cmd::try_until_success "oc rollout status -w ds/logging-fluentd"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     fpod=$( get_running_pod fluentd )
 }

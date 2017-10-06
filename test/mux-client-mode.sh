@@ -15,7 +15,7 @@ else
     exit 0
 fi
 
-FLUENTD_WAIT_TIME=$(( 2 * minute ))
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/mux-client-mode"
 

@@ -16,9 +16,22 @@ else
     exit 0
 fi
 
-FLUENTD_WAIT_TIME=$(( 2 * minute ))
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/mux"
+
+ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging}
+
+os::log::debug ARTIFACT_DIR is $ARTIFACT_DIR
+
+es_pod=$( get_es_pod es )
+es_ops_pod=$( get_es_pod es-ops )
+if [ -n "$es_ops_pod" ] ; then
+  ops_cluster=true
+else
+  ops_cluster=false
+  es_ops_pod=$es_pod
+fi
 
 reset_fluentd_daemonset() {
   # this test only works with MUX_CLIENT_MODE=minimal for now
@@ -246,8 +259,11 @@ write_and_verify_logs() {
 }
 
 reset_ES_HOST() {
-    oc set env dc logging-mux $1 $2
+    muxpod=$( get_running_pod mux )
+    os::cmd::expect_success "oc set env dc logging-mux $1 $2"
     os::cmd::try_until_failure "oc get pod $muxpod"
+    os::log::debug $( oc get pods -l component=mux )
+    oc rollout status -w dc/logging-mux # wait for mux to be redeployed
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
     muxpod=$( get_running_pod mux )
 }
@@ -255,6 +271,11 @@ reset_ES_HOST() {
 cleanup() {
     local return_code="$?"
     set +e
+
+    # In case test failed in Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE 
+    # reset ES_HOST and OPS_HOST
+    reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK
+
     if [ $return_code = 0 ] ; then
         mycmd=os::log::info
     else
@@ -336,6 +357,9 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" ]; then
     os::log::debug "$( oc get pvc )"
 fi
 
+ES_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^ES_HOST= )
+OPS_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^OPS_HOST= )
+
 # make sure fluentd is working normally
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_ready
@@ -346,11 +370,12 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
 
     update_current_fluentd $ENABLE_SECURE_FORWARD
 
-    ES_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^ES_HOST= )
-    OPS_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^OPS_HOST= )
-
-    # set ES_HOST and OPS_HOST to bogus
-    reset_ES_HOST ES_HOST=bogus OPS_HOST=bogus
+    # set ES_HOST and OPS_HOST to non-existing hostname
+    if [ "$ops_cluster" = "true" ]; then
+        reset_ES_HOST ES_HOST=bogus OPS_HOST=bogus_ops
+    else
+        reset_ES_HOST ES_HOST=bogus OPS_HOST=bogus
+    fi
 
     uuid_es=$( uuidgen )
     uuid_es_ops=$( uuidgen )
@@ -358,23 +383,51 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     add_test_message $uuid_es
 
-    # wait long enough to make the test messages are in the buffer
-    sleep 10
-    muxpod=$( oc get pods -l component=mux -o name | awk -F'/' '{print $2}' )
+    # wait for the test messages are in the buffer
+    muxpod=$( get_running_pod mux )
+    if [ "$ops_cluster" = "true" ]; then
+       ops_filename="output-es-ops-config.output_ops_tag"
+    else
+       ops_filename="output-es-config.output_tag"
+    fi
+    retry="true"
+    while [ "$retry" = "true" ]; do
+        ops_logs=$( oc exec $muxpod -- ls /var/lib/fluentd/ | egrep $ops_filename ) || :
+        if [ -z "$ops_logs" ]; then
+            sleep 1
+            continue
+        fi
+        for ops_log in $ops_logs; do
+            found=$( oc exec $muxpod -- strings /var/lib/fluentd/$ops_log | egrep $uuid_es_ops ) || :
+            if [ -n "$found" ]; then
+                retry="false"
+                break
+            fi
+        done
+    done
     os::log::debug "$( oc exec $muxpod -- ls -l /var/lib/fluentd )"
     os::log::debug "$( oc logs $muxpod )"
 
     # set ES_HOST and OPS_HOST to original
     reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK
 
+    # wait for the file buffer disappears once
+    os::cmd::try_until_text "oc exec $muxpod -- ls -l /var/lib/fluentd" "total 0" $FLUENTD_WAIT_TIME
+    os::log::debug "$( oc exec $muxpod -- ls -l /var/lib/fluentd )"
+    os::log::debug "$( oc logs $muxpod )"
+
     # kibana logs with kibana container/pod values
     myproject=project.logging
-    mymessage=$uuid_es
-    os::cmd::try_until_success "curl_es $es_pod /${myproject}.*/_count?q=message:$mymessage | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    mymessage="GET /${uuid_es} 404 "
+    qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
+    os::log::debug "Check kibana log - message \"${mymessage}\""
+    os::cmd::try_until_success "curl_es $es_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | grep -q 1" "$(( 10*minute ))"
 
     myproject=.operations
     mymessage=$uuid_es_ops
-    os::cmd::try_until_success "curl_es $es_ops_pod /${myproject}.*/_count?q=message:$mymessage | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${mymessage}"'"}}}'
+    os::log::debug "Check system log - SYSLOG_IDENTIFIER \"${mymessage}\""
+    os::cmd::try_until_success "curl_es $es_ops_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | grep -q 1" "$(( 10*minute ))"
 fi
 
 os::log::info "------- Test case $SET_CONTAINER_VALS -------"
