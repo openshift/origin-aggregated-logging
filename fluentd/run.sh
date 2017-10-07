@@ -42,10 +42,15 @@ if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
     else
         export USE_JOURNAL=false
     fi
+    unset MUX_FILE_BUFFER_STORAGE_TYPE
 else
     # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
     # for CONTAINER_NAME instead of the kubernetes.var.log.containers.* tag
     export USE_JOURNAL=true
+fi
+
+if [ ! -d /etc/fluent/muxkeys ]; then
+    unset MUX_CLIENT_MODE
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
@@ -161,7 +166,7 @@ mkdir -p $FILE_BUFFER_PATH
 # Get the available disk size.
 DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
 DF_LIMIT=${DF_LIMIT:-0}
-if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then
+if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "hostmount" ]; then
     # Use 1/4 of the disk space for hostmount.
     DF_LIMIT=$(expr $DF_LIMIT / 4) || :
 fi
