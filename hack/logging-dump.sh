@@ -100,7 +100,7 @@ get_env() {
       oc exec $pod -c $container -- grep -o "\"build-date\"=\"[^[:blank:]]*\"" $dockerfile >> $env_file || echo ---- Unable to get build date
     fi
     echo -- Environment Variables >> $env_file
-    oc exec $pod -c $container -- env >> $env_file
+    oc exec $pod -c $container -- env | sort >> $env_file
   done
 }
 
@@ -221,11 +221,12 @@ get_elasticsearch_status() {
   local cluster_folder=$es_folder/cluster-$comp
   mkdir $cluster_folder
   curl_es='curl -s --max-time 5 --key /etc/elasticsearch/secret/admin-key --cert /etc/elasticsearch/secret/admin-cert --cacert /etc/elasticsearch/secret/admin-ca https://localhost:9200'
-  local cat_items=(health nodes indices aliases thread_pool)
+  local cat_items=(health nodes aliases thread_pool)
   for cat_item in ${cat_items[@]}
   do
     oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
   done
+  oc exec $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
   local health=$(oc exec $pod -- $curl_es/_cat/health?h=status)
   if [ -z "$health" ]
   then
@@ -239,8 +240,28 @@ get_elasticsearch_status() {
       oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
     done
     oc exec $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
+  else
+    oc exec $pod -- $curl_es/_search?sort=@timestamp:desc | python -mjson.tool > $cluster_folder/latest_documents.json
   fi
 
+}
+
+get_es_logs() {
+  local pod=$1
+  local logs_folder=$2/logs
+  echo -- POD $1 Elasticsearch Logs
+  if [ ! -d "$logs_folder" ]
+  then
+    mkdir $logs_folder
+  fi
+  if [[ $pod == logging-es-ops* ]]
+  then
+    path=/elasticsearch/logging-es-ops/logs
+  else
+    path=/elasticsearch/logging-es/logs
+  fi
+  oc rsync -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
+  mv -f $logs_folder/logs $logs_folder/$pod
 }
 
 list_es_storage() {
@@ -260,6 +281,7 @@ check_elasticsearch() {
     echo ---- Elasticsearch pod: $pod
     get_env $pod $es_folder
     get_pod_logs $pod $es_folder
+    get_es_logs $pod $es_folder
     list_es_storage $pod
   done
 

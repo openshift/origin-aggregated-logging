@@ -50,6 +50,7 @@ Examples:
     |   │   ├── aliases
     |   │   ├── health
     |   │   ├── indices
+    |   │   ├── latest_documents.json
     |   │   ├── nodes
     |   │   ├── thread_pool    
     |   │   ├── pending_tasks
@@ -60,13 +61,18 @@ Examples:
     |   │   ├── aliases
     |   │   ├── health
     |   │   ├── indices
+    |   │   ├── latest_documents.json
     |   │   ├── nodes
-    |   │   ├── thread_pool 
+    |   │   ├── thread_pool
     |   │   ├── pending_tasks
     |   │   ├── recovery
     |   │   ├── shards
     |   │   └── unassigned_shards
     │   ├── logs
+    │   │   ├── <logging-es-pod-1>/logging-es_deprecation.log
+    │   │   ├── <logging-es-pod-1>/logging-es_indexing_slowlog.log
+    │   │   ├── <logging-es-pod-1>/logging-es_search_slowlog.log
+    │   │   ├── <logging-es-pod-1>/logging-es.log
     │   │   ├── <logging-es-pod-1>.log
     │   │   ├── ...
     │   │   ├── <logging-es-ops-pod-1>.log
@@ -138,6 +144,8 @@ Examples:
 * Indices `/_cat/indices?v`
 * Aliases `/_cat/aliases?v`
 * Check 0/1 node folders
+* Elasticsearch internal log files
+* Latest documents persisted
 * Conditional based on cluster health
   * Pending tasks `/_cluster/pending_tasks`
   * Recovery status `/_cat/recovery`
