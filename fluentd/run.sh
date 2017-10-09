@@ -139,7 +139,7 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     fi
 else
     # check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
-    if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPT_PORT:-0} ]; then
+    if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
         # There is one output Elasticsearch
         NUM_OUTPUTS=1
         # Disable "output-es-ops-config.conf in output-operations.conf"
