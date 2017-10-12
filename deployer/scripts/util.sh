@@ -172,6 +172,26 @@ function get_curator_dcs() {
     oc get dc --selector logging-infra=curator -o name
 }
 
+function get_es_pod() {
+    # $1 - cluster name postfix
+    if [ -z $(oc get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
+      oc get pods -l component=${1} --no-headers | awk '$3 == "Running" {print $1}'
+    else
+      oc get pods -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '$3 == "Running" {print $1}'
+    fi
+}
+
+# set the test_token, test_name, and test_ip for token auth
+function get_test_user_token() {
+    local current_project; current_project="$( oc project -q )"
+    oc login --username=${1:-${LOG_ADMIN_USER:-admin}} --password=${2:-${LOG_ADMIN_PW:-admin}} > /dev/null
+    test_token="$(oc whoami -t)"
+    test_name="$(oc whoami)"
+    test_ip="127.0.0.1"
+    oc login --username=system:admin > /dev/null
+    oc project "${current_project}" > /dev/null
+}
+
 function extract_nodeselector() {
     local inputstring="${1//\"/}"  # remove any errant double quotes in the inputs
     local selectors=()
@@ -321,6 +341,92 @@ function get_latest_pod() {
   echo $pod
 }
 
+# $1 - kibana pod name
+# $2 - es hostname (e.g. logging-es or logging-es-ops)
+# $3 - endpoint (e.g. /projects.*/_search)
+# $4 - username
+# $5 - token
+# stdout is the JSON output from Elasticsearch
+# stderr is curl errors
+curl_es_from_kibana() {
+    local pod="$1"
+    local eshost="$2"
+    local endpoint="$3"
+    local test_name="$4"
+    local test_token="$5"
+    shift; shift; shift; shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/kibana/keys/"
+    oc exec "${pod}" -c kibana -- curl --connect-timeout 1 --silent --insecure "${args[@]}" \
+       --cert "${secret_dir}cert" \
+       --key "${secret_dir}key" \
+       -H "X-Proxy-Remote-User: $test_name" \
+       -H "Authorization: Bearer $test_token" \
+       -H "X-Forwarded-For: 127.0.0.1" \
+       "https://${eshost}:9200${endpoint}"
+}
+
+# $1 - es pod name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es() {
+    local pod="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/elasticsearch/secret/"
+    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             --key "${secret_dir}admin-key"   \
+                             --cert "${secret_dir}admin-cert" \
+                             "https://localhost:9200${endpoint}"
+}
+
+# $1 - es pod name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es_input() {
+    local pod="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="/etc/elasticsearch/secret/"
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                --key "${secret_dir}admin-key"   \
+                                --cert "${secret_dir}admin-cert" \
+                                "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             -H "X-Proxy-Remote-User: $test_name" \
+                             -H "Authorization: Bearer $test_token" \
+                             -H "X-Forwarded-For: 127.0.0.1" \
+                             "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token_and_input() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+    oc exec -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                                -H "X-Proxy-Remote-User: $test_name" \
+                                -H "Authorization: Bearer $test_token" \
+                                -H "X-Forwarded-For: 127.0.0.1" \
+                                "https://localhost:9200${endpoint}"
+}
+
 # $1 - es pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
 # $3 - index name (e.g. project.logging, project.test, .operations, etc.)
@@ -364,7 +470,7 @@ function wait_for_es_ready() {
 }
 
 function get_count_from_json() {
-    python -c 'import json, sys; print json.loads(sys.stdin.read())["count"]'
+    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
 }
 
 # $1 - unique value to search for in es
