@@ -11,6 +11,7 @@ ENV DATA_VERSION=1.6.0 \
     FLUENTD_SECURE_FWD=0.4.5-2 \
     FLUENTD_SYSTEMD=0.0.8-1 \
     FLUENTD_VIAQ_DATA_MODEL=0.0.11-1 \
+    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.4 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
@@ -45,6 +46,10 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
+COPY lib/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem /tmp
+RUN  gem install -N --conservative --minimal-deps --no-ri --no-doc \
+       /tmp/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem && \
+     rm /tmp/*.gem
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \

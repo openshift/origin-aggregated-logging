@@ -4,6 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
     FLUENTD_VERSION=0.12.39 \
+    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.4 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
@@ -27,7 +28,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       iproute && \
     yum clean all
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
-    gem install -N --conservative --minimal-deps --no-ri \
+    gem install -N --conservative --minimal-deps --no-ri --no-doc \
      'activesupport:<5' \
      'public_suffix:<3' \
      'elasticsearch-transport:<5' \
@@ -40,10 +41,8 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
      'fluent-plugin-remote-syslog:1.1' \
-      fluent-plugin-viaq_docker_audit_log_parser \
       systemd-journal \
       excon
-
 RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/download/v1.9.5.1/fluent-plugin-elasticsearch-1.9.5.1.gem > ${HOME}/fluent-plugin-elasticsearch-1.9.5.1.gem && \
     cd ${HOME} && \
     gem install -N --conservative --minimal-deps --no-ri --local fluent-plugin-elasticsearch-1.9.5.1.gem
@@ -51,6 +50,10 @@ RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/down
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
+COPY lib/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem /tmp
+RUN  gem install -N --conservative --minimal-deps --no-ri --no-doc \
+       /tmp/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem && \
+     rm /tmp/*.gem
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
