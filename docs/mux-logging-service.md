@@ -99,7 +99,7 @@ There are several new Ansible parameters which can be used with the
   to listen for `secure_forward` protocol log messages
 
 Other parameters are similar to parameters for the other components, for
-example `openshift_logging_mux_cpu_limit`,
+example `openshift_logging_mux_cpu_request`,
 `openshift_logging_mux_memory_limit`, `openshift_logging_mux_replica_count`,
 `openshift_logging_mux_nodeselector`
 
