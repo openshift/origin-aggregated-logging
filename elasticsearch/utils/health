@@ -1,0 +1,8 @@
+#!/bin/bash -eu
+#
+# Utility to grab the health of the cluster via the _cat APIs.
+#
+source es_util_env
+
+date
+$curl_get "$ES_BASE/_cat/health?v"
