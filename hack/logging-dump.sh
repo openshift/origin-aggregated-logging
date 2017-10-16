@@ -140,6 +140,18 @@ check_fluentd_connectivity() {
   fi
 }
 
+check_fluentd_persistence() {
+  local pod=$1
+  echo --Persistence stats for pod $pod >> $fluentd_folder/$pod
+  fbstoragePath=$(oc get daemonset logging-fluentd -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="filebufferstorage")].mountPath}')
+  if [ -z "$fbstoragePath" ] ; then
+    echo No filebuffer storage defined >>  $fluentd_folder/$pod
+  else
+    oc exec $pod -- df -h $fbstoragePath >> $fluentd_folder/$pod
+    oc exec $pod -- ls -lr $fbstoragePath >> $fluentd_folder/$pod
+  fi
+}
+
 check_fluentd() {
   echo -- Checking Fluentd health
   fluentd_pods=$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name})
@@ -150,6 +162,7 @@ check_fluentd() {
     get_env $pod $fluentd_folder
     get_pod_logs $pod $fluentd_folder
     check_fluentd_connectivity $pod
+    check_fluentd_persistence $pod
   done
 }
 
@@ -227,6 +240,8 @@ get_elasticsearch_status() {
     oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
   done
   oc exec $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
+  oc exec $pod -- $curl_es/_search?sort=@timestamp:desc\&pretty > $cluster_folder/latest_documents.json
+  oc exec $pod -- $curl_es/_nodes/stats?pretty > $cluster_folder/nodes_stats.json
   local health=$(oc exec $pod -- $curl_es/_cat/health?h=status)
   if [ -z "$health" ]
   then
@@ -240,10 +255,7 @@ get_elasticsearch_status() {
       oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
     done
     oc exec $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
-  else
-    oc exec $pod -- $curl_es/_search?sort=@timestamp:desc | python -mjson.tool > $cluster_folder/latest_documents.json
   fi
-
 }
 
 get_es_logs() {
@@ -254,6 +266,7 @@ get_es_logs() {
   then
     mkdir $logs_folder
   fi
+  local dc_name=$(oc get po $pod -o jsonpath='{.metadata.labels.deploymentconfig}')
   if [[ $pod == logging-es-ops* ]]
   then
     path=/elasticsearch/logging-es-ops/logs

@@ -52,6 +52,7 @@ Examples:
     |   │   ├── indices
     |   │   ├── latest_documents.json
     |   │   ├── nodes
+    |   │   ├── nodes_stats
     |   │   ├── thread_pool    
     |   │   ├── pending_tasks
     |   │   ├── recovery
@@ -63,6 +64,7 @@ Examples:
     |   │   ├── indices
     |   │   ├── latest_documents.json
     |   │   ├── nodes
+    |   │   ├── nodes_stats
     |   │   ├── thread_pool
     |   │   ├── pending_tasks
     |   │   ├── recovery
@@ -129,7 +131,8 @@ Examples:
 * Secrets (Only the name of the files included, not its content)
 
 ### Fluentd
-* Connectivity with Elasticsearch Servicewith Elasticsearch Service
+* Connectivity with Elasticsearch Service
+* If filebuffer is used the available storage and current files will be listed
 
 ### Curator
 * Connectivity with Elasticsearch Service
@@ -146,6 +149,7 @@ Examples:
 * Check 0/1 node folders
 * Elasticsearch internal log files
 * Latest documents persisted
+* Nodes status. Shows thorough information about OS, JVM, Filesystem, etc. [More info](https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-nodes-stats.html)
 * Conditional based on cluster health
   * Pending tasks `/_cluster/pending_tasks`
   * Recovery status `/_cat/recovery`
