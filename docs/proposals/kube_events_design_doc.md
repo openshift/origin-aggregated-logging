@@ -9,7 +9,7 @@ By default, fluentd is able to read any pod’s STDOUT and insert as an enriched
 Selected implementation consists of:
 - [eventrouter](https://github.com/openshift/openshift-ansible/pull/4973) - scraping the events from kubernetes API and printing as separate messages to STDOUT for further processing.
 - [fluentd ViaQ data model plugin](https://github.com/ViaQ/fluent-plugin-viaq_data_model/pull/9) - transforming the log message to adhere to desired data model moving event related fields to nest under the `kubernetes` field.
-    
+
 ![design_proposal_image](https://cdn.rawgit.com/wozniakjan/origin-aggregated-logging/37bb71012f7a0008b929bb88352f78ad023dbe15/docs/proposals/kube_event_collection.svg)
 
 What do the event logs contain
@@ -99,10 +99,10 @@ Deployment
 There will be a new role in openshift-ansible - [openshift_logging_eventrouter](https://github.com/openshift/openshift-ansible/pull/4973). The project where it deploys eventrouter is configurable, by default it is the default project.
 
 All configurable options:
-- `openshift_logging_install_eventrouter`: Eventrouter is not installed by default. If eventrouter is deployed as part of logging playbook, both `openshift_logging_install_eventrouter` and `openshift_logging_install_logging` must be set to True, for uninstallation, both must be set to False. If eventrouter is deployed without logging playbook on its own, only `openshift_logging_install_eventrouter` must be set appropriatelly.
+- `openshift_logging_install_eventrouter`: Eventrouter is not installed by default. If eventrouter is deployed as part of logging playbook, both `openshift_logging_install_eventrouter` and `openshift_logging_install_logging` must be set to True, for uninstallation, both must be set to False. If eventrouter is deployed without logging playbook on its own, only `openshift_logging_install_eventrouter` must be set appropriately.
 - `openshift_logging_eventrouter_sink`: Select a sink for eventrouter, supported 'stdout' and 'glog'. Defaults to 'stdout'.
 - `openshift_logging_eventrouter_nodeselector`: A map of labels (e.g. {"node":"infra","region":"west"} to select the nodes where the pod will land.
-- `openshift_logging_eventrouter_cpu_limit`: The amount of CPU to allocate to eventrouter. Defaults to '100m'.
+- `openshift_logging_eventrouter_cpu_request`: The minimum amount of CPU to allocate to eventrouter. Defaults to '100m'.
 - `openshift_logging_eventrouter_memory_limit`: The memory limit for eventrouter pods. Defaults to '128Mi'.
 - `openshift_logging_eventrouter_namespace`: The namespace where eventrouter is deployed. Defaults to 'default'.
 
