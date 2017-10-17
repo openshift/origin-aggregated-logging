@@ -38,7 +38,7 @@ update_current_fluentd() {
 
   # undeploy fluentd
   os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 )"
-  os::cmd::try_until_failure "oc get pod $fpod"
+  os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
 
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
@@ -273,7 +273,7 @@ cleanup() {
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
     os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-    os::cmd::try_until_failure "oc get pod $fpod"
+    os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         os::log::debug "$( oc replace --force -f $savecm )"
     fi
