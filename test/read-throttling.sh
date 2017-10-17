@@ -13,6 +13,8 @@ fi
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::use_sudo
 
+FLUENTD_WAIT_TIME=$(( 2 * minute ))
+
 os::test::junit::declare_suite_start "test/read-throttling"
 
 # save current fluentd daemonset
