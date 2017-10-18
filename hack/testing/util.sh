@@ -177,7 +177,7 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es=$( uuidgen )
     local uuid_es_ops=$( uuidgen )
     local expected=${3:-1}
-    local timeout=${TIMEOUT:-300}
+    local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
 
     add_test_message $uuid_es
