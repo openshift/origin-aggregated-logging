@@ -52,7 +52,7 @@ fpod=$( get_running_pod fluentd )
 
 # generate throttle config with invalid YAML
 os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj: read_lines_limit: bogus-value"}]' )"
