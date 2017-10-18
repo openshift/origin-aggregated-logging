@@ -113,6 +113,11 @@ function run_suite() {
 	os::cmd::expect_success "oc project logging"
 	os::test::junit::declare_suite_end
 
+    local es_pod=$( get_es_pod es )
+    local es_ops_pod=$( get_es_pod es-ops )
+    es_ops_pod=${es_ops_pod:-$es_pod}
+    curl_es $es_pod /_cat/indices
+    curl_es $es_ops_pod /_cat/indices
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
 	ops_cluster=${ENABLE_OPS_CLUSTER:-"true"}
 	if "${test}" "${ops_cluster}"; then
@@ -128,6 +133,11 @@ function run_suite() {
 			failed="true"
 		fi
 	fi
+    es_pod=$( get_es_pod es )
+    es_ops_pod=$( get_es_pod es-ops )
+    es_ops_pod=${es_ops_pod:-$es_pod}
+    curl_es $es_pod /_cat/indices
+    curl_es $es_ops_pod /_cat/indices
 }
 
 suite_selector="${SUITE:-".*"}"
