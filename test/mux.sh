@@ -66,8 +66,9 @@ update_current_fluentd() {
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE .+ project.testproj.external\n\
-        rewriterule2 message .+ project.testproj.external\n\
+        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
+        rewriterule2 MESSAGE .+ project.testproj.external\n\
+        rewriterule3 message .+ project.testproj.external\n\
       </match>\n\
       <filter project.testproj.external>\n\
         @type record_transformer\n\
@@ -87,8 +88,9 @@ update_current_fluentd() {
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE .+ project.testproj.external\n\
-        rewriterule2 message .+ project.testproj.external\n\
+        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
+        rewriterule2 MESSAGE .+ project.testproj.external\n\
+        rewriterule3 message .+ project.testproj.external\n\
       </match>\n\
       <filter project.testproj.external>\n\
         @type record_transformer\n\
@@ -118,8 +120,9 @@ update_current_fluentd() {
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE .+ project.bogus.external\n\
-        rewriterule2 message .+ project.bogus.external\n\
+        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
+        rewriterule2 MESSAGE .+ project.bogus.external\n\
+        rewriterule3 message .+ project.bogus.external\n\
       </match>\n\
       <filter project.bogus.external>\n\
         @type record_transformer\n\
@@ -149,8 +152,9 @@ update_current_fluentd() {
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE .+ test.bogus.external\n\
-        rewriterule2 message .+ test.bogus.external\n\
+        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
+        rewriterule2 MESSAGE .+ test.bogus.external\n\
+        rewriterule3 message .+ test.bogus.external\n\
       </match>\n\
       <filter test.bogus.external>\n\
         @type record_transformer\n\
@@ -236,6 +240,8 @@ write_and_verify_logs() {
     fi
     mymessage=$uuid_es_ops
     os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))"
+    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project.default"
+    os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project.default"
 }
 
 reset_ES_HOST() {
