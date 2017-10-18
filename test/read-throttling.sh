@@ -34,7 +34,7 @@ cleanup() {
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
     os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-    os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         os::log::debug "$( oc replace --force -f $savecm 2>&1 )"
     fi
@@ -52,7 +52,7 @@ fpod=$( get_running_pod fluentd )
 
 # generate throttle config with invalid YAML
 os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj: read_lines_limit: bogus-value"}]' )"
@@ -64,7 +64,7 @@ os::cmd::expect_success_and_text "oc logs $fpod" "Could not parse YAML file"
 
 # generate throttle config with a bogus key - verify the correct error
 os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj:\n  read_lines_limit: bogus-value\nbogus-project:\n  bogus-key: bogus-value"}]' )"

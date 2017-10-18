@@ -32,7 +32,7 @@ os::log::info Test 1, expecting generate_syslog_config.rb to have created config
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
 os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
@@ -45,7 +45,7 @@ os::cmd::try_until_success "oc exec $fpod find /etc/fluent/configs.d/dynamic/out
 os::log::info Test 2, expecting generate_syslog_config.rb to not create a configuration file
 
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
 os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
@@ -59,7 +59,7 @@ os::cmd::try_until_failure "oc exec $fpod find /etc/fluent/configs.d/dynamic/out
 os::log::info Test 3, expecting generate_syslog_config.rb to generate multiple stores
 
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
 os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 )"
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
