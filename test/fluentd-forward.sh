@@ -39,6 +39,7 @@ update_current_fluentd() {
   </server>"}]'
 
     # redeploy fluentd
+    os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     fpod=$( get_running_pod fluentd )
@@ -69,6 +70,7 @@ create_forwarding_fluentd() {
        --name=filebufferstorage --type=hostPath \
        --path=/var/lib/fluentd/forward --mount-path=/var/lib/fluentd
 
+    os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-forward-fluentd=true )"
 
     # wait for forward-fluentd to start
@@ -110,6 +112,7 @@ cleanup() {
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
+    os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
