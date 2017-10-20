@@ -15,10 +15,10 @@ loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
 while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -cd ${HOME}/sgconfig \
     -i $index \
-    -ks /etc/elasticsearch/secret/searchguard.key \
+    -ks /etc/elasticsearch/secret/admin.jks \
     -kst JKS \
     -kspass kspass \
-    -ts /etc/elasticsearch/secret/searchguard.truststore \
+    -ts /etc/elasticsearch/secret/truststore \
     -tst JKS \
     -tspass tspass \
     -nhnv \
