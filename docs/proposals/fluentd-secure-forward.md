@@ -52,7 +52,8 @@ configs.d/openshift/output-operations.conf:
 
 example secure-forward-config.conf:
 ```
-@type secure_forward
+<store>
+  @type secure_forward
 
   self_hostname ${HOSTNAME}
   shared_key    secret_string
@@ -72,6 +73,7 @@ example secure-forward-config.conf:
     host 203.0.113.8 # ip address to connect
     hostlabel server.fqdn.example.com # specify hostlabel for FQDN verification if ipaddress is used for host
   </server>
+</store>
 ```
 
 ## Proposal
