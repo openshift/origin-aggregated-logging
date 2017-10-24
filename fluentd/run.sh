@@ -235,7 +235,21 @@ fi
 
 if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     # The symlink is a workaround for https://github.com/openshift/origin-aggregated-logging/issues/604
-    ln -s /opt/app-root/src/gems/fluent-plugin-remote-syslog*/lib/fluentd/plugin/*.rb /etc/fluent/plugin/
+    found=
+    for file in /usr/share/gems/gems/fluent-plugin-remote-syslog-*/lib/fluentd/plugin/*.rb ; do
+        if [ -f "$file" ] ; then
+            ln -s $file /etc/fluent/plugin/
+            found=true
+        fi
+    done
+    if [ -z "${found:-}" ] ; then
+        # not found in rpm location - look in alternate location
+        for file in /opt/app-root/src/gems/fluent-plugin-remote-syslog*/lib/fluentd/plugin/*.rb ; do
+            if [ -f "$file" ] ; then
+                ln -s $file /etc/fluent/plugin/
+            fi
+        done
+    fi
     if [[ $REMOTE_SYSLOG_HOST ]] ; then
         ruby generate_syslog_config.rb
     fi
