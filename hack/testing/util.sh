@@ -165,6 +165,15 @@ function add_test_message() {
        http://localhost:5601/$1 > /dev/null 2>&1
 }
 
+function flush_fluentd_pos_files() {
+    os::cmd::expect_success "sudo rm -f /var/log/journal.pos"
+    if docker_uses_journal ; then
+        : # done
+    else
+        os::cmd::expect_success "sudo rm -f /var/log/es-containers.log.pos"
+    fi
+}
+
 # $1 - command to call to pass the uuid_es
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches

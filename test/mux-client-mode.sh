@@ -39,6 +39,7 @@ cleanup() {
             rm -f $saveds
         fi
     fi
+    os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true || : )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     # this will call declare_test_end, suite_end, etc.
@@ -64,6 +65,7 @@ os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
 reset_fluentd_daemonset
+os::cmd::expect_success flush_fluentd_pos_files
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
@@ -76,6 +78,7 @@ os::log::debug "$( oc label node --all logging-infra-fluentd- )"
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal )"
 reset_fluentd_daemonset
+os::cmd::expect_success flush_fluentd_pos_files
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
