@@ -11,6 +11,7 @@ ENV DATA_VERSION=1.6.0 \
     FLUENTD_SECURE_FWD=0.4.5-2 \
     FLUENTD_SYSTEMD=0.0.8-1 \
     FLUENTD_VIAQ_DATA_MODEL=0.0.11-1 \
+    FLUENTD_RECORD_MODIFIER=0.5.0 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
@@ -44,6 +45,11 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
+
+COPY lib/fluent-plugin-record-modifier-${FLUENTD_RECORD_MODIFIER}.gem /tmp/
+
+RUN cd /tmp/ && gem install -N --conservative --minimal-deps --no-ri --no-doc \
+    --local fluent-plugin-record-modifier-${FLUENTD_RECORD_MODIFIER}.gem
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
