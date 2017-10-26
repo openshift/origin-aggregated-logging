@@ -167,11 +167,6 @@ function add_test_message() {
 
 function flush_fluentd_pos_files() {
     os::cmd::expect_success "sudo rm -f /var/log/journal.pos"
-    if docker_uses_journal ; then
-        : # done
-    else
-        os::cmd::expect_success "sudo rm -f /var/log/es-containers.log.pos"
-    fi
 }
 
 # $1 - command to call to pass the uuid_es
@@ -189,6 +184,7 @@ function wait_for_fluentd_to_catch_up() {
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
 
+    wait_for_fluentd_ready
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
