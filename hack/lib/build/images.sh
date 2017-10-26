@@ -127,8 +127,10 @@ function os::build::image::internal::docker() {
 	local extra_tag="${3-}"
 	local options=()
 
-	if ! docker build ${OS_BUILD_IMAGE_ARGS:-} -t "${tag}" "${directory}"; then
-		return "$?"
+	docker build ${OS_BUILD_IMAGE_ARGS:-} -t "${tag}" "${directory}"
+	local ret="$?"
+	if [[ $ret -ne 0 ]]; then
+		return "$ret"
 	fi
 
 	if [[ -n "${extra_tag}" ]]; then
