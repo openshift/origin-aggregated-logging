@@ -8,7 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-FLUENTD_WAIT_TIME=$(( 2 * minute ))
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "Remote Syslog Configuration Tests"
 

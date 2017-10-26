@@ -8,7 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-FLUENTD_WAIT_TIME=$(( 2 * minute ))
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/viaq-data-model"
 
@@ -188,7 +188,8 @@ os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '
 os::log::debug "$( oc set env daemonset/logging-fluentd CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 # if using MUX_CLIENT_MODE=maximal, also have to tell mux to keep the empty fields
-if oc set env daemonset/logging-fluentd --list | grep -q ^MUX_CLIENT_MODE=maximal ; then
+is_maximal=$( oc set env daemonset/logging-fluentd --list | grep ^MUX_CLIENT_MODE=maximal ) || :
+if [ -n "$is_maximal" ] ; then
     muxpod=$( get_running_pod mux )
     oc set env dc/logging-mux CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3
     os::cmd::try_until_failure "oc get pod $muxpod"
@@ -206,7 +207,7 @@ qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
 os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 
-if oc set env daemonset/logging-fluentd --list | grep -q ^MUX_CLIENT_MODE=maximal ; then
+if [ -n "$is_maximal" ] ; then
     muxpod=$( get_running_pod mux )
     oc set env dc/logging-mux CDM_KEEP_EMPTY_FIELDS-
     os::cmd::try_until_failure "oc get pod $muxpod"
