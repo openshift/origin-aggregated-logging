@@ -122,11 +122,9 @@ os::log::info Starting fluentd-forward test at $( date )
 # make sure fluentd is working normally
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 os::cmd::expect_success wait_for_fluentd_to_catch_up
 
 create_forwarding_fluentd
 update_current_fluentd
 
-wait_for_fluentd_ready
 os::cmd::expect_success wait_for_fluentd_to_catch_up
