@@ -102,3 +102,17 @@ function os::log::internal::prefix_lines() {
 	done
 	IFS="${old_ifs}"
 }
+
+# os::log::internal::prefix_lines_stream prints out the original content with 
+# the given prefix at the start of every line, usable in pipe.
+#
+# Arguments:
+#  - 1: prefix for lines
+function os::log::internal::prefix_lines_stream() {
+	local prefix="$1"
+
+	while read line; do
+		local time=$(date +%H:%M:%S.%N)
+		echo "[${time}] ${prefix} ${line}"
+	done
+}

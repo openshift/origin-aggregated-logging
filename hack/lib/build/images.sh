@@ -32,21 +32,17 @@ function os::build::image() {
 	fi
 
 	local result=1
-	local image_build_log
-	image_build_log="$( mktemp "${BASETMPDIR}/imagelogs.XXXXX" )"
 	for (( i = 0; i < "${OS_BUILD_IMAGE_NUM_RETRIES:-2}"; i++ )); do
 		if [[ "${i}" -gt 0 ]]; then
-			os::log::internal::prefix_lines "[${tag%:*}]" "$( cat "${image_build_log}" )"
 			os::log::warning "Retrying image build for ${tag}, attempt ${i}..."
 		fi
 
-		if os::build::image::internal::generic "${tag}" "${directory}" "${extra_tag:-}" >"${image_build_log}" 2>&1; then
+		if os::build::image::internal::generic "${tag}" "${directory}" "${extra_tag:-}" 2>&1 | os::log::internal::prefix_lines_stream "[${tag%:*}]" ; then
 			result=0
 			break
 		fi
 	done
 
-	os::log::internal::prefix_lines "[${tag%:*}]" "$( cat "${image_build_log}" )"
 	return "${result}"
 }
 readonly -f os::build::image
