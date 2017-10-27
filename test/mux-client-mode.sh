@@ -15,6 +15,8 @@ else
     exit 0
 fi
 
+FLUENTD_WAIT_TIME=$(( 2 * minute ))
+
 os::test::junit::declare_suite_start "test/mux-client-mode"
 
 # save daemonset
@@ -59,7 +61,7 @@ muxpod=$( get_running_pod mux )
 
 os::log::info configure fluentd to use MUX_CLIENT_MODE=minimal - verify logs get through
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-os::cmd::try_until_failure "oc get pod $fpod"
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
 reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
@@ -71,7 +73,7 @@ wait_for_fluentd_to_catch_up
 # configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 os::log::info configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-os::cmd::try_until_failure "oc get pod $fpod"
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal )"
 reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"

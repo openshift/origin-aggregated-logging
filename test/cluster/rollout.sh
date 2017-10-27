@@ -16,6 +16,8 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 trap os::test::junit::reconcile_output EXIT
 
+FLUENTD_WAIT_TIME=$(( 2 * minute ))
+
 os::test::junit::declare_suite_start "test/cluster/rollout"
 
 os::cmd::expect_success "oc project logging"
@@ -45,7 +47,7 @@ os::log::info "Checking for DaemonSets..."
 for daemonset in ${OAL_EXPECTED_DAEMONSETS}; do
 	os::cmd::expect_success "oc get daemonset ${daemonset}"
 	desired_number="$( oc get daemonset "${daemonset}" -o jsonpath='{ .status.desiredNumberScheduled }' )"
-	os::cmd::try_until_text "oc get daemonset ${daemonset} -o jsonpath='{ .status.numberReady }'" "${desired_number}"
+	os::cmd::try_until_text "oc get daemonset ${daemonset} -o jsonpath='{ .status.numberReady }'" "${desired_number}" $FLUENTD_WAIT_TIME
 done
 
 os::test::junit::declare_suite_end
