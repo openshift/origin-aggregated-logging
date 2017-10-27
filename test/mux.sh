@@ -20,10 +20,6 @@ FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/mux"
 
-ARTIFACT_DIR=${ARTIFACT_DIR:-${TMPDIR:-/tmp}/origin-aggregated-logging}
-
-os::log::debug ARTIFACT_DIR is $ARTIFACT_DIR
-
 es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 if [ -n "$es_ops_pod" ] ; then
@@ -32,6 +28,21 @@ else
   ops_cluster=false
   es_ops_pod=$es_pod
 fi
+
+extra_mux_artifacts=$ARTIFACT_DIR/mux-artifacts.txt
+internal_mux_log() {
+    local ts=$1 ; shift
+    echo \[${ts}\] "$@" >> $extra_mux_artifacts
+}
+mux_log() {
+    internal_mux_log "$( date --rfc-3339=ns )" "$@"
+}
+mux_out() {
+    local ts="$( date --rfc-3339=ns )"
+    while read line ; do
+        internal_mux_log "${ts}" $line
+    done
+}
 
 reset_fluentd_daemonset() {
   # this test only works with MUX_CLIENT_MODE=minimal for now
@@ -49,7 +60,7 @@ NO_PROJECT_TAG=4
 update_current_fluentd() {
   # this will update it so the current fluentd does not send logs to an ES host
   # but instead forwards to mux
-  myoption=${1:-0}
+  local myoption=${1:-0}
 
   # undeploy fluentd
   os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 )"
@@ -207,26 +218,41 @@ write_and_verify_logs() {
     local uuid_es=$( uuidgen )
     local uuid_es_ops=$( uuidgen )
 
+    wait_for_fluentd_ready
+
+    oc get pods | grep fluentd | mux_out
+
     add_test_message $uuid_es
+    local fcursor_before=$( sudo cat /var/log/journal.pos )
+    oc get pods | grep fluentd | mux_out
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
+    # get the cursor of this record - compare to the fluentd journal cursor position
+    local reccursor=$( sudo journalctl -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
+    oc get pods | grep fluentd | mux_out
+    local fcursor_after=$( sudo cat /var/log/journal.pos )
+    mux_log Cursors:
+    mux_log "  " before $fcursor_before
+    mux_log "  " record $reccursor
+    mux_log "  " after $fcursor_after
+    oc get pods | grep fluentd | mux_out
 
     local rc=0
 
     os::log::debug "is_testproj $is_testproj no_container_vals $no_container_vals ===================================="
 
-    espod=$es_pod
-    mymessage="GET /$uuid_es 404 "
+    local espod=$es_pod
+    local mymessage="GET /$uuid_es 404 "
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
         # kibana logs with project.testproj tag and given container/pod values
-        myproject=project.testproj
+        local myproject=project.testproj
     else
         # kibana logs with kibana container/pod values
-        myproject=project.logging
+        local myproject=project.logging
     fi
     # could be different fields depending on the container log driver - so just
     # search for the exact phrase in all fields
-    startqs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}},"must_not":['
-    comma=""
+    local startqs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}},"must_not":['
+    local comma=""
     # make sure record does not have any of the following fields:
     # docker,kubernetes,CONTAINER_NAME,CONTAINER_ID_FULL,mux_namespace_name,mux_need_k8s_meta,namespace_name,namespace_uuid
     for notfield in docker kubernetes CONTAINER_NAME CONTAINER_ID_FULL mux_namespace_name \
@@ -234,34 +260,60 @@ write_and_verify_logs() {
         startqs="${startqs}${comma}{\"exists\":{\"field\":\"${notfield}\"}}"
         comma=","
     done
-    qs="${startqs}]}}}"
+    local qs="${startqs}]}}}"
     os::log::debug "query string is $qs"
-    os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))"
+    mux_log start $( date ) $( date +%s )
+    if ! os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
+        mux_log end $( date ) $( date +%s )
+        qs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}}}}}'
+        curl_es $espod /${myproject}.*/_count -XPOST -d "$qs" | python -mjson.tool | mux_out
+        # grab the first and last records in the index
+        curl_es $espod /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | mux_out
+        curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | mux_out
+        if docker_uses_journal ; then
+            mux_log First matching record:
+            sudo journalctl | grep -m 1 $uuid_es | mux_out || :
+            mux_log Last matching record:
+            sudo journalctl -r | grep -m 1 $uuid_es | mux_out || :
+        else
+            mux_log matching record:
+            sudo find /var/log/containers -name \*.log -exec grep $uuid_es {} /dev/null \; | mux_out || :
+        fi
+        exit 1
+    fi
 
     if [ $is_testproj -eq 1 ]; then
         # other logs with project.testproj tag
-        myfield="SYSLOG_IDENTIFIER"
+        local myfield="SYSLOG_IDENTIFIER"
         myproject=project.testproj
         espod=$es_pod
     elif [ $no_project_tag -eq 1 ]; then
-        myfield="SYSLOG_IDENTIFIER"
+        local myfield="SYSLOG_IDENTIFIER"
         myproject=project.mux-undefined
         espod=$es_pod
     else
-        myfield="systemd.u.SYSLOG_IDENTIFIER"
+        local myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
         espod=$es_ops_pod
     fi
     mymessage=$uuid_es_ops
-    os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))"
+    mux_log start $( date ) $( date +%s )
+    if ! os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
+        mux_log end $( date ) $( date +%s )
+        curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | python -mjson.tool | mux_out
+        # grab the first and last records in the index
+        curl_es $espod /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | mux_out
+        curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | mux_out
+        # find the record in the journal
+        sudo journalctl -o export -t $uuid_es_ops | mux_out || :
+        exit 1
+    fi
     os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project.default"
     os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project.default"
 }
 
 reset_ES_HOST() {
-    muxpod=$( get_running_pod mux )
     os::cmd::expect_success "oc set env dc logging-mux $1 $2"
-    os::cmd::try_until_failure "oc get pod $muxpod"
     os::log::debug $( oc get pods -l component=mux )
     oc rollout status -w dc/logging-mux # wait for mux to be redeployed
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
@@ -280,18 +332,19 @@ cleanup() {
         mycmd=os::log::info
     else
         mycmd=os::log::error
-        os::log::debug "$( oc projects )"
-        os::log::debug "$( oc get pods )"
+        muxout=$ARTIFACT_DIR/mux-artifacts.txt
+        oc projects >> $muxout 2>&1
+        oc get pods >> $muxout 2>&1
         if [ -n "$fpod" ]; then
-            os::log::debug "$( oc get configmap/logging-fluentd -o yaml )"
-            os::log::debug "$( oc exec $fpod -- ls /etc/fluent/configs.d/openshift )"
-            os::log::debug "$( oc exec $fpod -- ls /etc/fluent/configs.d/user )"
+            oc get configmap/logging-fluentd -o yaml > $ARTIFACT_DIR/mux.fluentd.configmap.yaml
+            oc exec $fpod -- ls -alrtF /etc/fluent/configs.d/openshift >> $muxout 2>&1
+            oc exec $fpod -- ls -alrtF /etc/fluent/configs.d/user >> $muxout 2>&1
         fi
-        if [ "$muxpod" != "" ]; then
-            os::log::debug "$( oc logs $muxpod )"
-            os::log::debug "$( oc get configmap/logging-mux -o yaml )"
-            os::log::debug "$( oc exec $muxpod -- ls /etc/fluent/configs.d/openshift )"
-            os::log::debug "$( oc exec $muxpod -- ls /etc/fluent/configs.d/user )"
+        if [ -n "${muxpod:-}" ]; then
+            oc logs $muxpod > $ARTIFACT_DIR/mux.mux.pod.log
+            oc get configmap/logging-mux -o yaml > $ARTIFACT_DIR/mux.mux.configmap.yaml
+            oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/openshift >> $muxout 2>&1
+            oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/user >> $muxout 2>&1
         fi
     fi
     $mycmd mux test finished at $( date )
@@ -300,7 +353,7 @@ cleanup() {
     curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.after 2>&1
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+        oc logs $fpod > $ARTIFACT_DIR/mux.$fpod.log 2>&1
     fi
     os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
@@ -340,10 +393,6 @@ else
     os::log::debug "$( oadm new-project testproj --node-selector='' 2>&1 )"
 fi
 
-es_pod=$( get_es_pod es )
-es_ops_pod=$( get_es_pod es-ops )
-es_ops_pod=${es_ops_pod:-$es_pod}
-
 # save indices at the start
 curl_es $es_pod /_cat/indices > $ARTIFACT_DIR/es.indices.before 2>&1
 curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.before 2>&1
@@ -362,7 +411,6 @@ OPS_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^OPS_HOST= )
 
 # make sure fluentd is working normally
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
 
 if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then

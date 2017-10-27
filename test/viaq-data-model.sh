@@ -120,7 +120,6 @@ get_logmessage2() {
 
 # TEST 1
 # default - undefined fields are passed through untouched
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
@@ -139,9 +138,9 @@ keep_fields="method,statusCode,type,@timestamp,req,res,CONTAINER_NAME,CONTAINER_
 # TEST 2
 # cdm - undefined fields are stored in 'undefined' field
 os::log::debug "$( oc set env daemonset/logging-fluentd CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=$keep_fields )"
+os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
@@ -154,9 +153,9 @@ os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '
 # TEST 3
 # user specifies extra fields to keep
 os::log::debug "$( oc set env daemonset/logging-fluentd CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields )"
+os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
@@ -170,9 +169,9 @@ os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '
 # TEST 4
 # user specifies alternate undefined name to use
 os::log::debug "$( oc set env daemonset/logging-fluentd CDM_UNDEFINED_NAME=myname )"
+os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
@@ -186,6 +185,7 @@ os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '
 # TEST 5
 # preserve specified empty field as empty
 os::log::debug "$( oc set env daemonset/logging-fluentd CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 )"
+os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 # if using MUX_CLIENT_MODE=maximal, also have to tell mux to keep the empty fields
 is_maximal=$( oc set env daemonset/logging-fluentd --list | grep ^MUX_CLIENT_MODE=maximal ) || :
@@ -196,7 +196,6 @@ if [ -n "$is_maximal" ] ; then
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
 fi
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
