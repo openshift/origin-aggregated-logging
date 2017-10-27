@@ -21,6 +21,7 @@ update_current_fluentd() {
     # edit so we don't send to ES
     oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
       <match **>\
+        @type copy\
         @include configs.d/user/secure-forward.conf\
       </match>' | oc replace -f -
 
@@ -29,16 +30,18 @@ update_current_fluentd() {
 
     # update configmap secure-forward.conf
     oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward.conf", "value": "\
-  @type secure_forward\n\
-  self_hostname forwarding-${HOSTNAME}\n\
-  shared_key aggregated_logging_ci_testing\n\
-  secure no\n\
-  buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
-  buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
-  <server>\n\
-   host '${FLUENTD_FORWARD}'\n\
-   port 24284\n\
-  </server>"}]'
+  <store>\n\
+   @type secure_forward\n\
+   self_hostname forwarding-${HOSTNAME}\n\
+   shared_key aggregated_logging_ci_testing\n\
+   secure no\n\
+   buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
+   buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
+   <server>\n\
+    host '${FLUENTD_FORWARD}'\n\
+    port 24284\n\
+   </server>\n\
+  </store>"}]'
 
     # redeploy fluentd
     os::cmd::expect_success flush_fluentd_pos_files
