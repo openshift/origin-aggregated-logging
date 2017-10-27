@@ -165,6 +165,10 @@ function add_test_message() {
        http://localhost:5601/$1 > /dev/null 2>&1
 }
 
+function flush_fluentd_pos_files() {
+    os::cmd::expect_success "sudo rm -f /var/log/journal.pos"
+}
+
 # $1 - command to call to pass the uuid_es
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches
@@ -180,6 +184,7 @@ function wait_for_fluentd_to_catch_up() {
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
 
+    wait_for_fluentd_ready
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops

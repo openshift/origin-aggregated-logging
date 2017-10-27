@@ -39,7 +39,6 @@ os::log::info Starting json-parsing test at $( date )
 get_uuid_es() {
     json_test_uuid=$1
 }
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up get_uuid_es
 
 es_pod=$( get_es_pod es )

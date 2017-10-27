@@ -67,7 +67,6 @@ reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
 
 # configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
@@ -79,5 +78,4 @@ reset_fluentd_daemonset
 os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 wait_for_fluentd_to_catch_up
