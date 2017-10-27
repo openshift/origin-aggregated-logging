@@ -6,6 +6,8 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
+FLUENTD_WAIT_TIME=$(( 2 * minute ))
+
 os::test::junit::declare_suite_start "test/fluentd-forward"
 
 update_current_fluentd() {
@@ -14,7 +16,7 @@ update_current_fluentd() {
 
     # undeploy fluentd
     os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-    os::cmd::try_until_failure "oc get pod $fpod"
+    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
     # edit so we don't send to ES
     oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
@@ -105,7 +107,7 @@ cleanup() {
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
     os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-    os::cmd::try_until_failure "oc get pod $fpod"
+    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         os::log::debug "$( oc replace --force -f $savecm )"
     fi
@@ -125,11 +127,9 @@ os::log::info Starting fluentd-forward test at $( date )
 # make sure fluentd is working normally
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-wait_for_fluentd_ready
 os::cmd::expect_success wait_for_fluentd_to_catch_up
 
 create_forwarding_fluentd
 update_current_fluentd
 
-wait_for_fluentd_ready
 os::cmd::expect_success wait_for_fluentd_to_catch_up
