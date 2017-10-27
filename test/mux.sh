@@ -469,13 +469,13 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     mymessage="GET /${uuid_es} 404 "
     qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
     os::log::debug "Check kibana log - message \"${mymessage}\""
-    os::cmd::try_until_success "curl_es $es_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    os::cmd::try_until_success "curl_es $es_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 
     myproject=.operations
     mymessage=$uuid_es_ops
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${mymessage}"'"}}}'
     os::log::debug "Check system log - SYSLOG_IDENTIFIER \"${mymessage}\""
-    os::cmd::try_until_success "curl_es $es_ops_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | grep -q 1" "$(( 10*minute ))"
+    os::cmd::try_until_success "curl_es $es_ops_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 fi
 
 os::log::info "------- Test case $SET_CONTAINER_VALS -------"
