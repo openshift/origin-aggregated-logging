@@ -37,6 +37,7 @@ cleanup() {
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
+    os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     # this will call declare_test_end, suite_end, etc.
@@ -105,6 +106,7 @@ os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --name=viaq-te
                    -t hostPath -m /etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf \
                    --path $cfg )"
 
+os::cmd::expect_success flush_fluentd_pos_files
 os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
