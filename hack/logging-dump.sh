@@ -115,7 +115,7 @@ get_pod_logs() {
   local containers=$(oc get po $pod -o jsonpath='{.spec.containers[*].name}')
   for container in $containers
   do
-    oc logs $pod -c $container > $logs_folder/$pod-$container.log || oc logs $pod > $logs_folder/$pod-$container.log || echo ---- Unable to get logs from pod $pod and container $container
+    oc logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
   done
 }
 
@@ -275,6 +275,7 @@ get_es_logs() {
   fi
   oc rsync -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
   mv -f $logs_folder/logs $logs_folder/$pod
+  nice xz $logs_folder/$pod/*
 }
 
 list_es_storage() {

@@ -29,18 +29,18 @@ Examples:
 └── logging-<yyyyMMdd_HHmmss>
     ├── fluentd
     │   ├── logs
-    │   │   ├── <logging-fluentd-pod-1>.log
+    │   │   ├── <logging-fluentd-pod-1>.log.xz
     │   │   ├── ...
-    │   │   └── <logging-fluentd-pod-N>.log
+    │   │   └── <logging-fluentd-pod-N>.log.xz
     │   ├── <logging-fluentd-pod-1>
     │   ├── ...
     │   └── <logging-fluentd-pod-N>
     ├── kibana
     │   ├── logs
-    │   │   ├── <logging-kibana-pod>-kibana.log
-    │   │   ├── <logging-kibana-pod>-kibana-proxy.log
-    │   │   ├── <logging-kibana-ops-pod>-kibana.log
-    │   │   └── <logging-kibana-ops-pod>-kibana-proxy.log
+    │   │   ├── <logging-kibana-pod>-kibana.log.xz
+    │   │   ├── <logging-kibana-pod>-kibana-proxy.log.xz
+    │   │   ├── <logging-kibana-ops-pod>-kibana.log.xz
+    │   │   └── <logging-kibana-ops-pod>-kibana-proxy.log.xz
     │   ├── <logging-kibana-pod>-kibana
     │   └── <logging-kibana-pod>-kibana-proxy
     │   ├── <logging-kibana-ops-pod>-kibana
@@ -71,13 +71,13 @@ Examples:
     |   │   ├── shards
     |   │   └── unassigned_shards
     │   ├── logs
-    │   │   ├── <logging-es-pod-1>/logging-es_deprecation.log
-    │   │   ├── <logging-es-pod-1>/logging-es_indexing_slowlog.log
-    │   │   ├── <logging-es-pod-1>/logging-es_search_slowlog.log
-    │   │   ├── <logging-es-pod-1>/logging-es.log
-    │   │   ├── <logging-es-pod-1>.log
+    │   │   ├── <logging-es-pod-1>/logging-es_deprecation.log.xz
+    │   │   ├── <logging-es-pod-1>/logging-es_indexing_slowlog.log.xz
+    │   │   ├── <logging-es-pod-1>/logging-es_search_slowlog.log.xz
+    │   │   ├── <logging-es-pod-1>/logging-es.log.xz
+    │   │   ├── <logging-es-pod-1>.log.xz
     │   │   ├── ...
-    │   │   ├── <logging-es-ops-pod-1>.log
+    │   │   ├── <logging-es-ops-pod-1>.log.xz
     │   │   └── ...
     │   ├── <logging-es-pod-1>
     │   └── ...
@@ -85,8 +85,8 @@ Examples:
     │   └── ...
     ├── curator
     │   ├── logs
-    │   │   ├── <logging-curator-pod>.log
-    │   │   └── <logging-curator-ops-pod>.log
+    │   │   ├── <logging-curator-pod>.log.xz
+    │   │   └── <logging-curator-ops-pod>.log.xz
     │   ├── <logging-curator-pod>
     │   └── <logging-curator-ops-pod>
     └── project
@@ -118,7 +118,7 @@ Examples:
 ### Common
 * Nodes description `oc describe nodes`
 * Project `oc get project logging -o yaml`
-* Pod Logs
+* Pod Logs compressed. Use `find . -name "*.xz" | while read filename; do xz -d $filename; done`
 * Docker image version `/root/buildinfo/Dockerfile-openshift3*`
 * Environment variables
 * Pod description
