@@ -33,8 +33,6 @@ readonly -f os::util::absolute_path
 init_source="$( dirname "${BASH_SOURCE}" )/../.."
 OS_ROOT="$( os::util::absolute_path "${init_source}" )"
 export OS_ROOT
-OS_O_A_L_DIR="${OS_ROOT}"
-export OS_O_A_L_DIR
 cd "${OS_ROOT}"
 
 for library_file in $( find "${OS_ROOT}/hack/lib" -type f -name '*.sh' -not -path '*/hack/lib/init.sh' ); do
@@ -54,4 +52,9 @@ os::util::environment::update_path_var
 
 if [[ -z "${OS_TMP_ENV_SET-}" ]]; then
 	os::util::environment::setup_tmpdir_vars "$( basename "$0" ".sh" )"
+fi
+
+# Allow setting $JUNIT_REPORT to toggle output behavior
+if [[ -n "${JUNIT_REPORT:-}" ]]; then
+  export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
 fi
