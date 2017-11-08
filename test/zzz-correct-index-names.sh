@@ -26,11 +26,11 @@ es_ops_pod=${es_ops_pod:-$es_pod}
 
 for project in default openshift openshift-infra ; do
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
-    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project.${project}."
+    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.${project}\."
     os::cmd::expect_success_and_text "curl_es $es_pod /project.${project}.*/_count | get_count_from_json" "^0\$"
     os::cmd::expect_success_and_text "curl_es $es_pod /project.*/_count -X POST -d '$qs' | get_count_from_json" "^0\$"
     if [ "$es_pod" != "$es_ops_pod" ] ; then
-        os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project.${project}."
+        os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project\.${project}\."
         os::cmd::expect_success_and_text "curl_es $es_ops_pod /project.${project}.*/_count | get_count_from_json" "^0\$"
         os::cmd::expect_success_and_text "curl_es $es_ops_pod /project.*/_count -X POST -d '$qs' | get_count_from_json" "^0\$"
     fi

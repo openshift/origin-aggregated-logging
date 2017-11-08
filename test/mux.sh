@@ -308,8 +308,8 @@ write_and_verify_logs() {
         sudo journalctl -o export -t $uuid_es_ops | mux_out || :
         exit 1
     fi
-    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project.default"
-    os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project.default"
+    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.default"
+    os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project\.default"
 }
 
 reset_ES_HOST() {
@@ -324,7 +324,7 @@ cleanup() {
     local return_code="$?"
     set +e
 
-    # In case test failed in Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE 
+    # In case test failed in Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE
     # reset ES_HOST and OPS_HOST
     reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK
 
