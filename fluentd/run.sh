@@ -134,7 +134,7 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     # A fluentd collector configured as a mux client has just one output: sending to a mux.
     NUM_OUTPUTS=1
     rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf
-    if [ "$output_label" != "" ]; then
+    if [ -n "$output_label" ]; then
         cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
     fi
 else
@@ -142,10 +142,11 @@ else
     if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
         # There is one output Elasticsearch
         NUM_OUTPUTS=1
-        # Disable "output-es-ops-config.conf in output-operations.conf"
-        echo > $CFG_DIR/dynamic/output-es-ops-config.conf
+        # Disable "output-operations.conf"
+        rm -f $CFG_DIR/openshift/output-operations.conf
+        touch $CFG_DIR/openshift/output-operations.conf
         rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
-        if [ "$output_label" != "" ]; then
+        if [ -n "$output_label"  ]; then
             cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
         fi
     else
@@ -153,7 +154,7 @@ else
         # Enable "output-es-ops-config.conf in output-operations.conf"
         cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
         rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
-        if [ "$output_label" != "" ]; then
+        if [ -n "$output_label" ]; then
             cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
         fi
     fi
