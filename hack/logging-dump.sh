@@ -25,7 +25,7 @@ declare -a components=()
 while (($#))
 do
 case $1 in
-    kibana|fluentd|curator|elasticsearch)
+    kibana|fluentd|curator|elasticsearch|project_info)
       components+=($1)
       ;;
     --namespace=*)
@@ -66,6 +66,26 @@ dump_resource_items() {
   done
 }
 
+dump_persistent_volumes() {
+  local expected_pv_size=$(oc get persistentvolumeclaims --no-headers | wc -l)
+  local pv_size=0
+  mkdir $project_folder/persistentvolumes
+  echo -- Extracting logging-es persistentvolumes ...
+  for pv in `oc get persistentvolumes -o 'go-template={{range $pv := .items}}{{if $pv.spec.claimRef}}{{if eq $pv.spec.claimRef.namespace "'${NAMESPACE}'"}}{{$pv.metadata.name}}{{end}}{{end}}{{end}}'`
+  do
+    oc get persistentvolumes $pv -o yaml > $project_folder/persistentvolumes/$pv
+    pv_size=$((pv_size + 1))
+  done
+  if [ $pv_size != $expected_pv_size ]
+  then
+    echo -- Extracting unbound persistentvolumes ...
+    for pv in `oc get persistentvolumes -o jsonpath='{.items[?(@.status.phase != "Bound")].metadata.name}'`
+    do
+      oc get persistentvolumes $pv -o yaml > $project_folder/persistentvolumes/$pv
+    done
+  fi
+}
+
 check_project_info() {
   mkdir $project_folder
   echo Getting general objects
@@ -79,12 +99,13 @@ check_project_info() {
   echo -- Secrets
   oc describe secrets > $project_folder/secrets
 
-  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumes persistentvolumeclaims pods)
+  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods)
   for resource_type in ${resource_types[@]}
   do
     echo -- Extracting $resource_type ...
     dump_resource_items $resource_type
   done
+  dump_persistent_volumes
 }
 
 get_env() {
