@@ -3,7 +3,7 @@
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2017.09.06.0"
+        "version": "2017.11.11.0"
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -130,7 +130,52 @@
         },
         "docker": {
           "properties": {
+            "command": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
             "container_id": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "container_id_short": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "container_image": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "operation": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "pid": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "reason": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "result": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "sauid": {
+              "doc_values": true,
+              "index": "not_analyzed",
+              "type": "string"
+            },
+            "user": {
               "doc_values": true,
               "index": "not_analyzed",
               "type": "string"
