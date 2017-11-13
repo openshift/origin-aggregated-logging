@@ -36,6 +36,6 @@ At minimum, each additional host must define the `REMOTE_SYSLOG_HOST\*\*` enviro
 * `REMOTE_SYSLOG_SEVERITY` : set the syslog severity level, defaults to `debug`
 * `REMOTE_SYSLOG_FACILITY` : set the syslog facility, defaults to `local0`
 * `REMOTE_SYSLOG_USE_RECORD` : defaults to `false`.  Set to `true` to use the record's severity and facility fields to set on the syslog message
-* `REMOTE_SYSLOG_REMOTE_TAG_PREFIX` : removes the prefix from the tag, defaults to `''` (empty)
+* `REMOTE_SYSLOG_REMOVE_TAG_PREFIX` : removes the prefix from the tag, defaults to `''` (empty)
 * `REMOTE_SYSLOG_TAG_KEY` : if specified, uses this field as the key to look on the record, to set the tag on the syslog message
 * `REMOTE_SYSLOG_PAYLOAD_KEY` : if specified, uses this field as the key to look on the record, to set the payload on the syslog message
