@@ -822,6 +822,69 @@ type: string
 Docker container id
 
 
+==== docker.container_id_short
+
+type: string
+
+Short container id, assigned by the container engine
+
+
+==== docker.sauid
+
+type: string
+
+Sent login user id
+
+
+==== docker.container_image
+
+type: string
+
+Name of the image
+
+
+==== docker.pid
+
+type: string
+
+The process id
+
+
+==== docker.user
+
+type: string
+
+User under which the container process runs
+
+
+==== docker.command
+
+type: string
+
+Name of the command
+
+
+==== docker.reason
+
+type: string
+
+Action that triggered this event
+
+
+==== docker.operation
+
+type: string
+
+Operation carried out
+
+
+==== docker.result
+
+type: string
+
+Result of the action
+
+
 
 '''
 [[exported-fields-pipeline_metadata]]
