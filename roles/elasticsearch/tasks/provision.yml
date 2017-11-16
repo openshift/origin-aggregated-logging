@@ -1,0 +1,520 @@
+---
+# service account
+- name: Create ES service account
+  k8s_v1_service_account:
+    state: present
+    name: aggregated-logging-elasticsearch
+    namespace: "{{ logging_namespace }}"
+    image_pull_secrets: "{{ logging_image_pull_secret | default([]) }}"
+
+
+# rolebinding reader
+- name: Create rolebinding-reader role
+  openshift_v1_cluster_role:
+    state: present
+    name: rolebinding-reader
+    namespace: "{{ logging_namespace }}"
+    rules:
+    - resources:
+        - clusterrolebindings
+      verbs:
+        - get
+
+# SA roles
+## TODO: do we even need this anymore?
+- name: Bind rolebinding-reader for ES serviceaccount
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: cluster-role
+    role_ref_name: rolebinding-reader
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+
+- name: Bind system:auth-delegator for ES serviceaccount
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: cluster-role
+    role_ref_name: system:auth-delegator
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+# logging-metrics-reader role
+- name: Create prometheus-metrics-viewer role
+  k8s_v1beta1_role:
+    state: present
+    name: prometheus-metrics-viewer
+    namespace: "{{ logging_namespace }}"
+    resource_definition:
+      - apiVersion: rbac.authorization.k8s.io/v1beta1
+        kind: Role
+        metadata:
+          annotations:
+            rbac.authorization.kubernetes.io/autoupdate: "true"
+          name: prometheus-metrics-viewer
+          namespace: {{ namespace }}
+        rules:
+        - apiGroups:
+          - metrics.openshift.io
+          resources:
+          - prometheus
+          verbs:
+          - view
+
+
+- name: Bind prometheus-metrics-viewer role
+  k8s_v1beta1_role_binding:
+    name: prometheus-metrics-viewer
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: role
+    role_ref_name: prometheus-metrics-viewer
+    role_ref_api_group: rbac.authorization.k8s.io
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ prometheus_namespace }}"
+        role_user: "{{ prometheus_sa_name }}"
+
+
+# View role and binding
+- name: Create logging-elasticsearch-view-role rolebinding
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    name: logging-elasticsearch-view-role
+    role_ref_kind: cluster-role
+    role_ref_name: view
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+# configmap
+## TODO: come back to here -- use PR logic for merging changes
+- assert:
+    that:
+      - openshift_logging_elasticsearch_kibana_index_mode in __kibana_index_modes
+    msg: "The openshift_logging_elasticsearch_kibana_index_mode '{{ openshift_logging_elasticsearch_kibana_index_mode  }}' only supports one of: {{ __kibana_index_modes | join(', ') }}"
+
+- assert:
+    that:
+      - "{{ openshift_logging_es_log_appenders | length > 0 }}"
+    msg: "The openshift_logging_es_log_appenders '{{ openshift_logging_es_log_appenders }}' has an unrecognized option and only supports the following as a list: {{ __es_log_appenders | join(', ') }}"
+
+- template:
+    src: elasticsearch-logging.yml.j2
+    dest: "{{ tempdir }}/elasticsearch-logging.yml"
+  vars:
+    root_logger: "{{openshift_logging_es_log_appenders | join(', ')}}"
+  when: es_logging_contents is undefined
+  changed_when: no
+
+- template:
+    src: elasticsearch.yml.j2
+    dest: "{{ tempdir }}/elasticsearch.yml"
+  vars:
+    allow_cluster_reader: "{{ openshift_logging_elasticsearch_ops_allow_cluster_reader | lower | default('false') }}"
+    es_number_of_shards: "{{ openshift_logging_es_number_of_shards | default(1) }}"
+    es_number_of_replicas: "{{ openshift_logging_es_number_of_replicas | default(0) }}"
+    es_kibana_index_mode: "{{ openshift_logging_elasticsearch_kibana_index_mode | default('unique') }}"
+
+  when: es_config_contents is undefined
+  changed_when: no
+
+- copy:
+    content: "{{ es_logging_contents }}"
+    dest: "{{ tempdir }}/elasticsearch-logging.yml"
+  when: es_logging_contents is defined
+  changed_when: no
+
+- copy:
+    content: "{{ es_config_contents }}"
+    dest: "{{ tempdir }}/elasticsearch.yml"
+  when: es_config_contents is defined
+  changed_when: no
+
+- name: Set ES configmap
+  oc_configmap:
+    state: present
+    name: "{{ elasticsearch_name }}"
+    namespace: "{{ openshift_logging_elasticsearch_namespace }}"
+    from_file:
+      elasticsearch.yml: "{{ tempdir }}/elasticsearch.yml"
+      logging.yml: "{{ tempdir }}/elasticsearch-logging.yml"
+
+
+# secret
+## TODO: come back to here...
+- name: Set ES secret
+  oc_secret:
+    state: present
+    name: "logging-elasticsearch"
+    namespace: "{{ openshift_logging_elasticsearch_namespace }}"
+    files:
+      - name: key
+        path: "{{ generated_certs_dir }}/logging-es.jks"
+      - name: truststore
+        path: "{{ generated_certs_dir }}/truststore.jks"
+      - name: searchguard.key
+        path: "{{ generated_certs_dir }}/elasticsearch.jks"
+      - name: searchguard.truststore
+        path: "{{ generated_certs_dir }}/truststore.jks"
+      - name: admin-key
+        path: "{{ generated_certs_dir }}/system.admin.key"
+      - name: admin-cert
+        path: "{{ generated_certs_dir }}/system.admin.crt"
+      - name: admin-ca
+        path: "{{ generated_certs_dir }}/ca.crt"
+      - name: admin.jks
+        path: "{{ generated_certs_dir }}/system.admin.jks"
+
+# services
+- name: Set logging-es-cluster service
+  k8s_v1_service:
+    state: present
+    name: logging-es-cluster
+    namespace: "{{ logging_namespace }}"
+    spec_selector:
+      component: es
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - port: 9300
+
+- name: Set logging-es service
+  k8s_v1_service:
+    state: present
+    name: logging-es
+    namespace: "{{ logging_namespace }}"
+    spec_selector:
+      component: es
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - port: 9200
+        targetPort: "restapi"
+
+- name: Set logging-es-prometheus service
+  k8s_v1_service:
+    state: present
+    name: logging-es-prometheus
+    namespace: "{{ logging_namespace }}"
+    annotations: {'service.alpha.openshift.io/serving-cert-secret-name': 'prometheus-tls', 'prometheus.io/scrape': 'true', 'prometheus.io/scheme': 'https', 'prometheus.io/path': '_prometheus/metrics'}
+    spec_selector:
+      component: es-prometheus
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - name: proxy
+        port: 443
+        targetPort: 4443
+
+# Storage
+# PVC
+## TODO: figure this out
+- name: Check to see if PVC already exists
+  oc_obj:
+    state: list
+    kind: pvc
+    name: "{{ openshift_logging_elasticsearch_pvc_name }}"
+    namespace: "{{ openshift_logging_elasticsearch_namespace }}"
+  register: logging_elasticsearch_pvc
+
+# logging_elasticsearch_pvc.results.results | length > 0 returns a false positive
+# so we check for the presence of 'stderr' to determine if the obj exists or not
+# the RC for existing and not existing is both 0
+- when:
+    - logging_elasticsearch_pvc.results.stderr is defined
+    - openshift_logging_elasticsearch_storage_type == "pvc"
+  block:
+    # storageclasses are used by default but if static then disable
+    # storageclasses with the storageClassName set to "" in pvc.j2
+    - name: Creating ES storage template - static
+      template:
+        src: pvc.j2
+        dest: "{{ tempdir }}/templates/logging-es-pvc.yml"
+      vars:
+        obj_name: "{{ openshift_logging_elasticsearch_pvc_name }}"
+        size: "{{ (openshift_logging_elasticsearch_pvc_size | trim | length == 0) | ternary('10Gi', openshift_logging_elasticsearch_pvc_size) }}"
+        access_modes: "{{ openshift_logging_elasticsearch_pvc_access_modes | list }}"
+        pv_selector: "{{ openshift_logging_elasticsearch_pvc_pv_selector }}"
+        storage_class_name: "{{ openshift_logging_elasticsearch_pvc_storage_class_name | default('', true) }}"
+      when:
+        - not openshift_logging_elasticsearch_pvc_dynamic | bool
+
+    # Storageclasses are used by default if configured
+    - name: Creating ES storage template - dynamic
+      template:
+        src: pvc.j2
+        dest: "{{ tempdir }}/templates/logging-es-pvc.yml"
+      vars:
+        obj_name: "{{ openshift_logging_elasticsearch_pvc_name }}"
+        size: "{{ (openshift_logging_elasticsearch_pvc_size | trim | length == 0) | ternary('10Gi', openshift_logging_elasticsearch_pvc_size) }}"
+        access_modes: "{{ openshift_logging_elasticsearch_pvc_access_modes | list }}"
+        pv_selector: "{{ openshift_logging_elasticsearch_pvc_pv_selector }}"
+      when:
+        - openshift_logging_elasticsearch_pvc_dynamic | bool
+
+    - name: Set ES storage
+      oc_obj:
+        state: present
+        kind: pvc
+        name: "{{ openshift_logging_elasticsearch_pvc_name }}"
+        namespace: "{{ openshift_logging_elasticsearch_namespace }}"
+        files:
+          - "{{ tempdir }}/templates/logging-es-pvc.yml"
+        delete_after: true
+
+- set_fact:
+    es_deploy_name: "logging-{{ es_component }}-{{ openshift_logging_elasticsearch_deployment_type }}-{{ 8 | oo_random_word('abcdefghijklmnopqrstuvwxyz0123456789') }}"
+  when: openshift_logging_elasticsearch_deployment_name == ""
+
+- set_fact:
+    es_deploy_name: "{{ openshift_logging_elasticsearch_deployment_name }}"
+  when: openshift_logging_elasticsearch_deployment_name != ""
+
+# DC
+- name: Create ES deployment config
+  openshift_v1_deployment_config:
+    state: present
+    name: "{{ deploy_name }}"
+    namespace: "{{ logging_namespace }}"
+    labels:
+      provider: openshift
+      component: "{{ component }}"
+      deployment: "{{ deploy_name }}"
+      logging-infra: "{{ logging_component }}"
+    spec_replicas: "{{ es_replicas | default(1) }}"
+    spec_selector:
+      provider: openshift
+      component: "{{ component }}"
+      deployment: "{{ deploy_name }}"
+      logging-infra: "{{ logging_component }}"
+    spec_strategy_type: Recreate
+    spec_template_metadata_name: "{{ deploy_name }}"
+    spec_template_metadata_labels:
+      logging-infra: "{{ logging_component }}"
+      provider: openshift
+      component: "{{ component }}"
+      deployment: "{{ deploy_name }}"
+    spec_template_spec_termination_grace_period_seconds: 600
+    spec_template_spec_service_account_name: aggregated-logging-elasticsearch
+    spec_template_spec_security_context_supplemental_groups: "{{ es_storage_groups | list }}"
+    spec_template_spec_node_selector: "{{ es_node_selector | default({}) }}"
+    spec_template_spec_volumes:
+      volumes:
+        - name: proxy-tls
+          secret:
+            secretName: prometheus-tls
+        - name: elasticsearch
+          secret:
+            secretName: logging-elasticsearch
+        - name: elasticsearch-config
+          configMap:
+            name: logging-elasticsearch
+        - name: elasticsearch-storage
+{% if openshift_logging_elasticsearch_storage_type == 'pvc' %}
+          persistentVolumeClaim:
+            claimName: {{ openshift_logging_elasticsearch_pvc_name }}
+{% elif openshift_logging_elasticsearch_storage_type == 'hostmount' %}
+          hostPath:
+            path: {{ openshift_logging_elasticsearch_hostmount_path }}
+{% else %}
+          emptydir: {}
+    spec_template_spec_containers:
+      - name: proxy
+        image: {{ proxy_image }}
+        imagePullPolicy: IfNotPresent
+        args:
+         - --upstream-ca=/etc/elasticsearch/secret/admin-ca
+         - --https-address=:4443
+         - -provider=openshift
+         - -client-id={{ openshift_logging_elasticsearch_prometheus_sa }}
+         - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+         - -cookie-secret={{ 16 | oo_random_word | b64encode }}
+         - -upstream=https://localhost:9200
+         - '-openshift-sar={"namespace": "{{ openshift_logging_elasticsearch_namespace }}", "verb": "view", "resource": "prometheus", "group": "metrics.openshift.io"}'
+         - '-openshift-delegate-urls={"/": {"resource": "prometheus", "verb": "view", "group": "metrics.openshift.io", "namespace": "{{ openshift_logging_elasticsearch_namespace }}"}}'
+         - --tls-cert=/etc/tls/private/tls.crt
+         - --tls-key=/etc/tls/private/tls.key
+         - -pass-access-token
+         - -pass-user-headers
+        ports:
+        - containerPort: 4443
+          name: proxy
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: proxy-tls
+          readOnly: true
+        - mountPath: /etc/elasticsearch/secret
+          name: elasticsearch
+          readOnly: true
+        resources:
+          limits:
+            memory: "{{ openshift_logging_elasticsearch_proxy_memory_limit }}"
+          requests:
+            cpu: "{{ openshift_logging_elasticsearch_proxy_cpu_request }}"
+            memory: "{{ openshift_logging_elasticsearch_proxy_memory_limit }}"
+      -
+        name: "elasticsearch"
+        image: {{ image }}
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+{% if es_cpu_limit is defined and es_cpu_limit is not none and es_cpu_limit != '' %}
+            cpu: "{{ es_cpu_limit }}"
+{% endif %}
+            memory: "{{ es_memory_limit }}"
+          requests:
+            cpu: "{{ es_cpu_request }}"
+            memory: "{{ es_memory_limit }}"
+{% if es_container_security_context %}
+        securityContext: {{ es_container_security_context | to_yaml }}
+{% endif %}
+        ports:
+          -
+            containerPort: 9200
+            name: "restapi"
+          -
+            containerPort: 9300
+            name: "cluster"
+        env:
+          -
+            name: "DC_NAME"
+            value: "{{ deploy_name }}"
+          -
+            name: "NAMESPACE"
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          -
+            name: "KUBERNETES_TRUST_CERT"
+            value: "true"
+          -
+            name: "SERVICE_DNS"
+            value: "logging-{{ es_cluster_name }}-cluster"
+          -
+            name: "CLUSTER_NAME"
+            value: "logging-{{ es_cluster_name }}"
+          -
+            name: "INSTANCE_RAM"
+            value: "{{ openshift_logging_elasticsearch_memory_limit }}"
+          -
+            name: "HEAP_DUMP_LOCATION"
+            value: "/elasticsearch/persistent/heapdump.hprof"
+          -
+            name: "NODE_QUORUM"
+            value: "{{ es_node_quorum | int }}"
+          -
+            name: "RECOVER_EXPECTED_NODES"
+            value: "{{ es_recover_expected_nodes }}"
+          -
+            name: "RECOVER_AFTER_TIME"
+            value: "{{ openshift_logging_elasticsearch_recover_after_time }}"
+          -
+            name: "READINESS_PROBE_TIMEOUT"
+            value: "30"
+          -
+            name: "POD_LABEL"
+            value: "component={{ component }}"
+          -
+            name: "IS_MASTER"
+            value: "{% if deploy_type in ['data-master', 'master'] %}true{% else %}false{% endif %}"
+
+          -
+            name: "HAS_DATA"
+            value: "{% if deploy_type in ['data-master', 'data-client'] %}true{% else %}false{% endif %}"
+          -
+            name: "PROMETHEUS_USER"
+            value: "{{ openshift_logging_elasticsearch_prometheus_sa }}"
+
+        volumeMounts:
+          - name: elasticsearch
+            mountPath: /etc/elasticsearch/secret
+            readOnly: true
+          - name: elasticsearch-config
+            mountPath: /usr/share/java/elasticsearch/config
+            readOnly: true
+          - name: elasticsearch-storage
+            mountPath: /elasticsearch/persistent
+        readinessProbe:
+          exec:
+            command:
+            - "/usr/share/java/elasticsearch/probe/readiness.sh"
+          initialDelaySeconds: 10
+          timeoutSeconds: 30
+          periodSeconds: 5
+
+
+# Route
+## TODO: Figure out cert dir being mounted
+- name: Retrieving the cert to use when generating secrets for the {{ es_component }} component
+  slurp:
+    src: "{{ generated_certs_dir }}/{{ item.file }}"
+  register: key_pairs
+  with_items:
+    - { name: "ca_file", file: "ca.crt" }
+    - { name: "es_key", file: "system.logging.es.key" }
+    - { name: "es_cert", file: "system.logging.es.crt" }
+  when: openshift_logging_es_allow_external | bool
+
+- set_fact:
+    es_key: "{{ lookup('file', openshift_logging_es_key) | b64encode }}"
+  when:
+    - openshift_logging_es_key | trim | length > 0
+    - openshift_logging_es_allow_external | bool
+  changed_when: false
+
+- set_fact:
+    es_cert: "{{ lookup('file', openshift_logging_es_cert) | b64encode  }}"
+  when:
+    - openshift_logging_es_cert | trim | length > 0
+    - openshift_logging_es_allow_external | bool
+  changed_when: false
+
+- set_fact:
+    es_ca: "{{ lookup('file', openshift_logging_es_ca_ext) | b64encode  }}"
+  when:
+    - openshift_logging_es_ca_ext | trim | length > 0
+    - openshift_logging_es_allow_external | bool
+  changed_when: false
+
+- set_fact:
+    es_ca: "{{ key_pairs | entry_from_named_pair('ca_file') }}"
+  when:
+    - es_ca is not defined
+    - openshift_logging_es_allow_external | bool
+  changed_when: false
+
+
+# External route
+- name: Creating Elasticsearch es route
+  openshift_v1_route:
+    name: logging-es
+    namespace: "{{ logging_namespace }}"
+    state: present
+    labels:
+      component: support
+      logging-infra: support
+      provider: openshift
+    spec_host: "{{ logging_es_hostname }}"
+    spec_tls_termination: reencrypt
+    spec_tls_insecure_edge_termination_policy: "{{ logging_es_edge_term_policy | default() }}"
+    spec_to_kind: Service
+    spec_to_name: logging-es
+    spec_tls_key: "{{ path_to_key }}"
+    spec_tls_certificate: "{{ path_to_cert }}"
+    spec_tls_ca_certificate: "{{ path_to_ca_cert }}"
+    spec_tls_destination_ca_certificate: "{{ path_to_dest_ca_cert }}"
+  when: logging_allow_external | bool
+
+## Placeholder for migration when necessary ##
