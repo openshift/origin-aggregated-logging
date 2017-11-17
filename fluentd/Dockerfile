@@ -1,4 +1,4 @@
-FROM rhel7:7-released
+FROM rhscl/ruby-24-rhel7:latest
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -16,7 +16,7 @@ ENV DATA_VERSION=1.6.0 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
-    RUBY_VERSION=2.0
+    RUBY_VERSION=2.4
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
       io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
@@ -26,6 +26,8 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       version="v3.7.0" \
       release="1" \
       architecture=x86_64
+
+ARG SCL_VERSION=rh-ruby24
 
 RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
@@ -48,7 +50,8 @@ ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
 COPY lib/*.gem /tmp/
-RUN cd /tmp/ && gem install -N --conservative --minimal-deps --no-ri --no-doc \
+RUN cd /tmp/ && scl enable ${SCL_VERSION} -- \
+    gem install -N --conservative --minimal-deps --no-ri --no-doc \
     --local fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem \
     fluent-plugin-record-modifier-${FLUENTD_RECORD_MODIFIER}.gem && \
     rm /tmp/*.gem
