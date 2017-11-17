@@ -132,15 +132,16 @@
   when: es_config_contents is defined
   changed_when: no
 
-- name: Set ES configmap
-  oc_configmap:
+- name: Create ES configmap
+  k8s_v1_config_map:
     state: present
+    namespace: "{{ logging_namespace }}"
     name: "{{ elasticsearch_name }}"
-    namespace: "{{ openshift_logging_elasticsearch_namespace }}"
-    from_file:
-      elasticsearch.yml: "{{ tempdir }}/elasticsearch.yml"
-      logging.yml: "{{ tempdir }}/elasticsearch-logging.yml"
-
+    labels:
+      logging-infra: 'support'
+    data:
+      elasticsearch.yml: "{{ lookup('FILE', tempdir ~ '/elasticsearch.yml') | to_yaml }}"
+      logging.yml: "{{ lookup('FILE', tempdir ~ '/elasticsearch-logging.yml') | to_yaml }}"
 
 # secret
 ## TODO: come back to here...
@@ -189,14 +190,14 @@
       - port: 9200
         targetPort: "restapi"
 
-- name: Set logging-es-prometheus service
+- name: Set logging-{{ component }}-prometheus service
   k8s_v1_service:
     state: present
-    name: logging-es-prometheus
+    name: "logging-{{ component }}-prometheus"
     namespace: "{{ logging_namespace }}"
     annotations: {'service.alpha.openshift.io/serving-cert-secret-name': 'prometheus-tls', 'prometheus.io/scrape': 'true', 'prometheus.io/scheme': 'https', 'prometheus.io/path': '_prometheus/metrics'}
     spec_selector:
-      component: es-prometheus
+      component: "{{ component }}"
       provider: openshift
     labels:
       logging-infra: 'support'
@@ -205,248 +206,11 @@
         port: 443
         targetPort: 4443
 
-# Storage
-# PVC
-## TODO: figure this out
 
-# If we already have a DC -- check if that has a pvc -- use that
-# if we don't, then check for unbound PVC by label
-# if not, create one
+# We can loop over this here so that we can create multiple DC and match storage
+# should get facts on current DC for looping here?
+- include: dc_storage_provision.yml
 
-
-- name: Check to see if PVC already exists
-  oc_obj:
-    state: list
-    kind: pvc
-    name: "{{ openshift_logging_elasticsearch_pvc_name }}"
-    namespace: "{{ openshift_logging_elasticsearch_namespace }}"
-  register: logging_elasticsearch_pvc
-
-# logging_elasticsearch_pvc.results.results | length > 0 returns a false positive
-# so we check for the presence of 'stderr' to determine if the obj exists or not
-# the RC for existing and not existing is both 0
-- when:
-    - logging_elasticsearch_pvc.results.stderr is defined
-    - openshift_logging_elasticsearch_storage_type == "pvc"
-  block:
-    # storageclasses are used by default but if static then disable
-    # storageclasses with the storageClassName set to "" in pvc.j2
-    - name: Creating ES storage template - static
-      template:
-        src: pvc.j2
-        dest: "{{ tempdir }}/templates/logging-es-pvc.yml"
-      vars:
-        obj_name: "{{ openshift_logging_elasticsearch_pvc_name }}"
-        size: "{{ (openshift_logging_elasticsearch_pvc_size | trim | length == 0) | ternary('10Gi', openshift_logging_elasticsearch_pvc_size) }}"
-        access_modes: "{{ openshift_logging_elasticsearch_pvc_access_modes | list }}"
-        pv_selector: "{{ openshift_logging_elasticsearch_pvc_pv_selector }}"
-        storage_class_name: "{{ openshift_logging_elasticsearch_pvc_storage_class_name | default('', true) }}"
-      when:
-        - not openshift_logging_elasticsearch_pvc_dynamic | bool
-
-    # Storageclasses are used by default if configured
-    - name: Creating ES storage template - dynamic
-      template:
-        src: pvc.j2
-        dest: "{{ tempdir }}/templates/logging-es-pvc.yml"
-      vars:
-        obj_name: "{{ openshift_logging_elasticsearch_pvc_name }}"
-        size: "{{ (openshift_logging_elasticsearch_pvc_size | trim | length == 0) | ternary('10Gi', openshift_logging_elasticsearch_pvc_size) }}"
-        access_modes: "{{ openshift_logging_elasticsearch_pvc_access_modes | list }}"
-        pv_selector: "{{ openshift_logging_elasticsearch_pvc_pv_selector }}"
-      when:
-        - openshift_logging_elasticsearch_pvc_dynamic | bool
-
-    - name: Set ES storage
-      oc_obj:
-        state: present
-        kind: pvc
-        name: "{{ openshift_logging_elasticsearch_pvc_name }}"
-        namespace: "{{ openshift_logging_elasticsearch_namespace }}"
-        files:
-          - "{{ tempdir }}/templates/logging-es-pvc.yml"
-        delete_after: true
-
-- set_fact:
-    deploy_name: "logging-{{ es_component }}-{{ openshift_logging_elasticsearch_deployment_type }}-{{ 8 | oo_random_word('abcdefghijklmnopqrstuvwxyz0123456789') }}"
-  when: openshift_logging_elasticsearch_deployment_name == ""
-
-- set_fact:
-    deploy_name: "{{ openshift_logging_elasticsearch_deployment_name }}"
-  when: openshift_logging_elasticsearch_deployment_name != ""
-
-# DC
-- name: Create ES deployment config
-  openshift_v1_deployment_config:
-    state: present
-    name: "{{ deploy_name }}"
-    namespace: "{{ logging_namespace }}"
-    labels:
-      provider: openshift
-      component: "{{ component }}"
-      deployment: "{{ deploy_name }}"
-      logging-infra: "{{ logging_component }}"
-    spec_replicas: "{{ es_replicas | default(1) }}"
-    spec_selector:
-      provider: openshift
-      component: "{{ component }}"
-      deployment: "{{ deploy_name }}"
-      logging-infra: "{{ logging_component }}"
-    spec_strategy_type: Recreate
-    spec_template_metadata_name: "{{ deploy_name }}"
-    spec_template_metadata_labels:
-      logging-infra: "{{ logging_component }}"
-      provider: openshift
-      component: "{{ component }}"
-      deployment: "{{ deploy_name }}"
-    spec_template_spec_termination_grace_period_seconds: 600
-    spec_template_spec_service_account_name: aggregated-logging-elasticsearch
-    spec_template_spec_security_context_supplemental_groups: "{{ es_storage_groups | list }}"
-    spec_template_spec_node_selector: "{{ es_node_selector | default({}) }}"
-    spec_template_spec_volumes:
-      volumes:
-        - name: proxy-tls
-          secret:
-            secretName: prometheus-tls
-        - name: elasticsearch
-          secret:
-            secretName: logging-elasticsearch
-        - name: elasticsearch-config
-          configMap:
-            name: logging-elasticsearch
-        - name: elasticsearch-storage
-{% if openshift_logging_elasticsearch_storage_type == 'pvc' %}
-          persistentVolumeClaim:
-            claimName: {{ openshift_logging_elasticsearch_pvc_name }}
-{% elif openshift_logging_elasticsearch_storage_type == 'hostmount' %}
-          hostPath:
-            path: {{ openshift_logging_elasticsearch_hostmount_path }}
-{% else %}
-          emptydir: {}
-    spec_template_spec_containers:
-      - name: proxy
-        image: {{ proxy_image }}
-        imagePullPolicy: IfNotPresent
-        args:
-         - --upstream-ca=/etc/elasticsearch/secret/admin-ca
-         - --https-address=:4443
-         - -provider=openshift
-         - -client-id={{ openshift_logging_elasticsearch_prometheus_sa }}
-         - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
-         - -cookie-secret={{ 16 | oo_random_word | b64encode }}
-         - -upstream=https://localhost:9200
-         - '-openshift-sar={"namespace": "{{ openshift_logging_elasticsearch_namespace }}", "verb": "view", "resource": "prometheus", "group": "metrics.openshift.io"}'
-         - '-openshift-delegate-urls={"/": {"resource": "prometheus", "verb": "view", "group": "metrics.openshift.io", "namespace": "{{ openshift_logging_elasticsearch_namespace }}"}}'
-         - --tls-cert=/etc/tls/private/tls.crt
-         - --tls-key=/etc/tls/private/tls.key
-         - -pass-access-token
-         - -pass-user-headers
-        ports:
-        - containerPort: 4443
-          name: proxy
-          protocol: TCP
-        volumeMounts:
-        - mountPath: /etc/tls/private
-          name: proxy-tls
-          readOnly: true
-        - mountPath: /etc/elasticsearch/secret
-          name: elasticsearch
-          readOnly: true
-        resources:
-          limits:
-            memory: "{{ openshift_logging_elasticsearch_proxy_memory_limit }}"
-          requests:
-            cpu: "{{ openshift_logging_elasticsearch_proxy_cpu_request }}"
-            memory: "{{ openshift_logging_elasticsearch_proxy_memory_limit }}"
-      -
-        name: "elasticsearch"
-        image: {{ image }}
-        imagePullPolicy: IfNotPresent
-        resources:
-          limits:
-{% if es_cpu_limit is defined and es_cpu_limit is not none and es_cpu_limit != '' %}
-            cpu: "{{ es_cpu_limit }}"
-{% endif %}
-            memory: "{{ es_memory_limit }}"
-          requests:
-            cpu: "{{ es_cpu_request }}"
-            memory: "{{ es_memory_limit }}"
-{% if es_container_security_context %}
-        securityContext: {{ es_container_security_context | to_yaml }}
-{% endif %}
-        ports:
-          -
-            containerPort: 9200
-            name: "restapi"
-          -
-            containerPort: 9300
-            name: "cluster"
-        env:
-          -
-            name: "DC_NAME"
-            value: "{{ deploy_name }}"
-          -
-            name: "NAMESPACE"
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          -
-            name: "KUBERNETES_TRUST_CERT"
-            value: "true"
-          -
-            name: "SERVICE_DNS"
-            value: "logging-{{ es_cluster_name }}-cluster"
-          -
-            name: "CLUSTER_NAME"
-            value: "logging-{{ es_cluster_name }}"
-          -
-            name: "INSTANCE_RAM"
-            value: "{{ openshift_logging_elasticsearch_memory_limit }}"
-          -
-            name: "HEAP_DUMP_LOCATION"
-            value: "/elasticsearch/persistent/heapdump.hprof"
-          -
-            name: "NODE_QUORUM"
-            value: "{{ es_node_quorum | int }}"
-          -
-            name: "RECOVER_EXPECTED_NODES"
-            value: "{{ es_recover_expected_nodes }}"
-          -
-            name: "RECOVER_AFTER_TIME"
-            value: "{{ openshift_logging_elasticsearch_recover_after_time }}"
-          -
-            name: "READINESS_PROBE_TIMEOUT"
-            value: "30"
-          -
-            name: "POD_LABEL"
-            value: "component={{ component }}"
-          -
-            name: "IS_MASTER"
-            value: "{% if deploy_type in ['data-master', 'master'] %}true{% else %}false{% endif %}"
-
-          -
-            name: "HAS_DATA"
-            value: "{% if deploy_type in ['data-master', 'data-client'] %}true{% else %}false{% endif %}"
-          -
-            name: "PROMETHEUS_USER"
-            value: "{{ openshift_logging_elasticsearch_prometheus_sa }}"
-
-        volumeMounts:
-          - name: elasticsearch
-            mountPath: /etc/elasticsearch/secret
-            readOnly: true
-          - name: elasticsearch-config
-            mountPath: /usr/share/java/elasticsearch/config
-            readOnly: true
-          - name: elasticsearch-storage
-            mountPath: /elasticsearch/persistent
-        readinessProbe:
-          exec:
-            command:
-            - "/usr/share/java/elasticsearch/probe/readiness.sh"
-          initialDelaySeconds: 10
-          timeoutSeconds: 30
-          periodSeconds: 5
 
 
 # External route
