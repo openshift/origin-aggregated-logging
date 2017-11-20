@@ -30,11 +30,14 @@ RUN mkdir -p ${HOME} && \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       'public_suffix:<3' \
+      'elasticsearch-transport:<5' \
+      'elasticsearch-api:<5' \
+      'elasticsearch:<5' \
       fluent-plugin-kubernetes_metadata_filter \
-      fluent-plugin-elasticsearch \
+      'fluent-plugin-elasticsearch:<2.0.0' \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
-      fluent-plugin-rewrite-tag-filter \
+      'fluent-plugin-rewrite-tag-filter:<1.6.0' \
       fluent-plugin-secure-forward \
       fluent-plugin-viaq_data_model \
       excon
@@ -45,6 +48,9 @@ ADD run.sh generate_throttle_configs.rb ${HOME}/
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
+
+RUN mkdir -p /etc/fluent/plugin/
+ADD filter_viaq_level_field.rb /etc/fluent/plugin/
 
 WORKDIR ${HOME}
 USER 0
