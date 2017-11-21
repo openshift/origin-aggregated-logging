@@ -25,7 +25,7 @@ declare -a components=()
 while (($#))
 do
 case $1 in
-    kibana|fluentd|curator|elasticsearch)
+    kibana|fluentd|curator|elasticsearch|project_info)
       components+=($1)
       ;;
     --namespace=*)
@@ -66,6 +66,26 @@ dump_resource_items() {
   done
 }
 
+dump_persistent_volumes() {
+  local expected_pv_size=$(oc get persistentvolumeclaims --no-headers | wc -l)
+  local pv_size=0
+  mkdir $project_folder/persistentvolumes
+  echo -- Extracting logging-es persistentvolumes ...
+  for pv in `oc get persistentvolumes -o 'go-template={{range $pv := .items}}{{if $pv.spec.claimRef}}{{if eq $pv.spec.claimRef.namespace "'${NAMESPACE}'"}}{{$pv.metadata.name}}{{end}}{{end}}{{end}}'`
+  do
+    oc get persistentvolumes $pv -o yaml > $project_folder/persistentvolumes/$pv
+    pv_size=$((pv_size + 1))
+  done
+  if [ $pv_size != $expected_pv_size ]
+  then
+    echo -- Extracting unbound persistentvolumes ...
+    for pv in `oc get persistentvolumes -o jsonpath='{.items[?(@.status.phase != "Bound")].metadata.name}'`
+    do
+      oc get persistentvolumes $pv -o yaml > $project_folder/persistentvolumes/$pv
+    done
+  fi
+}
+
 check_project_info() {
   mkdir $project_folder
   echo Getting general objects
@@ -79,12 +99,13 @@ check_project_info() {
   echo -- Secrets
   oc describe secrets > $project_folder/secrets
 
-  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumes persistentvolumeclaims pods)
+  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods)
   for resource_type in ${resource_types[@]}
   do
     echo -- Extracting $resource_type ...
     dump_resource_items $resource_type
   done
+  dump_persistent_volumes
 }
 
 get_env() {
@@ -100,7 +121,7 @@ get_env() {
       oc exec $pod -c $container -- grep -o "\"build-date\"=\"[^[:blank:]]*\"" $dockerfile >> $env_file || echo ---- Unable to get build date
     fi
     echo -- Environment Variables >> $env_file
-    oc exec $pod -c $container -- env >> $env_file
+    oc exec $pod -c $container -- env | sort >> $env_file
   done
 }
 
@@ -115,7 +136,7 @@ get_pod_logs() {
   local containers=$(oc get po $pod -o jsonpath='{.spec.containers[*].name}')
   for container in $containers
   do
-    oc logs $pod -c $container > $logs_folder/$pod-$container.log || oc logs $pod > $logs_folder/$pod-$container.log || echo ---- Unable to get logs from pod $pod and container $container
+    oc logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
   done
 }
 
@@ -140,6 +161,18 @@ check_fluentd_connectivity() {
   fi
 }
 
+check_fluentd_persistence() {
+  local pod=$1
+  echo --Persistence stats for pod $pod >> $fluentd_folder/$pod
+  fbstoragePath=$(oc get daemonset logging-fluentd -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="filebufferstorage")].mountPath}')
+  if [ -z "$fbstoragePath" ] ; then
+    echo No filebuffer storage defined >>  $fluentd_folder/$pod
+  else
+    oc exec $pod -- df -h $fbstoragePath >> $fluentd_folder/$pod
+    oc exec $pod -- ls -lr $fbstoragePath >> $fluentd_folder/$pod
+  fi
+}
+
 check_fluentd() {
   echo -- Checking Fluentd health
   fluentd_pods=$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name})
@@ -150,6 +183,7 @@ check_fluentd() {
     get_env $pod $fluentd_folder
     get_pod_logs $pod $fluentd_folder
     check_fluentd_connectivity $pod
+    check_fluentd_persistence $pod
   done
 }
 
@@ -221,11 +255,14 @@ get_elasticsearch_status() {
   local cluster_folder=$es_folder/cluster-$comp
   mkdir $cluster_folder
   curl_es='curl -s --max-time 5 --key /etc/elasticsearch/secret/admin-key --cert /etc/elasticsearch/secret/admin-cert --cacert /etc/elasticsearch/secret/admin-ca https://localhost:9200'
-  local cat_items=(health nodes indices aliases thread_pool)
+  local cat_items=(health nodes aliases thread_pool)
   for cat_item in ${cat_items[@]}
   do
     oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
   done
+  oc exec $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
+  oc exec $pod -- $curl_es/_search?sort=@timestamp:desc\&pretty > $cluster_folder/latest_documents.json
+  oc exec $pod -- $curl_es/_nodes/stats?pretty > $cluster_folder/nodes_stats.json
   local health=$(oc exec $pod -- $curl_es/_cat/health?h=status)
   if [ -z "$health" ]
   then
@@ -240,7 +277,26 @@ get_elasticsearch_status() {
     done
     oc exec $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
   fi
+}
 
+get_es_logs() {
+  local pod=$1
+  local logs_folder=$2/logs
+  echo -- POD $1 Elasticsearch Logs
+  if [ ! -d "$logs_folder" ]
+  then
+    mkdir $logs_folder
+  fi
+  local dc_name=$(oc get po $pod -o jsonpath='{.metadata.labels.deploymentconfig}')
+  if [[ $pod == logging-es-ops* ]]
+  then
+    path=/elasticsearch/logging-es-ops/logs
+  else
+    path=/elasticsearch/logging-es/logs
+  fi
+  oc rsync -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
+  mv -f $logs_folder/logs $logs_folder/$pod
+  nice xz $logs_folder/$pod/*
 }
 
 list_es_storage() {
@@ -260,6 +316,7 @@ check_elasticsearch() {
     echo ---- Elasticsearch pod: $pod
     get_env $pod $es_folder
     get_pod_logs $pod $es_folder
+    get_es_logs $pod $es_folder
     list_es_storage $pod
   done
 

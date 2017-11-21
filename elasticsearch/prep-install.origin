@@ -9,4 +9,7 @@ fi
 if [ -z "${OSE_ES_URL:-}" ] ; then
     OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
 fi
-es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL)
+if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
+    PROMETHEUS_EXPORTER_URL=file:///tmp/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+fi
+es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL $PROMETHEUS_EXPORTER_URL)

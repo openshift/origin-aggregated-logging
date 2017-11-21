@@ -25,3 +25,13 @@ searchguard:
           challenge: false
         authentication_backend:
           type: noop
+      prometheus_proxy:
+        enabled: true
+        order: 3
+        http_authenticator:
+          challenge: false
+          type: proxy
+          config:
+            user_header: 'x-forwarded-user'
+        authentication_backend:
+          type: noop

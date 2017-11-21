@@ -99,7 +99,7 @@ There are several new Ansible parameters which can be used with the
   to listen for `secure_forward` protocol log messages
 
 Other parameters are similar to parameters for the other components, for
-example `openshift_logging_mux_cpu_limit`,
+example `openshift_logging_mux_cpu_request`,
 `openshift_logging_mux_memory_limit`, `openshift_logging_mux_replica_count`,
 `openshift_logging_mux_nodeselector`
 
@@ -216,7 +216,9 @@ from whichever of these it is configured to read from.
 using the ViaQ data model (i.e. the `kubernetes` and `docker` namespaces).
 
 `Filter syslog` takes the `/var/log/messages` or journald system log input and
-formats it using the ViaQ data model (i.e. the `systemd` namespace).
+formats it using the ViaQ data model (i.e. the `systemd` namespace).  **NOTE**
+reading from `/var/log/messages` is no longer supported.  `journald` is always
+used for system logs.
 
 `Filter k8s meta` looks up Kubernetes metadata for container log records from
 the Kubernetes server such as namespace\_uuid, pod\_uuid, labels, and
@@ -319,6 +321,16 @@ TLS server `cert` and `key`, as well as the `ca` cert and the `shared_key`.
 These records are sent to the `@MUX` label.  The first thing here is this
 filter:
 
+    <match journal>
+      @type relabel
+      @label @INGRESS
+    </match>
+
+Records tagged with `journal` are "raw" records from a Fluentd running in
+`minimal` mode.  Just send these to `@INGRESS` for regular processing.
+
+The next filter is this:
+
     <filter kubernetes.var.log.containers.**>
 
 Since mux has no way to know if the Kubernetes records were read from
@@ -332,19 +344,15 @@ the `json-file` Fluentd tags.
 
 The next stage in the pipeline is this match:
 
-    <match journal system.var.log.messages system.var.log.messages.** kubernetes.var.log.containers.**>
+    <match system.var.log.messages** kubernetes.** journal.container** journal.system**>
 
-This uses the `relabel` plugin to redirect the standard OpenShift logging tags
-to their usual destination via the `@INGRESS` label.
-
-The next stage in the pipeline is this match:
-
-    <match journal.container** journal.system>
-
-Records with these tags are operations logs and have already been processed and
-formatted by an OpenShift Fluentd.  These are retagged with `mux.ops` and sent
-to the `@INGRESS` label, where they will skip the filtering stages and go to
-the output stages.
+If this record has already been processed by Fluentd e.g. in
+`MUX_CLIENT_MODE=maximal` then tag it so that it will be processed by the k8s
+plugin (if `kubernetes.**`), and have an index name created for it, but will
+not be processed in any other way.  Assume that if the record has the
+`@timestamp` field then it has already been processed, and tag it with a `.mux`
+suffix.  Otherwise, assume it is a raw record, tag it with a `.raw` suffix, and
+redirect to `@INGRESS` processing.
 
 The next stage in the pipeline is this filter:
 
@@ -356,11 +364,7 @@ the value of `namespacename` if it is in that form, or `mux-undefined`
 otherwise.  This also examines the record to see if the
 `kubernetes.metadata_uuid` field exists and has a value, to see if the record
 can bypass the k8s metadata plugin, and adds the field `mux_need_k8s_meta` with
-a value of `true` or `false`.  This also handles logs coming from inside the
-cluster that have been sent from a fluentd running in
-`MUX_CLIENT_MODE=maximal`.  In that case, the records will not have a
-`project.*` tag, but will have a `kubernetes.*` tag and/or fields
-such as `CONTAINER_NAME` which will be used to perform the k8s metadata lookup.
+a value of `true` or `false`.
 
 The next stage in the pipeline is a rewrite tag filter:
 
@@ -369,34 +373,44 @@ The next stage in the pipeline is a rewrite tag filter:
 If `mux_need_k8s_meta` is `false`, the tag is rewritten to be `mux`.  This
 causes all further filtering to be bypassed (except for the viaq filter).  If
 `mux_need_k8s_meta` is `true`, the tag is rewritten in the following format:
-`kubernetes.mux.var.log.containers.mux-mux.mux-mux_$1_mux-64digits.log` where
+`kubernetes.var.log.containers.mux-mux.mux-mux_$1_mux-64digits.log.mux` where
 `$1` is the value of the `mux_namespace_name` field.  This tag format was
 chosen because it will match the k8s meta filter plugin match
 
     <filter kubernetes.**>
 
-and will match that plugin's tag match pattern (if for some reason it is using the
-`json-file` method), but it will not match any of the other kubernetes log
-record filters.
+but it will not match any of the other kubernetes log record filters.
 
 Then all records are passed to the `@INGRESS` label, where there are two
 additional mux related filters.  The first one is this:
 
-    <filter kubernetes.mux.var.log.containers.mux-mux.mux-mux_**>
+    <filter kubernetes.var.log.containers.mux-mux.mux-mux_**.mux>
 
 This filter will add the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields to the
 record if they do not already exist so that the k8s meta filter plugin will
-add the Kubernetes `namespace_uuid`, labels, and annotations.
+add the `kubernetes.namespace_id`, labels, and annotations.
 
-The next filter is this:
+The next step is this filter:
 
-    <filter kubernetes.mux.var.log.containers.mux-mux.mux-mux_**>
+    <filter kubernetes.var.log.containers.**.raw>
+
+Records from container `json-file` logs, passed by a Fluentd running in
+`minimal` mode, will not have undergone JSON file parsing of the `log` field,
+and that process will also be skipped in mux since mux runs the k8s meta
+plugin, which normally does the JSON file parsing of the `log` field, in
+`use_journal true` mode, which looks for the `MESSAGE` field instead.  This
+filter does the JSON `log` field parsing.
+
+The ViaQ filter plugin will construct the index name using the fields
+`kubernetes.namespace_name` and `kubernetes.namespace_id` added by the k8s
+meta filter plugin (or by the client), and the `@timestamp` field.
+
+The last mux related filter is this one, run after the ViaQ filter:
+
+    <filter kubernetes.var.log.containers.mux-mux.mux-mux_**.mux>
 
 This filter just strips away the transient fields added by the above
 processing, such as
-`mux_namespace_name,docker,CONTAINER_NAME,CONTAINER_ID_FULL,mux_need_k8s_meta`,
-that we do not want to store in Elasticsearch.
-
-The Elasticsearch output will construct the index name using the fields
-`kubernetes.namespace_name` and `kubernetes.namespace_uuid` added by the k8s
-meta filter plugin (or by the client), and the `@timestamp` field.
+`docker,kubernetes,CONTAINER_NAME,CONTAINER_ID_FULL,mux_namespace_name,mux_need_k8s_meta,namespace_name,namespace_uuid`
+that we do not want to store in Elasticsearch, and are not needed after
+constructing the index name.

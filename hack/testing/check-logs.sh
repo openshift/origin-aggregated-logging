@@ -36,7 +36,7 @@ OAL_KIBANA_COMPONENT="kibana"   \
 OAL_ELASTICSEARCH_SERVICE="logging-es" \
 "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
 
-if [[ $# -eq 1 ]]; then
+if [ "$1" = "true" ]; then
   # There is an ops cluster set up, so we
   # need to verify it's functionality as well.
   USE_JOURNAL="${USE_JOURNAL}"        \

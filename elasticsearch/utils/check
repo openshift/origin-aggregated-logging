@@ -1,0 +1,15 @@
+#!/bin/bash -eu
+#
+# Utility to check the overall state of the cluster via various _cat APIs.
+#
+source es_util_env
+
+date
+$curl_get "$ES_BASE/_cat/health?v"
+$curl_get "$ES_BASE/_cat/nodes?v"
+$curl_get "$ES_BASE/_cat/indices?v" 2>&1 | grep -vE "^green"
+$curl_get "$ES_BASE/_cat/indices?v" 2>&1 | grep "searchguard"
+$curl_get "$ES_BASE/_cat/count?v"
+sleep 5
+$curl_get "$ES_BASE/_cat/count?v"
+date

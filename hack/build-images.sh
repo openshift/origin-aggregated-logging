@@ -21,3 +21,4 @@ OS_BUILD_IMAGE_ARGS="-f elasticsearch/${dockerfile}" os::build::image "${tag_pre
 OS_BUILD_IMAGE_ARGS="-f kibana/${dockerfile}" os::build::image "${tag_prefix}-logging-kibana"               kibana
 OS_BUILD_IMAGE_ARGS="-f curator/${dockerfile}" os::build::image "${tag_prefix}-logging-curator"             curator
 OS_BUILD_IMAGE_ARGS="-f kibana-proxy/${dockerfile}" os::build::image "${tag_prefix}-logging-auth-proxy"     kibana-proxy
+OS_BUILD_IMAGE_ARGS="-f eventrouter/${dockerfile}" os::build::image "${tag_prefix}-logging-eventrouter"     eventrouter

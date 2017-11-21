@@ -30,26 +30,27 @@ docker_uses_journal() {
 }
 
 if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
-    if [ -z "${USE_JOURNAL:-}" -o "${USE_JOURNAL:-}" = true ] ; then
-        if [ -z "${JOURNAL_SOURCE:-}" ] ; then
-            if [ -d /var/log/journal ] ; then
-                export JOURNAL_SOURCE=/var/log/journal
-            else
-                export JOURNAL_SOURCE=/run/log/journal
-            fi
-        fi
-        if [ -z "${USE_JOURNAL:-}" ] ; then
-            if docker_uses_journal ; then
-                export USE_JOURNAL=true
-            else
-                export USE_JOURNAL=false
-            fi
+    if [ -z "${JOURNAL_SOURCE:-}" ] ; then
+        if [ -d /var/log/journal ] ; then
+            export JOURNAL_SOURCE=/var/log/journal
+        else
+            export JOURNAL_SOURCE=/run/log/journal
         fi
     fi
+    if docker_uses_journal ; then
+        export USE_JOURNAL=true
+    else
+        export USE_JOURNAL=false
+    fi
+    unset MUX_FILE_BUFFER_STORAGE_TYPE
 else
     # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
     # for CONTAINER_NAME instead of the kubernetes.var.log.containers.* tag
     export USE_JOURNAL=true
+fi
+
+if [ ! -d /etc/fluent/muxkeys ]; then
+    unset MUX_CLIENT_MODE
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
@@ -69,16 +70,18 @@ if [ "${USE_MUX:-}" = "true" ] ; then
         fi
     done
     rm -f $CFG_DIR/dynamic/input-docker-* $CFG_DIR/dynamic/input-syslog-*
+    # disable systemd input
+    rm -f $CFG_DIR/openshift/input-pre-systemd.conf
+    touch $CFG_DIR/openshift/input-pre-systemd.conf
+    # mux is a normalizer
+    export PIPELINE_TYPE=normalizer
 else
     ruby generate_throttle_configs.rb
     rm -f $CFG_DIR/openshift/*mux*.conf
-    # assume mux doesn't actually read from the journal file
-    if [ "${USE_JOURNAL:-}" = "true" ] ; then
-        # have output plugins handle back pressure
-        # if you want the old behavior to be forced anyway, set env
-        # BUFFER_QUEUE_FULL_ACTION=exception
-        export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
-    fi
+    # have output plugins handle back pressure
+    # if you want the old behavior to be forced anyway, set env
+    # BUFFER_QUEUE_FULL_ACTION=exception
+    export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
 fi
 
 # this is the list of keys to remove when the record is transformed from the raw systemd journald
@@ -93,31 +96,67 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
         # sed assumes CONTAINER_ fields are neither first nor last fields in list
         K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
                                   sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
+        # tell the viaq filter not to construct an elasticsearch index name
+        # for project because we have no kubernetes metadata yet
     fi
     cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     # copy any user defined files, possibly overwriting the standard ones
     if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
-    # rm k8s meta plugin - do not hit the API server
+    # rm k8s meta plugin - do not hit the API server - just do json parsing
     if [ "${MUX_CLIENT_MODE:-}" = maximal -o "${MUX_CLIENT_MODE:-}" = minimal ] ; then
-        rm $CFG_DIR/openshift/filter-k8s-meta.conf
-        touch $CFG_DIR/openshift/filter-k8s-meta.conf
+        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-k8s-meta.conf
     fi
+    # mux clients do not create elasticsearch index names
+    ENABLE_ES_INDEX_NAME=false
 else
     rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
 fi
-export K8S_FILTER_REMOVE_KEYS
+export K8S_FILTER_REMOVE_KEYS ENABLE_ES_INDEX_NAME
+
+if [ -z $ES_HOST ]; then
+    echo "ERROR: Environment variable ES_HOST for Elasticsearch host name is not set."
+    exit 1
+fi
+if [ -z $ES_PORT ]; then
+    echo "ERROR: Environment variable ES_PORT for Elasticsearch port number is not set."
+    exit 1
+fi
+
+# Check the existing main fluent.conf has the @OUTPUT label
+# If it exists, we could use the label and take advantage.
+# If not, give up one output tag per plugin for now.
+output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
 
 # How many outputs?
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     # A fluentd collector configured as a mux client has just one output: sending to a mux.
     NUM_OUTPUTS=1
+    rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf
+    if [ -n "$output_label" ]; then
+        cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
+    fi
 else
-    # fluentd usually has 2 outputs.
-    NUM_OUTPUTS=2
-    if [ "$ES_COPY" = "true" ]; then
-        NUM_OUTPUTS=`expr $NUM_OUTPUTS \* 2`
+    # check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
+    if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
+        # There is one output Elasticsearch
+        NUM_OUTPUTS=1
+        # Disable "output-operations.conf"
+        rm -f $CFG_DIR/openshift/output-operations.conf
+        touch $CFG_DIR/openshift/output-operations.conf
+        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
+        if [ -n "$output_label"  ]; then
+            cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
+        fi
+    else
+        NUM_OUTPUTS=2
+        # Enable "output-es-ops-config.conf in output-operations.conf"
+        cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
+        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
+        if [ -n "$output_label" ]; then
+            cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
+        fi
     fi
 fi
 
@@ -125,10 +164,13 @@ fi
 FILE_BUFFER_PATH=/var/lib/fluentd
 mkdir -p $FILE_BUFFER_PATH
 
-# Get the available disk size; use 1/4 of it
+# Get the available disk size.
 DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
 DF_LIMIT=${DF_LIMIT:-0}
-DF_LIMIT=$(expr $DF_LIMIT / 4) || :
+if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "hostmount" ]; then
+    # Use 1/4 of the disk space for hostmount.
+    DF_LIMIT=$(expr $DF_LIMIT / 4) || :
+fi
 if [ $DF_LIMIT -eq 0 ]; then
     echo "ERROR: No disk space is available for file buffer in $FILE_BUFFER_PATH."
     exit 1
@@ -161,31 +203,6 @@ if [ -z $BUFFER_QUEUE_LIMIT -o $BUFFER_QUEUE_LIMIT -eq 0 ]; then
 fi
 export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT
 
-OPS_COPY_HOST="${OPS_COPY_HOST:-$ES_COPY_HOST}"
-OPS_COPY_PORT="${OPS_COPY_PORT:-$ES_COPY_PORT}"
-OPS_COPY_SCHEME="${OPS_COPY_SCHEME:-$ES_COPY_SCHEME}"
-OPS_COPY_CLIENT_CERT="${OPS_COPY_CLIENT_CERT:-$ES_COPY_CLIENT_CERT}"
-OPS_COPY_CLIENT_KEY="${OPS_COPY_CLIENT_KEY:-$ES_COPY_CLIENT_KEY}"
-OPS_COPY_CA="${OPS_COPY_CA:-$ES_COPY_CA}"
-OPS_COPY_USERNAME="${OPS_COPY_USERNAME:-$ES_COPY_USERNAME}"
-OPS_COPY_PASSWORD="${OPS_COPY_PASSWORD:-$ES_COPY_PASSWORD}"
-export OPS_COPY_HOST OPS_COPY_PORT OPS_COPY_SCHEME OPS_COPY_CLIENT_CERT \
-       OPS_COPY_CLIENT_KEY OPS_COPY_CA OPS_COPY_USERNAME OPS_COPY_PASSWORD
-
-if [ "$ES_COPY" = "true" -a -z "${MUX_CLIENT_MODE:-}" ] ; then
-    # user wants to split the output of fluentd into two different elasticsearch
-    # user will provide the necessary COPY environment variables as above
-    cp $CFG_DIR/{openshift,dynamic}/es-copy-config.conf
-    cp $CFG_DIR/{openshift,dynamic}/es-ops-copy-config.conf
-else
-    if [ "$ES_COPY" = "true" ] ; then
-        echo "WARNING: When MUX_CLIENT_MODE is set, logs are forwarded to MUX; COPY won't work with it."
-    fi
-    # create empty files for the ES copy config
-    echo > $CFG_DIR/dynamic/es-copy-config.conf
-    echo > $CFG_DIR/dynamic/es-ops-copy-config.conf
-fi
-
 # http://docs.fluentd.org/v0.12/articles/monitoring
 if [ "${ENABLE_MONITOR_AGENT:-}" = true ] ; then
     cp $CFG_DIR/input-pre-monitor.conf $CFG_DIR/openshift
@@ -215,6 +232,40 @@ if [ "${USE_MUX:-}" = "true" ] ; then
 else
     echo "umounts of dead containers will fail. Ignoring..."
     umount /var/lib/docker/containers/*/shm || :
+fi
+
+if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
+    # The symlink is a workaround for https://github.com/openshift/origin-aggregated-logging/issues/604
+    found=
+    for file in /usr/share/gems/gems/fluent-plugin-remote-syslog-*/lib/fluentd/plugin/*.rb ; do
+        if [ -f "$file" ] ; then
+            ln -s $file /etc/fluent/plugin/
+            found=true
+        fi
+    done
+    if [ -z "${found:-}" ] ; then
+        # not found in rpm location - look in alternate location
+        for file in /opt/app-root/src/gems/fluent-plugin-remote-syslog*/lib/fluentd/plugin/*.rb ; do
+            if [ -f "$file" ] ; then
+                ln -s $file /etc/fluent/plugin/
+            fi
+        done
+    fi
+    if [[ $REMOTE_SYSLOG_HOST ]] ; then
+        ruby generate_syslog_config.rb
+    fi
+fi
+
+if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
+    sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
+fi
+
+if [ "${AUDIT_CONTAINER_ENGINE:-}" = "true" ] ; then
+    cp -f $CFG_DIR/input-pre-audit-log.conf $CFG_DIR/openshift
+    cp -f $CFG_DIR/filter-pre-a-audit-exclude.conf $CFG_DIR/openshift
+else
+    touch $CFG_DIR/openshift/input-pre-audit-log.conf
+    touch $CFG_DIR/openshift/filter-pre-a-audit-exclude.conf
 fi
 
 if [[ $DEBUG ]] ; then
