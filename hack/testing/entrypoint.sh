@@ -19,23 +19,28 @@
 #  - JUNIT_REPORT: generate a jUnit XML report for tests
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
 # HACK HACK HACK
-# There seems to be some sort of performance problem - richm 2017-08-15
-# not sure what has changed, but now running an all-in-one for CI, with both
-# openshift master and node running as systemd services logging to the journal
-#, and the default/logging pods, and the os, are spewing too much for fluentd
-# to keep up with when it has 100m cpu (default), on a aws m4.xlarge system
-# for now, remove the limits on fluentd to unblock the tests
+#
+# There seems to be some sort of performance problem - richm 2017-08-15 not
+# sure what has changed, but now running an all-in-one for CI, with both
+# openshift master and node running as systemd services logging to the
+# journal, and the default/logging pods, and the os, are spewing too much for
+# fluentd to keep up with when it has 100m cpu (default), on a aws m4.xlarge
+# system for now, remove the limits on fluentd to unblock the tests
 oc get -n logging daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
-if [ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" ] ; then
+if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get ds logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
     oc patch -n logging daemonset/logging-fluentd --type=json --patch '[
           {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
 fi
 
 # start a fluentd performance monitor
 monitor_fluentd_top() {
+    # assumes running in a subshell
+    cp $KUBECONFIG $ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
+    export KUBECONFIG=$ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
+    oc project logging > /dev/null
     while true ; do
         fpod=$( get_running_pod fluentd )
         if [ -n "$fpod" ] ; then
@@ -93,9 +98,9 @@ if [[ -n "${JUNIT_REPORT:-}" ]]; then
 	export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
 fi
 
+# if there is a script that is expected to fail, add it here
 expected_failures=(
-	"test-fluentd-forward"
-	"test-upgrade"
+    NONE
 )
 
 function run_suite() {
@@ -107,7 +112,7 @@ function run_suite() {
 	os::test::junit::declare_suite_end
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
-	ops_cluster="true"
+	ops_cluster=${ENABLE_OPS_CLUSTER:-"true"}
 	if "${test}" "${ops_cluster}"; then
 		os::log::info "Logging test suite ${suite_name} succeeded at $( date )"
 		if grep -q "${suite_name}" <<<"${expected_failures[@]}"; then
@@ -123,13 +128,16 @@ function run_suite() {
 	fi
 }
 
-suite_selector="${SUITE:-".*"}"
-for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | sort ); do
+for suite_selector in ${SUITE:-".*"} ; do
+  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | sort ); do
 	run_suite "${test}"
+  done
 done
 
-for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | sort ); do
+for suite_selector in ${SUITE:-".*"} ; do
+  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | sort ); do
 	run_suite "${test}"
+  done
 done
 
 if [[ -n "${failed:-}" ]]; then

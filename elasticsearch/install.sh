@@ -12,9 +12,9 @@ do
 done
 
 #fix location from config
-ln -s ${ES_HOME}/index_templates /usr/share/elasticsearch/index_templates 
-ln -s ${ES_HOME}/index_patterns /usr/share/elasticsearch/index_patterns 
-ln -s ${ES_HOME}/kibana_ui_objects /usr/share/elasticsearch/kibana_ui_objects 
+ln -s ${ES_HOME}/index_templates /usr/share/elasticsearch/index_templates
+ln -s ${ES_HOME}/index_patterns /usr/share/elasticsearch/index_patterns
+ln -s ${ES_HOME}/kibana_ui_objects /usr/share/elasticsearch/kibana_ui_objects
 
 mkdir /elasticsearch
 mkdir -p $ES_CONF

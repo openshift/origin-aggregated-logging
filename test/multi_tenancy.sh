@@ -10,14 +10,14 @@
 # {"query" : {"match_all" : {}}}
 # cat msearch.json | curl https://localhost:9200/_msearch -XPOST --data-binary @-
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/multi_tenancy"
 
-espod=$( oc get pods --selector component=es -o jsonpath='{ .items[*].metadata.name }' )
-esopspod=$( oc get pods --selector component=es-ops -o jsonpath='{ .items[*].metadata.name }' )
+espod=$( get_es_pod es )
+esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
 
 # HACK HACK HACK
@@ -177,4 +177,3 @@ oc project logging > /dev/null
 
 test_user_has_proper_access $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 test_user_has_proper_access $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
-

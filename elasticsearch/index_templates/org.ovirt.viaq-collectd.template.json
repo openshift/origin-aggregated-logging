@@ -2,13 +2,14 @@
   "aliases": {},
   "mappings": {
     "_default_": {
+      "_all": {
+        "enabled": false
+      },
       "_meta": {
-        "version": "2017.07.05.0"
+        "version": "2017.11.11.0"
       },
       "_source": {
-        "excludes": [
-          "collectd.*"
-        ]
+        "enabled": false
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -85,7 +86,7 @@
         },
         "collectd": {
           "properties": {
-            "CPU": {
+            "aggregation": {
               "include_in_all": false,
               "properties": {
                 "percent": {
@@ -95,7 +96,7 @@
                 }
               }
             },
-            "aggregation": {
+            "cpu": {
               "include_in_all": false,
               "properties": {
                 "percent": {
@@ -890,6 +891,104 @@
                 "enabled": true
               },
               "type": "string"
+            },
+            "event": {
+              "properties": {
+                "count": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "integer"
+                },
+                "firstTimestamp": {
+                  "doc_values": true,
+                  "format": "yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
+                  "index": "not_analyzed",
+                  "type": "date"
+                },
+                "involvedObject": {
+                  "properties": {
+                    "apiVersion": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "kind": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "name": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "resourceVersion": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "uid": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    }
+                  }
+                },
+                "metadata": {
+                  "properties": {
+                    "name": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "resourceVersion": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "integer"
+                    },
+                    "selfLink": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    },
+                    "uid": {
+                      "doc_values": true,
+                      "index": "not_analyzed",
+                      "type": "string"
+                    }
+                  }
+                },
+                "reason": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "source_component": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "type": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                },
+                "verb": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              }
             },
             "host": {
               "doc_values": true,

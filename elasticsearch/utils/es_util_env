@@ -5,3 +5,4 @@ if [[ ! -z "${DEBUG:-}" ]]; then
 fi
 
 ES_BASE=${ES_BASE:-https://localhost:9200}
+curl_get='curl -s -X GET --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key'

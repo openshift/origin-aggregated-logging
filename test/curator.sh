@@ -9,7 +9,7 @@
 # as well.
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
-source "${OS_O_A_L_DIR}/deployer/scripts/util.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/curator"
@@ -201,8 +201,8 @@ trap "cleanup" EXIT
 
 os::log::info Starting curator test at $( date )
 
-espod=$( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT:-es}" -o jsonpath='{ .items[*].metadata.name }' | head -1 )
-esopspod=$( oc get pods --selector component="${OAL_ELASTICSEARCH_OPS_COMPONENT:-es-ops}" -o jsonpath='{ .items[*].metadata.name }' | head -1 )
+espod=$( get_es_pod es )
+esopspod=$( get_es_pod es-ops )
 
 os::log::debug "$( oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
 os::log::info Enabled debug for dc/logging-curator - rolling out . . .

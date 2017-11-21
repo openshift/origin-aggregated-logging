@@ -44,12 +44,19 @@ INDEX_KIBANA:
 INDEX_ANY_KIBANA:
   - INDEX_ANY_ADMIN
   - MANAGE
+  - WRITE
 INDEX_OPERATIONS:
   - INDEX_ANY_ADMIN
 INDEX_ANY_OPERATIONS:
   - INDEX_ANY_ADMIN
 INDEX_PROJECT:
   - INDEX_ANY_ADMIN
+METRICS:
+  - cluster:monitor/nodes/stats
+  - cluster:monitor/health
+USER_CLUSTER_OPERATIONS:
+  - "indices:data/read/msearch"
+  - "indices:data/read/scroll*"
 
 # CLUSTER
 CLUSTER_ALL:
