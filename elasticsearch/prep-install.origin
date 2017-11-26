@@ -4,12 +4,12 @@ mv "${es_source}"/* "${ES_HOME}"
 
 # list of plugins to be installed
 if [ -z "${ES_CLOUD_K8S_URL:-}" ] ; then
-    ES_CLOUD_K8S_URL=io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
-fi
-if [ -z "${OSE_ES_URL:-}" ] ; then
-    OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+    ES_CLOUD_K8S_URL=io.fabric8:elasticsearch-cloud-kubernetes:${ES_CLOUD_K8S_VER}
 fi
 if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
-    PROMETHEUS_EXPORTER_URL=file:///tmp/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+    PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 fi
-es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL $PROMETHEUS_EXPORTER_URL)
+if [ -z "${SG_URL:-}" ] ; then
+    SG_URL=com.floragunn:search-guard-5:${SG_VER}
+fi
+es_plugins=($ES_CLOUD_K8S_URL $PROMETHEUS_EXPORTER_URL $SG_URL)

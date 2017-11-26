@@ -30,7 +30,7 @@ source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 # fluentd to keep up with when it has 100m cpu (default), on a aws m4.xlarge
 # system for now, remove the limits on fluentd to unblock the tests
 oc get -n logging daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
-if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get ds logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
+if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get ds -n logging logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
     oc patch -n logging daemonset/logging-fluentd --type=json --patch '[
           {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
 fi

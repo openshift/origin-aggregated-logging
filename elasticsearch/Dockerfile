@@ -10,7 +10,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4.01 \
     ES_CONF=/usr/share/java/elasticsearch/config \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/java/elasticsearch \
-    ES_VER=2.4.4 \
+    ES_VER=5.5.2 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
