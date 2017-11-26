@@ -6,28 +6,30 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CLOUD_K8S_VER=2.4.4_01 \
-    ES_CONF=/usr/share/java/elasticsearch/config \
+ENV ES_CLOUD_K8S_VER=5.5.2 \
+    ES_CONF=/etc/elasticsearch/ \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/java/elasticsearch \
-    ES_VER=2.4.4 \
+    ES_VER=5.5.2 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
+    JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
-    OSE_ES_VER=2.4.4.21 \
-    PROMETHEUS_EXPORTER_VER=2.4.4.1 \
+    OSE_ES_VER=5.5.2.1 \
+    PROMETHEUS_EXPORTER_VER=5.5.2.0 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=origin
 
-ARG ES_CLOUD_K8S_VER=2.4.4_01
-ARG OSE_ES_VER=2.4.4.21
+ARG ES_CLOUD_K8S_VER=5.5.2
+ARG OSE_ES_VER=5.5.2.1
 ARG ES_CLOUD_K8S_URL
-ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_URL
+ARG SG_VER=5.5.2-16
+ARG SG_URL
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
@@ -43,7 +45,12 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
                 java-${JAVA_VER}-openjdk-headless \
                 elasticsearch-${ES_VER} \
                 PyYAML && \
+    yum update -y && \
     yum clean all
+
+
+ENV OSE_ES_URL=https://github.com/jcantrill/openshift-elasticsearch-plugin/releases/download/5.5.0-1-SNAPSHOT/openshift-elasticsearch-plugin-5.5.2.1-SNAPSHOT.zip
+ENV PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-5.5.2.0.zip
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/

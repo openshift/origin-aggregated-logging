@@ -115,18 +115,18 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&v'
 	matching_plugins=0
 	found_plugins=$( curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&h=component' )
-	for plugin in $found_plugins[@] ; do
+	for plugin in $found_plugins ; do
 		os::log::info "Installed plugin: ${plugin}"
-		if [ "${plugin}" = "cloud-kubernetes" ]; then
+		if [ "${plugin}" = "discovery-kubernetes" ]; then
 			(( matching_plugins+=1 ))
-		elif [ "${plugin}" = "openshift-elasticsearch" ]; then
+		elif [ "${plugin}" = "search-guard-5" ]; then
 			(( matching_plugins+=1 ))
 		elif [ "${plugin}" = "prometheus-exporter" ]; then
 			(( matching_plugins+=1 ))
 		fi
 	done
 	if [ "$matching_plugins" -lt "3" ]; then
-		os::log::fatal "Elasticsearch pod is missing expected plugin(s). Exp cloud-kubernetes, openshift-elasticsearch, prometheus-exporter, found: ${found_plugins[*]}"
+		os::log::fatal "Elasticsearch pod is missing expected plugin(s). Exp discovery-kubernetes, search-guard-5, prometheus-exporter, found: ${found_plugins[*]}"
 	else
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} contains expected plugin(s)"
 	fi
