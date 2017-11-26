@@ -223,9 +223,6 @@
             }
           },
           "index": "not_analyzed",
-          "norms": {
-            "enabled": false
-          },
           "type": "ip"
         },
         "ipaddr6": {
@@ -515,9 +512,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
@@ -579,9 +573,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
