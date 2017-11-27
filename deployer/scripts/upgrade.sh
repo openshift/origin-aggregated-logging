@@ -127,9 +127,10 @@ function checkESStarted() {
   local pod=$1
   local cluster_service
   local log_cmd="oc log $pod"
+  local cluster_name=logging-$(oc get pod $pod -o jsonpath='{.metadata.labels.component}')
 
   if oc get configmap logging-elasticsearch -o yaml | grep -oEq "rootLogger:.*(file)" ; then
-      log_cmd="oc exec $pod -- cat /elasticsearch/logging-es/logs/logging-es.log"
+      log_cmd="oc exec $pod -- cat /elasticsearch/$cluster_name/logs/$cluster_name.log"
   fi
 
   if ! cluster_service=$(waitForValue "$log_cmd | grep '\[cluster\.service[[:space:]]*\]'"); then
@@ -668,7 +669,7 @@ function update_es_for_235() {
     waitForChange $currentVersion $dc &
     patchPIDs+=( $!)
   done
-} 
+}
 
 #https://bugzilla.redhat.com/show_bug.cgi?id=1470368
 function update_searchguard_index_name () {
@@ -1021,7 +1022,7 @@ function upgrade_logging() {
 
   for dc in $(oc get dc -l logging-infra=kibana -o name) ; do
     yaml=$(oc get $dc -o yaml)
-    if echo $yaml | grep -q KIBANA_MEMORY_LIMIT  && 
+    if echo $yaml | grep -q KIBANA_MEMORY_LIMIT  &&
         echo $yaml | grep -q KIBANA_PROXY_MEMORY_LIMIT &&
         echo $yaml | grep -q OAP_OAUTH_SECRET_FILE ; then
        echo "Kibana memory limit changes already applied"
