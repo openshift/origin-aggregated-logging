@@ -1,0 +1,56 @@
+---
+actions:
+  1:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^project\..+\-dev\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 1
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
+  2:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^project\..+\-test\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 2
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
+  3:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: true
+      kind: regex
+      filtertype: pattern
+      value: '^project\..+\-dev\..*$|^project\..+\-test\..*$|^\.searchguard\..*$|^\.kibana.*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 31
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true

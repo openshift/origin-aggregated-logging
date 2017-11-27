@@ -19,5 +19,25 @@ function waitForES() {
 }
 
 waitForES
-# this will parse out the retention settings, combine like settings, create cron line definitions for them with curator, run the jobs immediately, then run the jobs again every CURATOR_CRON_HOUR and CURATOR_CRON_MINUTE (by default, every midnight)
-exec python -u ./run_cron.py
+
+# Check whether legacy config was supplied
+actions_location=${CURATOR_ACTIONS_FILE}
+python -u convert.py
+# 0 - actions file found
+# 1 - actions file generated from legacy config
+# 2 - an error occured
+case "$?" in
+  "1") actions_location=$HOME/actions.yaml
+  ;;
+  "2") exit 1
+  ;;
+esac
+
+if [ "$CURATOR_SCRIPT_LOG_LEVEL" = DEBUG ] ; then
+  echo "Using the following configuration:"
+  echo "---------------------------------------------------------"
+  cat $actions_location
+  echo "---------------------------------------------------------"
+fi
+
+exec curator --config ${CURATOR_CONF_FILE} $actions_location

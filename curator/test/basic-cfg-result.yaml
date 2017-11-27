@@ -1,0 +1,74 @@
+---
+actions:
+  1:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^project\.myapp\-dev\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 1
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
+  2:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^project\.myapp\-qe\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 7
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
+  3:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^\.operations\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 56
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
+  4:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: true
+      kind: regex
+      filtertype: pattern
+      value: '^project\.myapp\-dev\..*$|^project\.myapp\-qe\..*$|^\.operations\..*$|^\.searchguard\..*$|^\.kibana.*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 20
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true
