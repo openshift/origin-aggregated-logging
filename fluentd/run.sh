@@ -268,6 +268,11 @@ else
     touch $CFG_DIR/openshift/filter-pre-a-audit-exclude.conf
 fi
 
+if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
+    rm -f $CFG_DIR/openshift/filter-pre-force-utf8.conf
+    touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
