@@ -16,6 +16,21 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/multi_tenancy"
 
+extra_artifacts=$ARTIFACT_DIR/multi_tenancy-artifacts.txt
+internal_artifact_log() {
+    local ts=$1 ; shift
+    echo \[${ts}\] "$@" >> $extra_artifacts
+}
+artifact_log() {
+    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
+}
+artifact_out() {
+    local ts="$( date --rfc-3339=ns )"
+    while read line ; do
+        internal_artifact_log "${ts}" "$line"
+    done
+}
+
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
@@ -32,16 +47,16 @@ cleanup_msearch_access=""
 function cleanup() {
     set +e
     for user in $cleanup_msearch_access ; do
-        hack_msearch_access $user
+        hack_msearch_access $user 2>&1 | artifact_out
     done
     for user in $delete_users ; do
-        oc delete user $user
+        oc delete user $user 2>&1 | artifact_out
     done
     if [ -n "${espod:-}" ] ; then
-        curl_es $espod /project.multi-tenancy-* -XDELETE > /dev/null
+        curl_es $espod /project.multi-tenancy-* -XDELETE 2>&1 | artifact_out
     fi
     for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
-        oc delete project $proj
+        oc delete project $proj 2>&1 | artifact_out
     done
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -57,14 +72,14 @@ function create_user_and_assign_to_projects() {
         os::log::info Using existing user $user
     else
         os::log::info Creating user $user with password $pw
-        os::log::debug "$( oc login --username=$user --password=$pw 2>&1 )"
+        oc login --username=$user --password=$pw 2>&1 | artifact_out
         delete_users="$delete_users $user"
     fi
     os::log::debug "$( oc login --username=system:admin 2>&1 )"
     os::log::info Assigning user to projects "$@"
     while [ -n "${1:-}" ] ; do
-        os::log::debug "$( oc project $1 2>&1 )"
-        os::log::debug "$( oadm policy add-role-to-user view $user 2>&1 )"
+        oc project $1 2>&1 | artifact_out
+        oc adm policy add-role-to-user view $user 2>&1 | artifact_out
         shift
     done
     oc project "${current_project}" > /dev/null
@@ -143,7 +158,7 @@ curl_es $espod /project.multi-tenancy-* -XDELETE > /dev/null
 
 for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     os::log::info Creating project $proj
-    os::log::debug "$( oadm new-project $proj --node-selector='' 2>&1 )"
+    oc adm new-project $proj --node-selector='' 2>&1 | artifact_out
     os::log::info Creating test index and entry for $proj
     add_message_to_index $proj "" $espod
 done
