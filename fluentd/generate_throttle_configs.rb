@@ -26,6 +26,10 @@ def json_pos_file
   ENV['JSON_FILE_POS_FILE'] || '/var/log/es-containers.log.pos'
 end
 
+def get_json_pos_file_name(name)
+  return "/var/log/es-container-#{name}.log.pos"
+end
+
 def get_file_name(name)
   ## file_name follows pattern: gen-#{name}-YYYYMMDD.conf ##
 
@@ -38,24 +42,75 @@ def get_file_name(name)
   return file_name
 end
 
+## Returns the names of all throttle configs for parsing through when reverting
+def get_all_throttle_files()
+  return Dir.glob('/var/log/es-container-*.log.pos')
+end
+
+def move_pos_file_project_entry(source_file, dest_file, project)
+
+  if File.file?(source_file)
+    project_pattern = ".*_#{project}_.*\.log"
+
+    matches = Array.new
+    File.open(source_file) { |file|
+      file.grep(/#{project_pattern}/) { |match| matches << match }
+    }
+
+    update = ""
+    update = File.read(dest_file) if File.file?(dest_file)
+    matches.each { |match|
+      log_file_pattern = Regexp.escape(match.split(" ")[0])
+      update.gsub!(/#{log_file_pattern}.*$\n/, "")
+      ## We are clearing out the line while if it exists and then appending the source_file line
+      update << match
+    }
+    File.open(dest_file, "w") { |file| file.write update }
+
+    ## Remove matches from the old file now that they're safely in the new file
+    update = File.read(source_file)
+    matches.each { |match|
+      log_file_pattern = Regexp.escape(match.split(" ")[0])
+      update.gsub!(/#{log_file_pattern}.*$\n/, "")
+    }
+    File.open(source_file, "w") { |file| file.write update }
+  end
+
+end
+
+## This will copy the pos entries from the throttle configs back to the default pos file
+def revert_throttle()
+  get_all_throttle_files.each { |file_name| move_pos_file_project_entry(file_name, json_pos_file, '.*') }
+end
+
 def seed_file(file_name, project)
 
   if project.eql?('.operations')
     path = DEFAULT_OPS_PROJECTS.map{|p| get_project_pattern(p)}.join(',')
+
+    ## openshift-* is a protected project prefix -- so users would not be able to create
+    ## a project that starts with this. Guard taken to prevent possible collision with a
+    ## user created project 'operations'
+    pos_file = get_json_pos_file_name('openshift-operations')
   else
     path = get_project_pattern(project)
+    pos_file = get_json_pos_file_name(project)
   end
 
   File.open(file_name, 'w') { |file|
-    @log.debug "Seeding #{file_name} with path: '#{path}' and pos_file: '#{json_pos_file}'"
+    @log.debug "Seeding #{file_name} with path: '#{path}' and pos_file: '#{pos_file}'"
     file.write(<<-CONF)
 <source>
   @type tail
   @label @INGRESS
   path #{path}
-  pos_file #{json_pos_file}
+  pos_file #{pos_file}
     CONF
   }
+
+  # Set up the initial pos file in case we had already read from container files
+  move_pos_file_project_entry(json_pos_file, pos_file, project) unless project.eql?('.operations')
+  DEFAULT_OPS_PROJECTS.each{ |ops_project| move_pos_file_project_entry(json_pos_file, pos_file, ops_project) } if project.eql?('.operations')
 end
 
 def write_to_file(project, key, value)
@@ -159,6 +214,7 @@ rescue Exception => ex
 end
 
 excluded = Array.new
+throttling = false
 # We do not yet support throttling logs read from the journal
 # So we don't support throttling operations logs here - use the journald
 # journald.conf to do that
@@ -180,6 +236,7 @@ parsed.each { |name,options|
     if validate(k,v)
       write_to_file(name, k, v)
       needclose = true
+      throttling = true if !throttling
 
       if name.eql?('.operations')
         @log.debug("Found throttling settings for operations. Excluding projects: #{DEFAULT_OPS_PROJECTS}")
@@ -197,5 +254,7 @@ parsed.each { |name,options|
   # if file was created, close it here
   close_file(name) if needclose
 }
+
+revert_throttle if !throttling
 
 create_default_docker(excluded)
