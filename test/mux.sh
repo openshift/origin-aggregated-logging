@@ -40,7 +40,7 @@ mux_log() {
 mux_out() {
     local ts="$( date --rfc-3339=ns )"
     while read line ; do
-        internal_mux_log "${ts}" $line
+        internal_mux_log "${ts}" "$line"
     done
 }
 
@@ -63,13 +63,18 @@ update_current_fluentd() {
   local myoption=${1:-0}
 
   # undeploy fluentd
-  os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 )"
-  os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
-
+  oc label node --all logging-infra-fluentd- 2>&1 | mux_out
+  os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+  oc get pods |grep fluentd | mux_out || :
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
-      @include configs.d/user/filter-pre-mux-test-client.conf' | oc replace -f -
+      @include configs.d/user/filter-pre-mux-test-client.conf' | oc replace -f - 2>&1 | mux_out
 
+  # if configmap filter-pre-mux-test-client.conf isn't present, add one so replace will work
+  local exists=$( oc get configmap/logging-fluentd --template='{{index .data "filter-pre-mux-test-client.conf" }}' )
+  if [ "$exists" = '<no value>' ] ; then
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/filter-pre-mux-test-client.conf", "value": "empty" }]' 2>&1 | mux_out
+  fi
   # update configmap filter-pre-mux-test-client.conf
   if [ $myoption -eq $NO_CONTAINER_VALS ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
@@ -100,7 +105,7 @@ update_current_fluentd() {
         <record>\n\
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         </record>\n\
-      </filter>"}]'
+      </filter>"}]' 2>&1 | mux_out
   elif [ $myoption -eq $SET_CONTAINER_VALS ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <match kubernetes.var.log.containers.**kibana**>\n\
@@ -124,7 +129,7 @@ update_current_fluentd() {
         CONTAINER_NAME k8s_mux.01234567_logging-mux_testproj_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
-      </filter>"}]'
+      </filter>"}]' 2>&1 | mux_out
   elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
@@ -156,7 +161,7 @@ update_current_fluentd() {
         CONTAINER_NAME k8s_mux.01234567_logging-mux_testproj_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
-      </filter>"}]'
+      </filter>"}]' 2>&1 | mux_out
   elif [ $myoption -eq $NO_PROJECT_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
@@ -186,7 +191,7 @@ update_current_fluentd() {
         <record>\n\
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         </record>\n\
-      </filter>"}]'
+      </filter>"}]' 2>&1 | mux_out
   else
       os::log::info "Enabling secure forward"
   fi
@@ -272,12 +277,12 @@ write_and_verify_logs() {
         curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | mux_out
         if docker_uses_journal ; then
             mux_log First matching record:
-            sudo journalctl | grep -m 1 $uuid_es | mux_out || :
+            sudo journalctl | grep -m 1 "${mymessage}" | mux_out || :
             mux_log Last matching record:
-            sudo journalctl -r | grep -m 1 $uuid_es | mux_out || :
+            sudo journalctl -r | grep -m 1 "${mymessage}" | mux_out || :
         else
-            mux_log matching record:
-            sudo find /var/log/containers -name \*.log -exec grep $uuid_es {} /dev/null \; | mux_out || :
+            mux_log matching records:
+            sudo find /var/log/containers -name \*.log -exec grep "${mymessage}" {} /dev/null \; | mux_out || :
         fi
         exit 1
     fi
@@ -315,7 +320,7 @@ write_and_verify_logs() {
 reset_ES_HOST() {
     os::cmd::expect_success "oc set env dc logging-mux $1 $2"
     os::log::debug $( oc get pods -l component=mux )
-    oc rollout status -w dc/logging-mux # wait for mux to be redeployed
+    oc rollout status -w dc/logging-mux 2>&1 | mux_out # wait for mux to be redeployed
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
     muxpod=$( get_running_pod mux )
 }
@@ -390,7 +395,7 @@ os::log::info Starting mux test at $( date )
 if oc get project testproj > /dev/null 2>&1 ; then
     os::log::info using existing project testproj
 else
-    os::log::debug "$( oadm new-project testproj --node-selector='' 2>&1 )"
+    os::log::debug "$( oc adm new-project testproj --node-selector='' 2>&1 )"
 fi
 
 # save indices at the start
@@ -530,7 +535,7 @@ os::log::info "fluentd forwards kibana and system logs with tag test.bogus.exter
 if oc get project mux-undefined > /dev/null 2>&1 ; then
     os::log::info using existing project mux-undefined
 else
-    os::log::debug "$( oadm new-project mux-undefined --node-selector='' 2>&1 )"
+    os::log::debug "$( oc adm new-project mux-undefined --node-selector='' 2>&1 )"
 fi
 
 update_current_fluentd $NO_PROJECT_TAG
