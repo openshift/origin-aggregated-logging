@@ -33,7 +33,7 @@ else
     current_project="$( oc project -q )"
     os::log::debug "$( oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW )"
     os::log::debug "$( oc login --username=system:admin )"
-    os::log::debug "$( oadm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER )"
+    os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER )"
     os::log::debug "$( oc project $current_project )"
 fi
 
