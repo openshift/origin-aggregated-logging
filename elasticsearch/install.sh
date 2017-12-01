@@ -8,7 +8,13 @@ ln -s /usr/share/elasticsearch /usr/share/java/elasticsearch
 /usr/share/elasticsearch/bin/plugin install -b com.floragunn/search-guard-ssl/${SG_SSL_VER}
 /usr/share/elasticsearch/bin/plugin install -b com.floragunn/search-guard-2/${SG_VER}
 /usr/share/elasticsearch/bin/plugin install io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
-/usr/share/elasticsearch/bin/plugin install io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+
+pushd /tmp/lib/openshift-elasticsearch-plugin
+  source /opt/rh/rh-maven33/enable
+  mvn clean verify -DskipTests
+  /usr/share/elasticsearch/bin/plugin install file:///$(pwd)/target/releases/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
+popd
+rm -rf /tmp/lib
 
 
 mkdir /elasticsearch
