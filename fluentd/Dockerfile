@@ -48,6 +48,7 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
+ADD out_syslog_buffered.rb out_syslog.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
 COPY lib/*.gem /tmp/
 RUN cd /tmp/ && scl enable ${SCL_VERSION} -- \

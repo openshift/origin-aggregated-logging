@@ -51,7 +51,6 @@ os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true R
 os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
-
 fpod=$( get_running_pod fluentd )
 os::cmd::try_until_failure "oc exec $fpod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf"
 
@@ -68,6 +67,57 @@ os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* 
 fpod=$( get_running_pod fluentd )
 os::cmd::try_until_text "oc exec $fpod grep '<store>' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf | wc -l" '^2$'
 
+
+os::log::info Test 4, making sure tag_key=message does not cause remote-syslog plugin crash
+
+os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+
+os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message)"
+os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+
+fpod=$( get_running_pod fluentd )
+os::cmd::try_until_success "oc exec $fpod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf"
+os::cmd::expect_success "oc exec $fpod grep 'tag_key message' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf"
+os::cmd::expect_success_and_not_text "oc logs $fpod" "nil:NilClass"
+
+extra_rsyslog_artifacts=$ARTIFACT_DIR/rsyslog-artifacts.txt
+if [ -n "${DEBUG:-}" ] ; then
+  echo Test 4, making sure tag_key=message does not cause remote-syslog plugin crash > $extra_rsyslog_artifacts
+  echo "$( date --rfc-3339=ns )" "Enabled REMOTE_SYSLOG: USE_REMOTE_SYSLOG=true, REMOTE_SYSLOG_HOST=127.0.0.1, REMOTE_SYSLOG_HOST2=127.0.0.1, REMOTE_SYSLOG_TAG_KEY=message" >> $extra_rsyslog_artifacts
+
+  oc logs $fpod >> $extra_rsyslog_artifacts 2>&1
+
+  echo "output-remote-syslog.conf: " >> $extra_rsyslog_artifacts
+
+  oc exec $fpod -- cat /etc/fluent/configs.d/dynamic/output-remote-syslog.conf >> $extra_rsyslog_artifacts
+fi
+
+os::log::info Test 5, making sure tag_key=bogus does not cause remote-syslog plugin crash
+
+os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+
+os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus)"
+os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+
+fpod=$( get_running_pod fluentd )
+os::cmd::try_until_success "oc exec $fpod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf"
+os::cmd::expect_success "oc exec $fpod grep 'tag_key bogus' /etc/fluent/configs.d/dynamic/output-remote-syslog.conf"
+os::cmd::expect_success_and_not_text "oc logs $fpod" "nil:NilClass"
+
+if [ -n "${DEBUG:-}" ] ; then
+  echo Test Test 5, making sure tag_key=bogus does not cause remote-syslog plugin crash >> $extra_rsyslog_artifacts
+  echo "$( date --rfc-3339=ns )" "Enabled REMOTE_SYSLOG: USE_REMOTE_SYSLOG=true, REMOTE_SYSLOG_HOST=127.0.0.1, REMOTE_SYSLOG_HOST2=127.0.0.1, REMOTE_SYSLOG_TAG_KEY=bogus" >> $extra_rsyslog_artifacts
+
+  oc logs $fpod >> $extra_rsyslog_artifacts 2>&1
+
+  echo "output-remote-syslog.conf: " >> $extra_rsyslog_artifacts
+
+  oc exec $fpod -- cat /etc/fluent/configs.d/dynamic/output-remote-syslog.conf >> $extra_rsyslog_artifacts
+fi
 
 reset_fluentd_daemonset
 os::test::junit::reconcile_output
