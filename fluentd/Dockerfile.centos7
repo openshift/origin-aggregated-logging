@@ -53,6 +53,7 @@ RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/down
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
+ADD out_syslog_buffered.rb out_syslog.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
 COPY lib/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem /tmp/
 RUN scl enable ${SCL_VERSION} -- \
