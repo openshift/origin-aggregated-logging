@@ -1,5 +1,7 @@
 # Origin-Aggregated-Logging [![Build Status](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test-origin-aggregated-logging)](https://ci.openshift.redhat.com/jenkins/job/test-origin-aggregated-logging)
 
+a test
+
 This repo contains the image definitions for the components of the logging
 stack as well as tools for building and deploying them.  The logging subsystem
 consists of multiple [components](#Components) abbreviated as the "EFK"
