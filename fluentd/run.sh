@@ -279,6 +279,13 @@ if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-}" = true ] ; 
     export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
 fi
 
+# Include DEBUG log level messages when collecting from journald
+# https://bugzilla.redhat.com/show_bug.cgi?id=1505602
+if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
+  rm -f $CFG_DIR/openshift/filter-exclude-journal-debug.conf
+  touch $CFG_DIR/openshift/filter-exclude-journal-debug.conf
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else
