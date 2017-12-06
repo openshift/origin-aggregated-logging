@@ -30,12 +30,12 @@ RUN mkdir -p ${HOME} && \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
       'public_suffix:<3' \
-      fluent-plugin-kubernetes_metadata_filter \
-      fluent-plugin-elasticsearch \
+      'fluent-plugin-kubernetes_metadata_filter:<1.0.0' \
+      'fluent-plugin-elasticsearch:<2.0.0' \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
-      fluent-plugin-rewrite-tag-filter \
-      fluent-plugin-secure-forward \
+      'fluent-plugin-rewrite-tag-filter:<1.6.0' \
+      'fluent-plugin-secure-forward:<1.0.0' \
       excon
 
 ADD configs.d/ /etc/fluent/configs.d/
