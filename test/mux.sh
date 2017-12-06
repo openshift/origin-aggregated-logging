@@ -7,9 +7,6 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
-os::log::info mux test is disabled until we can fix various test flakes
-exit 0
-
 # only works if there is a mux dc
 if oc get dc/logging-mux > /dev/null 2>&1 ; then
     os::log::debug "$( oc get dc/logging-mux )"
@@ -202,6 +199,7 @@ update_current_fluentd() {
   reset_fluentd_daemonset
 
   os::cmd::expect_success flush_fluentd_pos_files
+  sudo rm -f /var/lib/fluentd/buffer*.log
   os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
   os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
   fpod=$( get_running_pod fluentd )
@@ -253,6 +251,8 @@ write_and_verify_logs() {
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
         # kibana logs with project.testproj tag and given container/pod values
         local myproject=project.testproj
+        # make sure this namespace exists
+        os::cmd::try_until_success "oc get project testproj" 2>&1 | mux_out
     else
         # kibana logs with kibana container/pod values
         local myproject=project.logging
@@ -275,6 +275,8 @@ write_and_verify_logs() {
         mux_log end $( date ) $( date +%s )
         qs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}}}}}'
         curl_es $espod /${myproject}.*/_count -XPOST -d "$qs" | python -mjson.tool | mux_out
+        curl_es $espod /project.*/_count -XPOST -d "$qs" | python -mjson.tool | mux_out
+        curl_es $espod /fluentd/_count -XPOST -d "$qs" | python -mjson.tool | mux_out
         # grab the first and last records in the index
         curl_es $espod /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | mux_out
         curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | mux_out
@@ -295,10 +297,14 @@ write_and_verify_logs() {
         local myfield="SYSLOG_IDENTIFIER"
         myproject=project.testproj
         espod=$es_pod
+        # make sure this namespace exists
+        os::cmd::try_until_success "oc get project testproj" 2>&1 | mux_out
     elif [ $no_project_tag -eq 1 ]; then
         local myfield="SYSLOG_IDENTIFIER"
         myproject=project.mux-undefined
         espod=$es_pod
+        # make sure this namespace exists
+        os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | mux_out
     else
         local myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
@@ -353,6 +359,7 @@ cleanup() {
             oc get configmap/logging-mux -o yaml > $ARTIFACT_DIR/mux.mux.configmap.yaml
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/openshift >> $muxout 2>&1
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/user >> $muxout 2>&1
+            oc exec $muxpod -- cat /var/log/fluentd.log > $ARTIFACT_DIR/mux.mux.pod.int.log
         fi
     fi
     $mycmd mux test finished at $( date )
@@ -376,9 +383,11 @@ cleanup() {
     curl_es $es_pod /project.default.* -XDELETE
     curl_es $es_pod /project.mux-undefined.* -XDELETE
     os::cmd::expect_success flush_fluentd_pos_files
+    sudo rm -f /var/lib/fluentd/buffer*.log
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-    os::log::debug "$( oc delete project testproj 2>&1 || : )"
+    oc delete project testproj 2>&1 | mux_out
+    os::cmd::try_until_failure "oc get project testproj" 2>&1 | mux_out
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -398,7 +407,8 @@ os::log::info Starting mux test at $( date )
 if oc get project testproj > /dev/null 2>&1 ; then
     os::log::info using existing project testproj
 else
-    os::log::debug "$( oc adm new-project testproj --node-selector='' 2>&1 )"
+    oc adm new-project testproj --node-selector='' 2>&1 | mux_out
+    os::cmd::try_until_success "oc get project testproj" 2>&1 | mux_out
 fi
 
 # save indices at the start
@@ -538,7 +548,8 @@ os::log::info "fluentd forwards kibana and system logs with tag test.bogus.exter
 if oc get project mux-undefined > /dev/null 2>&1 ; then
     os::log::info using existing project mux-undefined
 else
-    os::log::debug "$( oc adm new-project mux-undefined --node-selector='' 2>&1 )"
+    oc adm new-project mux-undefined --node-selector='' 2>&1 | mux_out
+    os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | mux_out
 fi
 
 update_current_fluentd $NO_PROJECT_TAG
