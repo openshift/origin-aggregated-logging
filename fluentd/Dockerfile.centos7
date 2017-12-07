@@ -20,12 +20,15 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       io.openshift.tags="logging,elk,fluentd"
 
 USER 0
+
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
-      bc iproute && \
+      bc iproute \
+      autoconf redhat-rpm-config && \
     yum clean all
+
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     scl enable ${SCL_VERSION} -- \
      gem install -N --conservative --minimal-deps --no-ri --no-doc \
@@ -60,6 +63,15 @@ RUN scl enable ${SCL_VERSION} -- \
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
+
+ADD jemalloc/ ${HOME}/jemalloc/
+# note - make dist "fails" here
+# false -o doc/jemalloc.html doc/html.xsl doc/jemalloc.xml
+# so cannot use &&
+# cannot use make install - will try to install docs - not only does that fail
+# for some reason, but we also don't want them here - use install_lib install_bin
+RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
+    make dist ; make && make install_lib install_bin && cd .. && rm -rf jemalloc
 
 WORKDIR ${HOME}
 USER 0

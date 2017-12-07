@@ -1,14 +1,14 @@
 #!/bin/bash
 
+fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
-  fluentdargs="-vv"
+  fluentdargs="$fluentdargs -vv"
   echo ">>>>>> ENVIRONMENT VARS <<<<<"
   env | sort
   echo ">>>>>>>>>>>>><<<<<<<<<<<<<<<<"
 else
   set -e
-  fluentdargs=
 fi
 
 docker_uses_journal() {
@@ -271,6 +271,10 @@ fi
 if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
     rm -f $CFG_DIR/openshift/filter-pre-force-utf8.conf
     touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
+fi
+
+if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-}" = true ] ; then
+    export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
 fi
 
 if [[ $DEBUG ]] ; then

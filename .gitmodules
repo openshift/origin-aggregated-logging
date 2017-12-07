@@ -4,3 +4,6 @@
 [submodule "eventrouter"]
 	path = eventrouter
 	url = https://github.com/openshift/eventrouter
+[submodule "fluentd/jemalloc"]
+	path = fluentd/jemalloc
+	url = https://github.com/jemalloc/jemalloc
