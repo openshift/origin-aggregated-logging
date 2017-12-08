@@ -275,7 +275,7 @@ if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
     touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
 fi
 
-if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-}" = true ] ; then
+if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true ] ; then
     export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
 fi
 
