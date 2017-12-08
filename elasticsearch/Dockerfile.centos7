@@ -15,7 +15,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4_01 \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
-    OSE_ES_VER=2.4.4.19 \
+    OSE_ES_VER=2.4.4.20 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -23,7 +23,7 @@ ENV ES_CLOUD_K8S_VER=2.4.4_01 \
     RELEASE_STREAM=origin
 
 ARG ES_CLOUD_K8S_VER=2.4.4_01
-ARG OSE_ES_VER=2.4.4.19
+ARG OSE_ES_VER=2.4.4.20
 ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
 
@@ -37,8 +37,10 @@ LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging sto
 ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 # install the RPMs in a separate step so it can be cached
 RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
-    yum install -y --setopt=tsflags=nodocs \
+    yum install -y centos-release-scl
+RUN yum install -y --setopt=tsflags=nodocs \
                 java-${JAVA_VER}-openjdk-headless \
+                rh-maven33 \
                 elasticsearch-${ES_VER} \
                 PyYAML && \
     yum clean all
@@ -48,11 +50,13 @@ ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
+ADD lib /tmp/lib
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
-RUN ln -s /usr/local/bin/logging ${HOME}/logging
-
-RUN ${HOME}/install.sh
+RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
+    ${HOME}/install.sh && \
+    yum erase -y rh-maven33 && \
+    rm -rf /tmp/lib
 
 WORKDIR ${HOME}
 USER 1000
