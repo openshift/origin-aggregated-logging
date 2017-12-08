@@ -1,3 +1,6 @@
+#  License: MIT
+#  https://github.com/docebo/fluent-plugin-remote-syslog
+
 require 'fluent/mixin/config_placeholders'
 module Fluent
   class SyslogBufferedOutput < Fluent::BufferedOutput
