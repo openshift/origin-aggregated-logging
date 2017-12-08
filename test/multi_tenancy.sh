@@ -57,6 +57,7 @@ function cleanup() {
     fi
     for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
         oc delete project $proj 2>&1 | artifact_out
+        os::cmd::try_until_failure "oc get project $proj" 2>&1 | artifact_out
     done
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -159,6 +160,7 @@ curl_es $espod /project.multi-tenancy-* -XDELETE > /dev/null
 for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     os::log::info Creating project $proj
     oc adm new-project $proj --node-selector='' 2>&1 | artifact_out
+    os::cmd::try_until_success "oc get project $proj" 2>&1 | artifact_out
     os::log::info Creating test index and entry for $proj
     add_message_to_index $proj "" $espod
 done
