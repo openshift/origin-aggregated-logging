@@ -3,7 +3,7 @@ FROM centos/ruby-24-centos7:latest
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.39 \
+    FLUENTD_VERSION=0.12.41 \
     FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
@@ -11,8 +11,6 @@ ENV DATA_VERSION=1.6.0 \
     RUBY_VERSION=2.4
 
 ARG SCL_VERSION=rh-ruby24
-ARG ES_GEM_VER=1.9.5.1
-ARG ES_GEM=fluent-plugin-elasticsearch-${ES_GEM_VER}.gem
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
       io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
@@ -21,8 +19,8 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
 
 USER 0
 
-# activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
+# autoconf redhat-rpm-config for building jemalloc
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
       bc iproute \
@@ -36,20 +34,14 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'elasticsearch-api:<5' \
      'elasticsearch:<5' \
       fluentd:${FLUENTD_VERSION} \
+     'fluent-plugin-elasticsearch:~>1.0' \
       fluent-plugin-kubernetes_metadata_filter \
       'fluent-plugin-record-modifier:<1.0.0' \
       'fluent-plugin-rewrite-tag-filter:<1.6.0' \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
-     'fluent-plugin-remote-syslog:1.1' \
-      systemd-journal \
-      excon
-RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/download/v${ES_GEM_VER}/${ES_GEM} > ${HOME}/${ES_GEM} && \
-    cd ${HOME} && \
-    scl enable ${SCL_VERSION} -- \
-      gem install -N --conservative --minimal-deps --no-ri --local \
-        ${ES_GEM} && rm -f ${ES_GEM}
+     'fluent-plugin-remote-syslog:1.1'
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
