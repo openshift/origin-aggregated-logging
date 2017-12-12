@@ -14,44 +14,80 @@ is structured like this:
      ...      
 
 * PROJECT\_NAME - the actual name of a project - "myapp-devel"
-** For operations logs, use the name `.operations` as the project name
+  * For operations logs, use the name `.operations` as the project name
 * ACTION - the action to take - currently only "delete"
 * UNIT - one of "days", "weeks", or "months" 
 * VALUE - an integer for the number of units 
 * `.defaults` - use `.defaults` as the PROJECT\_NAME to set the defaults for
 projects that are not specified
-** runhour: NUMBER - hour of the day in 24 hour format at which to run the 
+  * runhour: NUMBER - hour of the day in 24 hour format at which to run the 
 curator jobs
-** runminute: NUMBER - minute of the hour at which to run the curator jobs
-** timezone: STRING - String in tzselect(8) or timedatectl(1) format - the
+  * runminute: NUMBER - minute of the hour at which to run the curator jobs
+  * timezone: STRING - String in tzselect(8) or timedatectl(1) format - the
    default timezone is `UTC`
+* `.regex` - list of regular expressions that match project names
+  * `pattern` - valid and properly escaped regular expression pattern
+  enclosed by single quotation marks
+  * ACTION - the action to take - currently only "delete"
+  * UNIT - one of "days", "weeks", or "months" 
+  * VALUE - an integer for the number of units 
 
-For example, using::
+### Using regular expressions
+User defined regular expressions are checked for their validity
+and passed to curator as-is. No further processing like
+escaping special characters is done.
 
-    myapp-dev:
-     delete:
-       days: 1
-    
-    myapp-qe:
-      delete:
-        weeks: 1
-    
-    .operations:
-      delete:
-        weeks: 8
-    
-    .defaults:
-      delete:
-        days: 31
-      runhour: 0
-      runminute: 0
-      timezone: America/New_York
-    ...
+*Important*: Enclose regular expressions in single quotation marks (`'`)
+as described in [YAML documentation](http://www.yaml.org/spec/1.2/spec.html#style/flow/single-quoted).
+
+Indices in Origin Aggregated Logging are created on a daily basis
+with the prefix `project.` and a suffix of the project id and
+creation date of the index. Therefore regular expressions
+should conform to this naming scheme `project.name.uuid.yyyy.mm.dd`.
+
+Consider the following indices:
+* `project.frontend-dev.2956e294-f602-11e7-b295-0e8b477a338e.2018.01.10`
+* `project.backend-dev.cf59add9-f601-11e7-b295-0e8b477a338e.2018.01.10`
+
+These can be matched by a single regular expression `'^project\..+\-dev\..*$'`.
+
+### Example configuration
+```
+myapp-dev:
+  delete:
+    days: 1
+
+myapp-qe:
+  delete:
+    weeks: 1
+
+.operations:
+  delete:
+    weeks: 8
+
+.defaults:
+  delete:
+    days: 31
+  runhour: 0
+  runminute: 0
+  timezone: America/New_York
+
+.regex:
+  - pattern: '^project\..+\-dev\..*$'
+    delete:
+      days: 1
+  - pattern: '^project\..+\-test\..*$'
+    delete:
+      days: 2
+...
+```
 
 Every day, curator will run, and will delete indices in the myapp-dev project
-older than 1 day, and indices in the myapp-qe project older than 1 week.  All
-other projects will have their indices deleted after they are 31 days old.  The
-curator jobs will run every day at midnight in the `America/New_York` timezone,
+older than 1 day, indices in the myapp-qe project older than 1 week, and 
+indices older than 2 days that are matched by the `'^project\..+\-test.*$'` and 1 day that are matched by the `'^project\..+\-dev.*$'` regex. 
+All other projects will have their indices deleted after they are 31 days old
+by default.
+The curator jobs will run every day at midnight in the `America/New_York` timezone,
 regardless of geographical location where the pod is running, or the timezone
 setting of the pod, host, etc.
 
