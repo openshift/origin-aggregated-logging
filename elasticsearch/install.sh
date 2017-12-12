@@ -6,7 +6,22 @@ mkdir -p ${HOME}
 ln -s /usr/share/elasticsearch /usr/share/java/elasticsearch
 
 /usr/share/elasticsearch/bin/plugin install io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
-/usr/share/elasticsearch/bin/plugin install io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+
+# install or build
+MANPATH="" source /opt/rh/rh-maven33/enable
+set +e
+mvn dependency:get -Dartifact=io.fabric8.elasticsearch:openshift-elasticsearch-plugin:${OSE_ES_VER}
+res=$?
+set -e
+if [ 0 -eq $res ]; then
+  OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
+else
+  pushd /tmp/lib/openshift-elasticsearch-plugin
+    mvn clean verify -DskipTests
+    OSE_ES_URL=file:///tmp/lib/openshift-elasticsearch-plugin/target/releases/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
+  popd
+fi
+/usr/share/elasticsearch/bin/plugin install $OSE_ES_URL
 
 
 mkdir /elasticsearch
