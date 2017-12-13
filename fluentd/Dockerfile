@@ -33,7 +33,7 @@ RUN mkdir -p ${HOME} && \
       'elasticsearch-transport:<5' \
       'elasticsearch-api:<5' \
       'elasticsearch:<5' \
-      fluent-plugin-kubernetes_metadata_filter \
+      'fluent-plugin-kubernetes_metadata_filter:<1.0.0' \
       'fluent-plugin-elasticsearch:<2.0.0' \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \

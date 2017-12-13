@@ -1,0 +1,38 @@
+#!/bin/env ruby
+# This is a quick script to deserialize fluentd file buffers and check for the required fields to index
+
+
+require 'msgpack'
+require 'time'
+require 'yaml'
+
+#files=['buffer-output-es-config.kubernetes.journal.container.q55b6b5983646212d.log']
+logstash_dateformat="%Y.%m.%d"
+files=Dir["*.log"]
+puts "Starting check of #{files.length}"
+files.each do | f |
+    puts "Checking #{f}"
+    File.open(f) do |io|
+      u = MessagePack::Unpacker.new(io)
+      i=0
+      u.each do |obj|
+         if ENV['inspect']
+           puts obj[1]
+           puts YAML.dump(obj[1])
+
+           exit
+         end
+         if obj[1].class.to_s == Hash.to_s
+           msg = obj[1]
+           puts "missing @timestamp in msg row #{i}: #{msg}" unless  msg.key?('@timestamp')
+           Time::parse(msg['@timestamp']).getutc.strftime(logstash_dateformat)
+           msg['kubernetes']['namespace_name']
+           msg['kubernetes']['namespace_id']
+         else
+             puts "not a hash: #{obj[1]}"
+         end
+         ++i
+      end
+    end
+end
+puts "Check complete"

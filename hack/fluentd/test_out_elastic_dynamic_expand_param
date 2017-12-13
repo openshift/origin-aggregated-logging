@@ -1,0 +1,128 @@
+#!/usr/bin/env ruby
+#
+require 'yaml'
+require 'time'
+
+@logstash_dateformat="%Y.%m.%d"
+record_raw = %Q{
+---
+docker:
+  container_id: dbf0092def3389066d8172dfb8f4d52d347d049774150d4d2d23e64bef858462
+kubernetes:
+  container_name: hawkular-metrics
+  namespace_name: openshift-infra
+  pod_name: hawkular-metrics-z4wh4
+  pod_id: 43eeb833-9f67-11e7-92e3-0050569a205e
+  labels:
+    metrics-infra: hawkular-metrics
+    name: hawkular-metrics
+  host: czcholspc004009.prg-dc.dhl.com
+  master_url: https://kubernetes.default.svc.cluster.local
+  namespace_id: c237f6df-97c4-11e7-848c-0050569a2c35
+hostname: czcholspc004009.prg-dc.dhl.com
+message: "\tat rx.internal.operators.OnSubscribeMap.call(OnSubscribeMap.java:48)"
+level: info
+pipeline_metadata:
+  collector:
+    ipaddr4: 2.176.7.177
+    ipaddr6: fe80::858:2ff:feb0:7b1
+    inputname: fluent-plugin-systemd
+    name: fluentd openshift
+    received_at: '2017-10-13T09:44:05.614374+00:00'
+    version: 0.12.39 1.6.0
+systemd:
+  t:
+    MACHINE_ID: 92e6cd5eaad3433687c2d954ae8a0916
+    BOOT_ID: 267a1df6dfa44505b152e80a50a68019
+    CAP_EFFECTIVE: 1fffffffff
+    CMDLINE: /usr/bin/dockerd-current --add-runtime docker-runc=/usr/libexec/docker/docker-runc-current
+      --default-runtime=docker-runc --authorization-plugin=rhel-push-plugin --exec-opt
+      native.cgroupdriver=systemd --userland-proxy-path=/usr/libexec/docker/docker-proxy-current
+      --selinux-enabled --log-driver=journald --storage-driver devicemapper --storage-opt
+      dm.fs=xfs --storage-opt dm.thinpooldev=/dev/mapper/docker--vg-docker--pool --storage-opt
+      dm.use_deferred_removal=true --storage-opt dm.use_deferred_deletion=true --mtu=1450
+      --add-registry registry.access.redhat.com --insecure-registry 2.90.0.0/18 --add-registry
+      registry.access.redhat.com
+    COMM: dockerd-current
+    EXE: /usr/bin/dockerd-current
+    GID: '0'
+    HOSTNAME: czcholspc004009.prg-dc.dhl.com
+    PID: '48621'
+    SELINUX_CONTEXT: system_u:system_r:container_runtime_t:s0
+    SOURCE_REALTIME_TIMESTAMP: '1507887845614374'
+    SYSTEMD_CGROUP: /system.slice/docker.service
+    SYSTEMD_SLICE: system.slice
+    SYSTEMD_UNIT: docker.service
+    TRANSPORT: journal
+    UID: '0'
+'@timestamp': '2017-10-13T09:44:05.614374+00:00'
+}
+tag='kubernetes.*'
+param = "index_name project.${record['kubernetes']['namespace_name']}.${record['kubernetes']['namespace_id']}.${Time.parse(record['@timestamp']).getutc.strftime(@logstash_dateformat)}"
+time = Time.now
+record=YAML.load(record_raw)
+record_wo_kub=record.dup
+record_wo_kub.delete('kubernetes')
+record_wo_timestamp=record.dup
+record_wo_timestamp.delete('@timestamp')
+
+param_output_es_config = "index_name project.${begin record['kubernetes']['namespace_name'] rescue $log.error('record is missing kubernetes.namespace_name - record ' + record.to_s) end}.${begin record['kubernetes']['namespace_id'] rescue $log.error('record is missing kubernetes.namespace_id - record ' + record.to_s) end}.${begin Time.parse(record['@timestamp']).getutc.strftime(@logstash_dateformat) rescue $log.error('record is missing @timestamp - record ' + record.to_s) end}"
+
+param_output_es_mod = "index_name project.${begin record['kubernetes']['namespace_name']+'.'+record['kubernetes']['namespace_id']; rescue; $log.error('record is missing kubernetes or kubernetes.namespace_id:' + record.to_s); '.orphan.orphan'; end}.${t = !record['@timestamp'].nil? ? Time.parse(record['@timestamp']) : ($log.error('record is missing @timestamp' + record.to_s);Time.at(time)) ; t.getutc.strftime(@logstash_dateformat)}"
+
+class Logger
+  def error(msg)
+    puts "LOGGER: #{msg}"
+  end
+end
+
+$log=Logger.new
+
+def expand_param(param, tag, time, record)
+  begin
+  # check for '${ ... }'
+  #   yes => `eval`
+  #   no  => return param
+  return param if (param =~ /\${.+}/).nil?
+
+  # check for 'tag_parts[]'
+    # separated by a delimiter (default '.')
+    tag_parts = tag.split(@delimiter) unless (param =~ /tag_parts\[.+\]/).nil? || tag.nil?
+
+  # pull out section between ${} then eval
+  inner = param.clone
+  while inner.match(/\${.+}/)
+    to_eval = inner.match(/\${(.+?)}/){$1}
+
+    if !(to_eval =~ /record\[.+\]/).nil? && record.nil?
+      return to_eval
+    elsif !(to_eval =~/tag_parts\[.+\]/).nil? && tag_parts.nil?
+      return to_eval
+    elsif !(to_eval =~/time/).nil? && time.nil?
+      return to_eval
+    else
+      puts ">> to_eval: #{to_eval}"
+      inner.sub!(/\${.+?}/, eval( to_eval ))
+    end
+  end
+  inner
+  rescue=>e
+      puts e.message
+      puts e.backtrace.join("\n")
+  end
+end
+
+def run(msg, param, tag, time, record)
+  puts ">>>>> #{msg}"
+  puts expand_param(param, tag, time, record)
+  puts
+end
+
+run("evaluating record with kubernetes and output-es-config", param_output_es_config, tag, time, record)
+run("evaluating record wo kubernetes and output-es-config", param_output_es_config, tag, time, record_wo_kub)
+run("evaluating record with kubernetes", param, tag, time, record)
+run("evaluating record without kubernetes", param, tag, time, record_wo_kub)
+
+run("evaluating record with kubernetes and output-es-config mod", param_output_es_mod, tag, time, record)
+run("evaluating record wo kubernetes and output-es-config mod", param_output_es_mod, tag, time, record_wo_kub)
+run("evaluating record wo @timestamp and output-es-config mod", param_output_es_mod, tag, time, record_wo_timestamp)
