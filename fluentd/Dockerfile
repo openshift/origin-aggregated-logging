@@ -12,10 +12,10 @@ ENV DATA_VERSION=1.6.0 \
     FLUENTD_SYSTEMD=0.0.8-1 \
     FLUENTD_VIAQ_DATA_MODEL=0.0.12-1 \
     FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
-    FLUENTD_RECORD_MODIFIER=0.5.0 \
+    FLUENTD_RECORD_MODIFIER=0.6.0 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
-    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
     RUBY_VERSION=2.4
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
@@ -28,6 +28,11 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       architecture=x86_64
 
 ARG SCL_VERSION=rh-ruby24
+ARG TEST_REPO
+
+USER 0
+
+RUN test -n "${TEST_REPO}" && curl -s -o /etc/yum.repos.d/test.repo ${TEST_REPO}
 
 RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
@@ -37,14 +42,19 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
                 rubygem-fluent-plugin-elasticsearch \
                 rubygem-fluent-plugin-flatten-hash \
                 rubygem-fluent-plugin-kubernetes_metadata_filter \
+                rubygem-fluent-plugin-record-modifier \
+                rubygem-fluent-plugin-remote-syslog \
                 rubygem-fluent-plugin-rewrite-tag-filter \
                 rubygem-fluent-plugin-secure-forward \
                 rubygem-fluent-plugin-systemd \
-                rubygem-fluent-plugin-viaq_data_model \
-                rubygem-fluent-plugin-remote-syslog" && \
+                rubygem-fluent-plugin-viaq_data_model" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all
+
+# uncomment if you want to try out test rpm builds
+#ADD *.rpm /tmp/
+#RUN yum -y install /tmp/*.rpm
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
