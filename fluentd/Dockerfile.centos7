@@ -64,7 +64,8 @@ ADD jemalloc/ ${HOME}/jemalloc/
 # cannot use make install - will try to install docs - not only does that fail
 # for some reason, but we also don't want them here - use install_lib install_bin
 RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
-    make dist ; make && make install_lib install_bin && cd .. && rm -rf jemalloc
+    make dist ; make && make install_lib install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
+    cd .. && rm -rf jemalloc
 
 WORKDIR ${HOME}
 USER 0
