@@ -16,21 +16,6 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/multi_tenancy"
 
-extra_artifacts=$ARTIFACT_DIR/multi_tenancy-artifacts.txt
-internal_artifact_log() {
-    local ts=$1 ; shift
-    echo \[${ts}\] "$@" >> $extra_artifacts
-}
-artifact_log() {
-    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
-}
-artifact_out() {
-    local ts="$( date --rfc-3339=ns )"
-    while read line ; do
-        internal_artifact_log "${ts}" "$line"
-    done
-}
-
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
