@@ -26,7 +26,7 @@ ENV ES_CLOUD_K8S_VER=5.5.2 \
 ARG ES_CLOUD_K8S_VER=5.5.2
 ARG OSE_ES_VER=5.5.2.1
 ARG ES_CLOUD_K8S_URL
-ARG OSE_ES_URL=file:///${HOME}/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
+ARG OSE_ES_URL=file://${HOME}/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
 ARG PROMETHEUS_EXPORTER_URL
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
