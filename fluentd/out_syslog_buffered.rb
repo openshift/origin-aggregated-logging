@@ -107,7 +107,7 @@ module Fluent
       @packet.time = time
       @packet.tag = if @tag_key
                       begin
-                        record[@tag_key][0..31].gsub(/[\[\]]/,'') # tag is trimmed to 32 chars for syslog_protocol gem compatibility
+                        record[@tag_key][0..31].gsub(/[\[\]\s]/,'') # tag is trimmed to 32 chars for syslog_protocol gem compatibility
                       rescue
                         tag[0..31] # tag is trimmed to 32 chars for syslog_protocol gem compatibility
                       end
@@ -139,7 +139,7 @@ module Fluent
 
   end
 
-  class Time
+  class Time < Time
     def timezone(timezone = 'UTC')
       old = ENV['TZ']
       utc = self.dup.utc
