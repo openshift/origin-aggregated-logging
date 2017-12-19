@@ -1,35 +1,39 @@
-FROM centos/ruby-24-centos7:latest
+FROM centos:centos7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.41 \
-    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
+    FLUENTD_VERSION=0.12.42 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
-    RUBY_VERSION=2.4
-
-ARG SCL_VERSION=rh-ruby24
+    RUBY_VERSION=2.0
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
       io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
       io.openshift.expose-services="9200:http, 9300:http" \
       io.openshift.tags="logging,elk,fluentd"
 
-USER 0
-
+# activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
 # autoconf redhat-rpm-config for building jemalloc
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
-      bc iproute \
-      autoconf redhat-rpm-config && \
+      gcc-c++ \
+      ruby \
+      ruby-devel \
+      libcurl-devel \
+      make \
+      bc \
+      iproute \
+      autoconf \
+      redhat-rpm-config && \
     yum clean all
 
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
-    scl enable ${SCL_VERSION} -- \
-     gem install -N --conservative --minimal-deps --no-ri --no-doc \
+    gem install -N --conservative --minimal-deps --no-ri --no-doc \
+     'activesupport:<5' \
+     'public_suffix:<3' \
      'elasticsearch-transport:<5' \
      'elasticsearch-api:<5' \
      'elasticsearch:<5' \
