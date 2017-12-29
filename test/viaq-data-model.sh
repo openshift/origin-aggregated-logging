@@ -215,3 +215,4 @@ if [ -n "$is_maximal" ] ; then
     os::cmd::try_until_failure "oc get pod $muxpod"
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
 fi
+

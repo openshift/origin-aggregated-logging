@@ -194,11 +194,12 @@ function wait_for_fluentd_to_catch_up() {
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
+    local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
-    logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
+    logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
     os::log::debug added es-ops message $uuid_es_ops
 
     local rc=0
