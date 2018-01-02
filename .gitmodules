@@ -4,3 +4,9 @@
 [submodule "eventrouter"]
 	path = eventrouter
 	url = https://github.com/openshift/eventrouter
+[submodule "fluentd/jemalloc"]
+	path = fluentd/jemalloc
+	url = https://github.com/jemalloc/jemalloc
+[submodule "elasticsearch/lib/openshift-elasticsearch-plugin"]
+	path = elasticsearch/lib/openshift-elasticsearch-plugin
+	url = https://github.com/fabric8io/openshift-elasticsearch-plugin
