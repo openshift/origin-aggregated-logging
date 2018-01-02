@@ -100,7 +100,11 @@ if default_time_unit.lower() == "weeks":
     default_value = default_value * 7
 
 base_default_cmd = '/usr/bin/curator --loglevel ' + curlvl + ' ' + connection_info + ' delete indices --timestring %Y.%m.%d'
-default_command = base_default_cmd + ' --older-than ' + str(default_value) + ' --time-unit ' + default_time_unit + ' --exclude .searchguard* --exclude .kibana*'
+default_command = base_default_cmd \
+        + ' --older-than ' + str(default_value) \
+        + ' --time-unit ' + default_time_unit \
+        + ' --exclude ' + shellquote('^' + re.escape('.searchguard.') + '.*$') \
+        + ' --exclude ' + shellquote('^' + re.escape('.kibana.') + '.*$')
 
 proj_prefix = 'project.'
 
@@ -113,8 +117,6 @@ for project in decoded:
                 value = int(decoded[project][operation][unit])
 
                 if unit in allowed_units:
-                    default_command = default_command + " --exclude " + shellquote(re.escape(project + '.') + '*')
-
                     if unit.lower() == "weeks":
                         unit = "days"
                         value = value * 7
@@ -123,6 +125,8 @@ for project in decoded:
                         this_project = project
                     else:
                         this_project = proj_prefix + project
+                    default_command = default_command \
+                            + " --exclude " + shellquote('^' + re.escape(this_project + '.') + '.*$')
                     curator_settings[operation].setdefault(unit, {}).setdefault(value, []).append(this_project)
                     logger.debug('Using [%s] [%d] for [%s]' % (unit, value, this_project))
                 else:
@@ -148,7 +152,7 @@ for operation in curator_settings:
             ' --older-than ' + str(value) + ' --time-unit ' + unit + \
             ' --regex ' + \
             shellquote('(' + '|'.join(map(
-                lambda project:'^' + re.escape(project + '.'),
+                lambda project:'^' + re.escape(project + '.') + '.*$',
                 curator_settings[operation][unit][value])) + ')')
             job = my_cron.new(command=tab_cmd, comment='Generated job based on settings')
             job.every().day()
