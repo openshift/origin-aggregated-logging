@@ -35,6 +35,9 @@ if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get ds -n logging logg
           {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
 fi
 
+# Make CI run with enabled debug logs for journald (BZ 1505602)
+oc set -n logging env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     # assumes running in a subshell
