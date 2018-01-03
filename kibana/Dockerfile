@@ -11,8 +11,8 @@ ENV ES_HOST=localhost \
     KIBANA_CONF_DIR=/etc/kibana \
     CONFIG_PATH=/etc/kibana \
     NODE_ENV=production \
-    KIBANA_VER=4.6.4 \
-    NODE_BIN=nodescl-node \
+    KIBANA_VER=5.5.2 \
+    NODE_BIN=/usr/bin/node \
     RELEASE_STREAM=prod
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \

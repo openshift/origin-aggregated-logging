@@ -68,11 +68,9 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-
-    # Set JVM HEAP size to half of available space
     num=$(($num/2/BYTES_PER_MEG))
-    export ES_HEAP_SIZE="${num}m"
-    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
+    info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
@@ -160,8 +158,10 @@ verify_or_add_index_templates() {
 
 verify_or_add_index_templates &
 
+cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
+
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
 
-exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+exec ${ES_HOME}/bin/elasticsearch -Epath.conf=$ES_CONF
