@@ -4,14 +4,13 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 EXPOSE 5601
 
-ENV ES_HOST=localhost \
-    ES_PORT=9200 \
+ENV ELASTICSEARCH_URL=https://localhost:9200 \
     HOME=/opt/app-root/src  \
     KIBANA_HOME=/usr/share/kibana \
     KIBANA_CONF_DIR=/etc/kibana \
     CONFIG_PATH=/etc/kibana \
     NODE_ENV=production \
-    KIBANA_VER=4.6.4 \
+    KIBANA_VER=5.5.2 \
     NODE_BIN=nodescl-node \
     RELEASE_STREAM=prod
 
@@ -28,7 +27,7 @@ LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggreg
 USER 0
 
 RUN yum repolist > /dev/null && \
-    yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
+    yum-config-manager --enable rhel-7-server-ose-3.7-rpms && \
     yum-config-manager --disable epel >/dev/null || : && \
     INSTALLED_PKGS="kibana-${KIBANA_VER}" && \
     yum install -y --setopt=tsflags=nodocs  ${INSTALLED_PKGS} && \
@@ -37,9 +36,9 @@ RUN yum repolist > /dev/null && \
 
 ADD nodescl-node /usr/bin
 ADD probe/ /usr/share/kibana/probe/
-ADD lib/origin-kibana ${KIBANA_HOME}/installedPlugins/origin-kibana
+ADD lib ${HOME}
 ADD kibana.yml ${KIBANA_CONF_DIR}/
-ADD run.sh install.sh prep-install.${RELEASE_STREAM} ${HOME}/
+ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
 RUN sh ${HOME}/install.sh
 
 WORKDIR ${HOME}
