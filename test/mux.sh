@@ -206,8 +206,8 @@ write_and_verify_logs() {
     local mismatch_namespace=${4:-0}
     local no_project_tag=${5:-0}
 
-    local uuid_es=$( uuidgen )
-    local uuid_es_ops=$( uuidgen )
+    local uuid_es=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
 
     wait_for_fluentd_ready
 
@@ -427,8 +427,8 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
         reset_ES_HOST ES_HOST=bogus OPS_HOST=bogus
     fi
 
-    uuid_es=$( uuidgen )
-    uuid_es_ops=$( uuidgen )
+    uuid_es=$( uuidgen | sed 's/[-]//g' )
+    uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
 
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     add_test_message $uuid_es

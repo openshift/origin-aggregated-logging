@@ -33,7 +33,7 @@ os::log::info "Starting utf8-characters test at $( date )"
 
 wait_for_fluentd_ready
 
-message_uuid="$( uuidgen )"
+message_uuid="$( uuidgen | sed 's/[-]//g' )"
 message="$(printf '%s-\xC2\xB5' "$message_uuid" )"
 logger -p local6.info -t "$message_uuid" "$message"
 

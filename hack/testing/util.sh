@@ -189,8 +189,8 @@ function wait_for_fluentd_to_catch_up() {
     local es_pod=$( get_es_pod es )
     local es_ops_pod=$( get_es_pod es-ops )
     es_ops_pod=${es_ops_pod:-$es_pod}
-    local uuid_es=$( uuidgen )
-    local uuid_es_ops=$( uuidgen )
+    local uuid_es=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
