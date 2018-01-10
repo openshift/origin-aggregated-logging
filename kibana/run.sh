@@ -1,4 +1,22 @@
 #!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+source "utils"
 
 if [ -n "${DEBUG:-}" ] ; then
     set -x
@@ -10,24 +28,14 @@ fi
 
 set -euo pipefail
 
-# add host and port to config
-sed -i "s/es_host/${ES_HOST}/" "${KIBANA_CONF_DIR}/kibana.yml"
-sed -i "s/es_port/${ES_PORT}/" "${KIBANA_CONF_DIR}/kibana.yml"
-
-# override styles for branding
 if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
-  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/installedPlugins/origin-kibana/public/styles"
+  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/pugins/origin-kibana/public/styles"
   rm -rf "${KIBANA_HOME}/optimize/bundles/**"
 fi
 
 # override images for branding
 if [ -d "/etc/openshift/kibana/images" ]; then
-  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/installedPlugins/origin-kibana/public/images"
-fi
-
-if [ -n "${KIBANA_DEFAULTAPPID:-}" ] ; then
-    echo Setting the kibana.defaultAppId to "${KIBANA_DEFAULTAPPID}"
-    sed -i "s/^.*kibana\.defaultAppId.*/kibana\.defaultAppId: ${KIBANA_DEFAULTAPPID}/" "${KIBANA_CONF_DIR}/kibana.yml"
+  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/plugins/origin-kibana/public/images"
 fi
 
 #set the max memory
@@ -63,6 +71,9 @@ else
     exit 1
 fi
 
+
+update_config_from_env_vars ${KIBANA_CONF_DIR}
+
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
-set -a && source /etc/sysconfig/kibana && "${NODE_BIN}" "${KIBANA_HOME}/src/cli"
+"${KIBANA_BIN}"
