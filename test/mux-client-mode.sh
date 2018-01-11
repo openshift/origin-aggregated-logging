@@ -26,6 +26,10 @@ oc get daemonset logging-fluentd -o yaml > $saveds
 cleanup() {
     local return_code="$?"
     set +e
+    espod=$( get_es_pod es )
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $mycount
     # dump the pods before we restart them
     if [ -n "${fpod:-}" ] ; then
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1

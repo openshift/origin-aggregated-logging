@@ -168,6 +168,11 @@ cleanup() {
     if [ -n "${curpod:-}" ] ; then
         oc logs $curpod > $ARTIFACT_DIR/$curpod.log 2>&1
     fi
+
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $mycount
+
     # delete indices
     delete_indices $espod
     if [ -n "${esopspod:-}" ] ; then

@@ -40,3 +40,7 @@ for project in default openshift openshift-infra ; do
         os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /.operations.*/_count -X POST -d '$qs' | get_count_from_json" "^0\$"
     fi
 done
+
+qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+mycount=$( curl_es $es_pod /project.*/_count -X POST -d "$qs" )
+echo $0 -- DEBUGGING project.openshift index -- $mycount

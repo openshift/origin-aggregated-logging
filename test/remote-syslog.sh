@@ -144,6 +144,11 @@ if [ -n "${DEBUG:-}" ] ; then
   oc exec $fpod -- cat /etc/fluent/configs.d/dynamic/output-remote-syslog.conf >> $extra_rsyslog_artifacts
 fi
 
+espod=$( get_es_pod es )
+qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
+echo $0 -- DEBUGGING project.openshift index -- $mycount
+
 reset_fluentd_daemonset
 
 if [ "$savemuxdc" != "" ]; then

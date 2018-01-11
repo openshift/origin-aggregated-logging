@@ -323,6 +323,10 @@ cleanup() {
     local return_code="$?"
     set +e
 
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    mycount=$( curl_es $es_pod /project.*/_count -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $mycount
+
     # In case test failed in Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE
     # reset ES_HOST and OPS_HOST
     reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK

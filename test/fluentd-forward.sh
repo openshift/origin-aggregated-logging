@@ -93,6 +93,12 @@ oc get configmap logging-fluentd -o yaml > $savecm
 cleanup() {
     local return_code="$?"
     set +e
+
+    espod=$( get_es_pod es )
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $mycount
+
     if [ $return_code = 0 ] ; then
         mycmd=os::log::info
     else
