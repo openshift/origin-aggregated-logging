@@ -1,14 +1,14 @@
 #!/bin/bash
 
-fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
-  fluentdargs="$fluentdargs -vv"
+  fluentdargs="-vv"
   echo ">>>>>> ENVIRONMENT VARS <<<<<"
   env | sort
   echo ">>>>>>>>>>>>><<<<<<<<<<<<<<<<"
 else
   set -e
+  fluentdargs=
 fi
 
 docker_uses_journal() {
@@ -238,8 +238,7 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     # The symlink is a workaround for https://github.com/openshift/origin-aggregated-logging/issues/604
     found=
     for file in /usr/share/gems/gems/fluent-plugin-remote-syslog-*/lib/fluentd/plugin/*.rb ; do
-        bname=$(basename $file)
-        if [ ! -e "/etc/fluent/plugin/$bname" -a -f "$file" ] ; then
+        if [ -f "$file" ] ; then
             ln -s $file /etc/fluent/plugin/
             found=true
         fi
@@ -247,8 +246,7 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     if [ -z "${found:-}" ] ; then
         # not found in rpm location - look in alternate location
         for file in /opt/app-root/src/gems/fluent-plugin-remote-syslog*/lib/fluentd/plugin/*.rb ; do
-            bname=$(basename $file)
-            if [ ! -e "/etc/fluent/plugin/$bname" -a -f "$file" ] ; then
+            if [ -f "$file" ] ; then
                 ln -s $file /etc/fluent/plugin/
             fi
         done
@@ -268,22 +266,6 @@ if [ "${AUDIT_CONTAINER_ENGINE:-}" = "true" ] ; then
 else
     touch $CFG_DIR/openshift/input-pre-audit-log.conf
     touch $CFG_DIR/openshift/filter-pre-a-audit-exclude.conf
-fi
-
-if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
-    rm -f $CFG_DIR/openshift/filter-pre-force-utf8.conf
-    touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
-fi
-
-if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true ] ; then
-    export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
-fi
-
-# Include DEBUG log level messages when collecting from journald
-# https://bugzilla.redhat.com/show_bug.cgi?id=1505602
-if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
-  rm -f $CFG_DIR/openshift/filter-exclude-journal-debug.conf
-  touch $CFG_DIR/openshift/filter-exclude-journal-debug.conf
 fi
 
 if [[ $DEBUG ]] ; then

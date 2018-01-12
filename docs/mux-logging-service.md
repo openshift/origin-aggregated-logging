@@ -160,7 +160,7 @@ The namespaces used in the tag must be added ahead of time to OpenShift - for
 example, something like this:
 
     for namespace in my-namespace-a my-namespace-b ; do
-        oc adm new-project $namespace --node-selector=''
+        oadm new-project $namespace --node-selector=''
     done
 
 If the tag is not in the `project.namespacename` format, the log records will
