@@ -67,11 +67,12 @@ module Fluent
       tag = tag.sub(@remove_tag_prefix, '') if @remove_tag_prefix
       chain.next
       es.each {|time,record|
-        @packet.hostname = hostname
         if @use_record
+          @packet.hostname = record['hostname'] || hostname
           @packet.facility = record['facility'] || @facilty
           @packet.severity = record['severity'] || @severity
         else
+          @packet.hostname = hostname
           @packet.facility = @facilty
           @packet.severity = @severity
         end
@@ -91,7 +92,14 @@ module Fluent
                           tag[0..31] # tag is trimmed to 32 chars for syslog_protocol gem compatibility
                       end
         packet = @packet.dup
-        packet.content = record[@payload_key]
+        if @use_record && (record.key?('kubernetes'))
+            packet.content = @payload_key + "=" + record[@payload_key] + \
+                             (((record["kubernetes"]).key?('namespace_name')) ? ", namespace_name=" + record["kubernetes"]["namespace_name"] : "" ) + \
+                             (((record["kubernetes"]).key?('container_name')) ? ", container_name=" + record["kubernetes"]["container_name"] : "" ) + \
+                             (((record["kubernetes"]).key?('pod_name')) ? ", pod_name=" + record["kubernetes"]["pod_name"] : "" )
+        else
+            packet.content = record[@payload_key]
+        end
         @socket.send(packet.assemble, 0, @remote_syslog, @port)
     }
     end
