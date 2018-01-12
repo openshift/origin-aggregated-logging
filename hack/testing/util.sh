@@ -41,9 +41,10 @@ function get_test_user_token() {
 
 # $1 - kibana pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
-# $3 - endpoint (e.g. /projects.*/_search)
-# $4 - username
-# $5 - token
+# $3 - project name (e.g. logging, test, .operations, etc.)
+# $4 - _count or _search
+# $5 - field to search
+# $6 - search string
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
@@ -196,12 +197,11 @@ function wait_for_fluentd_to_catch_up() {
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
-    local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
-    logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
+    logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     os::log::debug added es-ops message $uuid_es_ops
 
     local rc=0
@@ -284,20 +284,4 @@ wait_for_fluentd_ready() {
     else
         os::cmd::try_until_success "sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
     fi
-}
-
-extra_artifacts_testname=$( basename $0 )
-extra_artifacts=$ARTIFACT_DIR/${extra_artifacts_testname}-artifacts.txt
-internal_artifact_log() {
-    local ts=$1 ; shift
-    echo \[${ts}\] "$@" >> $extra_artifacts
-}
-artifact_log() {
-    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
-}
-artifact_out() {
-    local ts="$( date --rfc-3339=ns )"
-    while read line ; do
-        internal_artifact_log "${ts}" "$line"
-    done
 }
