@@ -51,12 +51,13 @@ INDEX_ANY_OPERATIONS:
   - INDEX_ANY_ADMIN
 INDEX_PROJECT:
   - INDEX_ANY_ADMIN
+  - INDEX_ALL
 METRICS:
   - cluster:monitor/nodes/stats
   - cluster:monitor/health
 USER_CLUSTER_OPERATIONS:
-  - "indices:data/read/msearch"
   - "indices:data/read/scroll*"
+  - CLUSTER_COMPOSITE_OPS_RO
 
 # CLUSTER
 CLUSTER_ALL:
