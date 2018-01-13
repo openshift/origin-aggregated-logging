@@ -18,8 +18,6 @@ ENV DATA_VERSION=1.6.0 \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
     RUBY_VERSION=2.0
 
-ARG TEST_REPO
-
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
       io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
       io.openshift.tags="logging,elk,fluentd" \
@@ -29,9 +27,10 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       release="1" \
       architecture=x86_64
 
-USER 0
-
-RUN test -n "${TEST_REPO}" && curl -s -o /etc/yum.repos.d/test.repo ${TEST_REPO}
+# uncomment to build with a specific repo file
+# docker build --build-arg=TEST_REPO=http://server.test/aos-unsigned-latest.repo ....
+#ARG TEST_REPO
+#RUN test -n "${TEST_REPO}" && curl -s -o /etc/yum.repos.d/test.repo ${TEST_REPO}
 
 RUN yum-config-manager --enable rhel-7-server-ose-3.9-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
