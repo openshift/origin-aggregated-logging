@@ -33,7 +33,7 @@ else
     os::cmd::expect_success_and_not_text "curl_es $esopspod /.operations.*/_count?q=kubernetes.event.verb:* | get_count_from_json" "^0\$"
 
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
-    echo $0 -- DEBUGGING project.openshift index -- $mycount
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
 fi
 

@@ -39,8 +39,8 @@ function cleanup() {
     done
     if [ -n "${espod:-}" ] ; then
         qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-        mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
-        echo $0 -- DEBUGGING project.openshift index -- $mycount
+        results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+        echo $0 -- DEBUGGING project.openshift index -- $results
         curl_es $espod /project.multi-tenancy-* -XDELETE 2>&1 | artifact_out
     fi
     for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do

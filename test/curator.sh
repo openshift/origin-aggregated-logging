@@ -170,8 +170,8 @@ cleanup() {
     fi
 
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
-    echo $0 -- DEBUGGING project.openshift index -- $mycount
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
 
     # delete indices
     delete_indices $espod

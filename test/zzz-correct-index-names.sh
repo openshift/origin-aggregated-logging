@@ -42,5 +42,5 @@ for project in default openshift openshift-infra ; do
 done
 
 qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-mycount=$( curl_es $es_pod /project.*/_count -X POST -d "$qs" )
-echo $0 -- DEBUGGING project.openshift index -- $mycount
+results=$( curl_es $es_pod /project.*/_search -X POST -d "$qs" )
+echo $0 -- DEBUGGING project.openshift index -- $results

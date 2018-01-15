@@ -133,6 +133,11 @@ function run_suite() {
 
 for suite_selector in ${SUITE:-".*"} ; do
   for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | sort ); do
+    espod=$( get_es_pod es )
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
+
 	run_suite "${test}"
   done
 done

@@ -60,8 +60,8 @@ cleanup() {
 
     espod=$( get_es_pod es )
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
-    echo $0 -- DEBUGGING project.openshift index -- $mycount
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
 
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then

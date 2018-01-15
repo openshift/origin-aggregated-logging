@@ -40,8 +40,8 @@ os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADM
 function cleanup() {
     set +e
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
-    mycount=$( curl_es $espod /project.*/_count -X POST -d "$qs" )
-    echo $0 -- DEBUGGING project.openshift index -- $mycount
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
 }
