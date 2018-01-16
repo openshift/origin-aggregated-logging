@@ -39,10 +39,8 @@ LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging sto
 ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 # install the RPMs in a separate step so it can be cached
 RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
-    yum install -y centos-release-scl
-RUN yum install -y --setopt=tsflags=nodocs \
+    yum install -y --setopt=tsflags=nodocs \
                 java-${JAVA_VER}-openjdk-headless \
-                rh-maven33 \
                 elasticsearch-${ES_VER} \
                 PyYAML && \
     yum clean all
@@ -57,7 +55,6 @@ ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
     ${HOME}/install.sh && \
-    yum erase -y rh-maven33 && \
     rm -rf /tmp/lib
 
 WORKDIR ${HOME}
