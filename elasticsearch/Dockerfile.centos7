@@ -7,7 +7,7 @@ EXPOSE 9300
 USER 0
 
 ENV ES_CLOUD_K8S_VER=5.5.2 \
-    ES_CONF=/etc/elasticsearch \
+    ES_CONF=/opt/app-root/src/config \
     ES_JAVA_OPTS="-Dmapper.allow_dots_in_name=true" \
     ES_HOME=/usr/share/elasticsearch \
     ES_VER=5.5.2 \

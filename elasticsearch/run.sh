@@ -165,4 +165,7 @@ export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg
 
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
-exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF
+data_dir="/elasticsearch/persistent/${CLUSTER_NAME}"
+exec_args="-E path.conf=${ES_CONF} -E path.data=${data_dir}/data -E path.logs=${data_dir}/logs -E path.scripts=/etc/elasticsearch/scripts"
+
+exec ${ES_HOME}/bin/elasticsearch ${exec_args}

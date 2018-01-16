@@ -11,15 +11,10 @@ do
   ${ES_HOME}/bin/elasticsearch-plugin install -b $es_plugin
 done
 
-#fix location from config
-ln -s ${ES_HOME}/index_templates /usr/share/elasticsearch/index_templates
-ln -s ${ES_HOME}/index_patterns /usr/share/elasticsearch/index_patterns
-ln -s ${ES_HOME}/kibana_ui_objects /usr/share/elasticsearch/kibana_ui_objects
-
 mkdir /elasticsearch
-mkdir -p $ES_CONF
-chmod -R og+w $ES_CONF ${ES_HOME} ${HOME} /elasticsearch
-chmod -R o+rx /etc/elasticsearch
+mkdir -p ${HOME}/config
+chmod -R og+w ${ES_CONF} ${ES_HOME} ${HOME} /elasticsearch
+chmod -R o+rwx /etc/elasticsearch
 chmod +x ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
 
 # document needed by sg plugin to properly initialize
