@@ -24,7 +24,15 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
-for project in default openshift openshift-infra ; do
+all=$(oc get project -o jsonpath={.items[*].metadata.name})
+read -r -d '' SCRIPT<< EOF
+projects = [p for p in "$all".split(' ') if p.startswith('openshift-') or p == 'default']
+print " ".join(projects)
+EOF
+
+INFRA_PROJECTS=$(python -x "${SCRIPT}")
+
+for project in ${INFRA_PROJECTS} ; do
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
     os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.${project}\."
     os::cmd::expect_success_and_text "curl_es $es_pod /project.${project}.*/_count | get_count_from_json" "^0\$"

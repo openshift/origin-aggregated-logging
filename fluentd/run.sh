@@ -1,5 +1,11 @@
 #!/bin/bash
 
+OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
+OCP_FLUENTD_TAGS=('journal.system.** system.var.log** audit.log**')
+for p in ${OCP_OPERATIONS_PROJECTS}; do
+    OCP_FLUENTD_TAGS+=("_**${p}_**")
+done
+
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
