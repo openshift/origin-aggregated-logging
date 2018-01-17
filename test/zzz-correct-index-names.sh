@@ -24,13 +24,7 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
-all=$(oc get project -o jsonpath={.items[*].metadata.name})
-read -r -d '' SCRIPT<< EOF
-projects = [p for p in "$all".split(' ') if p.startswith('openshift-') or p == 'default']
-print " ".join(projects)
-EOF
-
-INFRA_PROJECTS=$(python -x "${SCRIPT}")
+INFRA_PROJECTS=$(oc set env ds/logging-fluentd --list | grep OCP_OPERATIONS_PROJECTS | sed "s/.*=//")
 
 for project in ${INFRA_PROJECTS} ; do
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
