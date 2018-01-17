@@ -68,7 +68,7 @@ elasticsearch.ssl.certificateAuthorities: [ "/etc/kibana/keys/ca"]
 
 # List of Kibana client-side headers to send to Elasticsearch. To send *no* client-side
 # headers, set this value to [] (an empty list).
-elasticsearch.requestHeadersWhitelist: [ 'authorization', 'X-Proxy-Remote-User' ]
+elasticsearch.requestHeadersWhitelist: ['authorization', 'x-proxy-remote-user', 'x-forwarded-for', 'x-forwarded-user']
 
 # Header names and values that are sent to Elasticsearch. Any custom headers cannot be overwritten
 # by client-side headers, regardless of the elasticsearch.requestHeadersWhitelist configuration.

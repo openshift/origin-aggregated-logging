@@ -1,9 +1,5 @@
-# reconcile directories
-mkdir -p /usr/share/elasticsearch
-
 # prep the plugins we need
 es_plugins=()
-pushd /usr/share/java
 for es_plugin in openshift-elasticsearch-plugin elasticsearch-cloud-kubernetes
 do
     es_plugin_file=/tmp/${es_plugin}.zip
