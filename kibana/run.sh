@@ -1,4 +1,22 @@
 #!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+source "utils"
 
 if [ -n "${DEBUG:-}" ] ; then
     set -x
@@ -9,10 +27,6 @@ if [ -n "${DEBUG:-}" ] ; then
 fi
 
 set -euo pipefail
-
-# add host and port to config
-sed -i "s/es_host/${ES_HOST}/" "${KIBANA_CONF_DIR}/kibana.yml"
-sed -i "s/es_port/${ES_PORT}/" "${KIBANA_CONF_DIR}/kibana.yml"
 
 # override styles for branding
 if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
@@ -62,6 +76,11 @@ else
     echo "Unable to process the KIBANA_MEMORY_LIMIT: '${KIBANA_MEMORY_LIMIT}'.  It must be in the format of: /${regex}/"
     exit 1
 fi
+
+if [ -z "${ELASTICSEARCH_URL:-}" ] ; then
+  ELASTICSEARCH_URL="https://${ES_HOST:-localhost}:${ES_PORT:-9200}"
+fi
+update_config_from_env_vars ${KIBANA_CONF_DIR}
 
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
