@@ -28,7 +28,7 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
 ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD lib/origin-kibana ${KIBANA_HOME}/installedPlugins/origin-kibana
-ADD run.sh install.sh prep-install.${RELEASE_STREAM} ${HOME}/
+ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
 RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}
