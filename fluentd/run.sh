@@ -8,6 +8,7 @@ for p in ${OCP_OPERATIONS_PROJECTS}; do
     fi
     OCP_FLUENTD_TAGS+=("**_${p}_**")
 done
+export OCP_FLUENTD_TAGS
 
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
