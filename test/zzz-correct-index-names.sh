@@ -24,9 +24,13 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
-INFRA_PROJECTS=$(oc set env ds/logging-fluentd --list | grep OCP_OPERATIONS_PROJECTS | sed "s/.*=//")
+# INFRA_PROJECTS=$(oc set env ds/logging-fluentd --list | grep OCP_OPERATIONS_PROJECTS | sed "s/.*=//")
+# for project in ${INFRA_PROJECTS} ; do
 
-for project in ${INFRA_PROJECTS} ; do
+# Testing to revert the change in pr/900
+# Since logs under the tag openshift-* (e.g., openshift-web-console) are indexed in .operations,
+# this test should not fail by those logs.
+for project in default openshift openshift-infra ; do
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
     os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.${project}\."
     os::cmd::expect_success_and_text "curl_es $es_pod /project.${project}.*/_count | get_count_from_json" "^0\$"
