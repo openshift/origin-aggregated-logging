@@ -1,12 +1,12 @@
 #!/bin/bash
 
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
-OCP_FLUENTD_TAGS=('journal.system.** system.var.log** audit.log**')
+OCP_FLUENTD_TAGS="journal.system.** system.var.log** audit.log**"
 for p in ${OCP_OPERATIONS_PROJECTS}; do
     if [[ "${p}" == *- ]] ; then
       p="${p}*"
     fi
-    OCP_FLUENTD_TAGS+=("**_${p}_**")
+    OCP_FLUENTD_TAGS+=" **_${p}_**"
 done
 export OCP_FLUENTD_TAGS
 
