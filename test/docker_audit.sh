@@ -63,3 +63,7 @@ if [ $ops_diff -lt 5 ]; then
     os::log::error ".operations index contains difference of $ops_diff messages, but at least 5 are expected."
 fi
 os::cmd::expect_success "test $ops_diff -ge 5"
+
+qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+echo $0 -- DEBUGGING project.openshift index -- $results

@@ -24,6 +24,10 @@ function cleanup() {
         done
     fi
     if [ -n "${espod:-}" ] ; then
+        qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+        results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+        echo $0 -- DEBUGGING project.openshift index -- $results
+
         curl_es $espod /project.access-control-* -XDELETE > /dev/null
     fi
     for proj in access-control-1 access-control-2 access-control-3 ; do

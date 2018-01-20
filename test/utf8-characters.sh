@@ -17,6 +17,10 @@ fi
 cleanup() {
     local return_code="$?"
     set +e
+    espod=$( get_es_pod es )
+    qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+    results=$( curl_es $espod /project.*/_search -X POST -d "$qs" )
+    echo $0 -- DEBUGGING project.openshift index -- $results
     if [ $return_code = 0 ] ; then
         mycmd=os::log::info
     else

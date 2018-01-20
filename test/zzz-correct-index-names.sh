@@ -25,7 +25,9 @@ es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
 for project in default openshift openshift-infra ; do
-    qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
+    # Until this bug is fixed, skip "openshift-web-console".
+    # Bug 1534878 - [RFE] Collect openshift-web-console logs into .operations index
+    qs='{"query":{"bool":{"must":{"term":{"kubernetes.namespace_name":"'"${project}"'"}},"must_not":{"match":{"kubernetes.namespace_name":"openshift-web-console"}}}}}'
     os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.${project}\."
     os::cmd::expect_success_and_text "curl_es $es_pod /project.${project}.*/_count | get_count_from_json" "^0\$"
     os::cmd::expect_success_and_text "curl_es $es_pod /project.*/_count -X POST -d '$qs' | get_count_from_json" "^0\$"
@@ -40,3 +42,7 @@ for project in default openshift openshift-infra ; do
         os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /.operations.*/_count -X POST -d '$qs' | get_count_from_json" "^0\$"
     fi
 done
+
+qs='{"query":{"term":{"kubernetes.namespace_name":"'"openshift"'"}}}'
+results=$( curl_es $es_pod /project.*/_search -X POST -d "$qs" )
+echo $0 -- DEBUGGING project.openshift index -- $results
