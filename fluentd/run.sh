@@ -1,5 +1,21 @@
 #!/bin/bash
 
+CFG_DIR=/etc/fluent/configs.d
+OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
+OCP_FLUENTD_TAGS="journal.system.** audit.log**"
+for p in ${OCP_OPERATIONS_PROJECTS}; do
+    if [[ "${p}" == *- ]] ; then
+      p="${p}*"
+    fi
+    OCP_FLUENTD_TAGS+=" **_${p}_**"
+done
+ocp_fluentd_files=$( grep -l %OCP_FLUENTD_TAGS% ${CFG_DIR}/* ${CFG_DIR}/*/* 2> /dev/null || : )
+tmpfile=$( mktemp )
+for file in ${ocp_fluentd_files} ; do
+    sed -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file > $tmpfile
+    mv $tmpfile $file
+done
+
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
@@ -59,7 +75,6 @@ export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 
-CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then
     # copy our standard mux configs to the openshift dir
     cp $CFG_DIR/input-*-mux.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
