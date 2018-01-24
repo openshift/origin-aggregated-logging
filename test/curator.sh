@@ -359,6 +359,84 @@ EOF
     return 0
 }
 
+regextest() {
+    local espod=$1
+    ops=${2:-""}
+    create_indices $espod
+
+    sleeptime=${CURATOR_WAIT_SECS:-300} # seconds
+    # get current curator pod
+    curpod=`get_running_pod curator${ops}`
+    # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
+    os::log::debug current indices before 1st deletion are:
+    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices )"
+    # add the curator config yaml settings file
+    curtest=`mktemp --suffix=.yaml`
+    # see what the current time and timezone are in the curator pod
+    os::log::debug "$( oc exec $curpod -- date )"
+    # calculate the runhour and runminute to run 5 minutes from now
+    tz=`timedatectl | awk '/Time zone:/ {print $3}'`
+    runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    runtime=`TZ=$tz date +%s --date="TZ=\"$tz\" $sleeptime seconds hence"`
+    cat > $curtest <<EOF
+.defaults:
+  delete:
+    days: 31
+  runhour: $runhour
+  runminute: $runminute
+  timezone: $tz
+project-dev:
+  delete:
+    days: 1
+project-prod:
+  delete:
+    weeks: 4
+.operations:
+  delete:
+    months: 2
+.regex:
+  - pattern: '^project\..+\-qe\..*$'
+    delete:
+      days: 7
+EOF
+    update_config_and_restart $curtest
+    # wait for curator run 1 to finish
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 1 $(( 2 * minute ))
+    # show current indices
+    os::log::debug current indices after 1st deletion are:
+    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices )"
+    os::cmd::expect_success "verify_indices $curpod $ops"
+
+    # now, add back the same messages/indices and see if runhour and runminute are working
+    create_indices $espod
+    # show current indices
+    os::log::debug current indices before 2nd deletion are:
+    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices )"
+
+    current_time="$( TZ=$tz date +%s )"
+    remaining_time="$(( runtime - current_time ))"
+    os::log::info sleeping $remaining_time seconds to see if runhour and runminute are working . . .
+    sleep $remaining_time
+    # wait for curator run 2 to finish
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 2 $(( 2 * minute ))
+    os::log::info verify indices deletion after curator run time
+    # show current indices
+    os::log::debug current indices after 2nd deletion are:
+    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
+       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
+       show indices --all-indices )"
+    os::cmd::expect_success "verify_indices $curpod $ops"
+
+    return 0
+}
+
 test_project_name_errors
 
 # test without ops cluster first
@@ -366,4 +444,10 @@ basictest $espod
 
 if [ -n "$esopspod" ]; then
     basictest $esopspod "-ops"
+fi
+
+regextest $espod
+
+if [ -n "$esopspod" ]; then
+    regextest $esopspod "-ops"
 fi

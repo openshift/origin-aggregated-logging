@@ -40,13 +40,14 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
     rpm -V $INSTALL_PKGS && \
     yum clean all
 
-RUN mkdir -p ${HOME} && \
-    chmod a+x ${HOME} && \
-    mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
-    touch ${CURATOR_CONF_LOCATION} 
+COPY run.sh src/* ${HOME}/
 
-ADD run_cron.py run.sh ${HOME}/
+RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
+    touch ${CURATOR_CONF_LOCATION} && \
+    chmod -R u+x ${HOME} && \
+    chgrp -R 0 ${HOME} && \
+    chmod -R g=u ${HOME}
 
 WORKDIR ${HOME}
-USER nobody
+USER 1001
 CMD ["sh", "run.sh"]
