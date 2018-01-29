@@ -194,6 +194,20 @@ if [ $TOTAL_LIMIT -le 0 ]; then
     echo "ERROR: Invalid file buffer limit ($FILE_BUFFER_LIMIT) is given.  Failed to convert to bytes."
     exit 1
 fi
+
+# If secure-forward outputs are configured, add them to NUM_OUTPUTS.
+sec_forward_files=$( grep -l "@type *secure_forward" ${CFG_DIR}/*/* 2> /dev/null || : )
+for afile in ${sec_forward_files} ; do
+    file=$( basename $afile )
+    if [ "$file" != "${mux_client_filename:-}" ]; then
+        grep "@type *secure_forward" $afile | while read -r line; do
+            if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
+                NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
+            fi
+        done
+    fi
+done
+
 TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $NUM_OUTPUTS) || :
 if [ $DF_LIMIT -lt $TOTAL_LIMIT ]; then
     echo "WARNING: Available disk space ($DF_LIMIT bytes) is less than the user specified file buffer limit ($FILE_BUFFER_LIMIT times $NUM_OUTPUTS)."
