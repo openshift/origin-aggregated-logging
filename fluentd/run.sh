@@ -2,7 +2,7 @@
 
 CFG_DIR=/etc/fluent/configs.d
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
-OCP_FLUENTD_TAGS="journal.system.** audit.log**"
+OCP_FLUENTD_TAGS=""
 for p in ${OCP_OPERATIONS_PROJECTS}; do
     if [[ "${p}" == *- ]] ; then
       p="${p}*"
