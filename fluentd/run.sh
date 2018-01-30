@@ -10,10 +10,8 @@ for p in ${OCP_OPERATIONS_PROJECTS}; do
     OCP_FLUENTD_TAGS+=" **_${p}_**"
 done
 ocp_fluentd_files=$( grep -l %OCP_FLUENTD_TAGS% ${CFG_DIR}/* ${CFG_DIR}/*/* 2> /dev/null || : )
-tmpfile=$( mktemp )
 for file in ${ocp_fluentd_files} ; do
-    sed -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file > $tmpfile
-    mv $tmpfile $file
+    sed -i -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file
 done
 
 fluentdargs="--no-supervisor"
