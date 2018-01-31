@@ -39,7 +39,7 @@ ADD nodescl-node /usr/bin
 ADD probe/ /usr/share/kibana/probe/
 ADD lib/origin-kibana ${KIBANA_HOME}/installedPlugins/origin-kibana
 ADD kibana.yml ${KIBANA_CONF_DIR}/
-ADD run.sh install.sh prep-install.${RELEASE_STREAM} ${HOME}/
+ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
 RUN sh ${HOME}/install.sh
 
 WORKDIR ${HOME}

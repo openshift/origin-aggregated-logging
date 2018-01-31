@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Copyright 2018 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#override config by environment variables
+#inspired by https://github.com/elastic/kibana-docker/blob/master/build/kibana/bin/kibana-docker
+
+update_config_from_env_vars() {
+  conf_dir=$1
+  kibana_vars=(
+      elasticsearch.pingTimeout
+      elasticsearch.preserveHost
+      elasticsearch.requestTimeout
+      elasticsearch.shardTimeout
+      elasticsearch.ssl.ca
+      elasticsearch.ssl.cert
+      elasticsearch.ssl.certificate
+      elasticsearch.ssl.certificateAuthorities
+      elasticsearch.ssl.key
+      elasticsearch.ssl.keyPassphrase
+      elasticsearch.ssl.verificationMode
+      elasticsearch.ssl.verify
+      elasticsearch.startupTimeout
+      elasticsearch.url
+      kibana.defaultAppId
+      logging.quiet
+      logging.silent
+      logging.verbose
+      server.basePath
+      server.maxPayloadBytes
+  )
+  conf_file=${conf_dir}/kibana.yml
+  echo "#The following values dynamically added from environment variable overrides:"
+  for kibana_var in ${kibana_vars[*]}; do
+      # 'elasticsearch.url' -> 'ELASTICSEARCH_URL'
+      env_var=$(echo ${kibana_var^^} | tr . _)
+      # Indirectly lookup env var values via the name of the var.
+      # REF: http://tldp.org/LDP/abs/html/bashver2.html#EX78
+      value="${!env_var:-}"
+      if [[ -n "${value:-}" ]]; then
+        if [ -n "${DEBUG:-}" ] ; then
+          echo "updating ${conf_file} - '${kibana_var}: ${value}'"
+        fi
+        echo "${kibana_var}: ${value}" >> ${conf_file}
+      fi
+  done
+}
