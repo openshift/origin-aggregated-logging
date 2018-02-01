@@ -7,18 +7,6 @@ if [ -z "${ES_CLOUD_K8S_URL:-}" ] ; then
     ES_CLOUD_K8S_URL=io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
 fi
 if [ -z "${OSE_ES_URL:-}" ] ; then
-    MANPATH="" source /opt/rh/rh-maven33/enable
-    set +e
-    mvn dependency:get -Dartifact=io.fabric8.elasticsearch:openshift-elasticsearch-plugin:${OSE_ES_VER}
-    res=$?
-    set -e
-    if [ 0 -eq $res ]; then
-      OSE_ES_URL=io.fabric8.elasticsearch/openshift-elasticsearch-plugin/${OSE_ES_VER}
-    else
-      pushd /tmp/lib/openshift-elasticsearch-plugin
-        mvn clean verify -DskipTests
-        OSE_ES_URL=file:///tmp/lib/openshift-elasticsearch-plugin/target/releases/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
-      popd
-    fi
+    OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/releases/download/openshift-elasticsearch-plugin-${OSE_ES_VER}/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
 fi
 es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL)

@@ -1,6 +1,3 @@
 [submodule "kibana-proxy"]
 	path = kibana-proxy
 	url = https://github.com/fabric8io/openshift-auth-proxy.git
-[submodule "elasticsearch/lib/openshift-elasticsearch-plugin"]
-	path = elasticsearch/lib/openshift-elasticsearch-plugin
-	url = https://github.com/fabric8io/openshift-elasticsearch-plugin
