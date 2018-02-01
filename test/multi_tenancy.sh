@@ -32,17 +32,16 @@ cleanup_msearch_access=""
 function cleanup() {
     set +e
     for user in $cleanup_msearch_access ; do
-        hack_msearch_access $user 2>&1 | artifact_out
+        hack_msearch_access $user
     done
     for user in $delete_users ; do
-        oc delete user $user 2>&1 | artifact_out
+        oc delete user $user
     done
     if [ -n "${espod:-}" ] ; then
-        curl_es $espod /project.multi-tenancy-* -XDELETE 2>&1 | artifact_out
+        curl_es $espod /project.multi-tenancy-* -XDELETE > /dev/null
     fi
     for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
-        oc delete project $proj 2>&1 | artifact_out
-        os::cmd::try_until_failure "oc get project $proj" 2>&1 | artifact_out
+        oc delete project $proj
     done
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -58,14 +57,14 @@ function create_user_and_assign_to_projects() {
         os::log::info Using existing user $user
     else
         os::log::info Creating user $user with password $pw
-        oc login --username=$user --password=$pw 2>&1 | artifact_out
+        os::log::debug "$( oc login --username=$user --password=$pw 2>&1 )"
         delete_users="$delete_users $user"
     fi
     os::log::debug "$( oc login --username=system:admin 2>&1 )"
     os::log::info Assigning user to projects "$@"
     while [ -n "${1:-}" ] ; do
-        oc project $1 2>&1 | artifact_out
-        oc adm policy add-role-to-user view $user 2>&1 | artifact_out
+        os::log::debug "$( oc project $1 2>&1 )"
+        os::log::debug "$( oadm policy add-role-to-user view $user 2>&1 )"
         shift
     done
     oc project "${current_project}" > /dev/null
@@ -144,8 +143,7 @@ curl_es $espod /project.multi-tenancy-* -XDELETE > /dev/null
 
 for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     os::log::info Creating project $proj
-    oc adm new-project $proj --node-selector='' 2>&1 | artifact_out
-    os::cmd::try_until_success "oc get project $proj" 2>&1 | artifact_out
+    os::log::debug "$( oadm new-project $proj --node-selector='' 2>&1 )"
     os::log::info Creating test index and entry for $proj
     add_message_to_index $proj "" $espod
 done

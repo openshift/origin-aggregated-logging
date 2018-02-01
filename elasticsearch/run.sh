@@ -17,6 +17,9 @@ LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
 RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
 RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 
+PRIMARY_SHARDS=${PRIMARY_SHARDS:-1}
+REPLICA_SHARDS=${REPLICA_SHARDS:-0}
+
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
@@ -68,11 +71,9 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-
-    # Set JVM HEAP size to half of available space
     num=$(($num/2/BYTES_PER_MEG))
-    export ES_HEAP_SIZE="${num}m"
-    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
+    info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
@@ -133,6 +134,8 @@ verify_or_add_index_templates() {
     shopt -s failglob
     for template_file in ${ES_HOME}/index_templates/*.json
     do
+        sed -i "s,\$REPLICA_SHARDS,$REPLICA_SHARDS," $template_file
+        sed -i "s,\$PRIMARY_SHARDS,$PRIMARY_SHARDS," $template_file
         template=`basename $template_file`
         # Check if index template already exists
         response_code=$(curl ${DEBUG:+-v} -s \
@@ -160,8 +163,11 @@ verify_or_add_index_templates() {
 
 verify_or_add_index_templates &
 
+cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
+
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
-export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false"
+info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
-exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF

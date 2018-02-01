@@ -39,28 +39,17 @@ function get_test_user_token() {
 
 # $1 - kibana pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
-# $3 - endpoint (e.g. /projects.*/_search)
-# $4 - username
-# $5 - token
+# $3 - project name (e.g. logging, test, .operations, etc.)
+# $4 - _count or _search
+# $5 - field to search
+# $6 - search string
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
-    local pod="$1"
-    local eshost="$2"
-    local endpoint="$3"
-    local test_name="$4"
-    local test_token="$5"
-    shift; shift; shift; shift; shift
-    local args=( "${@:-}" )
-
-    local secret_dir="/etc/kibana/keys/"
-    oc exec "${pod}" -c kibana -- curl --connect-timeout 1 --silent --insecure "${args[@]}" \
-       --cert "${secret_dir}cert" \
-       --key "${secret_dir}key" \
-       -H "X-Proxy-Remote-User: $test_name" \
-       -H "Authorization: Bearer $test_token" \
-       -H "X-Forwarded-For: 127.0.0.1" \
-       "https://${eshost}:9200${endpoint}"
+    oc exec $1 -c kibana -- curl --connect-timeout 1 -s -k \
+       --cert /etc/kibana/keys/cert --key /etc/kibana/keys/key \
+       -H "X-Proxy-Remote-User: $test_name" -H "Authorization: Bearer $test_token" -H "X-Forwarded-For: 127.0.0.1" \
+       "https://${2}:9200/${3}*/${4}\?q=${5}:${6}"
 }
 
 # $1 - es pod name
@@ -194,12 +183,11 @@ function wait_for_fluentd_to_catch_up() {
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
-    local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
     add_test_message $uuid_es
     os::log::debug added es message $uuid_es
-    logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
+    logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     os::log::debug added es-ops message $uuid_es_ops
 
     local rc=0
@@ -282,20 +270,4 @@ wait_for_fluentd_ready() {
     else
         os::cmd::try_until_success "sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
     fi
-}
-
-extra_artifacts_testname=$( basename $0 )
-extra_artifacts=$ARTIFACT_DIR/${extra_artifacts_testname}-artifacts.txt
-internal_artifact_log() {
-    local ts=$1 ; shift
-    echo \[${ts}\] "$@" >> $extra_artifacts
-}
-artifact_log() {
-    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
-}
-artifact_out() {
-    local ts="$( date --rfc-3339=ns )"
-    while read line ; do
-        internal_artifact_log "${ts}" "$line"
-    done
 }

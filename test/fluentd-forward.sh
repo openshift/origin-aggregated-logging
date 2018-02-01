@@ -16,7 +16,7 @@ update_current_fluentd() {
 
     # undeploy fluentd
     os::log::debug "$( oc label node --all logging-infra-fluentd- )"
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    os::cmd::try_until_text "oc get daemonset -n logging logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
     # edit so we don't send to ES
     oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\

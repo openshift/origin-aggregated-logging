@@ -1,71 +1,65 @@
-FROM centos:centos7
+FROM centos/ruby-24-centos7:latest
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.42 \
+    FLUENTD_VERSION=0.12.39 \
+    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
-    RUBY_VERSION=2.0
+    RUBY_VERSION=2.4
+
+ARG SCL_VERSION=rh-ruby24
+ARG ES_GEM_VER=1.9.5.1
+ARG ES_GEM=fluent-plugin-elasticsearch-${ES_GEM_VER}.gem
 
 LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
       io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
       io.openshift.expose-services="9200:http, 9300:http" \
       io.openshift.tags="logging,elk,fluentd"
 
+USER 0
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
-# autoconf redhat-rpm-config for building jemalloc
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
-      gcc-c++ \
-      ruby \
-      ruby-devel \
-      libcurl-devel \
-      make \
-      bc \
-      iproute \
-      autoconf \
-      redhat-rpm-config && \
+      bc iproute && \
     yum clean all
-
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
-    gem install -N --conservative --minimal-deps --no-ri --no-doc \
-     'activesupport:<5' \
-     'public_suffix:<3' \
+    scl enable ${SCL_VERSION} -- \
+     gem install -N --conservative --minimal-deps --no-ri --no-doc \
      'elasticsearch-transport:<5' \
      'elasticsearch-api:<5' \
      'elasticsearch:<5' \
       fluentd:${FLUENTD_VERSION} \
-     'fluent-plugin-elasticsearch:~>1.0' \
       fluent-plugin-kubernetes_metadata_filter \
       'fluent-plugin-record-modifier:<1.0.0' \
       'fluent-plugin-rewrite-tag-filter:<1.6.0' \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
-     'fluent-plugin-remote-syslog:1.1'
+     'fluent-plugin-remote-syslog:1.1' \
+      systemd-journal \
+      excon
+RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/download/v${ES_GEM_VER}/${ES_GEM} > ${HOME}/${ES_GEM} && \
+    cd ${HOME} && \
+    scl enable ${SCL_VERSION} -- \
+      gem install -N --conservative --minimal-deps --no-ri --local \
+        ${ES_GEM} && rm -f ${ES_GEM}
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
-ADD out_syslog_buffered.rb out_syslog.rb /etc/fluent/plugin/
-ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
+COPY lib/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem /tmp/
+RUN scl enable ${SCL_VERSION} -- \
+      gem install -N --conservative --minimal-deps --no-ri --no-doc \
+        /tmp/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem && \
+      rm /tmp/*.gem
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
-
-ADD jemalloc/ ${HOME}/jemalloc/
-# note - make dist "fails" here
-# false -o doc/jemalloc.html doc/html.xsl doc/jemalloc.xml
-# so cannot use &&
-# cannot use make install - will try to install docs - not only does that fail
-# for some reason, but we also don't want them here - use install_lib install_bin
-RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
-    make dist ; make && make install_lib install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
-    cd .. && rm -rf jemalloc
 
 WORKDIR ${HOME}
 USER 0
