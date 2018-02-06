@@ -52,8 +52,7 @@ INDEX_ANY_OPERATIONS:
 INDEX_PROJECT:
   - INDEX_ANY_ADMIN
 METRICS:
-  - cluster:monitor/nodes/stats
-  - cluster:monitor/health
+  - cluster:monitor/prometheus/metrics
 USER_CLUSTER_OPERATIONS:
   - "indices:data/read/msearch"
   - "indices:data/read/scroll*"
