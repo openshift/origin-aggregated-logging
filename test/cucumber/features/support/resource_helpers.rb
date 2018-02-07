@@ -23,11 +23,11 @@ module ResourceHelpers
         .do()
   end
 
-  def deployment_config(name)
+  def deployment_config(name, token: @token, namespace: @namespace)
     list = @oc.get(:dc, name)
-        .namespace(@namespace)
+        .namespace(namespace)
         .output('yaml')
-        .token(@token)
+        .token(token)
         .do()
     return list unless name.empty?
     raise "Unable to find deploymentconfig named #{name}" if list.items.empty?
