@@ -26,7 +26,7 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       make \
       bc \
       iproute \
-      autoconf \
+      autoconf automake libtool m4 \
       redhat-rpm-config && \
     yum clean all
 
