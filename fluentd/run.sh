@@ -1,14 +1,14 @@
 #!/bin/bash
 
+fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
-  fluentdargs="-vv"
+  fluentdargs="$fluentdargs -vv"
   echo ">>>>>> ENVIRONMENT VARS <<<<<"
   env | sort
   echo ">>>>>>>>>>>>><<<<<<<<<<<<<<<<"
 else
   set -e
-  fluentdargs=
 fi
 
 docker_uses_journal() {
