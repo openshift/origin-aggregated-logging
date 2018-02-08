@@ -89,6 +89,7 @@ update_current_fluentd() {
         enable_ruby\n\
         <record>\n\
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
+        MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $SET_CONTAINER_VALS ]; then
@@ -113,6 +114,7 @@ update_current_fluentd() {
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         CONTAINER_NAME k8s_mux.01234567_logging-mux_testproj_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
@@ -145,6 +147,7 @@ update_current_fluentd() {
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
         CONTAINER_NAME k8s_mux.01234567_logging-mux_testproj_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $NO_PROJECT_TAG ]; then
@@ -175,6 +178,7 @@ update_current_fluentd() {
         enable_ruby\n\
         <record>\n\
         @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
+        MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   else
@@ -244,7 +248,7 @@ write_and_verify_logs() {
     fi
     # could be different fields depending on the container log driver - so just
     # search for the exact phrase in all fields
-    local startqs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}},"must_not":['
+    local startqs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${mymessage}"'"}},"must_not":['
     local comma=""
     # make sure record does not have any of the following fields:
     # docker,kubernetes,CONTAINER_NAME,CONTAINER_ID_FULL,mux_namespace_name,mux_need_k8s_meta,namespace_name,namespace_uuid
@@ -258,7 +262,7 @@ write_and_verify_logs() {
     artifact_log start $( date ) $( date +%s )
     if ! os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
         artifact_log end $( date ) $( date +%s )
-        qs='{"query":{"bool":{"filter":{"match_phrase":{"_all":"'"${mymessage}"'"}}}}}'
+        qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${mymessage}"'"}}}}}'
         curl_es $espod /${myproject}.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
         curl_es $espod /project.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
         curl_es $espod /fluentd/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
