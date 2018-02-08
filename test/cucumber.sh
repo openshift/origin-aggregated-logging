@@ -35,7 +35,7 @@ function setup() {
   os::cmd::expect_success "oc -n ${LOGGING_NS} patch oauthclient kibana-proxy -p '{\"redirectURIs\": [\"${kibana_url}\"]}'"
 }
 
-os::cmd::expect_success "oc login 127.0.0.1:8443 -u system:admin"
+os::cmd::expect_success "oc login -u system:admin"
 os::cmd::expect_success "oc adm policy add-cluster-role-to-user cluster-admin admin"
 
 es_pod_name=$(oc -n ${LOGGING_NS} get pod -l component=es -o jsonpath='{.items[0].metadata.name}' -n logging)
