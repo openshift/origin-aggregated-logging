@@ -105,8 +105,12 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
     # rm k8s meta plugin - do not hit the API server - just do json parsing
-    if [ "${MUX_CLIENT_MODE:-}" = maximal -o "${MUX_CLIENT_MODE:-}" = minimal ] ; then
+    if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
         cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-k8s-meta.conf
+    elif [ "${MUX_CLIENT_MODE:-}" = minimal -a "${USE_JOURNAL:-}" = false ] ; then
+        # have to do this before shipping record to mux so embedded "log" field
+        # will be json parsed correctly
+        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-pre-k8s-meta.conf
     fi
     # mux clients do not create elasticsearch index names
     ENABLE_ES_INDEX_NAME=false
