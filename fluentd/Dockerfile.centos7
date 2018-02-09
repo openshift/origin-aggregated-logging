@@ -24,7 +24,8 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       libcurl-devel \
       make \
       bc \
-      iproute && \
+      iproute \
+      autoconf automake libtool m4 && \
     yum clean all
 RUN mkdir -p ${HOME} && \
     gem install -N --conservative --minimal-deps --no-ri \
