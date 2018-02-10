@@ -35,6 +35,37 @@ artifact_log Starting fluentd-plugin-remote-syslog tests on $fluentdtype at "$( 
 
 os::log::info Starting fluentd-plugin-remote-syslog tests on $fluentdtype at $( date )
 
+cleanup() {
+    local return_code="$?"
+    set +e
+
+    if [ "$fluentdtype" = "fluentd" ] ; then
+        reset_fluentd_daemonset
+    else
+        os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+        os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
+        os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=false REMOTE_SYSLOG_HOST- REMOTE_SYSLOG_USE_RECORD- REMOTE_SYSLOG_PORT=514 )"
+        os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+        os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
+    fi
+
+    # Resetting rsyslogd
+    #   Provides TCP syslog reception
+    #   $ModLoad imtcp
+    #   $InputTCPServerRun 514
+    if [ -f ${rsyslogconfbakup:-""} ]; then
+        sudo cp $rsyslogconfbakup /etc/rsyslog.conf
+    fi
+    if [ -f ${rsyslogconfbakup2:-""} ]; then
+        sudo mv $rsyslogconfbakup2 /etc/rsyslog.d
+    fi
+    os::cmd::expect_success "sudo service rsyslog restart"
+    
+    os::test::junit::reconcile_output
+    exit $return_code
+}
+trap "cleanup" EXIT
+
 if [ "$fluentdtype" = "fluentd" ] ; then
     my_remote_syslog_host=$( oc set env ds/logging-fluentd --list | grep REMOTE_SYSLOG_HOST | awk -F'=' '{print $2}' || : )
 else
@@ -213,7 +244,8 @@ artifact_log $title $mypod
 title="Test 6, use rsyslogd on the node"
 os::log::info $title
 
-artifact_log iptables list
+artifact_log iptables ACCEPT ${ALTPORT}
+sudo iptables -A INPUT -m tcp -p tcp --dport ${ALTPORT} -j ACCEPT 2>&1 | artifact_out || :
 sudo iptables -L 2>&1 | artifact_out || :
 
 # Make sure rsyslogd is listening on port 514 up and running
@@ -223,12 +255,21 @@ sudo iptables -L 2>&1 | artifact_out || :
 rsyslogconfbakup=$( mktemp )
 artifact_log ORIGINAL /etc/rsyslog.conf
 cat /etc/rsyslog.conf 2>&1 | artifact_out
-artifact_log "--------------------------------------"
+artifact_log ORIGINAL /etc/rsyslog.conf END
 cp /etc/rsyslog.conf $rsyslogconfbakup
-sudo sed -i -e "s/^#*\(\$ModLoad imtcp\)/\1/" -e "s/^#*\(\$InputTCPServerRun\) 514/\1 ${ALTPORT}/" /etc/rsyslog.conf
+sudo sed -i -e 's/^#*\(\$ModLoad imtcp\)/\1/' -e "s/^#*\(\$InputTCPServerRun\) 514/\1 ${ALTPORT}/" \
+         -e 's/\(\$ModLoad imuxsock\)/#\1/' -e 's/\(\$ModLoad imjournal\)/#\1/' -e 's/\(\$OmitLocalLogging\)/#\1/' \
+         -e 's/\(\$IMJournalStateFile imjournal.state\)/#\1/' -e 's/\(\$ActionFileEnableSync\)/#\1/' \
+         -e 's/\(#### RULES .*\)/\1\n\$template precise,"%syslogpriority%,%syslogfacility%,%timegenerated%,%HOSTNAME%,%syslogtag%,%msg%\\n"/' \
+         -e 's/\(\/var\/log\/messages\)/\1;precise/' \
+         /etc/rsyslog.conf
+rsyslogconfbakup2=/tmp/listen.conf
+if [ -f /etc/rsyslog.d/listen.conf ]; then
+    sudo mv /etc/rsyslog.d/listen.conf $rsyslogconfbakup2
+fi
 artifact_log MODIFIED /etc/rsyslog.conf
 cat /etc/rsyslog.conf 2>&1 | artifact_out
-artifact_log "--------------------------------------"
+artifact_log MODIFIED /etc/rsyslog.conf END
 
 artifact_log Before restarting rsyslog
 sudo service rsyslog status 2>&1 | artifact_out || :
@@ -244,7 +285,7 @@ if [ "$fluentdtype" = "fluentd" ] ; then
     os::log::debug "$( oc label node --all logging-infra-fluentd- )"
     os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_TAG_KEY- )"
+    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
     os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
@@ -253,7 +294,7 @@ else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
     os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_TAG_KEY- )"
+    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
     os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
@@ -261,34 +302,17 @@ else
 fi
 os::cmd::try_until_success "oc exec $mypod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf" $MUX_WAIT_TIME
 artifact_log $title $mypod
+oc logs $mypod 2>&1 | artifact_out || :
 
 mymessage="rsyslogTestMessage-"$( date +%Y%m%d-%H%M%S )
-logger -i -p local6.info -t rsyslogTestTag $mymessage
-os::cmd::try_until_text "sudo grep $mymessage /var/log/messages" ".*${mymessage}.*" $MUX_WAIT_TIME
+logger -i -p local0.err -t rsyslogTestTag $mymessage
+os::cmd::try_until_text "sudo egrep \"${mymessage}$\" /var/log/messages" ".*${mymessage}.*" $MUX_WAIT_TIME
 artifact_log Log test message by logger: $mymessage
 sudo grep $mymessage /var/log/messages 2>&1 | artifact_out || :
 
 mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
 add_test_message $mymessage
-os::cmd::try_until_text "sudo grep $mymessage /var/log/messages" ".*${mymessage}.*" $MUX_WAIT_TIME
+os::cmd::try_until_text "sudo egrep \"/${mymessage}" /var/log/messages" ".*${mymessage}.*" $MUX_WAIT_TIME
 artifact_log Log test message by kibana: $mymessage
 sudo grep $mymessage /var/log/messages 2>&1 | artifact_out || :
 
-if [ "$fluentdtype" = "fluentd" ] ; then
-    reset_fluentd_daemonset
-else
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
-    os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=false REMOTE_SYSLOG_HOST- REMOTE_SYSLOG_USE_RECORD- REMOTE_SYSLOG_PORT=514 )"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
-    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
-fi
-
-# Resetting rsyslogd
-#   Provides TCP syslog reception
-#   $ModLoad imtcp
-#   $InputTCPServerRun 514
-sudo cp $rsyslogconfbakup /etc/rsyslog.conf
-os::cmd::expect_success "sudo service rsyslog restart"
-
-os::test::junit::reconcile_output

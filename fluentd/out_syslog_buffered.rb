@@ -116,11 +116,11 @@ module Fluent
                         tag[0..31] # tag is trimmed to 32 chars for syslog_protocol gem compatibility
                     end
       packet = @packet.dup
-      if @use_record && (record.key?('kubernetes'))
-          packet.content = @payload_key + "=" + record[@payload_key] + \
-                           (((record["kubernetes"]).key?('namespace_name')) ? ", namespace_name=" + record["kubernetes"]["namespace_name"] : "" ) + \
-                           (((record["kubernetes"]).key?('container_name')) ? ", container_name=" + record["kubernetes"]["container_name"] : "" ) + \
-                           (((record["kubernetes"]).key?('pod_name')) ? ", pod_name=" + record["kubernetes"]["pod_name"] : "" )
+      if @use_record && (record.key?('kubernetes')) && @payload_key && record[@payload_key]
+          packet.content = (((record['kubernetes']).key?('namespace_name')) ? 'namespace_name=' + record['kubernetes']['namespace_name'] + ', ' : '' ) + \
+                           (((record['kubernetes']).key?('container_name')) ? 'container_name=' + record['kubernetes']['container_name'] + ', ' : '' ) + \
+                           (((record['kubernetes']).key?('pod_name')) ? 'pod_name=' + record['kubernetes']['pod_name'] + ', ' : '' ) + \
+                           @payload_key + '=' + record[@payload_key]
       else
           packet.content = record[@payload_key]
       end
