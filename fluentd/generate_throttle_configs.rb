@@ -159,7 +159,7 @@ def create_default_docker(excluded)
   pos_file "#{ENV['JSON_FILE_POS_FILE'] || '/var/log/es-containers.log.pos'}"
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format #{ENV['USE_CRIO'] == 'true' ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<message>.*)$/' : 'json'}
   keep_time_key true
   read_from_head "#{ENV['JSON_FILE_READ_FROM_HEAD'] || 'true'}"
   exclude_path #{excluded}
