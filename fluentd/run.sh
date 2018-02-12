@@ -25,6 +25,19 @@ else
   set -e
 fi
 
+#NOTE: USE_CRIO variable used in generate_throttle_configs.rb as well
+export USE_CRIO=false
+node_config=/etc/origin/node/node-config.yaml
+if [[ -f "$node_config" ]]; then
+    cre=$(ruby -e "require 'yaml'; y=YAML.load_file('${node_config}')
+        puts y['kubeletArguments']['container-runtime-endpoint']")
+    if [[ "$cre" =~ crio ]]; then
+        USE_CRIO=true
+    fi
+else
+    echo "WARNING: Unable to check for cri-o"
+fi
+
 docker_uses_journal() {
     # need to be able to handle cases like
     # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
@@ -51,7 +64,9 @@ if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
             export JOURNAL_SOURCE=/run/log/journal
         fi
     fi
-    if docker_uses_journal ; then
+    if [[ "$USE_CRIO" == true ]]; then
+        export USE_JOURNAL=false
+    elif docker_uses_journal ; then
         export USE_JOURNAL=true
     else
         export USE_JOURNAL=false
