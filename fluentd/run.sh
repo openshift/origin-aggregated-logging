@@ -63,8 +63,12 @@ else
     export USE_JOURNAL=true
 fi
 
-if [ ! -d /etc/fluent/muxkeys ]; then
+if [ ! -d /etc/fluent/muxkeys -o "${USE_MUX:-}" = "true" ] ; then
+    # mux is not configured or starting fluentd as mux
     unset MUX_CLIENT_MODE
+else
+    # set MUX_CLIENT_MODE to maximal by default for the mux client
+    MUX_CLIENT_MODE=${MUX_CLIENT_MODE:-maximal}
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
