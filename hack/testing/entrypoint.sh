@@ -16,6 +16,10 @@
 #    run. Test suite entrypoints exist under hack/testing/
 #    with the test- prefix. The regex in $SUITE is a simple
 #    filter.
+#  - EXCLUDE_SUITE: a regex that will choose which test suites
+#    are not run. Test suite entrypoints exist under hack/testing/
+#    with the test- prefix. The regex in $EXCLUDE_SUITE is 
+#    a simple filter like $SUITE only with opposite effect.
 #  - JUNIT_REPORT: generate a jUnit XML report for tests
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
@@ -131,14 +135,15 @@ function run_suite() {
 	fi
 }
 
+EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
 for suite_selector in ${SUITE:-".*"} ; do
-  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | sort ); do
+  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
 	run_suite "${test}"
   done
 done
 
 for suite_selector in ${SUITE:-".*"} ; do
-  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | sort ); do
+  for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
 	run_suite "${test}"
   done
 done
