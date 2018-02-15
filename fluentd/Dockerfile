@@ -6,7 +6,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 ENV DATA_VERSION=1.6.0 \
     FLUENTD_VERSION=0.12.42 \
     FLUENTD_ES=1.13.0-1 \
-    FLUENTD_KUBE_METADATA=0.33.0-1 \
+    FLUENTD_KUBE_METADATA=1.0.1-1 \
     FLUENTD_REWRITE_TAG=1.5.6-1 \
     FLUENTD_SECURE_FWD=0.4.5-2 \
     FLUENTD_SYSTEMD=0.0.9-1 \
@@ -16,7 +16,8 @@ ENV DATA_VERSION=1.6.0 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
-    RUBY_VERSION=2.0
+    RUBY_VERSION=2.0 \
+    OCP_OPERATIONS_PROJECTS='default openshift openshift-'
 
 ARG TEST_REPO
 

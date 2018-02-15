@@ -4,6 +4,8 @@ if ! type -t os::log::info > /dev/null ; then
     source "${OS_O_A_L_DIR:-..}/hack/lib/init.sh"
 fi
 
+LOGGING_NS=${LOGGING_NS:-logging}
+
 function get_es_dcs() {
     oc get dc --selector logging-infra=elasticsearch -o name
 }
@@ -14,10 +16,10 @@ function get_curator_dcs() {
 
 function get_es_pod() {
     # $1 - cluster name postfix
-    if [ -z $(oc get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
-      oc get pods -l component=${1} --no-headers | awk '$3 == "Running" {print $1}'
+    if [ -z $(oc -n $LOGGING_NS get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
+      oc -n $LOGGING_NS get pods -l component=${1} --no-headers | awk '$3 == "Running" {print $1}'
     else
-      oc get pods -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '$3 == "Running" {print $1}'
+      oc -n $LOGGING_NS get pods -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '$3 == "Running" {print $1}'
     fi
 }
 
@@ -54,7 +56,7 @@ curl_es_from_kibana() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/kibana/keys/"
-    oc exec "${pod}" -c kibana -- curl --connect-timeout 1 --silent --insecure "${args[@]}" \
+    oc -n $LOGGING_NS exec "${pod}" -c kibana -- curl --connect-timeout 1 --silent --insecure "${args[@]}" \
        --cert "${secret_dir}cert" \
        --key "${secret_dir}key" \
        -H "X-Proxy-Remote-User: $test_name" \
@@ -73,7 +75,7 @@ function curl_es() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              --key "${secret_dir}admin-key"   \
                              --cert "${secret_dir}admin-cert" \
                              "https://localhost:9200${endpoint}"
@@ -89,7 +91,7 @@ function curl_es_input() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
                                 --key "${secret_dir}admin-key"   \
                                 --cert "${secret_dir}admin-cert" \
                                 "https://localhost:9200${endpoint}"
@@ -102,7 +104,7 @@ function curl_es_with_token() {
     local test_token="$4"
     shift; shift; shift; shift
     local args=( "${@:-}" )
-    oc exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              -H "X-Proxy-Remote-User: $test_name" \
                              -H "Authorization: Bearer $test_token" \
                              -H "X-Forwarded-For: 127.0.0.1" \
@@ -116,7 +118,7 @@ function curl_es_with_token_and_input() {
     local test_token="$4"
     shift; shift; shift; shift
     local args=( "${@:-}" )
-    oc exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+    oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
                                 -H "X-Proxy-Remote-User: $test_name" \
                                 -H "Authorization: Bearer $test_token" \
                                 -H "X-Forwarded-For: 127.0.0.1" \
@@ -172,7 +174,7 @@ function get_count_from_json_from_search() {
 # $1 - unique value to search for in es
 function add_test_message() {
     local kib_pod=`get_running_pod kibana`
-    oc exec $kib_pod -c kibana -- curl --connect-timeout 1 -s \
+    oc -n $LOGGING_NS exec $kib_pod -c kibana -- curl --connect-timeout 1 -s \
        http://localhost:5601/$1 > /dev/null 2>&1
 }
 
@@ -189,8 +191,8 @@ function wait_for_fluentd_to_catch_up() {
     local es_pod=$( get_es_pod es )
     local es_ops_pod=$( get_es_pod es-ops )
     es_ops_pod=${es_ops_pod:-$es_pod}
-    local uuid_es=$( uuidgen )
-    local uuid_es_ops=$( uuidgen )
+    local uuid_es=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local project=${4:-logging}
