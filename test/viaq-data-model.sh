@@ -80,7 +80,10 @@ if oc set env daemonset/logging-fluentd --list | grep -q ^MUX_CLIENT_MODE=minima
 fi
 
 # make sure we are not using the test volume
-os::log::debug "$( oc set volumes daemonset/logging-fluentd --remove --name=viaq-test 2>&1 || : )"
+if oc set volumes daemonset/logging-fluentd | grep -q 'as viaq-test' ; then
+    os::log::debug "$( oc set volumes daemonset/logging-fluentd --remove --name=viaq-test 2>&1 )"
+fi
+
 # create test filter file
 cfg=`mktemp`
 cat > $cfg <<EOF
@@ -104,7 +107,7 @@ EOF
 # add our test filter to the fluentd pipeline via a volume mount
 os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --name=viaq-test \
                    -t hostPath -m /etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf \
-                   --path $cfg )"
+                   --path $cfg 2>&1 )"
 
 os::cmd::expect_success flush_fluentd_pos_files
 os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
@@ -212,3 +215,4 @@ if [ -n "$is_maximal" ] ; then
     os::cmd::try_until_failure "oc get pod $muxpod"
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
 fi
+
