@@ -6,7 +6,7 @@ MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
 info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
-config=${ES_HOME}/config/elasticsearch.yml
+config=${ES_CONF}/elasticsearch.yml
 index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
 
 now=0
@@ -15,14 +15,15 @@ loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
 while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -cd ${HOME}/sgconfig \
     -i $index \
-    -ks /etc/elasticsearch/secret/searchguard.key \
+    -ks /etc/elasticsearch/secret/admin.jks \
     -kst JKS \
     -kspass kspass \
-    -ts /etc/elasticsearch/secret/searchguard.truststore \
+    -ts /etc/elasticsearch/secret/truststore \
     -tst JKS \
     -tspass tspass \
     -nhnv \
-    -icl ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
+    -cn ${CLUSTER_NAME} \
+    ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
 do
     if ! expr $numretries % $loginterval ; then
         warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"

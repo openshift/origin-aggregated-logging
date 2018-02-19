@@ -864,9 +864,6 @@
             }
           },
           "index": "not_analyzed",
-          "norms": {
-            "enabled": false
-          },
           "type": "ip"
         },
         "ipaddr6": {
@@ -1132,9 +1129,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
@@ -1196,9 +1190,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
@@ -1261,7 +1252,11 @@
   },
   "order": 20,
   "settings": {
-    "index.refresh_interval": "5s"
+    "index.refresh_interval": "5s",
+    "index.number_of_replicas": $REPLICA_SHARDS,
+    "index.number_of_shards": $PRIMARY_SHARDS,
+    "index.translog.flush_threshold_size": "256mb",
+    "index.unassigned.node_left.delayed_timeout": "2m"
   },
   "template": "project.ovirt-metrics-*"
 }
