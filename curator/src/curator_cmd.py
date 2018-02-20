@@ -95,7 +95,7 @@ class CuratorCmd():
                     + ' --older-than ' + str(count) \
                     + ' --time-unit ' + unit \
                     + ' --exclude ' + shellquote('^' + re.escape('.searchguard.') + '.*$') \
-                    + ' --exclude ' + shellquote('^' + re.escape('.kibana.') + '.*$')
+                    + ' --exclude ' + shellquote('^' + re.escape('.kibana') + '.*$')
         return default_command
 
     def connection_info(self):
