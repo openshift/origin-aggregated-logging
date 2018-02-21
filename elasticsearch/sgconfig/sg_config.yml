@@ -30,8 +30,10 @@ searchguard:
         order: 3
         http_authenticator:
           challenge: false
-          type: proxy
+          type: io.fabric8.elasticsearch.plugin.auth.FileAuthenticationBackend
           config:
-            user_header: 'x-forwarded-user'
+            file_path: /etc/elasticsearch/secret/passwd.yml
         authentication_backend:
-          type: noop
+          type: io.fabric8.elasticsearch.plugin.auth.FileAuthenticationBackend
+          config:
+            file_path: /etc/elasticsearch/secret/passwd.yml
