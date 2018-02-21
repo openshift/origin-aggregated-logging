@@ -38,7 +38,7 @@ Just like the json-file, these are provided for documentation purposes only.
 Do not set these unless you know what you are doing.
 
 * `CRIO_FILE_PATH` - default `/var/log/containers/*.log` - full path and filename
-match pattern for docker json-file log driver logs
+match pattern for cri-o file log driver logs
 * `CRIO_FILE_POS_FILE` - default `/var/log/es-containers.log.pos` - full path
 and filename for the Fluentd `in_tail` position file.  This file should be on a
 persistent volume (e.g. bind mounted from the host) so that Fluentd can resume
