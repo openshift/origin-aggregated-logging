@@ -1,12 +1,14 @@
 {
-  "aliases": {},
+  "aliases": {
+    ".all": {}
+  },
   "mappings": {
     "_default_": {
       "_all": {
         "enabled": false
       },
       "_meta": {
-        "version": "2017.11.11.0"
+        "version": "2018.02.15.0"
       },
       "_source": {
         "enabled": false
@@ -14,39 +16,10 @@
       "date_detection": false,
       "dynamic_templates": [
         {
-          "message_field": {
-            "mapping": {
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "message",
-            "match_mapping_type": "string"
-          }
-        },
-        {
-          "string_fields": {
-            "mapping": {
-              "fields": {
-                "raw": {
-                  "ignore_above": 256,
-                  "index": "not_analyzed",
-                  "type": "string"
-                }
-              },
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "*",
-            "match_mapping_type": "string"
-          }
-        },
-        {
           "aushape_generic_nested_fields": {
             "mapping": {
-              "index": "analyzed",
-              "type": "string"
+              "index": true,
+              "type": "text"
             },
             "path_match": "aushape.data.*.*.*"
           }
@@ -54,8 +27,8 @@
         {
           "aushape_generic_fields": {
             "mapping": {
-              "index": "analyzed",
-              "type": "string"
+              "index": true,
+              "type": "text"
             },
             "path_match": "aushape.data.*.*"
           }
@@ -67,6 +40,35 @@
             },
             "path_match": "aushape.data.*"
           }
+        },
+        {
+          "message_field": {
+            "mapping": {
+              "index": true,
+              "norms": false,
+              "type": "text"
+            },
+            "match": "message",
+            "match_mapping_type": "string"
+          }
+        },
+        {
+          "string_fields": {
+            "mapping": {
+              "fields": {
+                "raw": {
+                  "ignore_above": 256,
+                  "index": false,
+                  "type": "keyword"
+                }
+              },
+              "index": true,
+              "norms": true,
+              "type": "text"
+            },
+            "match": "*",
+            "match_mapping_type": "string"
+          }
         }
       ],
       "properties": {
@@ -76,12 +78,12 @@
             "raw": {
               "doc_values": true,
               "ignore_above": 256,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             }
           },
           "format": "yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
-          "index": "not_analyzed",
+          "index": true,
           "type": "date"
         },
         "collectd": {
@@ -91,7 +93,7 @@
               "properties": {
                 "percent": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 }
               }
@@ -101,7 +103,7 @@
               "properties": {
                 "percent": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 }
               }
@@ -111,12 +113,12 @@
               "properties": {
                 "df_complex": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 },
                 "percent_bytes": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 }
               }
@@ -128,12 +130,12 @@
                   "properties": {
                     "io_time": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "weighted_io_time": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -142,12 +144,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -156,12 +158,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -170,12 +172,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -184,19 +186,19 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
                 },
                 "pending_operations": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -204,15 +206,15 @@
             "dstypes": {
               "doc_values": true,
               "include_in_all": false,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "entropy": {
               "include_in_all": false,
               "properties": {
                 "entropy": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -224,12 +226,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -238,12 +240,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -252,12 +254,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -266,12 +268,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -281,7 +283,7 @@
             "interval": {
               "doc_values": "true",
               "include_in_all": false,
-              "index": "not_analyzed",
+              "index": true,
               "type": "float"
             },
             "load": {
@@ -291,17 +293,17 @@
                   "properties": {
                     "longterm": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "midterm": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "shortterm": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -313,12 +315,12 @@
               "properties": {
                 "memory": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 },
                 "percent": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 }
               }
@@ -328,7 +330,7 @@
               "properties": {
                 "nfs_procedure": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -336,46 +338,46 @@
             "plugin": {
               "doc_values": true,
               "include_in_all": false,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "plugin_instance": {
               "doc_values": true,
               "include_in_all": false,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "postgresql": {
               "include_in_all": false,
               "properties": {
                 "pg_blks": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "pg_db_size": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "pg_n_tup_c": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "pg_n_tup_g": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "pg_numbackends": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "pg_xact": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -385,24 +387,24 @@
               "properties": {
                 "fork_rate": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 },
                 "ps_code": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "ps_count": {
                   "properties": {
                     "processes": {
                       "doc_values": true,
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "long"
                     },
                     "threads": {
                       "doc_values": true,
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "long"
                     }
                   }
@@ -411,31 +413,31 @@
                   "properties": {
                     "syst": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "user": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
                 },
                 "ps_data": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "ps_disk_octets": {
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -444,12 +446,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -458,34 +460,34 @@
                   "properties": {
                     "majflt": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "minflt": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
                 },
                 "ps_rss": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "ps_stacksize": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "ps_state": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "ps_vm": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -495,197 +497,237 @@
               "properties": {
                 "host_cpu": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_elapsed_time": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_memory": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_rx": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_rx_dropped": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_rx_errors": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_speed": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_tx": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_tx_dropped": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_nic_tx_errors": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_storage": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_swap": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_vdsm": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "host_vms": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_balloon_cur": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_balloon_max": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_balloon_min": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_balloon_target": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_cpu_sys": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_cpu_usage": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_cpu_user": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_apparent_size": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_flush_latency": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_read_bytes": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_read_latency": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_read_ops": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_read_rate": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_true_size": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_write_bytes": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_write_latency": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_write_ops": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_disk_write_rate": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_majflt": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_mem_free": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_mem_total": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_mem_unused": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_mem_used": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_pageflt": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_swap_in": {
+                  "doc_values": true,
+                  "index": true,
+                  "type": "long"
+                },
+                "vm_memory_swap_out": {
+                  "doc_values": true,
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_rx_bytes": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_rx_dropped": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_rx_errors": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_speed": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_tx_bytes": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_tx_dropped": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "vm_nic_tx_errors": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -695,12 +737,12 @@
               "properties": {
                 "swap": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 },
                 "swap_io": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "long"
                 }
               }
@@ -708,14 +750,14 @@
             "type": {
               "doc_values": true,
               "include_in_all": false,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "type_instance": {
               "doc_values": true,
               "include_in_all": false,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "virt": {
               "include_in_all": false,
@@ -724,12 +766,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -738,12 +780,12 @@
                   "properties": {
                     "read": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "write": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -752,12 +794,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -766,12 +808,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -780,12 +822,12 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
@@ -794,29 +836,29 @@
                   "properties": {
                     "rx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     },
                     "tx": {
                       "doc_values": "true",
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "float"
                     }
                   }
                 },
                 "memory": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 },
                 "virt_cpu_total": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 },
                 "virt_vcpu": {
                   "doc_values": "true",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "float"
                 }
               }
@@ -829,15 +871,13 @@
             "raw": {
               "doc_values": true,
               "ignore_above": 256,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             }
           },
-          "index": "analyzed",
-          "norms": {
-            "enabled": true
-          },
-          "type": "string"
+          "index": true,
+          "norms": true,
+          "type": "text"
         },
         "geoip": {
           "dynamic": true,
@@ -850,8 +890,8 @@
         },
         "hostname": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "ipaddr4": {
           "doc_values": true,
@@ -859,80 +899,78 @@
             "raw": {
               "doc_values": true,
               "ignore_above": 256,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             }
           },
-          "index": "not_analyzed",
+          "index": true,
           "type": "ip"
         },
         "ipaddr6": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "ip"
         },
         "kubernetes": {
           "properties": {
             "container_name": {
-              "doc_values": true,
+              "doc_values": false,
               "fields": {
                 "raw": {
                   "doc_values": true,
                   "ignore_above": 256,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 }
               },
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "text"
             },
             "event": {
               "properties": {
                 "count": {
                   "doc_values": true,
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "integer"
                 },
                 "firstTimestamp": {
                   "doc_values": true,
                   "format": "yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "date"
                 },
                 "involvedObject": {
                   "properties": {
                     "apiVersion": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "kind": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "name": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "namespace": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "resourceVersion": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "uid": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   }
                 },
@@ -940,72 +978,70 @@
                   "properties": {
                     "name": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "namespace": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "resourceVersion": {
                       "doc_values": true,
-                      "index": "not_analyzed",
+                      "index": true,
                       "type": "integer"
                     },
                     "selfLink": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     },
                     "uid": {
                       "doc_values": true,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   }
                 },
                 "reason": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "source_component": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "type": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "verb": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 }
               }
             },
             "host": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "keyword"
             },
             "labels": {
               "properties": {
                 "component": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "deployment": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "deploymentconfig": {
                   "doc_values": true,
@@ -1013,110 +1049,100 @@
                     "raw": {
                       "doc_values": true,
                       "ignore_above": 64,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   },
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "provider": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 }
               }
             },
             "master_url": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "namespace_id": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "keyword"
             },
             "namespace_name": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "keyword"
             },
             "pod_id": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "keyword"
             },
             "pod_name": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "norms": {
-                "enabled": true
-              },
-              "type": "string"
+              "index": true,
+              "norms": true,
+              "type": "keyword"
             }
           }
         },
         "level": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "message": {
           "doc_values": false,
-          "index": "analyzed",
-          "norms": {
-            "enabled": false
-          },
-          "type": "string"
+          "index": true,
+          "norms": false,
+          "type": "text"
         },
         "namespace_name": {
           "doc_values": false,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "namespace_uuid": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "offset": {
           "doc_values": true,
-          "index": "not_analyzed",
+          "index": true,
           "type": "long"
         },
         "pid": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "pipeline_metadata": {
           "properties": {
             "@version": {
               "doc_values": true,
-              "index": "not_analyzed",
-              "type": "string"
+              "index": true,
+              "type": "keyword"
             },
             "collector": {
               "properties": {
                 "hostname": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "inputname": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "ipaddr4": {
                   "doc_values": true,
@@ -1124,22 +1150,22 @@
                     "raw": {
                       "doc_values": true,
                       "ignore_above": 256,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   },
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "ip"
                 },
                 "ipaddr6": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "ip"
                 },
                 "name": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "original_raw_message": {
                   "doc_values": false,
@@ -1147,23 +1173,23 @@
                     "raw": {
                       "doc_values": true,
                       "ignore_above": 256,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   },
-                  "index": "analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "text"
                 },
                 "received_at": {
                   "doc_values": true,
                   "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "date"
                 },
                 "version": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 }
               }
             },
@@ -1171,13 +1197,13 @@
               "properties": {
                 "hostname": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "inputname": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "ipaddr4": {
                   "doc_values": true,
@@ -1185,22 +1211,22 @@
                     "raw": {
                       "doc_values": true,
                       "ignore_above": 256,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   },
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "ip"
                 },
                 "ipaddr6": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "ip"
                 },
                 "name": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 },
                 "original_raw_message": {
                   "doc_values": false,
@@ -1208,55 +1234,51 @@
                     "raw": {
                       "doc_values": true,
                       "ignore_above": 256,
-                      "index": "not_analyzed",
-                      "type": "string"
+                      "index": true,
+                      "type": "keyword"
                     }
                   },
-                  "index": "analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "text"
                 },
                 "received_at": {
                   "doc_values": true,
                   "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime",
-                  "index": "not_analyzed",
+                  "index": true,
                   "type": "date"
                 },
                 "version": {
                   "doc_values": true,
-                  "index": "not_analyzed",
-                  "type": "string"
+                  "index": true,
+                  "type": "keyword"
                 }
               }
             },
             "trace": {
               "analyzer": "whitespace",
               "doc_values": false,
-              "index": "analyzed",
-              "type": "string"
+              "index": true,
+              "type": "text"
             }
           }
         },
         "service": {
           "doc_values": true,
-          "index": "not_analyzed",
-          "type": "string"
+          "index": true,
+          "type": "keyword"
         },
         "tags": {
           "analyzer": "whitespace",
           "doc_values": false,
-          "index": "analyzed",
-          "type": "string"
+          "index": true,
+          "type": "text"
         }
       }
     }
   },
   "order": 20,
   "settings": {
-    "index.refresh_interval": "5s",
-    "index.number_of_replicas": $REPLICA_SHARDS,
-    "index.number_of_shards": $PRIMARY_SHARDS,
-    "index.translog.flush_threshold_size": "256mb",
-    "index.unassigned.node_left.delayed_timeout": "2m"
+    "index.refresh_interval": "5s"
   },
   "template": "project.ovirt-metrics-*"
 }
