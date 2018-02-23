@@ -55,6 +55,10 @@ update_current_fluentd() {
       else
     # edit so we don't send to ES
     oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+      <filter **>\
+        @type record_transformer\
+        remove_keys _id, viaq_msg_id\
+      </filter>\
       <match **>\
         @type copy\
         @include configs.d/user/secure-forward1.conf\
