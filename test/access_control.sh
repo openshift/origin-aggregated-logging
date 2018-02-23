@@ -314,3 +314,9 @@ os::cmd::expect_failure "oc exec -c elasticsearch $esopspod -- \
     curl -s -k --cert $certdir/test.crt --key $certdir/test.key \
     https://localhost:9200/.operations.*/_count"
 rm -rf $certdir
+
+os::log::debug "Checking that Elasticsearch pod ${espod} has expected acl definitions configured"
+for doc in roles rolesmapping actiongroups; do
+  es_acls=$( oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} )
+  os::log::info "Configured ${doc}: ${es_acls}"
+done
