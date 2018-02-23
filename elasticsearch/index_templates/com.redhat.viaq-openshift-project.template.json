@@ -1,41 +1,14 @@
 {
-  "aliases": {},
+  "aliases": {
+    ".all": {}
+  },
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2017.11.11.0"
+        "version": "2018.02.15.0"
       },
       "date_detection": false,
       "dynamic_templates": [
-        {
-          "message_field": {
-            "mapping": {
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "message",
-            "match_mapping_type": "string"
-          }
-        },
-        {
-          "string_fields": {
-            "mapping": {
-              "fields": {
-                "raw": {
-                  "ignore_above": 256,
-                  "index": "not_analyzed",
-                  "type": "string"
-                }
-              },
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "*",
-            "match_mapping_type": "string"
-          }
-        },
         {
           "aushape_generic_nested_fields": {
             "mapping": {
@@ -60,6 +33,39 @@
               "type": "object"
             },
             "path_match": "aushape.data.*"
+          }
+        },
+        {
+          "message_field": {
+            "mapping": {
+              "index": "analyzed",
+              "norms": {
+                "enabled": false
+              },
+              "type": "string"
+            },
+            "match": "message",
+            "match_mapping_type": "string"
+          }
+        },
+        {
+          "string_fields": {
+            "mapping": {
+              "fields": {
+                "raw": {
+                  "ignore_above": 256,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              },
+              "index": "analyzed",
+              "norms": {
+                "enabled": true
+              },
+              "type": "string"
+            },
+            "match": "*",
+            "match_mapping_type": "string"
           }
         }
       ],
@@ -102,8 +108,8 @@
               }
             },
             "error": {
-              "doc_values": true,
-              "index": "not_analyzed",
+              "doc_values": false,
+              "index": "analyzed",
               "type": "string"
             },
             "node": {
@@ -223,9 +229,6 @@
             }
           },
           "index": "not_analyzed",
-          "norms": {
-            "enabled": false
-          },
           "type": "ip"
         },
         "ipaddr6": {
@@ -236,7 +239,7 @@
         "kubernetes": {
           "properties": {
             "container_name": {
-              "doc_values": true,
+              "doc_values": false,
               "fields": {
                 "raw": {
                   "doc_values": true,
@@ -245,7 +248,7 @@
                   "type": "string"
                 }
               },
-              "index": "not_analyzed",
+              "index": "analyzed",
               "norms": {
                 "enabled": true
               },
@@ -515,9 +518,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
@@ -579,9 +579,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
