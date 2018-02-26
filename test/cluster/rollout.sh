@@ -29,6 +29,7 @@ for deploymentconfig in ${OAL_EXPECTED_DEPLOYMENTCONFIGS}; do
 # this is to get around the current kubelet flake where we need to re-rollout to get the dc running
 #  for sanity sake and to not get stuck in the case of real issues, we will only do this once per dc
 	if ! oc rollout status deploymentconfig/${deploymentconfig} ; then
+		os::cmd::expect_success "oc rollout cancel deploymentconfig/${deploymentconfig}"
 		os::cmd::expect_success "oc rollout latest ${deploymentconfig}"
 		os::cmd::expect_success "oc rollout status deploymentconfig/${deploymentconfig}"
 	fi
