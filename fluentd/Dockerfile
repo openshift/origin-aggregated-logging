@@ -3,15 +3,8 @@ FROM rhel7.3:7.3-released
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.39 \
-    FLUENTD_ES=1.9.5.1-1 \
-    FLUENTD_FLATTEN_HASH=0.4.0-1 \
-    FLUENTD_KUBE_METADATA=0.29.0-1 \
-    FLUENTD_REWRITE_TAG=1.5.6-1 \
-    FLUENTD_SECURE_FWD=0.4.5-2 \
-    FLUENTD_SYSTEMD=0.0.8-1 \
-    FLUENTD_VIAQ_DATA_MODEL=0.0.12-1 \
-    FLUENTD_RECORD_MODIFIER=0.5.0 \
+    FLUENTD_VERSION=0.12.42 \
+    FLUENTD_ES=1.13.2 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
@@ -34,6 +27,7 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
                 rubygem-fluent-plugin-elasticsearch \
                 rubygem-fluent-plugin-flatten-hash \
                 rubygem-fluent-plugin-kubernetes_metadata_filter \
+                rubygem-fluent-plugin-record-modifier \
                 rubygem-fluent-plugin-rewrite-tag-filter \
                 rubygem-fluent-plugin-secure-forward \
                 rubygem-fluent-plugin-systemd \
@@ -45,11 +39,6 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms && \
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
-
-COPY lib/fluent-plugin-record-modifier-${FLUENTD_RECORD_MODIFIER}.gem /tmp/
-
-RUN cd /tmp/ && gem install -N --conservative --minimal-deps --no-ri --no-doc \
-    --local fluent-plugin-record-modifier-${FLUENTD_RECORD_MODIFIER}.gem
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
