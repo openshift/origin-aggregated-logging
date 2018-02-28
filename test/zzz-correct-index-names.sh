@@ -29,6 +29,7 @@ OPS_NAMESPACES="default openshift openshift-infra openshift-this-is-a-test"
 # write some logs from namespace openshift and openshift-infra
 test_template=$OS_O_A_L_DIR/hack/testing/templates/test-template.yaml
 
+timeout=$(( second * 180 ))
 for project in $OPS_NAMESPACES ; do
     delete_project=""
     if oc get project $project 2>&1 | artifact_out ; then
@@ -36,7 +37,7 @@ for project in $OPS_NAMESPACES ; do
     else
         os::log::info Creating project $project
         oc adm new-project $project --node-selector='' 2>&1 | artifact_out
-        os::cmd::try_until_success "oc get project $project" 2>&1 | artifact_out
+        os::cmd::try_until_success "oc get project $project" ${timeout} 2>&1 | artifact_out
         delete_project="$project"
     fi
     message_uuid=$( uuidgen | sed 's/[-]//g' )
@@ -46,17 +47,17 @@ for project in $OPS_NAMESPACES ; do
         -p TEST_POD_SLEEP_TIME=1 \
         -p TEST_NAMESPACE_NAME=${project} \
         -p TEST_ITERATIONS=1 | oc create -f - 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get -n ${project} pods test-pod" "^test-pod.* Running "
+    os::cmd::try_until_text "oc get -n ${project} pods test-pod" "^test-pod.* Running " ${timeout}
     # The query part will return more than one if successful - due to the fuzzy matching,
     # it may return results from more than one namespace - the jq select will ensure that
     # the namespace name matches exactly
     os::cmd::try_until_text "curl_es $es_ops_pod /.operations.*/_search?q=message:$message_uuid | \
-        jq '.hits.hits | map(select(._source.kubernetes.namespace_name == \"${project}\")) | length | . > 0'" "^true\$"
+        jq '.hits.hits | map(select(._source.kubernetes.namespace_name == \"${project}\")) | length | . > 0'" "^true\$"  ${timeout}
     oc delete -n ${project} --force pod test-pod 2>&1 | artifact_out
-    os::cmd::try_until_failure "oc get -n ${project} pod test-pod"
+    os::cmd::try_until_failure "oc get -n ${project} pod test-pod" ${timeout}
     if [ -n "$delete_project" ] ; then
         oc delete project $delete_project 2>&1 | artifact_out
-        os::cmd::try_until_failure "oc get project $delete_project" 2>&1 | artifact_out
+        os::cmd::try_until_failure "oc get project $delete_project" ${timeout} 2>&1 | artifact_out
     fi
 done
 

@@ -50,7 +50,7 @@ trap "cleanup" EXIT
 os::cmd::try_until_text "oc get pods -l component=es" "^logging-es.* Running "
 os::cmd::try_until_text "oc get pods -l component=kibana" "^logging-kibana-.* Running "
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-if [ "${USE_MUX:-}" = "true" ]; then
+if oc get dc/logging-mux > /dev/null 2>&1 ; then
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
 fi
 os::log::debug "$( oc get pods )"
@@ -73,11 +73,7 @@ fpod=$( get_running_pod fluentd )
 os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
-# doesn't currently work with MUX_CLIENT_MODE=minimal - force to maximal
-if oc set env daemonset/logging-fluentd --list | grep -q ^MUX_CLIENT_MODE=minimal ; then
-    os::log::info MUX_CLIENT_MODE=minimal not supported - using MUX_CLIENT_MODE=maximal for test
-    oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal
-fi
+oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal
 
 # make sure we are not using the test volume
 if oc set volumes daemonset/logging-fluentd | grep -q 'as viaq-test' ; then
