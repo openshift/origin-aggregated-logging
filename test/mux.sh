@@ -316,9 +316,7 @@ write_and_verify_logs() {
 }
 
 reset_ES_HOST() {
-    muxpod=$( get_running_pod mux )
     os::cmd::expect_success "oc set env dc logging-mux $1 $2"
-    os::cmd::try_until_failure "oc get pod $muxpod"
     os::log::debug $( oc get pods -l component=mux )
     oc rollout status -w dc/logging-mux 2>&1 | artifact_out # wait for mux to be redeployed
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
