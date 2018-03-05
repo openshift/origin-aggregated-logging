@@ -1,0 +1,62 @@
+#!/bin/bash -e
+#
+# Copyright 2017 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+set -euo pipefail
+source es_util_env
+
+allow_primary=true
+
+helpMsg() {
+cat <<MSG
+
+ Usage: $0 <index> <shard> <from_node> <to_node>
+ Command to manually move a replica shard from one Elasticsearch node to another
+
+   args:
+     index                The index to move(e.g. .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674)
+     shard                The shard to move
+     from_node            The node where the shard is currently assigned
+     to_node              The node where the shard is to be moved
+
+   options:
+     --help,-h            This message.
+MSG
+}
+
+index=${1:-}
+shard=${2:-}
+from_node=${3:-}
+to_node=${4:-}
+
+if [ -z "${index}" ] || [ -z "${shard}" ] || [ -z "${from_node}" ] || [ -z "${to_node}" ] ; then
+    helpMsg
+    exit 1
+fi
+
+while (($#))
+do
+case $1 in
+    --help|-h)
+      helpMsg
+      exit 0
+      ;;
+  esac
+  shift
+done
+
+payload="{\"commands\":[{\"move\":{\"index\":\"${index}\",\"shard\":${shard},\"from_node\":\"${from_node}\",\"to_node\":\"${to_node}\"}}]}"
+
+es_util --query=_cluster/reroute?pretty -XPOST -d ${payload}
