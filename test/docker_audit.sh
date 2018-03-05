@@ -8,22 +8,22 @@ os::test::junit::declare_suite_start "test/docker_audit"
 
 function get_logs_count() {
     local es_pod=$1
-    local index=$2
-    curl_es $es_pod /$index/_count?q=docker.user:* | get_count_from_json
+    local index="$2"
+    curl_es $es_pod "${index}"_count?q=docker.user:* | get_count_from_json
 }
 
 function logs_count_is_ge() {
     local es_pod=$1
-    local index=$2
+    local index="$2"
     local expected=$3
-    local actual=$( get_logs_count $es_pod $index )
+    local actual=$( get_logs_count $es_pod "$index" )
     test $actual -ge $expected
 }
 
 function print_logs() {
     local es_pod=$1
-    local index=$2
-    curl_es $es_pod /$index/q=docker.user:* | jq . | artifact_out
+    local index="$2"
+    curl_es $es_pod "${index}"_search?q=docker.user:* | jq . | artifact_out
 }
 
 function is_audit_enabled() {
