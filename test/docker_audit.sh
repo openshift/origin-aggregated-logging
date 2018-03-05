@@ -20,6 +20,12 @@ function logs_count_is_ge() {
     test $actual -ge $expected
 }
 
+function print_logs() {
+    local es_pod=$1
+    local index=$2
+    os::log::info "curl_es $es_pod /$index/q=docker.user:*"
+}
+
 function is_audit_enabled() {
     oc set env ds/logging-fluentd --list | grep -q \^AUDIT_CONTAINER_ENGINE=true
 }
@@ -33,11 +39,22 @@ fi
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
-# 
+
 logs_before=$( get_logs_count $espod '/project.*/' )
 ops_logs_before=$( get_logs_count $esopspod '/.operations.*/' )
 
-# create,start,delete generates 5 docker audit messages
+if [ $logs_before -ne 0 ]; then
+    print_logs $espod '/project.*/'
+fi
+if [ $ops_logs_before -ne 0 ]; then
+    print_logs $esopspod '/.operations.*/'
+fi
+
+os::log::info "ops diff before:  $ops_logs_before"
+os::log::info "proj diff before: $logs_beforediff"
+
+
+# ping,create,attach,start,delete generates 5 docker audit messages
 docker run --rm centos:7 echo ""
 
 os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 5"
@@ -48,8 +65,8 @@ logs_after=$( get_logs_count $espod '/project.*/' )
 ops_diff=$((ops_logs_after-ops_logs_before))
 diff=$((logs_after-logs_before))
 
-os::log::info "ops diff:  $ops_diff"
-os::log::info "proj diff: $diff"
+os::log::info "ops diff after:  $ops_diff"
+os::log::info "proj diff after: $diff"
 
 # just a sanity check
 if [ $diff -ne 0 ]; then
