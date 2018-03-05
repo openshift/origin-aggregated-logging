@@ -23,7 +23,7 @@ function logs_count_is_ge() {
 function print_logs() {
     local es_pod=$1
     local index=$2
-    os::log::info "curl_es $es_pod /$index/q=docker.user:*"
+    curl_es $es_pod /$index/q=docker.user:* | jq . | artifact_out
 }
 
 function is_audit_enabled() {
@@ -51,7 +51,7 @@ if [ $ops_logs_before -ne 0 ]; then
 fi
 
 os::log::info "ops diff before:  $ops_logs_before"
-os::log::info "proj diff before: $logs_beforediff"
+os::log::info "proj diff before: $logs_before"
 
 
 # ping,create,attach,start,delete generates 5 docker audit messages
