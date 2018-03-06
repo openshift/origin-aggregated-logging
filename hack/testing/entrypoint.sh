@@ -42,6 +42,10 @@ fi
 # Make CI run with enabled debug logs for journald (BZ 1505602)
 oc set -n logging env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 
+# Make CI run with MUX_CLIENT_MODE off by default - individual tests will set
+# MUX_CLIENT_MODE=maximal or minimal
+oc set -n logging env ds/logging-fluentd MUX_CLIENT_MODE-
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     # assumes running in a subshell
@@ -57,7 +61,7 @@ monitor_fluentd_top() {
             echo $( date --rfc-3339=ns ) fluentd is not running
             sleep 1
         fi
-    done > $ARTIFACT_DIR/monitor_fluentd_top.log
+    done > $ARTIFACT_DIR/monitor_fluentd_top.log 2>&1
 }
 
 monitor_fluentd_pos() {
@@ -71,7 +75,7 @@ monitor_fluentd_pos() {
             echo $( date --rfc-3339=ns ) no /var/log/journal.pos
         fi
         sleep 1
-    done > $ARTIFACT_DIR/monitor_fluentd_pos.log
+    done > $ARTIFACT_DIR/monitor_fluentd_pos.log 2>&1
 }
 
 monitor_journal_lograte() {
@@ -80,7 +84,7 @@ monitor_journal_lograte() {
         count=$( sudo journalctl -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
         echo $( date +%s ) $count
         sleep $interval
-    done  > $ARTIFACT_DIR/monitor_journal_lograte.log
+    done  > $ARTIFACT_DIR/monitor_journal_lograte.log 2>&1
 }
 
 monitor_fluentd_top & killpids=$!
