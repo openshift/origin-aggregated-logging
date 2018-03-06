@@ -64,7 +64,7 @@ function curl_es() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec -n $LOGGING_PROJECT "${pod}" -- \
+    oc exec -c elasticsearch -n $LOGGING_PROJECT "${pod}" -- \
        curl --silent --insecure "${args[@]}" \
        --key "${secret_dir}admin-key"   \
        --cert "${secret_dir}admin-cert" \
@@ -81,7 +81,7 @@ function curl_es_input() {
     local args=( "${@:-}" )
 
     local secret_dir="/etc/elasticsearch/secret/"
-    oc exec -i "${pod}" -n $LOGGING_PROJECT -- \
+    oc exec -c elasticsearch -i "${pod}" -n $LOGGING_PROJECT -- \
        curl --silent --insecure "${args[@]}" \
        --key "${secret_dir}admin-key"   \
        --cert "${secret_dir}admin-cert" \
