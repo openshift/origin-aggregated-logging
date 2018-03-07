@@ -5,7 +5,9 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::test::junit::declare_suite_start "test/pre-upgrade"
-        
+
+LOGGING_NS=:${LOGGING_NS:-openshift-logging}
+
 #store log messages to file so post-upgrade can validate their existence
 store_upgrade_test_uuid() {
     upgrade_test_uuid="$1"

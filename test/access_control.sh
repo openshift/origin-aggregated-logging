@@ -8,6 +8,7 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/access_control"
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
@@ -250,14 +251,14 @@ create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW access-contro
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 access-control-2 access-control-3
 
 oc login --username=system:admin > /dev/null
-oc project logging > /dev/null
+oc project ${LOGGING_NS} > /dev/null
 
 test_user_has_proper_access $LOG_NORMAL_USER $LOG_NORMAL_PW access-control-1 access-control-2 -- access-control-3
 test_user_has_proper_access $LOG_USER2 $LOG_PW2 access-control-2 access-control-3 -- access-control-1
 
 os::log::info now auth using admin + token
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
-nrecs=$( curl_es_with_token $espod "/project.logging.*/_count" $test_name $test_token | \
+nrecs=$( curl_es_with_token $espod "/project.${LOGGING_NS}.*/_count" $test_name $test_token | \
          get_count_from_json )
 os::cmd::expect_success "test $nrecs -gt 1"
 nrecs=$( curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
