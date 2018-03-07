@@ -12,11 +12,36 @@ function get_logs_count() {
     curl_es $es_pod "${index}"_count?q=docker.user:* | get_count_from_json
 }
 
+function get_logs_count_timerange() {
+    local es_pod=$1
+    local index="$2"
+    local timestamp="$3"
+    curl_es $es_pod "${index}"_count -d '{
+        "query": {
+            "bool": {
+                "must": {
+                    "exists": {
+                        "field": "docker.user"
+                    }
+                },
+                "filter": {
+                    "range" : {
+                        "@timestamp" : {
+                            "gt" : '\""$timestamp"\"'
+                        }
+                    }
+                }
+            }
+        }
+    }' | get_count_from_json
+}
+
 function logs_count_is_ge() {
     local es_pod=$1
     local index="$2"
     local expected=$3
-    local actual=$( get_logs_count $es_pod "$index" )
+    local timestamp="$4"
+    local actual=$( get_logs_count_timerange $es_pod "$index" "$timestamp" )
     test $actual -ge $expected
 }
 
@@ -34,7 +59,7 @@ if ! is_audit_enabled ; then
     os::log::info "AUDIT_CONTAINER_ENGINE is disabled on this cluster, skipping this test"
     exit 0
 fi
-    
+
 # operations index can be in a separate cluster
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
@@ -55,9 +80,10 @@ os::log::info "proj diff before: $logs_before"
 
 
 # ping,create,attach,start,delete generates 5 docker audit messages
+timestamp=$( date --iso-8601=seconds )
 docker run --rm centos:7 echo ""
 
-os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 5"
+os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 5 $timestamp"
 
 ops_logs_after=$( get_logs_count $esopspod '/.operations.*/' )
 logs_after=$( get_logs_count $espod '/project.*/' )
