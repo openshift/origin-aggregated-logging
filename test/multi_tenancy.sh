@@ -16,6 +16,8 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/multi_tenancy"
 
+LOGGING_PROJECT=${LOGGING_NS:-openshift-logging}
+
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
@@ -23,7 +25,7 @@ esopspod=${esopspod:-$espod}
 # HACK HACK HACK
 # remove this once we have real multi-tenancy, multi-index support
 function hack_msearch_access() {
-    LOGGING_PROJECT=logging ${OS_O_A_L_DIR}/hack/enable-kibana-msearch-access.sh "$@"
+    LOGGING_PROJECT=${LOGGING_PROJECT} ${OS_O_A_L_DIR}/hack/enable-kibana-msearch-access.sh "$@"
 }
 
 delete_users=""
@@ -154,11 +156,11 @@ done
 # use different usernames, otherwise you'll get this odd error:
 # # oc login --username=loguser --password=loguser
 # error: The server was unable to respond - verify you have provided the correct host and port and that the server is currently running.
-LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser}
-LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser}
+LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser-$RANDOM}
+LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser-$RANDOM}
 
-LOG_USER2=${LOG_USER2:-loguser2}
-LOG_PW2=${LOG_PW2:-loguser2}
+LOG_USER2=${LOG_USER2:-loguser2-$RANDOM}
+LOG_PW2=${LOG_PW2:-loguser2-$RANDOM}
 
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
@@ -175,7 +177,7 @@ os::cmd::expect_success "hack_msearch_access $LOG_USER2 --all"
 cleanup_msearch_access="$cleanup_msearch_access $LOG_USER2"
 
 oc login --username=system:admin > /dev/null
-oc project logging > /dev/null
+oc project $LOGGING_PROJECT > /dev/null
 
 test_user_has_proper_access $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 test_user_has_proper_access $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3

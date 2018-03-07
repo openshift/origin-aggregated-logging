@@ -2,6 +2,8 @@
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
 oal_expected_deploymentconfigs=( "logging-kibana" "logging-curator" )
 oal_expected_routes=( "logging-kibana" )
 oal_expected_services=( "logging-es" "logging-es-cluster" "logging-kibana" )
@@ -23,9 +25,9 @@ fi
 function get_es_dc() {
   # $1 - cluster name postfix
   if [ -z $(oc get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
-    oc get deploymentconfigs --namespace logging --selector component=${1} -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-${1}-(data-)?(master|client)-[a-zA-Z0-9]{8}"
+    oc get deploymentconfigs --namespace ${LOGGING_NS} --selector component=${1} -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-${1}-(data-)?(master|client)-[a-zA-Z0-9]{8}"
   else
-    oc get deploymentconfigs --namespace logging --selector cluster-name=logging-${1},es-node-role=clientdata -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-${1}-clientdata-[0-9]"
+    oc get deploymentconfigs --namespace ${LOGGING_NS} --selector cluster-name=logging-${1},es-node-role=clientdata -o jsonpath='{.items[*].metadata.name}' | grep -E "^logging-${1}-clientdata-[0-9]"
   fi
 }
 
