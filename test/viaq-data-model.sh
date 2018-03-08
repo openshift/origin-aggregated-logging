@@ -97,6 +97,7 @@ cat > $cfg <<EOF
     undefined4 undefined4
     undefined5 undefined5
   </record>
+  remove_keys CONTAINER_TAG
 </filter>
 EOF
 
