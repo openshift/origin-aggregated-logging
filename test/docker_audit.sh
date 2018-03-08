@@ -27,7 +27,7 @@ function get_logs_count_timerange() {
                 "filter": {
                     "range" : {
                         "@timestamp" : {
-                            "gt" : '\""$timestamp"\"'
+                            "gte" : '\""$timestamp"\"'
                         }
                     }
                 }
@@ -68,20 +68,12 @@ esopspod=${esopspod:-$espod}
 logs_before=$( get_logs_count $espod '/project.*/' )
 ops_logs_before=$( get_logs_count $esopspod '/.operations.*/' )
 
-if [ $logs_before -ne 0 ]; then
-    print_logs $espod '/project.*/'
-fi
-if [ $ops_logs_before -ne 0 ]; then
-    print_logs $esopspod '/.operations.*/'
-fi
-
 os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
 
-
 # ping,create,attach,start,delete generates 5 docker audit messages
 timestamp=$( date --iso-8601=seconds )
-docker run --rm centos:7 echo ""
+docker run -it --rm centos:7 echo "running test container"
 
 os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 5 $timestamp"
 
