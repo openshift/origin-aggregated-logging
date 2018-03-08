@@ -17,6 +17,9 @@ LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
 RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
 RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 
+PRIMARY_SHARDS=${PRIMARY_SHARDS:-3}
+REPLICA_SHARDS=${REPLICA_SHARDS:-0}
+
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
@@ -133,6 +136,8 @@ verify_or_add_index_templates() {
     shopt -s failglob
     for template_file in ${ES_HOME}/index_templates/*.json
     do
+        sed -i "s,\%REPLICA_SHARDS%,$REPLICA_SHARDS," $template_file
+        sed -i "s,\%PRIMARY_SHARDS%,$PRIMARY_SHARDS," $template_file
         template=`basename $template_file`
         # Check if index template already exists
         response_code=$(curl ${DEBUG:+-v} -s \
