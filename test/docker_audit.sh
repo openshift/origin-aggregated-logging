@@ -71,11 +71,11 @@ ops_logs_before=$( get_logs_count $esopspod '/.operations.*/' )
 os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
 
-# ping,create,attach,start,delete generates 5 docker audit messages
+# ping,create,attach,start generates 4 docker audit messages
 timestamp=$( date --iso-8601=seconds )
-docker run -it --rm centos:7 echo "running test container"
+docker run --rm centos:7 echo "running test container"
 
-os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 5 $timestamp"
+os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 4 $timestamp"
 
 ops_logs_after=$( get_logs_count $esopspod '/.operations.*/' )
 logs_after=$( get_logs_count $espod '/project.*/' )
@@ -94,7 +94,7 @@ os::cmd::expect_success "test $diff -eq 0"
 
 # this is the real deal
 # if no messages are found in the ops index it means the deployment failed
-if [ $ops_diff -lt 5 ]; then
-    os::log::error ".operations index contains difference of $ops_diff messages, but at least 5 are expected."
+if [ $ops_diff -lt 4 ]; then
+    os::log::error ".operations index contains difference of $ops_diff messages, but at least 4 are expected."
 fi
-os::cmd::expect_success "test $ops_diff -ge 5"
+os::cmd::expect_success "test $ops_diff -ge 4"
