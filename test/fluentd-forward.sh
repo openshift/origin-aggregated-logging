@@ -26,7 +26,7 @@ update_current_fluentd() {
     while [ $id -lt $cnt ]; do
       POD=$( oc get pods -l component=forward-fluentd${id} -o name )
       FLUENTD_FORWARD[$id]=$( oc get $POD --template='{{.status.podIP}}' )
-      echo "update_current_fluentd .status.podIP ${FLUENTD_FORWARD[$id]}" >> $extra_artifacts
+      artifact_log update_current_fluentd .status.podIP ${FLUENTD_FORWARD[$id]}
       id=$( expr $id + 1 ) || :
     done
 
@@ -105,16 +105,16 @@ update_current_fluentd() {
     os::cmd::expect_success flush_fluentd_pos_files
     os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-    echo "update_current_fluentd $cnt" >> $extra_artifacts
+    artifact_log update_current_fluentd $cnt
     fpod=$( get_running_pod fluentd ) || :
-    echo "update_current_fluentd $cnt (oc logs $fpod)" >> $extra_artifacts
+    artifact_log update_current_fluentd $cnt "(oc logs $fpod)"
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod >> $extra_artifacts 2>&1 || :
+        oc logs $fpod 2>&1 | artifact_out
         id=$( expr $cnt - 1 ) || :
-        echo "update_current_fluentd $cnt (/etc/fluent/configs.d/user/secure-forward${id}.conf)" >> $extra_artifacts
-        oc exec $fpod -- cat /etc/fluent/configs.d/user/secure-forward${id}.conf >> $extra_artifacts || :
-        echo "update_current_fluentd $cnt (oc get pods)" >> $extra_artifacts
-        oc get pods >> $extra_artifacts
+        artifact_log update_current_fluentd $cnt "(/etc/fluent/configs.d/user/secure-forward${id}.conf)"
+        oc exec $fpod -- cat /etc/fluent/configs.d/user/secure-forward${id}.conf | artifact_out || :
+        artifact_log update_current_fluentd $cnt "(oc get pods)"
+        oc get pods 2>&1 | artifact_out
     fi
 
     # check set BUFFER_QUEUE_LIMIT
@@ -175,8 +175,8 @@ create_forwarding_fluentd() {
     # wait for forward-fluentd to start
     os::cmd::try_until_text "oc get pods -l component=forward-fluentd${id}" "^logging-forward-fluentd${id}-.* Running "
     POD=$( oc get pods -l component=forward-fluentd${id} -o name )
-    echo "create_forwarding_fluentd $cnt (oc logs $POD)" >> $extra_artifacts
-    oc logs $POD >> $extra_artifacts 2>&1 || :
+    artifact_log create_forwarding_fluentd $cnt "(oc logs $POD)"
+    oc logs $POD 2>&1 | artifact_out || :
     id=$( expr $id + 1 )
   done
 }
@@ -200,15 +200,15 @@ cleanup() {
   cnt=${FORWARDCNT:-0}
   # dump the pod before we restart it
   if [ -n "${fpod:-}" ] ; then
-    echo "cleanup (oc logs $fpod)" >> $extra_artifacts
-    oc logs $fpod >> $extra_artifacts || :
+    artifact_log cleanup "(oc logs $fpod)"
+    oc logs $fpod 2>&1 | artifact_out || :
   fi
-  oc get pods >> $extra_artifacts 
+  oc get pods 2>&1 | artifact_out
   id=0
   while [ $id -lt $cnt ]; do
     POD=$( oc get pods -l component=forward-fluentd${id} -o name ) || :
-    echo "cleanup $cnt (oc logs $POD)" >> $extra_artifacts
-    oc logs $POD >> $extra_artifacts || :
+    artifact_log cleanup $cnt "(oc logs $POD)"
+    oc logs $POD 2>&1 | artifact_out || :
     id=$( expr $id + 1 )
   done
   os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"

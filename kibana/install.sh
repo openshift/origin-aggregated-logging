@@ -12,3 +12,4 @@ ${KIBANA_HOME}/bin/kibana-plugin install file://${ORIGIN_KIBANA_PLUGIN}
 chmod -R og+w "${HOME}"
 chmod -R og+rw "${KIBANA_HOME}"
 chmod -R og+rw /var/lib/kibana
+chmod -R og+w "${KIBANA_CONF_DIR}"

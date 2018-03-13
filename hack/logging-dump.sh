@@ -71,8 +71,9 @@ dump_persistent_volumes() {
   local pv_size=0
   mkdir $project_folder/persistentvolumes
   echo -- Extracting logging-es persistentvolumes ...
-  for pv in `oc get persistentvolumes -o 'go-template={{range $pv := .items}}{{if $pv.spec.claimRef}}{{if eq $pv.spec.claimRef.namespace "'${NAMESPACE}'"}}{{$pv.metadata.name}}{{end}}{{end}}{{end}}'`
+  for pv in `oc get persistentvolumes -o 'go-template={{range $pv := .items}}{{if $pv.spec.claimRef}}{{if eq $pv.spec.claimRef.namespace "'${NAMESPACE}'"}}{{$pv.metadata.name}}{{"\n"}}{{end}}{{end}}{{end}}'`
   do
+    echo $pv
     oc get persistentvolumes $pv -o yaml > $project_folder/persistentvolumes/$pv
     pv_size=$((pv_size + 1))
   done
@@ -258,12 +259,12 @@ get_elasticsearch_status() {
   local cat_items=(health nodes aliases thread_pool)
   for cat_item in ${cat_items[@]}
   do
-    oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
+    oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
   done
-  oc exec $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
-  oc exec $pod -- $curl_es/_search?sort=@timestamp:desc\&pretty > $cluster_folder/latest_documents.json
-  oc exec $pod -- $curl_es/_nodes/stats?pretty > $cluster_folder/nodes_stats.json
-  local health=$(oc exec $pod -- $curl_es/_cat/health?h=status)
+  oc exec -c elasticsearch $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
+  oc exec -c elasticsearch $pod -- $curl_es/_search?sort=@timestamp:desc\&pretty > $cluster_folder/latest_documents.json
+  oc exec -c elasticsearch $pod -- $curl_es/_nodes/stats?pretty > $cluster_folder/nodes_stats.json
+  local health=$(oc exec -c elasticsearch $pod -- $curl_es/_cat/health?h=status)
   if [ -z "$health" ]
   then
     echo "Unable to get health from $1"
@@ -273,9 +274,9 @@ get_elasticsearch_status() {
     cat_items=(recovery shards pending_tasks)
     for cat_item in ${cat_items[@]}
     do
-      oc exec $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
+      oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
     done
-    oc exec $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
+    oc exec -c elasticsearch $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
   fi
 }
 
@@ -294,7 +295,7 @@ get_es_logs() {
   else
     path=/elasticsearch/logging-es/logs
   fi
-  oc rsync -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
+  oc rsync -c elasticsearch -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
   mv -f $logs_folder/logs $logs_folder/$pod
   nice xz $logs_folder/$pod/*
 }
@@ -303,7 +304,7 @@ list_es_storage() {
   local pod=$1
   local mountPath=$(oc get pod $pod -o jsonpath='{.spec.containers[0].volumeMounts[?(@.name=="elasticsearch-storage")].mountPath}')
   echo -- Persistence files -- >> $es_folder/$pod
-  oc exec $pod -- ls -lR $mountPath >> $es_folder/$pod
+  oc exec -c elasticsearch $pod -- ls -lR $mountPath >> $es_folder/$pod
 }
 
 check_elasticsearch() {

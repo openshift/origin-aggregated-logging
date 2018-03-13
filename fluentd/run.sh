@@ -1,5 +1,19 @@
 #!/bin/bash
 
+CFG_DIR=/etc/fluent/configs.d
+OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
+OCP_FLUENTD_TAGS=""
+for p in ${OCP_OPERATIONS_PROJECTS}; do
+    if [[ "${p}" == *- ]] ; then
+      p="${p}*"
+    fi
+    OCP_FLUENTD_TAGS+=" **_${p}_**"
+done
+ocp_fluentd_files=$( grep -l %OCP_FLUENTD_TAGS% ${CFG_DIR}/* ${CFG_DIR}/*/* 2> /dev/null || : )
+for file in ${ocp_fluentd_files} ; do
+    sed -i -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file
+done
+
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
@@ -59,7 +73,6 @@ export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 
-CFG_DIR=/etc/fluent/configs.d
 if [ "${USE_MUX:-}" = "true" ] ; then
     # copy our standard mux configs to the openshift dir
     cp $CFG_DIR/input-*-mux.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
@@ -105,8 +118,12 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
         cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
     fi
     # rm k8s meta plugin - do not hit the API server - just do json parsing
-    if [ "${MUX_CLIENT_MODE:-}" = maximal -o "${MUX_CLIENT_MODE:-}" = minimal ] ; then
+    if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
         cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-k8s-meta.conf
+    elif [ "${MUX_CLIENT_MODE:-}" = minimal -a "${USE_JOURNAL:-}" = false ] ; then
+        # have to do this before shipping record to mux so embedded "log" field
+        # will be json parsed correctly
+        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-pre-k8s-meta.conf
     fi
     # mux clients do not create elasticsearch index names
     ENABLE_ES_INDEX_NAME=false

@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: test-template
+  annotations:
+    description: "For creating test pods"
+objects:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: ${TEST_POD_NAME}
+    namespace: ${TEST_NAMESPACE_NAME}
+  spec:
+    terminationGracePeriodSeconds: 0
+    containers:
+    - name: test
+      image: centos:7
+      command:
+      - bash
+      - -c
+      - |-
+        loops=0
+        while true; do
+          loops=$( expr $loops + 1 )
+          for ii in $( seq 1 ${TEST_ITERATIONS} ) ; do
+            echo "${TEST_POD_MESSAGE} $loops $ii"
+          done
+          sleep ${TEST_POD_SLEEP_TIME}
+        done
+parameters:
+- description: Namespace name to create pod in
+  value: logging
+  name: TEST_NAMESPACE_NAME
+- description: name of test pod to create
+  value: test
+  name: TEST_POD_NAME
+- description: message to print
+  value: "I am a test pod"
+  name: TEST_POD_MESSAGE
+- description: time to sleep between each message in seconds
+  value: "1"
+  name: TEST_POD_SLEEP_TIME
+- description: number of times to print message before sleeping
+  value: "1"
+  name: TEST_ITERATIONS
+labels:
+  test: "true"
