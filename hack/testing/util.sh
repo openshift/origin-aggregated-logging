@@ -293,11 +293,12 @@ internal_artifact_log() {
     echo \[${ts}\] "$@" >> $extra_artifacts
 }
 artifact_log() {
-    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
+    internal_artifact_log "$( date +%Y-%m-%dT%H:%M:%S.%3N%z )" "$@"
 }
 artifact_out() {
-    local ts="$( date --rfc-3339=ns )"
-    while read line ; do
+    local ts="$( date +%Y-%m-%dT%H:%M:%S.%3N%z )"
+    local line
+    while IFS= read -r line ; do
         internal_artifact_log "${ts}" "$line"
     done
 }
