@@ -104,7 +104,7 @@ default_command = base_default_cmd \
         + ' --older-than ' + str(default_value) \
         + ' --time-unit ' + default_time_unit \
         + ' --exclude ' + shellquote('^' + re.escape('.searchguard.') + '.*$') \
-        + ' --exclude ' + shellquote('^' + re.escape('.kibana.') + '.*$')
+        + ' --exclude ' + shellquote('^' + re.escape('.kibana') + '.*$')
 
 proj_prefix = 'project.'
 

@@ -210,8 +210,8 @@ write_and_verify_logs() {
     local mismatch_namespace=${4:-0}
     local no_project_tag=${5:-0}
 
-    local uuid_es=$( uuidgen )
-    local uuid_es_ops=$( uuidgen )
+    local uuid_es=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
 
     wait_for_fluentd_ready
 
@@ -316,9 +316,7 @@ write_and_verify_logs() {
 }
 
 reset_ES_HOST() {
-    muxpod=$( get_running_pod mux )
     os::cmd::expect_success "oc set env dc logging-mux $1 $2"
-    os::cmd::try_until_failure "oc get pod $muxpod"
     os::log::debug $( oc get pods -l component=mux )
     oc rollout status -w dc/logging-mux 2>&1 | artifact_out # wait for mux to be redeployed
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
@@ -433,8 +431,8 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
         reset_ES_HOST ES_HOST=bogus OPS_HOST=bogus
     fi
 
-    uuid_es=$( uuidgen )
-    uuid_es_ops=$( uuidgen )
+    uuid_es=$( uuidgen | sed 's/[-]//g' )
+    uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
 
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     add_test_message $uuid_es
