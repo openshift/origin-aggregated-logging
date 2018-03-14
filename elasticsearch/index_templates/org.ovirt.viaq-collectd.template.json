@@ -1,47 +1,20 @@
 {
-  "aliases": {},
+  "aliases": {
+    ".all": {}
+  },
   "mappings": {
     "_default_": {
       "_all": {
         "enabled": false
       },
       "_meta": {
-        "version": "2017.11.11.0"
+        "version": "2018.02.15.0"
       },
       "_source": {
         "enabled": false
       },
       "date_detection": false,
       "dynamic_templates": [
-        {
-          "message_field": {
-            "mapping": {
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "message",
-            "match_mapping_type": "string"
-          }
-        },
-        {
-          "string_fields": {
-            "mapping": {
-              "fields": {
-                "raw": {
-                  "ignore_above": 256,
-                  "index": "not_analyzed",
-                  "type": "string"
-                }
-              },
-              "index": "analyzed",
-              "omit_norms": true,
-              "type": "string"
-            },
-            "match": "*",
-            "match_mapping_type": "string"
-          }
-        },
         {
           "aushape_generic_nested_fields": {
             "mapping": {
@@ -66,6 +39,39 @@
               "type": "object"
             },
             "path_match": "aushape.data.*"
+          }
+        },
+        {
+          "message_field": {
+            "mapping": {
+              "index": "analyzed",
+              "norms": {
+                "enabled": false
+              },
+              "type": "string"
+            },
+            "match": "message",
+            "match_mapping_type": "string"
+          }
+        },
+        {
+          "string_fields": {
+            "mapping": {
+              "fields": {
+                "raw": {
+                  "ignore_above": 256,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              },
+              "index": "analyzed",
+              "norms": {
+                "enabled": true
+              },
+              "type": "string"
+            },
+            "match": "*",
+            "match_mapping_type": "string"
           }
         }
       ],
@@ -653,6 +659,46 @@
                   "index": "not_analyzed",
                   "type": "long"
                 },
+                "vm_memory_majflt": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_mem_free": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_mem_total": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_mem_unused": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_mem_used": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_pageflt": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_swap_in": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
+                "vm_memory_swap_out": {
+                  "doc_values": true,
+                  "index": "not_analyzed",
+                  "type": "long"
+                },
                 "vm_nic_rx_bytes": {
                   "doc_values": true,
                   "index": "not_analyzed",
@@ -864,9 +910,6 @@
             }
           },
           "index": "not_analyzed",
-          "norms": {
-            "enabled": false
-          },
           "type": "ip"
         },
         "ipaddr6": {
@@ -877,7 +920,7 @@
         "kubernetes": {
           "properties": {
             "container_name": {
-              "doc_values": true,
+              "doc_values": false,
               "fields": {
                 "raw": {
                   "doc_values": true,
@@ -886,7 +929,7 @@
                   "type": "string"
                 }
               },
-              "index": "not_analyzed",
+              "index": "analyzed",
               "norms": {
                 "enabled": true
               },
@@ -1132,9 +1175,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
@@ -1196,9 +1236,6 @@
                     }
                   },
                   "index": "not_analyzed",
-                  "norms": {
-                    "enabled": false
-                  },
                   "type": "ip"
                 },
                 "ipaddr6": {
