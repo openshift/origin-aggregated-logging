@@ -234,7 +234,6 @@ cleanup() {
   os::cmd::expect_success flush_fluentd_pos_files
   os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
   if [ $cnt -gt 1 ]; then
-    cat $extra_artifacts
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
