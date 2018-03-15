@@ -8,6 +8,11 @@
 # If the ops cluster is enabled, it will test curator-ops
 # as well.
 
+if [[ -n "$(oc get cronjobs)" ]]; then
+    os::log::info "This test does not support curator cronjobs yet - skipping"
+    exit 0
+fi
+
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo

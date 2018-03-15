@@ -57,4 +57,9 @@ for daemonset in ${OAL_EXPECTED_DAEMONSETS}; do
 	os::cmd::try_until_text "oc get daemonset ${daemonset} -o jsonpath='{ .status.numberReady }'" "${desired_number}" $FLUENTD_WAIT_TIME
 done
 
+os::log::info "Checking for CronJobs..."
+for cronjob in ${OAL_EXPECTED_CRONJOBS}; do
+	os::cmd::expect_success "oc get cronjob ${cronjob}"
+done
+
 os::test::junit::declare_suite_end
