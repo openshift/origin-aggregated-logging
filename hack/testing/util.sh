@@ -28,6 +28,11 @@ function get_running_pod() {
     oc get pods -l component=$1 --no-headers | awk '$3 == "Running" {print $1}'
 }
 
+function get_completed_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 --no-headers | awk '$3 == "Completed" {print $1}'
+}
+
 # set the test_token, test_name, and test_ip for token auth
 function get_test_user_token() {
     local current_project; current_project="$( oc project -q )"

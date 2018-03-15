@@ -62,9 +62,12 @@ verify_indices() {
     mycuratorpod=$1
     myops=${2:-""}
     curout=`mktemp`
-    oc exec $1 -- curator --host logging-es${myops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices > $curout 2>&1
+    if [ -n "${myops:-}" ] ; then
+        oc exec -c elasticsearch $esopspod es_util -- --query=_cat/indices?h=index | sort -V > $curout 2>&1
+    else
+        oc exec -c elasticsearch $espod es_util -- --query=_cat/indices?h=index | sort -V > $curout 2>&1
+    fi
+
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtyonedaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     rc=0
     while [ -n "${1:-}" ] ; do
@@ -105,49 +108,70 @@ verify_indices() {
 
 restart_curator() {
     # $1 - if present, expect errors
-    # redeploy dc
-    # if there is a deployment already in progress, do not redeploy
-    if oc rollout status --watch=false dc/logging-curator${ops:-} 2>&1 | grep -q "Waiting for rollout to finish" ; then
-        : # already in progress
-    else
-        os::log::debug "$( oc rollout latest dc/logging-curator${ops:-} )"
-    fi
+    # delete currently running pods
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' )"
+    os::log::debug "$( oc delete pod -l component=curator${ops:-} )"
+    sleep 1
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":false}}' )"
+    sleep 60
+
     # wait until redeployed
-    os::log::debug "$( oc rollout status -w dc/logging-curator${ops:-} )"
     if [ -n "${1:-}" ] ; then
         # sometimes the state will change among Error, Running, and CrashLoopBackOff for a
         # few seconds before finally settling down in Error or CrashLoopBackOff
-        os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].state.waiting.reason}'" "Error|CrashLoopBackOff"
+        os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].state.terminated.exitCode}'" "1|2"
     else
-        os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].ready}'" "true"
+        os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].state.terminated.exitCode}'" "0"
         curpod=`get_running_pod curator${ops:-}`
     fi
+    # one job just finished, no need to run another
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' )"
+}
+
+run_curator_till_completion() {
+    os::log::debug "$( oc delete pod --now -l component=curator${ops:-} )"
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":false}}' )"
+    os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].state.terminated.reason}'" "Completed"
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' )"
 }
 
 uses_config_maps() {
-    test -n "$( oc get dc logging-curator -o jsonpath='{.spec.template.spec.volumes[*].configMap.name}' )"
+    test -n "$( oc get cronjob logging-curator -o jsonpath='{.spec.jobTemplate.spec.template.spec.volumes[*].configMap.name}' )"
 }
 
 update_config_and_restart() {
     # $1 - file holding configuration
-    # $2 - if present, expect errors
-    if uses_config_maps ; then
-        # use configmap
-        os::log::debug "$( oc delete configmap logging-curator )" || :
-        sleep 1
-        if grep -q ^apiVersion: $1 ; then
-            os::log::debug "$( oc create -f $1 )" || : # oc get yaml dump, not a curator config file
-        else
-            os::log::debug "$( oc create configmap logging-curator --from-file=config.yaml=$1 )"
-        fi
-        sleep 1
+    # $2 - cronjob schedule
+    # $3 - if present, expect errors
+    config='---
+client:
+  hosts:
+  - ${ES_HOST}
+  port: ${ES_PORT}
+  use_ssl: True
+  certificate: ${ES_CA}
+  client_cert: ${ES_CLIENT_CERT}
+  client_key: ${ES_CLIENT_KEY}
+  ssl_no_validate: False
+  timeout: ${CURATOR_TIMEOUT}
+  master_only: False
+logging:
+  loglevel: ${CURATOR_LOG_LEVEL}
+  logformat: default
+  blacklist: ['"'"'elasticsearch'"'"', '"'"'urllib3'"'"']'
+
+    # use configmap
+    os::log::debug "$( oc delete configmap logging-curator )" || :
+    sleep 1
+    if grep -q ^apiVersion: $1 ; then
+        os::log::debug "$( oc create -f $1 )" || : # oc get yaml dump, not a curator config file
     else
-        # use secret volume mount
-        os::log::debug "$( oc delete secret curator-config${ops:-} )" || os::log::debug "no such secret curator-config${ops:-} - ignore"
-        os::log::debug "$( oc secrets new curator-config${ops:-} settings=$1 )"
-        os::log::debug "$( oc volumes dc/logging-curator${ops:-} --add --type=secret --secret-name=curator-config${ops:-} --mount-path=/etc/curator --name=curator-config --overwrite )"
+        os::log::debug "$( oc create configmap logging-curator --from-file=config.yaml=$1 --from-literal=curator5.yaml="$config" )"
     fi
-    restart_curator ${2:-}
+    sleep 1
+
+    os::log::debug "$( oc patch cronjob logging-curator${ops:-} -p "$( echo {\"spec\":{\"schedule\":\""$2"\"}} )" )"
+    restart_curator ${3:-}
 }
 
 if uses_config_maps ; then
@@ -173,21 +197,20 @@ cleanup() {
     if [ -n "${esopspod:-}" ] ; then
         delete_indices $esopspod
     fi
-    if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
-        os::log::debug "$( oc replace --force -f $origconfig )"
-        sleep 1
-        rm -f $origconfig
-    else
-        os::log::debug "$( oc delete secret curator-config )"
-        os::log::debug "$( oc delete secret curator-config-ops )"
-        os::log::debug "$( oc set volumes dc/logging-curator --remove --name=curator-config )"
-        if [ -n "${esopspod:-}" ] ; then
-            os::log::debug "$( oc set volumes dc/logging-curator-ops --remove --name=curator-config )"
-        fi
+    if [ -n "${origschedule:-}" ] ; then
+        os::log::debug "$( oc patch cronjob logging-curator -p "$( echo {\"spec\":{\"schedule\":\""${origschedule}"\"}} )" )"
     fi
-    os::log::debug "$( oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR )"
+    if [ -n "${origscheduleops:-}" ] ; then
+        os::log::debug "$( oc patch cronjob logging-curator-ops -p "$( echo {\"spec\":{\"schedule\":\""${origscheduleops}"\"}} )" )"
+    fi
+    if [ -n "${origconfig:-}" -a -f "$origconfig" ] ; then
+        os::log::debug "$( oc replace --force -f "$origconfig" )"
+        sleep 1
+        rm -f "$origconfig"
+    fi
+    os::log::debug "$( oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR )"
     if [ -n "${esopspod:-}" ] ; then
-        os::log::debug "$( oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR )"
+        os::log::debug "$( oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR )"
     fi
     restart_curator
     if [ -n "${esopspod:-}" ] ; then
@@ -204,16 +227,17 @@ os::log::info Starting curator test at $( date )
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 
-os::log::debug "$( oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
-os::log::info Enabled debug for dc/logging-curator - rolling out . . .
-# the set env may trigger a rollout - if so, wait for it to complete
-os::log::debug "$( oc rollout status -w dc/logging-curator )"
-os::log::info Rolled out dc/logging-curator
+origschedule="$( oc get cronjob logging-curator -o go-template={{.spec.schedule}} )"
+if [ -n "$esopspod" ]; then
+    origscheduleops="$( oc get cronjob logging-curator-ops -o go-template={{.spec.schedule}} )"
+fi
+
+# this will apply for the next run of the cronjob
+os::log::debug "$( oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
+os::log::info Enabled debug for cronjob/logging-curator
 if [ -n "${esopspod:-}" ] ; then
-    os::log::debug "$( oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
-    os::log::info Enabled debug for dc/logging-curator-ops - rolling out . . .
-    os::log::debug "$( oc rollout status -w dc/logging-curator-ops )"
-    os::log::info Rolled out dc/logging-curator-ops
+    os::log::debug "$( oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG )"
+    os::log::info Enabled debug for cronjob/logging-curator-ops
 fi
 fpod=$( oc get pods --selector component=fluentd  -o jsonpath='{ .items[*].metadata.name }' | head -1 )
 tf='%Y.%m.%d'
@@ -253,15 +277,16 @@ TEST_DIVIDER="------------------------------------------"
 test_project_name_errors() {
     curpod=`get_running_pod curator`
     curtest=`mktemp --suffix=.yaml`
+    testschedule="*/1 * * * *"
     cat > $curtest <<EOF
 this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long-this-project-name-is-far-far-too-long:
   delete:
     days: 1
 EOF
     os::log::info Testing curator for incorrect project name length error - updating config and rolling out . . .
-    update_config_and_restart $curtest errors
+    update_config_and_restart $curtest "$testschedule" errors
     # curator pod status reported an error state
-    curpod=$( oc get pods -l component=curator -o jsonpath='{.items[0].metadata.name}' )
+    curpod=`get_completed_pod curator${ops}`
     os::cmd::expect_success_and_text "oc logs $curpod 2>&1" "The project name length must be less than or equal to"
     cat > $curtest <<EOF
 -BOGUS^PROJECT^NAME:
@@ -269,11 +294,11 @@ EOF
     days: 1
 EOF
     os::log::info Testing curator for improper project name error - updating config and rolling out . . .
-    update_config_and_restart $curtest errors
+    update_config_and_restart $curtest "$testschedule" errors
     # curator pod status reported an error state
-    curpod=$( oc get pods -l component=curator -o jsonpath='{.items[0].metadata.name}' )
+    curpod=`get_completed_pod curator${ops}`
     os::cmd::expect_success_and_text "oc logs $curpod 2>&1" "The project name must match this regex"
-    update_config_and_restart $origconfig
+    update_config_and_restart $origconfig "$origschedule"
 }
 
 basictest() {
@@ -281,30 +306,15 @@ basictest() {
     ops=${2:-""}
     create_indices $espod
 
-    sleeptime=${CURATOR_WAIT_SECS:-300} # seconds
-    # get current curator pod
-    curpod=`get_running_pod curator${ops}`
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
     os::log::debug current indices before 1st deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     # add the curator config yaml settings file
     curtest=`mktemp --suffix=.yaml`
-    # see what the current time and timezone are in the curator pod
-    os::log::debug "$( oc exec $curpod -- date )"
-    # calculate the runhour and runminute to run 5 minutes from now
-    tz=`timedatectl | awk '/Time zone:/ {print $3}'`
-    runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
-    runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
-    runtime=`TZ=$tz date +%s --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
 .defaults:
   delete:
     days: 31
-  runhour: $runhour
-  runminute: $runminute
-  timezone: $tz
 project-dev:
   delete:
     days: 1
@@ -324,36 +334,31 @@ project3-qe:
   delete:
     days: 7
 EOF
-    update_config_and_restart $curtest
+    # run curator in 1 minute from now, then suspend the cronjob
+    testschedule="*/1 * * * *"
+    update_config_and_restart $curtest "$testschedule"
+    curpod=`get_completed_pod curator${ops}`
     # wait for curator run 1 to finish
-    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 1 $(( 2 * minute ))
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'Job completed'" 1 $(( 2 * minute ))
     # show current indices
     os::log::debug current indices after 1st deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
     create_indices $espod
     # show current indices
     os::log::debug current indices before 2nd deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
 
-    current_time="$( TZ=$tz date +%s )"
-    remaining_time="$(( runtime - current_time ))"
-    os::log::info sleeping $remaining_time seconds to see if runhour and runminute are working . . .
-    sleep $remaining_time
     # wait for curator run 2 to finish
-    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 2 $(( 2 * minute ))
+    run_curator_till_completion
+    curpod=`get_completed_pod curator${ops}`
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'Job completed'" 1 $(( 2 * minute ))
     os::log::info verify indices deletion after curator run time
     # show current indices
     os::log::debug current indices after 2nd deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     return 0
@@ -364,30 +369,15 @@ regextest() {
     ops=${2:-""}
     create_indices $espod
 
-    sleeptime=${CURATOR_WAIT_SECS:-300} # seconds
-    # get current curator pod
-    curpod=`get_running_pod curator${ops}`
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
     os::log::debug current indices before 1st deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     # add the curator config yaml settings file
     curtest=`mktemp --suffix=.yaml`
-    # see what the current time and timezone are in the curator pod
-    os::log::debug "$( oc exec $curpod -- date )"
-    # calculate the runhour and runminute to run 5 minutes from now
-    tz=`timedatectl | awk '/Time zone:/ {print $3}'`
-    runhour=`TZ=$tz date +%H --date="TZ=\"$tz\" $sleeptime seconds hence"`
-    runminute=`TZ=$tz date +%M --date="TZ=\"$tz\" $sleeptime seconds hence"`
-    runtime=`TZ=$tz date +%s --date="TZ=\"$tz\" $sleeptime seconds hence"`
     cat > $curtest <<EOF
 .defaults:
   delete:
     days: 31
-  runhour: $runhour
-  runminute: $runminute
-  timezone: $tz
 project-dev:
   delete:
     days: 1
@@ -402,36 +392,30 @@ project-prod:
     delete:
       days: 7
 EOF
-    update_config_and_restart $curtest
+    testschedule="*/1 * * * *"
+    update_config_and_restart $curtest "$testschedule"
+    curpod=`get_completed_pod curator${ops}`
     # wait for curator run 1 to finish
-    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 1 $(( 2 * minute ))
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'Job completed'" 1 $(( 2 * minute ))
     # show current indices
     os::log::debug current indices after 1st deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
     create_indices $espod
     # show current indices
     os::log::debug current indices before 2nd deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
 
-    current_time="$( TZ=$tz date +%s )"
-    remaining_time="$(( runtime - current_time ))"
-    os::log::info sleeping $remaining_time seconds to see if runhour and runminute are working . . .
-    sleep $remaining_time
     # wait for curator run 2 to finish
-    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'curator run finish'" 2 $(( 2 * minute ))
+    run_curator_till_completion
+    curpod=`get_completed_pod curator${ops}`
+    os::cmd::try_until_text "oc logs $curpod 2>&1 | grep -c 'Job completed'" 1 $(( 2 * minute ))
     os::log::info verify indices deletion after curator run time
     # show current indices
     os::log::debug current indices after 2nd deletion are:
-    os::log::debug "$( oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
-       --client-cert /etc/curator/keys/cert --client-key /etc/curator/keys/key --loglevel ERROR \
-       show indices --all-indices )"
+    os::log::debug "$( oc exec -c elasticsearch $espod indices )"
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     return 0

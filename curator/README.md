@@ -1,36 +1,38 @@
 # Curator
 
-Curator allows the admin to remove old indices from Elasticsearch on a per-project
-basis.  The pod will read its configuration from a mounted yaml file that
-is structured like this:
+[Curator](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/about.html) helps you curate, or manage, your Elasticsearch indices and snapshots. This document describes how it's used in OpenShift Origin Aggregated Logging.
 
-    PROJECT_NAME:
-      ACTION:
-        UNIT: VALUE
+The pod runs periodically as a kubernetes cronjob. The time when the job gets started is configurable during installation or by changing environment variables of the cronjob. When the pod is started, it will read its configuration from two mounted yaml files:
+* [Configuration file](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/configfile.html) - general config, e.g. elasticsearch hostname, path to certificates etc.
+* [OpenShift custom config](#openshift-custom-config) - a simple way how to remove old indices. A curator [actions file](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/actionfile.html) is generated based on this config
 
-    PROJECT_NAME:
-      ACTION:
-        UNIT: VALUE          
-     ...      
+Optionally you can use the [actions file](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/actionfile.html) directly - this allows you to access all of curator features, should you need to run them periodically. However this can lead to destructive results and thus is not recommended. If you want to use this, see [Using actions file](#using-actions-file)
 
+### OpenShift custom config
+A simple yaml file that is structured like this:
+```
+PROJECT_NAME:
+  ACTION:
+    UNIT: VALUE
+
+PROJECT_NAME:
+  ACTION:
+    UNIT: VALUE
+...
+```
 * PROJECT\_NAME - the actual name of a project - "myapp-devel"
   * For operations logs, use the name `.operations` as the project name
 * ACTION - the action to take - currently only "delete"
-* UNIT - one of "days", "weeks", or "months" 
-* VALUE - an integer for the number of units 
+* UNIT - one of "days", "weeks", or "months"
+* VALUE - an integer for the number of units
 * `.defaults` - use `.defaults` as the PROJECT\_NAME to set the defaults for
 projects that are not specified
-  * runhour: NUMBER - hour of the day in 24 hour format at which to run the 
-curator jobs
-  * runminute: NUMBER - minute of the hour at which to run the curator jobs
-  * timezone: STRING - String in tzselect(8) or timedatectl(1) format - the
-   default timezone is `UTC`
 * `.regex` - list of regular expressions that match project names
   * `pattern` - valid and properly escaped regular expression pattern
   enclosed by single quotation marks
   * ACTION - the action to take - currently only "delete"
-  * UNIT - one of "days", "weeks", or "months" 
-  * VALUE - an integer for the number of units 
+  * UNIT - one of "days", "weeks", or "months"
+  * VALUE - an integer for the number of units
 
 ### Using regular expressions
 User defined regular expressions are checked for their validity
@@ -42,7 +44,7 @@ as described in [YAML documentation](http://www.yaml.org/spec/1.2/spec.html#styl
 
 Indices in Origin Aggregated Logging are created on a daily basis
 with the prefix `project.` and a suffix of the project id and
-creation date of the index. Therefore regular expressions
+creation date of the index. Therefore, regular expressions
 should conform to this naming scheme `project.name.uuid.yyyy.mm.dd`.
 
 Consider the following indices:
@@ -68,9 +70,6 @@ myapp-qe:
 .defaults:
   delete:
     days: 31
-  runhour: 0
-  runminute: 0
-  timezone: America/New_York
 
 .regex:
   - pattern: '^project\..+\-dev\..*$'
@@ -83,13 +82,10 @@ myapp-qe:
 ```
 
 Every day, curator will run, and will delete indices in the myapp-dev project
-older than 1 day, indices in the myapp-qe project older than 1 week, and 
-indices older than 2 days that are matched by the `'^project\..+\-test.*$'` and 1 day that are matched by the `'^project\..+\-dev.*$'` regex. 
+older than 1 day, indices in the myapp-qe project older than 1 week, and
+indices older than 2 days that are matched by the `'^project\..+\-test.*$'` and 1 day that are matched by the `'^project\..+\-dev.*$'` regex.
 All other projects will have their indices deleted after they are 31 days old
 by default.
-The curator jobs will run every day at midnight in the `America/New_York` timezone,
-regardless of geographical location where the pod is running, or the timezone
-setting of the pod, host, etc.
 
 *WARNING*: Using `months` as the unit
 
@@ -103,26 +99,93 @@ months from that date.
 If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 31`
 [Curator issue](https://github.com/elastic/curator/issues/569)
 
+### Compatibility with OpenShift 3.7
+In earlier releases admins could control the timezone and time when curator runs from the curator config. This configuration has been moved to openshift-ansible. The [timezone is not currently configurable](https://github.com/kubernetes/kubernetes/issues/47202), instead the timezone of OpenShift master node is used.
+
+### Using actions file
+OpenShift custom config file format ensures that important internal indices don't get deleted by mistake. In order to use the actions file add an [exclude](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/fe_exclude.html) rule to your configuration to retain these indices. You also need to manually add all the other patterns, see action 3 in the below example:
+```
+actions:
+  1:
+    action: delete_indices
+    description: be careful!
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^project\.myapp\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 7
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: '300'
+      ignore_empty_list: true
+  2:
+    action: delete_indices
+    description: be careful!
+    filters:
+    - exclude: false
+      kind: regex
+      filtertype: pattern
+      value: '^\.operations\..*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 56
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: '300'
+      ignore_empty_list: true
+  3:
+    action: delete_indices
+    description: be careful!
+    filters:
+    - exclude: true
+      kind: regex
+      filtertype: pattern
+      value: '^project\.myapp\..*$|^\.operations\..*$|^\.searchguard\..*$|^\.kibana$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 30
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: '300'
+      ignore_empty_list: true
+```
+
+### Modifying configuration
 To create the curator configuration, you can just edit the current
 configuration in the deployed configmap:
 
     $ oc edit configmap/logging-curator
 
-If this does not redeploy automatically, redeploy manually:
-
-    $ oc deploy --latest logging-curator
-
-For scripted deployments, do this:
-
-    $ create /path/to/mycuratorconfig.yaml
-    $ oc delete configmap logging-curator ; sleep 1
-    $ oc create configmap logging-curator --from-file=config.yaml=/path/to/mycuratorconfig.yaml ; sleep 1
-
-Then redeploy as above.
-
-You can also specify default values for the run hour, run minute, and age in
-days of the indices when processing the curator template.  Use
-`CURATOR_RUN_HOUR` and `CURATOR_RUN_MINUTE` to set the default runhour and
-runminute, `CURATOR_RUN_TIMEZONE` to set the run timezone, and use
-`CURATOR_DEFAULT_DAYS` to set the default index age in days. These are only
-used if not specified in the config file.
+For scripted deployments, copy the configuration file that was created by the installer and create your new OpenShift custom config:
+```
+$ create /path/to/configuration.yaml
+$ create /path/to/openshift_curator_config.yaml
+$ oc delete configmap logging-curator ; sleep 1
+$ oc create configmap logging-curator \
+    --from-file=curator5.yaml=/path/to/configuration.yaml \
+    --from-file=config.yaml=/path/to/openshift_curator_config.yaml \
+    ; sleep 1
+```
+If you're using actions file:
+```
+$ create /path/to/configuration.yaml
+$ create /path/to/actions.yaml
+$ oc delete configmap logging-curator ; sleep 1
+$ oc create configmap logging-curator \
+    --from-file=curator5.yaml=/path/to/configuration.yaml \
+    --from-file=actions.yaml=/path/to/actions.yaml \
+    ; sleep 1
+```
+Next scheduled job will use this configuration.
