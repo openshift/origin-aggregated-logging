@@ -7,6 +7,7 @@
 #
 #  - OAL_EXPECTED_{
 #                  DEPLOYMENTCONFIGS,
+#                  CRONJOBS,
 #                  OAUTHCLIENTS,
 #                  DAEMONSETS,
 #                  SERVICES,
@@ -33,6 +34,11 @@ for deploymentconfig in ${OAL_EXPECTED_DEPLOYMENTCONFIGS}; do
 		os::cmd::expect_success "oc rollout latest ${deploymentconfig}"
 		os::cmd::expect_success "oc rollout status deploymentconfig/${deploymentconfig}"
 	fi
+done
+
+os::log::info "Checking for CronJobs..."
+for cronjob in ${OAL_EXPECTED_CRONJOBS}; do
+	os::cmd::expect_success "oc get cronjob ${cronjob}"
 done
 
 os::log::info "Checking for Routes..."
