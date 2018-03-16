@@ -214,12 +214,12 @@ if [ $TOTAL_LIMIT -le 0 ]; then
     exit 1
 fi
 
-# If secure-forward outputs are configured, add them to NUM_OUTPUTS.
-sec_forward_files=$( grep -l "@type *secure_forward" ${CFG_DIR}/*/* 2> /dev/null || : )
-for afile in ${sec_forward_files} ; do
+# If forward and secure-forward outputs are configured, add them to NUM_OUTPUTS.
+forward_files=$( grep -l "@type .*forward" ${CFG_DIR}/*/* 2> /dev/null || : )
+for afile in ${forward_files} ; do
     file=$( basename $afile )
     if [ "$file" != "${mux_client_filename:-}" ]; then
-        grep "@type *secure_forward" $afile | while read -r line; do
+        grep "@type .*forward" $afile | while read -r line; do
             if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
                 NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
             fi
