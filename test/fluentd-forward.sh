@@ -10,6 +10,8 @@ FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/fluentd-forward"
 
+extra_artifacts=$ARTIFACT_DIR/fluentd-forward-artifacts.txt
+
 update_current_fluentd() {
     cnt=${FORWARDCNT:-1}
     # this will update it so the current fluentd does not send logs to an ES host
