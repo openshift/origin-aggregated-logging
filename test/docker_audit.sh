@@ -12,6 +12,12 @@ function get_logs_count() {
     curl_es $es_pod "${index}"_count?q=docker.user:* | get_count_from_json
 }
 
+function get_logs_source() {
+    local es_pod=$1
+    local index="$2"
+    curl_es $es_pod "${index}"_search?q=docker.user:* | jq .
+}
+
 function get_logs_count_timerange() {
     local es_pod=$1
     local index="$2"
@@ -65,36 +71,47 @@ espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
 
+fpod=$( get_running_pod fluentd )
+os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
+os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 180))
+
 logs_before=$( get_logs_count $espod '/project.*/' )
 ops_logs_before=$( get_logs_count $esopspod '/.operations.*/' )
 
 os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
 
+os::cmd::expect_success flush_fluentd_pos_files
+os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+fpod=$( get_running_pod fluentd )
+
 # ping,create,attach,start generates 4 docker audit messages
 timestamp=$( date --iso-8601=seconds )
 docker run --rm centos:7 echo "running test container"
 
-os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 4 $timestamp"
+if ! os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 4 $timestamp" $((second * 60)) ; then
+    sudo grep VIRT_CONTROL /var/log/audit/audit.log | tail -40 > $ARTIFACT_DIR/docker_audit_audit.log
+    oc logs $fpod > $ARTIFACT_DIR/docker_audit_fluentd.log 2>&1
+    ops_logs_after=$( get_logs_count $esopspod '/.operations.*/' )
+    logs_after=$( get_logs_count $espod '/project.*/' )
+    get_logs_source $esopspod '/.operations.*/' > $ARTIFACT_DIR/docker_audit_ops.json 2>&1
+    get_logs_source $espod '/project.*/' > $ARTIFACT_DIR/docker_audit_proj.json 2>&1
 
-ops_logs_after=$( get_logs_count $esopspod '/.operations.*/' )
-logs_after=$( get_logs_count $espod '/project.*/' )
+    ops_diff=$((ops_logs_after-ops_logs_before)) || :
+    diff=$((logs_after-logs_before)) || :
 
-ops_diff=$((ops_logs_after-ops_logs_before))
-diff=$((logs_after-logs_before))
+    os::log::info "ops diff after:  $ops_diff"
+    os::log::info "proj diff after: $diff"
 
-os::log::info "ops diff after:  $ops_diff"
-os::log::info "proj diff after: $diff"
+    # just a sanity check
+    if [ $diff -ne 0 ]; then
+        os::log::error "Docker audit logs found in project index. But should only be in .operations index."
+    fi
 
-# just a sanity check
-if [ $diff -ne 0 ]; then
-    os::log::error "Docker audit logs found in project index. But should only be in .operations index."
+    # this is the real deal
+    # if no messages are found in the ops index it means the deployment failed
+    if [ $ops_diff -lt 4 ]; then
+        os::log::error ".operations index contains difference of $ops_diff messages, but at least 4 are expected."
+    fi
 fi
-os::cmd::expect_success "test $diff -eq 0"
-
-# this is the real deal
-# if no messages are found in the ops index it means the deployment failed
-if [ $ops_diff -lt 4 ]; then
-    os::log::error ".operations index contains difference of $ops_diff messages, but at least 4 are expected."
-fi
-os::cmd::expect_success "test $ops_diff -ge 4"
