@@ -25,7 +25,14 @@ os::cmd::expect_success "oc project logging"
 os::log::info "Checking for DeploymentConfigurations..."
 for deploymentconfig in ${OAL_EXPECTED_DEPLOYMENTCONFIGS}; do
 	os::cmd::expect_success "oc get deploymentconfig ${deploymentconfig}"
-	os::cmd::expect_success "oc rollout status deploymentconfig/${deploymentconfig}"
+
+# this is to get around the current kubelet flake where we need to re-rollout to get the dc running
+#  for sanity sake and to not get stuck in the case of real issues, we will only do this once per dc
+	if ! oc rollout status deploymentconfig/${deploymentconfig} ; then
+		os::cmd::expect_success "oc rollout cancel deploymentconfig/${deploymentconfig}"
+		os::cmd::expect_success "oc rollout latest ${deploymentconfig}"
+		os::cmd::expect_success "oc rollout status deploymentconfig/${deploymentconfig}"
+	fi
 done
 
 os::log::info "Checking for Routes..."
@@ -48,6 +55,11 @@ for daemonset in ${OAL_EXPECTED_DAEMONSETS}; do
 	os::cmd::expect_success "oc get daemonset ${daemonset}"
 	desired_number="$( oc get daemonset "${daemonset}" -o jsonpath='{ .status.desiredNumberScheduled }' )"
 	os::cmd::try_until_text "oc get daemonset ${daemonset} -o jsonpath='{ .status.numberReady }'" "${desired_number}" $FLUENTD_WAIT_TIME
+done
+
+os::log::info "Checking for CronJobs..."
+for cronjob in ${OAL_EXPECTED_CRONJOBS}; do
+	os::cmd::expect_success "oc get cronjob ${cronjob}"
 done
 
 os::test::junit::declare_suite_end
