@@ -1,0 +1,26 @@
+module(load="mmkubernetes" kubernetesurl="{{ openshift_master_api_url | default('https://localhost:8443') }}"
+       filenamerulebase="/etc/rsyslog.d/viaq/k8s_filename.rulebase"
+       containerrulebase="/etc/rsyslog.d/viaq/k8s_container_name.rulebase"
+       tls.cacert="/etc/rsyslog.d/viaq/mmk8s.ca.crt"
+       tokenfile="/etc/rsyslog.d/viaq/mmk8s.token" annotation_match=["."])
+
+input(type="imfile" file="/var/log/containers/*.log" tag="kubernetes" addmetadata="on")
+
+if ((strlen($!CONTAINER_NAME) > 0) and (strlen($!CONTAINER_ID_FULL) > 0)) or
+    ($!metadata!filename startswith "/var/log/containers/") then {
+    if $!metadata!filename startswith "/var/log/containers/" then {
+        action(type="mmjsonparse" cookie="") # parse entire message as json
+    }
+    action(type="mmkubernetes")
+    if strlen($!MESSAGE) > 0 then {
+        action(type="mmnormalize" ruleBase="/etc/rsyslog.d/viaq/parse_json.rulebase" variable="$!MESSAGE")
+    } else {
+        action(type="mmnormalize" ruleBase="/etc/rsyslog.d/viaq/parse_json.rulebase" variable="$!log")
+    }
+    # there is no way to move these fields to be top level fields in rscript in 8.24
+    # do it in mmk8s for now - revisit when upgrade to 8.33
+#    foreach ($.ii in $!payload) do {
+#        set $! = $.ii;
+#    }
+#    unset $!payload;
+}
