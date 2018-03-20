@@ -1,0 +1,8 @@
+#!/bin/sh
+
+QUIETMODE="-q"
+outputfile=/var/log/rsyslogd.$$.vg
+
+valgrind $QUIETMODE --trace-children=yes --tool=memcheck --track-origins=yes \
+  --read-var-info=yes --leak-check=yes --leak-resolution=high \
+  --num-callers=50 --log-file=$outputfile rsyslogd "$@"
