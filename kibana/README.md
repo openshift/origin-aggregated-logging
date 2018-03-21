@@ -14,7 +14,11 @@ Modifying Kibana's configuration is possible by setting an environment value tha
 |`ELASTICSEARCH_REQUESTTIMEOUT`|`elasticsearch.requestTimeout`|
 |`KIBANA_DEFAULTAPPID`|`kibana.defaultAppId`|
 
-
+## Required Headers
+Kibana must whitelist the following variables in order to integrate with the Openshift Logging Stash:
+* authorization
+* x-forwarded-for
+* x-proxy-remote-user
 
 ## Additional Customizations
 Additional customizations for Kibana are added to the Openshift logging stack in the [openshift-elasticsearch-plugin](https://github.com/fabric8io/openshift-elasticsearch-plugin).

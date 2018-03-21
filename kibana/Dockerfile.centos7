@@ -4,7 +4,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 EXPOSE 5601
 
-ENV ELASTICSEARCH_URL=https://localhost:9200 \
+ENV ELASTICSEARCH_URL=https://logging-es:9200 \
     HOME=/opt/app-root/src \
     KIBANA_HOME=/usr/share/kibana \
     KIBANA_CONF_DIR=/etc/kibana \

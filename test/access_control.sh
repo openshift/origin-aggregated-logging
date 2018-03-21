@@ -115,6 +115,7 @@ function test_user_has_proper_access() {
             continue
         fi
         os::log::info See if user $user $negverb read /project.$proj.*
+        os::log::info Checking access directly against ES pod...
         nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | \
                      get_count_from_json )
         check_es_acls
@@ -123,6 +124,7 @@ function test_user_has_proper_access() {
             curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
             exit 1
         fi
+        os::log::info Checking access from Kibana pod...
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $test_name $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
@@ -131,6 +133,7 @@ function test_user_has_proper_access() {
             exit 1
         fi
         # no user name - allow it - look up username corresponding to token
+        os::log::info Checking access from ES pod without providing username
         nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" "" $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
@@ -138,6 +141,7 @@ function test_user_has_proper_access() {
             curl_es_with_token $espod "/project.$proj.*/_count" "" $test_token | python -mjson.tool
             exit 1
         fi
+        os::log::info Checking access from Kibana pod without providing username
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" "" $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
@@ -147,6 +151,7 @@ function test_user_has_proper_access() {
         fi
         # if wrong user name is given, allow it - server will look up and use correct user name, so
         # not possible to specify a privileged username to use for access with an unprivileged token
+        os::log::info Checking access from ES pod providing username not matched to bearer token...
         nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
@@ -154,6 +159,7 @@ function test_user_has_proper_access() {
             curl_es_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | python -mjson.tool
             exit 1
         fi
+        os::log::info Checking access from Kibana pod providing username not matched to bearer token...
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
@@ -164,14 +170,17 @@ function test_user_has_proper_access() {
         if [ "$expected" = 1 ] ; then
             # make sure no access with incorrect auth
             # username with no token
+            os::log::info Checking access providing username with no token
             os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
             os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
             # username and bogus token
+            os::log::info Checking access providing username with bogus token
             os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
             os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
             # no username, no token
-            os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '' '' -w '%{response_code}\n'" '^401$'
-            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' '' -w '%{response_code}\n' -o /dev/null" '^403$'
+            os::log::info Checking access providing no username or token
+            os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '' '' -w '%{response_code}\n'" '^.*401$'
+            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' '' -w '%{response_code}\n' -o /dev/null" '^.*403$'
         fi
     done
 
@@ -212,7 +221,7 @@ function test_user_has_proper_access() {
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
 
     os::log::info See if access is denied to /.operations.* with no username and no token
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' '' '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' '' '' -w '%{response_code}\n'" '^.*401$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' '' -w '%{response_code}\n' -o /dev/null" '^403$'
 
     os::log::info See if user $user is denied /.operations.* with username that does not correspond to token
@@ -250,10 +259,10 @@ os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADM
 # # oc login --username=loguser --password=loguser
 # error: The server was unable to respond - verify you have provided the correct host and port and that the server is currently running.
 # or - set REUSE=true
-LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguserac}
+LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguserac-$RANDOM}
 LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguserac}
 
-LOG_USER2=${LOG_USER2:-loguser2ac}
+LOG_USER2=${LOG_USER2:-loguser2ac-$RANDOM}
 LOG_PW2=${LOG_PW2:-loguser2ac}
 
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW access-control-1 access-control-2

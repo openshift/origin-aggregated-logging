@@ -26,10 +26,7 @@ ENV ES_CLOUD_K8S_VER=5.5.2 \
 
 ARG ES_CLOUD_K8S_VER=5.5.2
 ARG OSE_ES_VER=5.5.2.1
-ARG ES_CLOUD_K8S_URL
-ARG PROMETHEUS_EXPORTER_URL
 ARG SG_VER=5.5.2-16
-ARG SG_URL
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
@@ -40,15 +37,11 @@ LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging sto
 
 ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 # install the RPMs in a separate step so it can be cached
-RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
-    yum install -y --setopt=tsflags=nodocs \
+RUN rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch && \
+    yum install -y --setopt=tsflags=nodocs --nogpgcheck \
                 java-${JAVA_VER}-openjdk-headless \
                 PyYAML && \
     yum clean all
-
-
-ENV OSE_ES_URL=https://github.com/jcantrill/openshift-elasticsearch-plugin/releases/download/5.5.0-1-SNAPSHOT/openshift-elasticsearch-plugin-5.5.2.1-SNAPSHOT.zip
-ENV PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-5.5.2.0.zip
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
@@ -57,6 +50,12 @@ ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
+
+ARG ES_CLOUD_K8S_URL
+ARG OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/files/1869837/openshift-elasticsearch-plugin-5.5.2.1.zip
+ARG PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-5.5.2.0.zip
+ARG SG_URL
+
 RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
     ${HOME}/install.sh && \
     rm -rf /tmp/lib
