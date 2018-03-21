@@ -52,7 +52,7 @@ else
     }
 fi
 
-LOGGING_PROJECT=${LOGGING_PROJECT:-logging}
+LOGGING_PROJECT=${LOGGING_PROJECT:-openshift-logging}
 
 # $1 - es pod name
 # $2 - es endpoint
