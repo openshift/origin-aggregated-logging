@@ -33,6 +33,8 @@ source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::setup_time_vars
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
 query_size="${OAL_QUERY_SIZE:-"500"}"
 test_ip="${OAL_TEST_IP:-"127.0.0.1"}"
 
@@ -46,7 +48,7 @@ test_user="$( oc whoami )"
 test_token="$( oc whoami -t )"
 
 os::cmd::expect_success "oc login --username=system:admin"
-os::cmd::expect_success "oc project logging"
+os::cmd::expect_success "oc project ${LOGGING_NS}"
 
 # We can reach the Elasticsearch service at serviceName:apiPort
 elasticsearch_api="$( oc get svc "${OAL_ELASTICSEARCH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"

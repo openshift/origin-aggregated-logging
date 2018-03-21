@@ -16,9 +16,17 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/multi_tenancy"
 
+LOGGING_PROJECT=${LOGGING_NS:-openshift-logging}
+
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
+
+# HACK HACK HACK
+# remove this once we have real multi-tenancy, multi-index support
+function hack_msearch_access() {
+    LOGGING_PROJECT=${LOGGING_PROJECT} ${OS_O_A_L_DIR}/hack/enable-kibana-msearch-access.sh "$@"
+}
 
 delete_users=""
 cleanup_msearch_access=""
@@ -161,7 +169,7 @@ create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
 
 oc login --username=system:admin > /dev/null
-oc project logging > /dev/null
+oc project $LOGGING_PROJECT > /dev/null
 
 test_user_has_proper_access $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 test_user_has_proper_access $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3

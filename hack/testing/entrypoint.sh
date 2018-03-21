@@ -25,6 +25,12 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
+LOGGING_NS=openshift-logging
+if oc get project logging -o name > /dev/null ; then
+    LOGGING_NS=logging
+fi
+export LOGGING_NS
+
 # HACK HACK HACK
 #
 # There seems to be some sort of performance problem - richm 2017-08-15 not
@@ -33,18 +39,18 @@ source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 # journal, and the default/logging pods, and the os, are spewing too much for
 # fluentd to keep up with when it has 100m cpu (default), on a aws m4.xlarge
 # system for now, remove the limits on fluentd to unblock the tests
-oc get -n logging daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
-if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get ds logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
-    oc patch -n logging daemonset/logging-fluentd --type=json --patch '[
+oc get -n ${LOGGING_NS} daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
+if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get -n ${LOGGING_NS} ds logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
+    oc patch -n ${LOGGING_NS} daemonset/logging-fluentd --type=json --patch '[
           {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
 fi
 
 # Make CI run with enabled debug logs for journald (BZ 1505602)
-oc set -n logging env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
+oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 
 # Make CI run with MUX_CLIENT_MODE off by default - individual tests will set
 # MUX_CLIENT_MODE=maximal or minimal
-oc set -n logging env ds/logging-fluentd MUX_CLIENT_MODE-
+oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 
 # start a fluentd performance monitor
 monitor_fluentd_top() {
