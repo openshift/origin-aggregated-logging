@@ -8,7 +8,7 @@ Parser for Origin Aggregated Logging curator v3 configuration.
 import os
 import sys
 import re
-import yaml
+from ruamel import yaml
 
 from util import create_logger
 
@@ -36,7 +36,7 @@ class Parser():
     def read_config_file(self):
         with open(self.config_file) as f:
             config_string = f.read()
-            self.config_yaml = yaml.load(config_string) or {}
+            self.config_yaml = yaml.load(config_string, Loader=yaml.Loader) or {}
         return self
 
     def create_internal_representation(self):
