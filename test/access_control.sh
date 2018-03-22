@@ -117,7 +117,6 @@ function test_user_has_proper_access() {
         os::log::info See if user $user $negverb read /project.$proj.*
         nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | \
                      get_count_from_json )
-        check_es_acls
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
             os::log::error $user $verb access project.$proj.* indices from es
             curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
@@ -161,7 +160,7 @@ function test_user_has_proper_access() {
             curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | python -mjson.tool
             exit 1
         fi
-        if [ "$expected" = 1 ] ; then
+        if [ "$expected" = 0 ] ; then
             # make sure no access with incorrect auth
             # username with no token
             os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
