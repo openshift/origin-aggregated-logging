@@ -3,7 +3,6 @@
 
 require 'fluent/mixin/config_placeholders'
 module Fluent
-
   class SyslogOutput < Fluent::Output
     # First, register the plugin. NAME is the name of this plugin
     # and identifies the plugin in the configuration file.
@@ -11,7 +10,7 @@ module Fluent
 
     # This method is called before starting.
 
-    config_param :remote_syslog, :string, :default => nil
+    config_param :remote_syslog, :string, :default => ""
     config_param :port, :integer, :default => 25
     config_param :hostname, :string, :default => ""
     config_param :remove_tag_prefix, :string, :default => nil
@@ -26,6 +25,7 @@ module Fluent
       super
       require 'socket'
       require 'syslog_protocol'
+      require 'securerandom'
     end
 
     def configure(conf)
@@ -45,6 +45,7 @@ module Fluent
       if not @payload_key
         @payload_key = "message"
       end
+      @random_string = SecureRandom.hex
     end
 
 
@@ -73,13 +74,13 @@ module Fluent
           if @use_record && record.key?('systemd') && (record['systemd']).key?('u') && (record['systemd']['u']).key?('SYSLOG_FACILITY')
             fval = record['systemd']['u']['SYSLOG_FACILITY'].to_i
             if (1..23).include?(fval)
-                @packet.facility = fval
-            elsif record['systemd']['u']['SYSLOG_FACILITY'].eql? '0'
-                @packet.facility = 0
-            elsif record['systemd']['u']['SYSLOG_FACILITY'].eql? 'kern'
-                @packet.facility = 'kern'
+              @packet.facility = fval
             else
+              if record['systemd']['u']['SYSLOG_FACILITY'].eql? '0'
+                @packet.facility = 0
+              else
                 @packet.facility = record['systemd']['u']['SYSLOG_FACILITY'] || @facility
+              end
             end
           elsif record.key?('_KERNEL_DEVICE')
             @packet.facility = 'kern'
@@ -91,36 +92,48 @@ module Fluent
           @packet.facility = @facilty
           @packet.severity = @severity
         end
-        if record['time']
-          time = Time.parse(record['time'])
+        time = if record['time']
+          Time.parse(record['time'])
         else
-          time = Time.now
+          Time.now
         end
         @packet.time = time
-        if @tag_key.any?
+        @packet.tag = @random_string
+        if @tag_key.any? && record.any?
+          # tag_key is an array type
+          # E.g., tag_key ident,systemd.u.SYSLOG_IDENTIFIER,ident
+          #       tkey = ident
+          #       tkey = systemd.u.SYSLOG_IDENTIFIER
           @tag_key.each { |tkey|
+            # ident => record[ident]
+            # systemd.u.SYSLOG_IDENTIFIER => record[systemd][u][SYSLOG_IDENTIFIER]
             mytag = record
+            # check if tkey is '.' separated.
             tkey.split('.').each { |p|
-              break if ! mytag.key?(p)
+              if ! mytag.key?(p)
+                if ! p.eql? tkey
+                  log.debug "out:syslog: #{p} from #{tkey} in tag_key #{@tag_key} is not a key of record."
+                end
+                break
+              end
               mytag = mytag[p]
             }
             next if ! mytag.is_a? String
-            next if mytag.empty?
             @packet.tag = mytag[0..31].gsub(/[\[\]\s]/,'') # tag is trimmed to 32 chars for syslog_protocol gem compatibility
             break
           }
         end
-        if @packet.tag.nil? || @packet.tag.empty?
+        if @packet.tag.eql? random_string
           @packet.tag = tag[0..31] # tag is trimmed to 32 chars for syslog_protocol gem compatibility
         end
         packet = @packet.dup
-        if @use_record && (record.key?('kubernetes')) && @record[@payload_key]
-            packet.content = (((record['kubernetes']).key?('namespace_name')) ? 'namespace_name=' + record['kubernetes']['namespace_name'] + ', ' : '' ) + \
-                             (((record['kubernetes']).key?('container_name')) ? 'container_name=' + record['kubernetes']['container_name'] + ', ' : '' ) + \
-                             (((record['kubernetes']).key?('pod_name')) ? 'pod_name=' + record['kubernetes']['pod_name'] + ', ' : '' ) + \
-                             @payload_key + '=' + record[@payload_key]
+        packet.content = if @use_record && (record.key?('kubernetes')) && record[@payload_key]
+          (((record['kubernetes']).key?('namespace_name')) ? 'namespace_name=' + record['kubernetes']['namespace_name'] + ', ' : '' ) + \
+          (((record['kubernetes']).key?('container_name')) ? 'container_name=' + record['kubernetes']['container_name'] + ', ' : '' ) + \
+          (((record['kubernetes']).key?('pod_name')) ? 'pod_name=' + record['kubernetes']['pod_name'] + ', ' : '' ) + \
+          @payload_key + '=' + record[@payload_key]
         else
-            packet.content = record[@payload_key]
+          record[@payload_key]
         end
         @socket.send(packet.assemble, 0, @remote_syslog, @port)
     }
