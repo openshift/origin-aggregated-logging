@@ -48,18 +48,14 @@ cleanup() {
     if [ $return_code -ne 0 ]; then
        artifact_log "oc get pods"
        oc get pods 2>&1 | artifact_out || :
-       artifact_log "/var/log/messages files"
-       sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out || :
-       artifact_log "Sample of /var/log/messages"
-       sudo tail -n 30 /var/log/messages 2>&1 | artifact_out || :
-       artifact_log "Sample of /var/log/messages DONE"
        if [ "$fluentdtype" = "fluentd" ] ; then
-           mypod=$( get_running_pod fluentd )
+           # in case pod is CrashLoopBackOff
+           mypod=$( oc get pods --selector component=fluentd -o name | awk -F'/' '{print $2}' )
        else
-           mypod=$( get_running_pod fluentd )
+           mypod=$( oc get pods --selector component=fluentd -o name | awk -F'/' '{print $2}' )
            artifact_log log from $mypod
            oc logs $mypod 2>&1 | artifact_out || :
-           mypod=$( get_running_pod mux )
+           mypod=$( oc get pods --selector component=mux -o name | awk -F'/' '{print $2}' )
        fi
        artifact_log log from $mypod
        oc logs $mypod 2>&1 | artifact_out || :
@@ -71,6 +67,11 @@ cleanup() {
        sudo journalctl | grep rsyslogd | tail -n 30 2>&1 | artifact_out || :
        artifact_log something in audit.log
        sudo grep rsyslog /var/log/audit/audit.log 2>&1 | artifact_out || :
+       artifact_log "/var/log/messages files"
+       sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out || :
+       artifact_log "Sample of /var/log/messages"
+       sudo tail -n 30 /var/log/messages 2>&1 | artifact_out || :
+       artifact_log "Sample of /var/log/messages DONE"
     fi
 
     if [ "$fluentdtype" = "fluentd" ] ; then
@@ -332,7 +333,7 @@ if [ "$fluentdtype" = "fluentd" ] ; then
     os::log::debug "$( oc label node --all logging-infra-fluentd- )"
     os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY='ident,systemd.u.SYSLOG_IDENTIFIER' )"
+    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY='ident,systemd.u.SYSLOG_IDENTIFIER,local1.err' )"
     os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
@@ -351,7 +352,7 @@ else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
     os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux FORWARD_INPUT_LOG_LEVEL=info USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY='ident,systemd.u.SYSLOG_IDENTIFIER' )"
+    os::log::debug "$( oc set env dc/logging-mux FORWARD_INPUT_LOG_LEVEL=info USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY='ident,systemd.u.SYSLOG_IDENTIFIER,local1.err' )"
     os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
