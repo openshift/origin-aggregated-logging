@@ -1,0 +1,13 @@
+
+module varlibdockercont 1.0;
+
+require {
+    type syslogd_t;
+    type container_var_lib_t;
+    class dir { search getattr };
+    class file { getattr ioctl open read };
+}
+
+#============= syslogd_t ==============
+allow syslogd_t container_var_lib_t:dir { search getattr };
+allow syslogd_t container_var_lib_t:file { getattr ioctl open read };
