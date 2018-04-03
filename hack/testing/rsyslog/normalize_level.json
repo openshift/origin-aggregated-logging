@@ -1,0 +1,20 @@
+{ "version" : 1,
+  "nomatch" : "UNKNOWN",
+  "type" : "string",
+  "table" : [
+    {"index": "emerg", "value": "emerg"},
+    {"index": "panic", "value": "emerg"},
+    {"index": "alert", "value": "alert"},
+    {"index": "crit", "value": "crit"},
+    {"index": "critical", "value": "crit"},
+    {"index": "err", "value": "err"},
+    {"index": "error", "value": "err"},
+    {"index": "warning", "value": "warning"},
+    {"index": "warn", "value": "warning"},
+    {"index": "notice", "value": "notice"},
+    {"index": "info", "value": "info"},
+    {"index": "debug", "value": "debug"},
+    {"index": "trace", "value": "trace"},
+    {"index": "unknown", "value": "unknown"}
+  ]
+}
