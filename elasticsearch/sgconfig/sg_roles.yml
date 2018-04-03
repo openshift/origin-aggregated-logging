@@ -1,11 +1,8 @@
 sg_role_kibana:
   cluster:
     - CLUSTER_MONITOR
-    - CLUSTER_COMPOSITE_OPS
+    - CLUSTER_COMPOSITE_OPS_RO
   indices:
-    '*':
-      '*':
-        - READ
     '?kibana':
       '*':
         - INDICES_ALL
