@@ -46,7 +46,11 @@ then
     components=( "kibana" "fluentd" "curator" "elasticsearch" "project_info" )
 fi
 
-NAMESPACE=${NAMESPACE:-logging}
+if [ -z "${NAMESPACE:-''}" ] && oc get project logging > /dev/null ; then
+  NAMESPACE=logging
+fi
+
+NAMESPACE=${NAMESPACE:-openshift-logging}
 
 DATE=`date +%Y%m%d_%H%M%S`
 target=${target:-"logging-$DATE"}
@@ -93,7 +97,7 @@ check_project_info() {
   echo -- Nodes Description
   oc describe nodes > $project_folder/nodes
   echo -- Project Description
-  oc get namespace logging -o yaml > $project_folder/logging-project
+  oc get namespace ${NAMESPACE} -o yaml > $project_folder/logging-project
   echo -- Events
   oc get events > $project_folder/events
   # Don't get the secrets content for security reasons

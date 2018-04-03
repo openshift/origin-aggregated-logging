@@ -8,6 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/viaq-data-model"
@@ -123,7 +124,7 @@ get_logmessage2() {
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test1"
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
 os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
@@ -144,7 +145,7 @@ fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test2"
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
 os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
@@ -159,7 +160,7 @@ fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test3"
 
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
@@ -175,7 +176,7 @@ fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test4"
 
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
@@ -199,7 +200,7 @@ fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'

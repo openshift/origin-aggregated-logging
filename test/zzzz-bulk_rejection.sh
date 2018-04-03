@@ -8,6 +8,7 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/bulk_rejection"
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
@@ -160,7 +161,7 @@ os::log::info Finished adding $count project and $countops operation log records
 
 fullmsg="GET /${uuid_es}-"
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-firstcount=$( curl_es ${espod} /project.logging.*/_count -X POST -d "$qs" | get_count_from_json )
+firstcount=$( curl_es ${espod} /project.${LOGGING_NS}.*/_count -X POST -d "$qs" | get_count_from_json )
 if [ "${firstcount:-0}" -eq $count ] ; then
     os::log::warning All project records added - some should have been queued due to bulk index rejection
 else
@@ -228,11 +229,11 @@ fi
 rc=0
 timeout=$(( 180 * second ))
 # duplicates can be added when bulk ops are retried, so greater than or equal
-if os::cmd::try_until_success "curl_es ${espod} /project.logging.*/_count -X POST -d '$qs' | jq '.count >= ${count}'" $timeout ; then
-    os::log::debug good - found $count record project logging for \'$fullmsg\'
+if os::cmd::try_until_success "curl_es ${espod} /project.${LOGGING_NS}.*/_count -X POST -d '$qs' | jq '.count >= ${count}'" $timeout ; then
+    os::log::debug good - found $count record project ${LOGGING_NS} for \'$fullmsg\'
 else
-    os::log::error not found $count record project logging for \'$fullmsg\' after timeout
-    os::log::debug "$( curl_es ${espod} /project.logging.*/_search -X POST -d "$qs" )"
+    os::log::error not found $count record project ${LOGGING_NS} for \'$fullmsg\' after timeout
+    os::log::debug "$( curl_es ${espod} /project.${LOGGING_NS}.*/_search -X POST -d "$qs" )"
     os::log::error "Checking journal for '$fullmsg' ..."
     if sudo journalctl | grep -q "$fullmsg" ; then
         os::log::error "Found '$fullmsg' in journal"
