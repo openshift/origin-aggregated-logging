@@ -28,6 +28,6 @@ Feature: The openshift-elasticsearch-plugin the Kibana index
 
     Given a user with the role of operations
     And the .all alias initially does not exist
-    And logs were collected for the logging project
+    And logs were collected for the openshift-logging project
     When they log into Kibana
-    Then the .all alias should alias indices: operations, logging
+    Then the .all alias should alias indices: operations, openshift-logging
