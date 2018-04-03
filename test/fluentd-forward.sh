@@ -236,8 +236,8 @@ cleanup() {
   if [ $cnt -gt 1 ]; then
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
-    exit $return_code
   fi
+  exit $return_code
 }
 trap "cleanup" EXIT
 
