@@ -3,14 +3,12 @@
 set -ex
 set -o nounset
 
-yum -y install https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ES_VER}.rpm
-
 source ${HOME}/prep-install.${RELEASE_STREAM}
 
 echo "ES plugins: ${es_plugins[@]}"
 for es_plugin in ${es_plugins[@]}
 do
-  /usr/share/elasticsearch/bin/elasticsearch-plugin install -b $es_plugin
+  ${ES_HOME}/bin/elasticsearch-plugin install -b $es_plugin
 done
 
 

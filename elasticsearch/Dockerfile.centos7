@@ -40,6 +40,7 @@ ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
 RUN rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch && \
     yum install -y --setopt=tsflags=nodocs --nogpgcheck \
                 java-${JAVA_VER}-openjdk-headless \
+                elasticsearch-${ES_VER} \
                 PyYAML && \
     yum clean all
 
