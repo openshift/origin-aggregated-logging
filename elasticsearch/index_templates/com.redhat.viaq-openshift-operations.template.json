@@ -5,7 +5,7 @@
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2018.02.15.0"
+        "version": "2018.04.03.0"
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -904,6 +904,11 @@
               "type": "long"
             }
           }
+        },
+        "viaq_msg_id": {
+          "doc_values": true,
+          "index": true,
+          "type": "keyword"
         }
       }
     }
