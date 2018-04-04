@@ -15,7 +15,7 @@ Modifying Kibana's configuration is possible by setting an environment value tha
 |`KIBANA_DEFAULTAPPID`|`kibana.defaultAppId`|
 
 ## Required Headers
-Kibana must whitelist the following variables in order to integrate with the Openshift Logging Stash:
+Kibana must whitelist the following variables in order to integrate with the Openshift Logging Stack:
 * authorization
 * x-forwarded-for
 * x-proxy-remote-user
