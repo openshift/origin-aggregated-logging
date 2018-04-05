@@ -117,7 +117,7 @@ Examples:
 
 ### Common
 * Nodes description `oc describe nodes`
-* Project `oc get project logging -o yaml`
+* Project `oc get project openshift-logging -o yaml`
 * Pod Logs compressed. Use `find . -name "*.xz" | while read filename; do xz -d $filename; done`
 * Docker image version `/root/buildinfo/Dockerfile-openshift3*`
 * Environment variables

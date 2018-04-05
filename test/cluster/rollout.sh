@@ -16,11 +16,12 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
 trap os::test::junit::reconcile_output EXIT
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 FLUENTD_WAIT_TIME=$(( 2 * minute ))
 
 os::test::junit::declare_suite_start "test/cluster/rollout"
 
-os::cmd::expect_success "oc project logging"
+os::cmd::expect_success "oc project ${LOGGING_NS}"
 
 os::log::info "Checking for DeploymentConfigurations..."
 for deploymentconfig in ${OAL_EXPECTED_DEPLOYMENTCONFIGS}; do
