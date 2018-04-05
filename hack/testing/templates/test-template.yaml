@@ -29,7 +29,7 @@ objects:
         done
 parameters:
 - description: Namespace name to create pod in
-  value: logging
+  value: openshift-logging
   name: TEST_NAMESPACE_NAME
 - description: name of test pod to create
   value: test

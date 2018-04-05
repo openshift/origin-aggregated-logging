@@ -65,7 +65,8 @@ function add_message_to_index() {
     # espod is $3
     local project_uuid=$( oc get project $1 -o jsonpath='{ .metadata.uid }' )
     local index="project.$1.$project_uuid.$(date -u +'%Y.%m.%d')"
-    os::log::debug $( curl_es "$3" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 )
+    local espod=$3
+    os::log::debug $( curl_es "$espod" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 )
 }
 
 # test the following
@@ -241,11 +242,11 @@ os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADM
 # # oc login --username=loguser --password=loguser
 # error: The server was unable to respond - verify you have provided the correct host and port and that the server is currently running.
 # or - set REUSE=true
-LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguserac}
-LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguserac}
+LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguserac-$RANDOM}
+LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguserac-$RANDOM}
 
-LOG_USER2=${LOG_USER2:-loguser2ac}
-LOG_PW2=${LOG_PW2:-loguser2ac}
+LOG_USER2=${LOG_USER2:-loguser2ac-$RANDOM}
+LOG_PW2=${LOG_PW2:-loguser2ac-$RANDOM}
 
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW access-control-1 access-control-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 access-control-2 access-control-3
@@ -256,9 +257,14 @@ oc project ${LOGGING_NS} > /dev/null
 test_user_has_proper_access $LOG_NORMAL_USER $LOG_NORMAL_PW access-control-1 access-control-2 -- access-control-3
 test_user_has_proper_access $LOG_USER2 $LOG_PW2 access-control-2 access-control-3 -- access-control-1
 
+logging_index=".operations.*"
+if [ ${LOGGING_NS} = "logging" ] ; then
+  logging_index="project.logging.*"
+fi
+
 os::log::info now auth using admin + token
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
-nrecs=$( curl_es_with_token $espod "/project.${LOGGING_NS}.*/_count" $test_name $test_token | \
+nrecs=$( curl_es_with_token $espod "/${logging_index}/_count" $test_name $test_token | \
          get_count_from_json )
 os::cmd::expect_success "test $nrecs -gt 1"
 nrecs=$( curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \

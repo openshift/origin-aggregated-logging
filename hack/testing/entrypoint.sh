@@ -26,7 +26,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
 LOGGING_NS=openshift-logging
-if oc get project logging -o name > /dev/null ; then
+if oc get project logging -o name > /dev/null && [ $(oc get dc -n logging -o name | wc -l) -gt 0 ]  ; then
     LOGGING_NS=logging
 fi
 export LOGGING_NS
@@ -57,7 +57,7 @@ monitor_fluentd_top() {
     # assumes running in a subshell
     cp $KUBECONFIG $ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
     export KUBECONFIG=$ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
-    oc project logging > /dev/null
+    oc project ${LOGGING_NS} > /dev/null 
     while true ; do
         fpod=$( get_running_pod fluentd )
         if [ -n "$fpod" ] ; then
@@ -125,7 +125,7 @@ function run_suite() {
 	suite_name="$( basename "${test}" '.sh' )"
 	os::test::junit::declare_suite_start "test/setup/${suite_name}"
 	os::cmd::expect_success "oc login -u system:admin"
-	os::cmd::expect_success "oc project logging"
+	os::cmd::expect_success "oc project $LOGGING_NS"
 	os::test::junit::declare_suite_end
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
