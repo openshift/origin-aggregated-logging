@@ -23,18 +23,19 @@ fluentdtype="fluentd"
 mpod=$( get_running_pod mux )
 if [ -n "${mpod:-}" ]; then
     # mux is configured; make sure mux client fluentd runs as maximal mode.
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
-    os::log::debug "$( oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    oc get pods | grep fluentd 2>&1 | artifact_out
+    oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
     fluentdtype="mux"
 fi
 
 # restore configs back to how it was before we ran our tests
 function reset_fluentd_daemonset() {
   os::log::info Restoring original fluentd daemonset / mux deploymentconfig environment variable
-  os::log::debug "$( oc replace -f $saveds )"
+  oc replace -f $saveds 2>&1 | artifact_out
 }
 
 artifact_log Starting fluentd-plugin-remote-syslog tests on $fluentdtype at "$( date )"
