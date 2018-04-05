@@ -19,6 +19,7 @@ cleanup() {
     if [ -n "${tmpinv}" -a -f "${tmpinv}" ] ; then
         rm -f $tmpinv
     fi
+    sudo journalctl -u rsyslog --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
     if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
         sudo rm -rf /etc/rsyslog.d/*
         sudo cp -p ${rsyslog_save}/* /etc/rsyslog.d
