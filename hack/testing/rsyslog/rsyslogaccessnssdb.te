@@ -1,0 +1,13 @@
+
+module rsyslogaccessnssdb 1.0;
+
+require {
+	type syslogd_t;
+	type cert_t;
+	class dir write;
+	class file write;
+}
+
+#============= syslogd_t ==============
+allow syslogd_t cert_t:dir write;
+allow syslogd_t cert_t:file write;
