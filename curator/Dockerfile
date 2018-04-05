@@ -16,21 +16,23 @@ ENV HOME=/opt/app-root/src \
     CURATOR_VER=5.2 \
     CURATOR_TIMEOUT=300
 
-LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator ${CURATOR_VER}" \
-  io.openshift.tags="logging,elk,elasticsearch,curator" \
-  com.redhat.component=logging-curator-docker \
-  name="openshift3/logging-curator" \
-  version="3.9.0" \
-  release="1" \
-  architecture=x86_64
+ARG LOCAL_REPO
+ADD sources /tmp/lib/
+WORKDIR /tmp/lib
+RUN while read -r hash file ; do \
+      curl -s -o $file http://pkgs.devel.redhat.com/repo/containers/logging-curator5-container/$file/$hash/$file ; \
+    done <sources
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
+RUN if [ -n "${LOCAL_REPO}" ] ; then \
+     curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
+    fi
+
+RUN yum-config-manager --enable rhel-7-server-ose-3.8-rpms \
                        --enable rhel-7-server-extras-rpms && \
-    INSTALL_PKGS="elastic-curator-${CURATOR_VER}.el7 \
-                  python-ruamel-yaml" && \
+    INSTALL_PKGS="elasticsearch-curator-5.2.0-1.x86_64.rpm \
+                  python2-ruamel-yaml" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-    rpm -V $INSTALL_PKGS && \
+    rpm -V elasticsearch-curator python2-ruamel-yaml && \
     yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
@@ -44,3 +46,12 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
 WORKDIR ${HOME}
 USER 1001
 CMD ["sh", "run.sh"]
+
+LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
+  io.k8s.display-name="Curator ${CURATOR_VER}" \
+  io.openshift.tags="logging,elk,elasticsearch,curator" \
+  com.redhat.component=logging-curator-docker \
+  name="openshift3/logging-curator" \
+  version="3.9.0" \
+  release="1" \
+  architecture=x86_64
