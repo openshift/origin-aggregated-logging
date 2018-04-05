@@ -65,20 +65,17 @@
   - name: get k8s api url from node kubeconfig
     shell: |
       found=0
-      for file in /etc/origin/node/system\:node\:*.kubeconfig ; do
+      for file in /etc/origin/node/node*.kubeconfig \
+        /etc/origin/node/system\:node\:*.kubeconfig \
+        /var/lib/origin/openshift.local.config/node*/*.kubeconfig ; do
         if [ -f "$file" ] ; then
           oc --config="$file" config view -o jsonpath='{.clusters[0].cluster.server}'
           found=1
           break
         fi
       done
-      if [ $found -eq 0 -a -d /var/lib/origin/openshift.local.config ] ; then
-        for file in /var/lib/origin/openshift.local.config/node*/*.kubeconfig ; do
-          if [ -f "$file" ] ; then
-            oc --config="$file" config view -o jsonpath='{.clusters[0].cluster.server}'
-            break
-          fi
-        done
+      if [ $found -eq 0 ] ; then
+          oc config view -o jsonpath='{.clusters[0].cluster.server}'
       fi
     register: k8s_api_url
     when:
