@@ -1,0 +1,185 @@
+#!/bin/env ruby
+
+# Sanitize the buffer message chunks by unpacking.Verify the file buffers to confirm they
+# are deserializable and include the necessary
+# keys/values to push to Elasticsearch
+#
+require 'logger'
+require 'msgpack'
+require 'optparse'
+require 'ostruct'
+require 'fileutils'
+
+DEFAULT_BUFFER_DIR='/var/lib/fluentd'
+
+options = OpenStruct.new(
+  dir: '/var/lib/fluentd',
+  log_level: Logger::INFO,
+  dlq_dir: '/var/lib/fluentd/dlq',
+  index_field: 'viaq_index_name',
+  require: nil
+)
+
+$parser = OptionParser.new do |opts|
+  opts.banner = %Q(
+    Usage: #{File.basename(__FILE__)} [options]
+
+    Sanitize the buffer chunks to remove messages that
+    would otherwise block fluentd because the chunk is
+    corrupt and can not be properly unpacked.
+
+    Note: This operation is destructive and will replace
+    the existing buffer chunks.
+  )
+
+
+  opts.on("-d", "--directory DIRECTORY", "The directory where to find buffers to sanitize", "Default: #{options.dir}") do |dir|
+    options.dir = dir
+  end
+
+  opts.on("-i", "--index-field INDEX_FIELD", "The name of the key in the record that contains the index name",
+          "Default: #{options.index_field}") do | i |
+    options.index_field = i
+  end
+
+
+  opts.on("-q", "--dead-letter-queue DLQ", "The directory where to write unprocessable messages.",
+         "'DROP' - drop messages from buffer chunk", "Default: #{options.dlq_dir}") do |dir|
+    options.dlq_dir = dir
+  end
+
+  opts.on("-r", "--require EXTRA_HANDLER", "The full path to additional handler to further evaluate",
+          "each record. The file should contain a single function with the following name and args:",
+          "  check_record(logger, time, record)") do | r |
+    options.require = r
+  end
+
+  opts.on_tail("-v", "--verbose", "Run verbosely") do |v|
+    options.log_level = Logger::DEBUG
+  end
+end
+$parser.parse!
+
+$logger = Logger.new(STDOUT)
+$logger.level = options.log_level
+$logger.formatter = proc do |s, date, prog, msg|
+  "[#{s}] - #{msg}\n"
+end
+
+$logger.debug("options: #{options}")
+
+def validate_args(options)
+  unless Dir.exists?(options.dir)
+      $logger.error("Unable to continue. Buffer directory does not exist: #{options.dir}")
+      return false
+  end
+  if options.index_field.strip.empty?
+      $logger.error("The index_field can not be empty.")
+      return false
+  end
+  if options.dlq_dir != 'DROP'
+     unless options.dlq_dir.start_with?('/')
+        $logger.error("The dead letter queue must be either 'DROP' or an absolute path: #{options.dlq_dir}")
+        return false
+     end
+  end
+  if options.require
+      require options.require
+      $logger.error("Unable to find function matching signiture 'check_record(logger, time, record)' in #{options.require}")
+      return false unless defined? check_record
+  end
+  return true
+end
+
+class DropDLQHandler
+
+    attr_reader :dropped
+
+    def initialize(logger)
+      @dropped = 0
+      @logger = logger
+      @logger.debug("Initializing DROP dead letter handler.  Messages will be dropped from chunk")
+    end
+
+    def handle_msg(e, time, record)
+        @dropped=+1
+        @logger.debug("Invalid record - error: '#{e.message}' time:'#{time}' record:'#{record}'")
+    end
+end
+
+class FileDLQHandler
+
+    attr_reader :dropped
+
+    def initialize(logger, dir, file)
+        @dropped = 0
+        @logger = logger
+        @file_name = File.join(dir, File.basename(file) + '.dlq')
+        unless Dir.exists?(dir)
+          logger.info ("Creating DLQ directory: #{dir}")
+          Dir.mkdir(dir)
+        end
+    end
+
+    def handle_msg(e, time, record)
+      if @file.nil?
+        @logger.info("Creating DLQ file: #{@file_name}")
+        @file = File.open(@file_name, 'w+')
+      end
+      @dropped=+1
+      @file.puts({error: "#{e.message}", time: time, record: record})
+    end
+end
+
+def init_dlq_handler(options, file)
+    return DropDLQHandler.new($logger) if options.dlq_dir == 'DROP'
+    FileDLQHandler.new($logger, options.dlq_dir, file)
+end
+
+def unpack(opts, handler, file)
+  $logger.info("Checking #{File.basename(file)}")
+  clean_file = file + '.clean'
+  p = MessagePack::Packer.new(File.open(clean_file, 'w'))
+  u = MessagePack::Unpacker.new(File.new(file, 'r'))
+  u.each do |obj|
+    begin
+      time = obj[0]
+      record = obj[1]
+      target_index = record[opts.index_field]
+      target_index = target_index.downcase
+      check_record($logger, time, record) if defined?(check_record)
+      p.write(obj).flush
+    rescue=>e
+        record = obj if record.nil?
+        handler.handle_msg(e, time, record)
+    end
+  end
+  if handler.dropped > 0
+    $logger.debug("Replacing #{file} with #{clean_file}")
+    FileUtils.mv(clean_file, file)
+  else
+    FileUtils.rm(clean_file)
+  end
+end
+
+def sanitize(opts)
+    $logger.info("Processing directory #{opts.dir}")
+    Dir["#{opts.dir}/*"].each do |f|
+      begin
+        next if File.directory?(f)
+        next if f.end_with?('.clean')
+        handler = init_dlq_handler(opts, f)
+        unpack(opts, handler, f)
+        $logger.info("Dropped #{handler.dropped} record(s) from #{File.basename(f)}") if handler.dropped > 0
+      rescue=>e
+          $logger.error("Error processing #{File.basename(f)}: #{e.message}\n #{e.backtrace.join("\n")}")
+      end
+    end
+end
+
+unless validate_args(options)
+  puts $parser.help()
+  exit 1
+end
+
+sanitize(options)
