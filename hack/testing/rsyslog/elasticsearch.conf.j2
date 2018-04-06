@@ -11,7 +11,7 @@ template(name="index_pattern" type="list") {
     property(name="$!@timestamp" dateFormat="rfc3339" position.from="9" position.to="10")
 }
 
-{%if openshift_logging_use_ops | default(False) %}
+{% if openshift_logging_use_ops | default(False) %}
 if $.viaq_index_prefix startswith "project." then {
 {% endif %}
 action(
@@ -27,8 +27,9 @@ action(
     tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
     tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
     tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    errorfile="/var/lib/rsyslog/es-errors.log"
 )
-{%if openshift_logging_use_ops | default(False) %}
+{% if openshift_logging_use_ops | default(False) %}
 } else {
 action(
     type="omelasticsearch"
@@ -43,6 +44,7 @@ action(
     tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
     tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
     tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    errorfile="/var/lib/rsyslog/es-errors.log"
 )
 }
 {% endif %}
