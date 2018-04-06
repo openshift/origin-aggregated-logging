@@ -245,7 +245,7 @@ LOG_ADMIN_USER=${LOG_ADMIN_USER:-admin}
 LOG_ADMIN_PW=${LOG_ADMIN_PW:-admin}
 
 if oc get users "$LOG_ADMIN_USER" > /dev/null 2>&1 ; then
-    Using existing admin user $LOG_ADMIN_USER 2>&1 | artifact_out
+    echo Using existing admin user $LOG_ADMIN_USER 2>&1 | artifact_out
 else
     os::log::info Creating cluster-admin user $LOG_ADMIN_USER
     current_project="$( oc project -q )"
@@ -255,6 +255,7 @@ else
 fi
 oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER 2>&1 | artifact_out
 os::log::info workaround access_control admin failures - sleep 60 seconds to allow system to process cluster role setting
+sleep 60
 oc policy can-i '*' '*' --user=$LOG_ADMIN_USER 2>&1 | artifact_out
 oc get users 2>&1 | artifact_out
 
