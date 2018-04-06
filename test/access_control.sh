@@ -21,7 +21,7 @@ function cleanup() {
     set +e
     if [ "${REUSE:-false}" = false ] ; then
         for user in $delete_users ; do
-            os::log::debug "$( oc delete user $user )"
+            oc delete user $user 2>&1 | artifact_out
         done
     fi
     if [ -n "${espod:-}" ] ; then
@@ -49,11 +49,11 @@ function create_user_and_assign_to_projects() {
         oc login --username=$user --password=$pw 2>&1 | artifact_out
         delete_users="$delete_users $user"
     fi
-    os::log::debug "$( oc login --username=system:admin 2>&1 )"
+    oc login --username=system:admin 2>&1 | artifact_out
     os::log::info Assigning user to projects "$@"
     while [ -n "${1:-}" ] ; do
-        os::log::debug "$( oc project $1 2>&1 )"
-        os::log::debug "$( oc adm policy add-role-to-user view $user 2>&1 )"
+        oc project $1 2>&1 | artifact_out
+        oc adm policy add-role-to-user view $user 2>&1 | artifact_out
         shift
     done
     oc project "${current_project}" > /dev/null
@@ -65,7 +65,7 @@ function add_message_to_index() {
     # espod is $3
     local project_uuid=$( oc get project $1 -o jsonpath='{ .metadata.uid }' )
     local index="project.$1.$project_uuid.$(date -u +'%Y.%m.%d')"
-    os::log::debug $( curl_es "$3" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 )
+    curl_es "$3" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 | artifact_out
 }
 
 # test the following
@@ -211,7 +211,7 @@ function test_user_has_proper_access() {
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER $test_token -w '%{response_code}\n'" '}403$'
 }
 
-os::log::debug "$( curl_es $espod /project.access-control-* -XDELETE )"
+curl_es $espod /project.access-control-* -XDELETE 2>&1 | artifact_out
 
 for proj in access-control-1 access-control-2 access-control-3 ; do
     os::log::info Creating project $proj
@@ -226,15 +226,18 @@ LOG_ADMIN_USER=${LOG_ADMIN_USER:-admin}
 LOG_ADMIN_PW=${LOG_ADMIN_PW:-admin}
 
 if oc get users "$LOG_ADMIN_USER" > /dev/null 2>&1 ; then
-    os::log::debug Using existing admin user $LOG_ADMIN_USER
+    Using existing admin user $LOG_ADMIN_USER 2>&1 | artifact_out
 else
     os::log::info Creating cluster-admin user $LOG_ADMIN_USER
     current_project="$( oc project -q )"
-    os::log::debug "$( oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW )"
-    os::log::debug "$( oc login --username=system:admin )"
-    os::log::debug "$( oc project $current_project )"
+    oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW 2>&1 | artifact_out
+    oc login --username=system:admin 2>&1 | artifact_out
+    oc project $current_project 2>&1 | artifact_out
 fi
-os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER )"
+oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER 2>&1 | artifact_out
+os::log::info workaround access_control admin failures - sleep 60 seconds to allow system to process cluster role setting
+oc policy can-i '*' '*' --user=$LOG_ADMIN_USER 2>&1 | artifact_out
+oc get users 2>&1 | artifact_out
 
 # if you ever want to run this test again on the same machine, you'll need to
 # use different usernames, otherwise you'll get this odd error:
