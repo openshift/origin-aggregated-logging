@@ -209,31 +209,55 @@ function wait_for_fluentd_to_catch_up() {
     local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
+
+    # look for the messages in the source
+    local fullmsg="GET /${uuid_es} 404 "
+    local using_journal=0
+    local checkpids
+    if docker_uses_journal ; then
+        using_journal=1
+        sudo journalctl -f -o export | \
+            awk -v es=$uuid_es -v es_ops=$uuid_es_ops \
+            -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+                BEGIN{RS="";FS="\n"};
+                $0 ~ es {print > es_out; found += 1};
+                $0 ~ es_ops {print > es_ops_out; found += 1};
+                {if (found == 2) {exit 0}}' & checkpids=$!
+    else
+        sudo journalctl -f -o export | \
+            awk -v es_ops=$uuid_es_ops -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+                BEGIN{RS="";FS="\n"};
+                $0 ~ es_ops {print > es_ops_out; exit 0}' & checkpids=$!
+        while ! sudo grep -b -n "$fullmsg" /var/log/containers/*.log > $ARTIFACT_DIR/es_out.txt ; do
+            sleep 1
+        done & checkpids="$checkpids $!"
+    fi
+
     add_test_message $uuid_es
-    os::log::debug added es message $uuid_es
+    artifact_log added es message $uuid_es
     logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
-    os::log::debug added es-ops message $uuid_es_ops
+    artifact_log added es-ops message $uuid_es_ops
 
     local rc=0
 
     # poll for logs to show up
-    local fullmsg="GET /${uuid_es} 404 "
     local qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
     if os::cmd::try_until_text "curl_es ${es_pod} /project.logging.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
         os::log::debug good - $FUNCNAME: found $expected record project logging for \'$fullmsg\'
     else
         os::log::error $FUNCNAME: not found $expected record project logging for \'$fullmsg\' after $timeout seconds
         os::log::debug "$( curl_es ${es_pod} /project.logging.*/_search -X POST -d "$qs" )"
-        os::log::error "Checking journal for '$fullmsg' ..."
-        if sudo journalctl | grep -q "$fullmsg" ; then
-            os::log::error "Found '$fullmsg' in journal"
-            os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
-        elif sudo grep -q "$fullmsg" /var/log/containers/* ; then
-            os::log::error "Found '$fullmsg' in /var/log/containers/*"
-            os::log::debug "$( sudo grep -q "$fullmsg" /var/log/containers/* )"
+        if [ -s $ARTIFACT_DIR/es_out.txt ] ; then
+            os::log::error "$( cat $ARTIFACT_DIR/es_out.txt )"
         else
-            os::log::error "Unable to find '$fullmsg' in journal or /var/log/containers/*"
+            os::log::error apps record for "$fullmsg" not found in source
         fi
+        if sudo test -f /var/log/es-containers.log.pos ; then
+            os::log::error here are the current container log positions
+            sudo cat /var/log/es-containers.log.pos
+        fi
+        os::log::error here is the current fluentd journal cursor
+        sudo cat /var/log/journal.pos
 
         rc=1
     fi
@@ -245,14 +269,18 @@ function wait_for_fluentd_to_catch_up() {
         os::log::error $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
         os::log::debug "$( curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" )"
         os::log::error "Checking journal for $uuid_es_ops..."
-        if sudo journalctl | grep -q $uuid_es_ops ; then
-            os::log::error "Found $uuid_es_ops in journal"
-            os::log::debug "$( sudo journalctl | grep $uuid_es_ops )"
+        if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
+            os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
         else
-            os::log::error "Unable to find $uuid_es_ops in journal"
+            os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
+        os::log::error here is the current fluentd journal cursor
+        sudo cat /var/log/journal.pos
         rc=1
     fi
+
+    kill $checkpids > /dev/null 2>&1 || :
+    kill -9 $checkpids > /dev/null 2>&1 || :
 
     if [ -n "${1:-}" ] ; then
         $1 $uuid_es
