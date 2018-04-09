@@ -101,11 +101,11 @@ monitor_es_bulk_stats() {
         esopspod=${esopspod:-$espod}
         if [ -n "${espod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
-            curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
+            curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
         fi
         if [ -n "${esopspod}" -a "${espod}" != "${esopspod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1
-            curl_es $esopspod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1
+            curl_es $esopspod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
         fi
         sleep $interval
     done
