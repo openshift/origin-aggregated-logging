@@ -22,11 +22,14 @@ function cleanup() {
     if [ -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; then
         rm -f $bulktestjson
     fi
-    if [ -f "${es_settings:-}" ] ; then
+    if [ -n "${save_size}" -a -n "${save_qsize}" ] ; then
         echo restore settings | artifact_out
-        cat $es_settings | artifact_out
-        cat $es_settings | curl_es_input $espod /_cluster/settings -XPUT --data-binary @- | jq . | artifact_out
-        rm -f $es_settings
+        curl_es $espod /_cluster/settings -XPUT -d '{
+            "transient" : {
+                "threadpool.bulk.queue_size" : '$save_qsize',
+                "threadpool.bulk.size": '$save_size'
+            }
+        }' | jq . | artifact_out
     fi
     curl_es $espod /bulkindextest -XDELETE | jq . | artifact_out
     fpod=$( get_running_pod fluentd )
@@ -71,8 +74,15 @@ oc set env ds/logging-fluentd DEBUG=true
 
 # save current es settings
 
-es_settings=$( mktemp )
-curl_es $espod /_cluster/settings | jq . > $es_settings
+save_size=$( curl_es $espod /_cluster/settings | jq .transient.threadpool.bulk.size )
+if [ $save_size = null ] ; then
+    save_size=$( curl_es $espod /_cat/thread_pool?h=bs )
+fi
+
+save_qsize=$( curl_es $espod /_cluster/settings | jq .transient.threadpool.bulk.queue_size )
+if [ $save_qsize = null ] ; then
+    save_qsize=$( curl_es $espod /_cat/thread_pool?h=bqs )
+fi
 
 # change bulk queue_size and size to 1 to make it easy to overload
 curl_es $espod /_cluster/settings -XPUT -d '{
