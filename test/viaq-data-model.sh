@@ -114,20 +114,19 @@ fpod=$( get_running_pod fluentd )
 
 get_logmessage() {
     logmessage="$1"
+    cp $2 $ARTIFACT_DIR/viaq-data-model-test.json
 }
 get_logmessage2() {
     logmessage2="$1"
+    cp $2 $ARTIFACT_DIR/viaq-data-model-test-ops.json
 }
 
 # TEST 1
 # default - undefined fields are passed through untouched
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test1"
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test1"
 
 # these fields are present because it is a kibana log message - we
@@ -143,12 +142,9 @@ os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test2"
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test2"
 
 # TEST 3
@@ -158,13 +154,9 @@ os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test3"
-
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test3"
 
 # TEST 4
@@ -174,13 +166,9 @@ os::cmd::try_until_failure "oc get pod $fpod"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test4"
-
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test4"
 
 # TEST 5
@@ -198,13 +186,9 @@ if [ -n "$is_maximal" ] ; then
 fi
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
-
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 
 if [ -n "$is_maximal" ] ; then

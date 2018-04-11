@@ -74,12 +74,12 @@ oc set env ds/logging-fluentd DEBUG=true
 
 # save current es settings
 
-save_size=$( curl_es $espod /_cluster/settings | jq .transient.threadpool.bulk.size )
+save_size=$( curl_es $espod /_cluster/settings | jq -r .transient.threadpool.bulk.size )
 if [ $save_size = null ] ; then
     save_size=$( curl_es $espod /_cat/thread_pool?h=bs )
 fi
 
-save_qsize=$( curl_es $espod /_cluster/settings | jq .transient.threadpool.bulk.queue_size )
+save_qsize=$( curl_es $espod /_cluster/settings | jq -r .transient.threadpool.bulk.queue_size )
 if [ $save_qsize = null ] ; then
     save_qsize=$( curl_es $espod /_cat/thread_pool?h=bqs )
 fi
@@ -170,8 +170,12 @@ rm -f $opsloglines
 os::log::info Finished adding $count project and $countops operation log records
 
 fullmsg="GET /${uuid_es}-"
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-firstcount=$( curl_es ${espod} /project.${LOGGING_NS}.*/_count -X POST -d "$qs" | get_count_from_json )
+qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+case "${LOGGING_NS}" in
+default|openshift|openshift-*) logging_index=".operations.*" ; espod=$esopspod ;;
+*) logging_index="project.${LOGGING_NS}.*" ;;
+esac
+firstcount=$( curl_es ${espod} /${logging_index}/_count -X POST -d "$qs" | get_count_from_json )
 if [ "${firstcount:-0}" -eq $count ] ; then
     os::log::warning All project records added - some should have been queued due to bulk index rejection
 else
@@ -239,11 +243,11 @@ fi
 rc=0
 timeout=$(( 180 * second ))
 # duplicates can be added when bulk ops are retried, so greater than or equal
-if os::cmd::try_until_success "curl_es ${espod} /project.${LOGGING_NS}.*/_count -X POST -d '$qs' | jq '.count >= ${count}'" $timeout ; then
+if os::cmd::try_until_success "curl_es ${espod} /${logging_index}/_count -X POST -d '$qs' | jq '.count == ${count}'" $timeout ; then
     os::log::debug good - found $count record project ${LOGGING_NS} for \'$fullmsg\'
 else
     os::log::error not found $count record project ${LOGGING_NS} for \'$fullmsg\' after timeout
-    os::log::debug "$( curl_es ${espod} /project.${LOGGING_NS}.*/_search -X POST -d "$qs" )"
+    os::log::debug "$( curl_es ${espod} /${logging_index}/_search -X POST -d "$qs" )"
     os::log::error "Checking journal for '$fullmsg' ..."
     if sudo journalctl | grep -q "$fullmsg" ; then
         os::log::error "Found '$fullmsg' in journal"
@@ -258,7 +262,7 @@ else
     rc=1
 fi
 
-if os::cmd::try_until_success "curl_es ${esopspod} /.operations.*/_count -X POST -d '$qsops' | jq '.count >= ${countops}'" $timeout ; then
+if os::cmd::try_until_success "curl_es ${esopspod} /.operations.*/_count -X POST -d '$qsops' | jq '.count == ${countops}'" $timeout ; then
     os::log::debug good - found $countops record project .operations for $uuid_es_ops
 else
     os::log::error not found $countops record project .operations for $uuid_es_ops after timeout
