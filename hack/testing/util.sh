@@ -195,7 +195,7 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
-    local project=${4:-openshift-logging}
+    local appsproject=${4:-$LOGGING_NS}
     local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
@@ -212,13 +212,13 @@ function wait_for_fluentd_to_catch_up() {
                 BEGIN{RS="";FS="\n"};
                 $0 ~ es {print > es_out; found += 1};
                 $0 ~ es_ops {print > es_ops_out; found += 1};
-                {if (found == 2) {exit 0}}' & checkpids=$!
+                {if (found == 2) {exit 0}}' > /dev/null 2>&1 & checkpids=$!
     else
         sudo journalctl -f -o export | \
             awk -v es_ops=$uuid_es_ops -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
-                $0 ~ es_ops {print > es_ops_out; exit 0}' & checkpids=$!
-        while ! sudo grep -b -n "$fullmsg" /var/log/containers/*.log > $ARTIFACT_DIR/es_out.txt ; do
+                $0 ~ es_ops {print > es_ops_out; exit 0}' > /dev/null 2>&1 & checkpids=$!
+        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt ; do
             sleep 1
         done & checkpids="$checkpids $!"
     fi
@@ -229,15 +229,19 @@ function wait_for_fluentd_to_catch_up() {
     artifact_log added es-ops message $uuid_es_ops
 
     local rc=0
-    logging_index=".operations.*"
-    if [ ${LOGGING_NS} = "logging" ] ; then
-      logging_index="project.logging.*"
-    fi
+    local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+    case "${appsproject}" in
+    default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
+    *) logging_index="project.${appsproject}.*" ;;
+    esac
 
     # poll for logs to show up
-    local qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
     if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
         os::log::debug good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
+        if [ -n "${1:-}" ] ; then
+            curl_es ${es_pod} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
+            $1 $uuid_es $ARTIFACT_DIR/apps.json
+        fi
     else
         os::log::error $FUNCNAME: not found $expected record $logging_index for \'$fullmsg\' after $timeout seconds
         os::log::debug "$( curl_es ${es_pod} /${logging_index}/_search -X POST -d "$qs" )"
@@ -258,9 +262,13 @@ function wait_for_fluentd_to_catch_up() {
 
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
     if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
-        os::log::debug good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
+        os::log::debug good - $FUNCNAME: found $expected record .operations for $uuid_es_ops
+        if [ -n "${2:-}" ] ; then
+            curl_es ${es_ops_pod} "/.operations.*/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/ops.json
+            $2 $uuid_es_ops $ARTIFACT_DIR/ops.json
+        fi
     else
-        os::log::error $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
+        os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
         os::log::debug "$( curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" )"
         os::log::error "Checking journal for $uuid_es_ops..."
         if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
@@ -276,12 +284,6 @@ function wait_for_fluentd_to_catch_up() {
     kill $checkpids > /dev/null 2>&1 || :
     kill -9 $checkpids > /dev/null 2>&1 || :
 
-    if [ -n "${1:-}" ] ; then
-        $1 $uuid_es
-    fi
-    if [ -n "${2:-}" ] ; then
-        $2 $uuid_es_ops
-    fi
     local endtime=`date +%s`
     os::log::debug END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
     return $rc
@@ -295,7 +297,7 @@ docker_uses_journal() {
     # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
     # authoritative
     # otherwise, look for /etc/sysconfig/docker
-    if type -p docker > /dev/null && sudo docker info | grep -q 'Logging Driver: journald' ; then
+    if type -p docker > /dev/null && sudo docker info 2>&1 | grep -q 'Logging Driver: journald' ; then
         return 0
     elif sudo grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
         if sudo grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then

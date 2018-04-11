@@ -112,7 +112,7 @@ You will need the mux CA cert and shared_key.  You can obtain them from the
 logging cluster like this:
 
     # oc login --username=system:admin
-    # oc project logging
+    # oc project openshift-logging # if that project doesn't exist, use logging
     # oc get secret logging-mux --template='{{index .data "ca"}}' | base64 -d > mux-ca.crt
     # oc get secret logging-mux --template='{{index .data "shared_key"}}' | \
       base64 -d > mux-shared-key

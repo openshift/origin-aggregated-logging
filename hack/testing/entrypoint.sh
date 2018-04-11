@@ -59,7 +59,7 @@ monitor_fluentd_top() {
     export KUBECONFIG=$ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
     oc project ${LOGGING_NS} > /dev/null
     while true ; do
-        fpod=$( get_running_pod fluentd )
+        fpod=$( get_running_pod fluentd 2> /dev/null ) || :
         if [ -n "$fpod" ] ; then
             oc exec $fpod -- top -b -d 1 || :
         else
@@ -99,8 +99,8 @@ monitor_es_bulk_stats() {
     export KUBECONFIG=$ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
     oc project ${LOGGING_NS} > /dev/null
     while true ; do
-        local espod=$( get_es_pod es ) || :
-        local esopspod=$( get_es_pod es-ops ) || :
+        local espod=$( get_es_pod es 2> /dev/null ) || :
+        local esopspod=$( get_es_pod es-ops 2> /dev/null ) || :
         esopspod=${esopspod:-$espod}
         if [ -n "${espod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
