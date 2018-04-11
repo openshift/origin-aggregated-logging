@@ -205,9 +205,13 @@ function wait_for_fluentd_to_catch_up() {
     os::log::debug added es-ops message $uuid_es_ops
 
     local rc=0
-    logging_index=".operations.*"
     if [ ${LOGGING_NS} = "logging" ] ; then
       logging_index="project.logging.*"
+    else
+      #assume openshift-logging which means
+      #all logs go to ops instance
+      logging_index=".operations.*"
+      es_pod=$es_ops_pod
     fi
 
     # poll for logs to show up
