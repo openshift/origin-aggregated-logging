@@ -52,6 +52,10 @@ oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 # MUX_CLIENT_MODE=maximal or minimal
 oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 
+# Starting in 3.10, we can no longer mount /var/lib/docker/containers
+oc volumes -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
+    --name=varlibdockercontainers -m /var/lib/docker --path=/var/lib/docker || :
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     # assumes running in a subshell
