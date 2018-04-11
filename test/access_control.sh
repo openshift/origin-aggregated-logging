@@ -264,9 +264,11 @@ fi
 
 os::log::info now auth using admin + token
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
-nrecs=$( curl_es_with_token $espod "/${logging_index}/_count" $test_name $test_token | \
-         get_count_from_json )
-os::cmd::expect_success "test $nrecs -gt 1"
+if [ ${LOGGING_NS} = "logging" ] && [ $espod != $esopspod] ; then
+  nrecs=$( curl_es_with_token $espod "/${logging_index}/_count" $test_name $test_token | \
+           get_count_from_json )
+  os::cmd::expect_success "test $nrecs -gt 1"
+fi
 nrecs=$( curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
          get_count_from_json )
 os::cmd::expect_success "test $nrecs -gt 1"
