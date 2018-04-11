@@ -66,7 +66,7 @@ Could not find the requested service "'origin-master'":
 This message may be ignored.  You may now log in and confirm your deployment:
 
 ```
-$ oc project logging
+$ oc project openshift-logging # if that project doesn't exist, use logging
 $ oc get pods
 NAME                          READY     STATUS    RESTARTS   AGE
 logging-curator-13-kbdj0      1/1       Running   1          1d

@@ -400,20 +400,14 @@ artifact_log Log test message by logger: $mymessage
 sudo egrep "${mymessage}$" /var/log/messages 2>&1 | artifact_out || :
 
 mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
-es_ops_pod=$( get_es_pod es-ops )
-es_ops_pod=${es_ops_pod:-$es_pod}
-if [ ${LOGGING_NS} = "logging" ] ; then
-  logging_index="project.logging.*"
-else
-  #assume openshift-logging which means
-  #all logs go to ops instance
-  logging_index=".operations.*"
-  es_pod=$es_ops_pod
-fi
 add_test_message $mymessage
-es_pod=$( get_es_pod es )
-qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
-if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}.*/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
+fullmsg="GET /${mymessage} 404 "
+qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+case "${LOGGING_NS}" in
+default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
+*) logging_index="project.${LOGGING_NS}.*" ;;
+esac
+if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
     artifact_log good - found $mymessage
 else
     artifact_log failed - not found $mymessage
@@ -421,4 +415,3 @@ fi
 os::cmd::try_until_text "sudo egrep \"/${mymessage}\" /var/log/messages" ".*${mymessage}.*" $MUX_WAIT_TIME
 artifact_log Log test message by kibana: $mymessage
 sudo egrep "/${mymessage}" /var/log/messages 2>&1 | artifact_out || :
-

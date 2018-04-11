@@ -53,21 +53,21 @@ update_current_fluentd() {
   oc get pods |grep fluentd | artifact_out || :
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
-      @include configs.d/user/filter-pre-mux-test-client.conf' | oc replace -f - 2>&1 | artifact_out
+      @include configs.d/user/filter-pre-mux-a-test-client.conf' | oc replace -f - 2>&1 | artifact_out
 
-  # if configmap filter-pre-mux-test-client.conf isn't present, add one so replace will work
-  local exists=$( oc get configmap/logging-fluentd --template='{{index .data "filter-pre-mux-test-client.conf" }}' )
+  # if configmap filter-pre-mux-a-test-client.conf isn't present, add one so replace will work
+  local exists=$( oc get configmap/logging-fluentd --template='{{index .data "filter-pre-mux-a-test-client.conf" }}' )
   if [ "$exists" = '<no value>' ] ; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/filter-pre-mux-test-client.conf", "value": "empty" }]' 2>&1 | artifact_out
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "empty" }]' 2>&1 | artifact_out
   fi
-  # update configmap filter-pre-mux-test-client.conf
+  # update configmap filter-pre-mux-a-test-client.conf
   if [ $myoption -eq $NO_CONTAINER_VALS ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
-        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_'$LOGGING_NS'_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>\n\
@@ -93,7 +93,7 @@ update_current_fluentd() {
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $SET_CONTAINER_VALS ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <match kubernetes.var.log.containers.**kibana**>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
@@ -118,12 +118,12 @@ update_current_fluentd() {
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
-        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_'$LOGGING_NS'_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>\n\
@@ -151,12 +151,12 @@ update_current_fluentd() {
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $NO_PROJECT_TAG ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
-        CONTAINER_NAME k8s_mux.01234567_logging-kibana_logging_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_'$LOGGING_NS'_00000000-1111-2222-3333-444444444444_55555555\n\
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>\n\
@@ -237,14 +237,14 @@ write_and_verify_logs() {
 
     local espod=$es_pod
     local mymessage="GET /$uuid_es 404 "
+    local myproject
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
         # kibana logs with project.testproj tag and given container/pod values
-        local myproject=project.testproj
+        myproject=project.testproj
         # make sure this namespace exists
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
     else
-        # kibana logs with kibana container/pod values
-        local myproject=project.logging
+        myproject=project.${LOGGING_NS}
     fi
     # could be different fields depending on the container log driver - so just
     # search for the exact phrase in all fields
@@ -347,7 +347,7 @@ cleanup() {
             oc get configmap/logging-mux -o yaml > $ARTIFACT_DIR/mux.mux.configmap.yaml
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/openshift 2>&1 | artifact_out
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/user 2>&1 | artifact_out
-            oc exec $muxpod -- cat /var/log/fluentd.log > $ARTIFACT_DIR/mux.mux.pod.int.log
+            oc exec $muxpod -- cat /var/log/fluentd.log > $ARTIFACT_DIR/mux.mux.pod.int.log 2>&1
         fi
     fi
     $mycmd mux test finished at $( date )
@@ -471,11 +471,18 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     os::log::debug "$( oc logs $muxpod )"
 
     # kibana logs with kibana container/pod values
-    myproject=project.logging
+    if [ ${LOGGING_NS} = "logging" ] ; then
+        myproject=project.logging
+        espod=$es_pod
+    else
+        myproject=".operations"
+        espod=$es_ops_pod
+    fi
+
     mymessage="GET /${uuid_es} 404 "
     qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
     os::log::debug "Check kibana log - message \"${mymessage}\""
-    os::cmd::try_until_success "curl_es $es_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
+    os::cmd::try_until_success "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 
     myproject=.operations
     mymessage=$uuid_es_ops
@@ -502,7 +509,7 @@ os::log::info "------- Test case $NO_CONTAINER_VALS -------"
 os::log::info "fluentd forwards kibana and system logs with tag project.testproj.external without CONTAINER values."
 #
 # prerequisite: project testproj
-# results: kibana logs are stored in the default index project.logging with kibana container/pod info.
+# results: kibana logs are stored in the default index for openshift-logging or logging project with kibana container/pod info.
 #          system logs are stored in project.testproj
 #                with k8s.namespace_name: testproj
 #                     k8s.container_name: mux-mux
