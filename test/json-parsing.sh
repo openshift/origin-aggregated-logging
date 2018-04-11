@@ -42,7 +42,18 @@ get_uuid_es() {
 wait_for_fluentd_to_catch_up get_uuid_es
 
 es_pod=$( get_es_pod es )
+es_ops_pod=$( get_es_pod es-ops )
+es_ops_pod=${es_ops_pod:-$es_pod}
+
+if [ ${LOGGING_NS} = "logging" ] ; then
+  logging_index="project.logging.*"
+else
+  #assume openshift-logging which means
+  #all logs go to ops instance
+  logging_index=".operations.*"
+  es_pod=$es_ops_pod
+fi
 
 os::log::info Testing if record is in correct format . . .
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$json_test_uuid | \
+os::cmd::expect_success "curl_es $es_pod /$logging_index/_search?q=message:$json_test_uuid | \
                          python $OS_O_A_L_DIR/hack/testing/test-json-parsing.py $json_test_uuid"
