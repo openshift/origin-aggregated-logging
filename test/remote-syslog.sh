@@ -402,8 +402,19 @@ sudo egrep "${mymessage}$" /var/log/messages 2>&1 | artifact_out || :
 mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
 add_test_message $mymessage
 es_pod=$( get_es_pod es )
+es_ops_pod=$( get_es_pod es-ops )
+es_ops_pod=${es_ops_pod:-$es_pod}
+if [ ${LOGGING_NS} = "logging" ] ; then
+  logging_index="project.logging.*"
+else
+  #assume openshift-logging which means
+  #all logs go to ops instance
+  logging_index=".operations.*"
+  es_pod=$es_ops_pod
+fi
+
 qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
-if os::cmd::try_until_text "curl_es ${es_pod} /project.logging.*/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
+if os::cmd::try_until_text "curl_es ${es_pod} /$logging_index/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
     artifact_log good - found $mymessage
 else
     artifact_log failed - not found $mymessage
