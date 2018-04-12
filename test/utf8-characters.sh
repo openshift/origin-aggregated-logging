@@ -37,12 +37,12 @@ message_uuid="$( uuidgen | sed 's/[-]//g' )"
 message="$(printf '%s-\xC2\xB5' "$message_uuid" )"
 logger -p local6.info -t "$message_uuid" "$message"
 
-es_ops_pod="$( get_es_pod es-ops )"
-if [ -z "$es_ops_pod" ] ; then
-    es_ops_pod="$( get_es_pod es )"
+es_ops_svc="$( get_es_svc es-ops )"
+if [ -z "$es_ops_svc" ] ; then
+    es_ops_svc="$( get_es_svc es )"
 fi
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${message_uuid}"'"}}}'
-os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" 1 $(( 300 * second ))
+os::cmd::try_until_text "curl_es ${es_ops_svc} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" 1 $(( 300 * second ))
 os::log::info "Checking that message was successfully processed..."
-os::cmd::expect_success "curl_es $es_ops_pod /.operations.*/_search -X POST -d '$qs' | \
+os::cmd::expect_success "curl_es $es_ops_svc /.operations.*/_search -X POST -d '$qs' | \
                          python $OS_O_A_L_DIR/hack/testing/test-utf8-characters.py '$message' $message_uuid"

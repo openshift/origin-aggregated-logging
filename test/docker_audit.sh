@@ -7,22 +7,22 @@ source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::test::junit::declare_suite_start "test/docker_audit"
 
 function get_logs_count() {
-    local es_pod=$1
+    local es_svc=$1
     local index="$2"
-    curl_es $es_pod "${index}"_count?q=docker.user:* | get_count_from_json
+    curl_es $es_svc "${index}"_count?q=docker.user:* | get_count_from_json
 }
 
 function get_logs_source() {
-    local es_pod=$1
+    local es_svc=$1
     local index="$2"
-    curl_es $es_pod "${index}"_search?q=docker.user:* | jq .
+    curl_es $es_svc "${index}"_search?q=docker.user:* | jq .
 }
 
 function get_logs_count_timerange() {
-    local es_pod=$1
+    local es_svc=$1
     local index="$2"
     local timestamp="$3"
-    curl_es $es_pod "${index}"_count -d '{
+    curl_es $es_svc "${index}"_count -d '{
         "query": {
             "bool": {
                 "must": {
@@ -43,18 +43,18 @@ function get_logs_count_timerange() {
 }
 
 function logs_count_is_ge() {
-    local es_pod=$1
+    local es_svc=$1
     local index="$2"
     local expected=$3
     local timestamp="$4"
-    local actual=$( get_logs_count_timerange $es_pod "$index" "$timestamp" )
+    local actual=$( get_logs_count_timerange $es_svc "$index" "$timestamp" )
     test $actual -ge $expected
 }
 
 function print_logs() {
-    local es_pod=$1
+    local es_svc=$1
     local index="$2"
-    curl_es $es_pod "${index}"_search?q=docker.user:* | jq . | artifact_out
+    curl_es $es_svc "${index}"_search?q=docker.user:* | jq . | artifact_out
 }
 
 function is_audit_enabled() {
@@ -67,16 +67,16 @@ if ! is_audit_enabled ; then
 fi
 
 # operations index can be in a separate cluster
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
-esopspod=${esopspod:-$espod}
+essvc=$( get_es_svc es )
+esopssvc=$( get_es_svc es-ops )
+esopssvc=${esopssvc:-$essvc}
 
 fpod=$( get_running_pod fluentd )
 os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 180))
 
-logs_before=$( get_logs_count $espod '/project.*/' )
-ops_logs_before=$( get_logs_count $esopspod '/.operations.*/' )
+logs_before=$( get_logs_count $essvc '/project.*/' )
+ops_logs_before=$( get_logs_count $esopssvc '/.operations.*/' )
 
 os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
@@ -90,13 +90,13 @@ fpod=$( get_running_pod fluentd )
 timestamp=$( date --iso-8601=seconds )
 docker run --rm centos:7 echo "running test container"
 
-if ! os::cmd::try_until_success "logs_count_is_ge $esopspod '/.operations.*/' 4 $timestamp" $((second * 60)) ; then
+if ! os::cmd::try_until_success "logs_count_is_ge $esopssvc '/.operations.*/' 4 $timestamp" $((second * 60)) ; then
     sudo grep VIRT_CONTROL /var/log/audit/audit.log | tail -40 > $ARTIFACT_DIR/docker_audit_audit.log
     oc logs $fpod > $ARTIFACT_DIR/docker_audit_fluentd.log 2>&1
-    ops_logs_after=$( get_logs_count $esopspod '/.operations.*/' )
-    logs_after=$( get_logs_count $espod '/project.*/' )
-    get_logs_source $esopspod '/.operations.*/' > $ARTIFACT_DIR/docker_audit_ops.json 2>&1
-    get_logs_source $espod '/project.*/' > $ARTIFACT_DIR/docker_audit_proj.json 2>&1
+    ops_logs_after=$( get_logs_count $esopssvc '/.operations.*/' )
+    logs_after=$( get_logs_count $essvc '/project.*/' )
+    get_logs_source $esopssvc '/.operations.*/' > $ARTIFACT_DIR/docker_audit_ops.json 2>&1
+    get_logs_source $essvc '/project.*/' > $ARTIFACT_DIR/docker_audit_proj.json 2>&1
 
     ops_diff=$((ops_logs_after-ops_logs_before)) || :
     diff=$((logs_after-logs_before)) || :
