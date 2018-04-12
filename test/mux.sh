@@ -20,13 +20,13 @@ FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/mux"
 
-es_pod=$( get_es_pod es )
-es_ops_pod=$( get_es_pod es-ops )
-if [ -n "$es_ops_pod" ] ; then
+es_svc=$( get_es_svc es )
+es_ops_svc=$( get_es_svc es-ops )
+if [ -n "$es_ops_svc" ] ; then
   ops_cluster=true
 else
   ops_cluster=false
-  es_ops_pod=$es_pod
+  es_ops_svc=$es_svc
 fi
 
 reset_fluentd_daemonset() {
@@ -195,10 +195,10 @@ update_current_fluentd() {
 }
 
 print_message() {
-    os::log::debug "$( curl_es $es_pod /project.${myproject}.*/_search?${myfield}:${mymessage} )"
-    os::log::debug "$( curl_es $es_pod /_cat/indices?v )"
-    if [ "$es_pod" != "$es_ops_pod" ] ; then
-        os::log::debug "$( curl_es $es_ops_pod /_cat/indices?v )"
+    os::log::debug "$( curl_es $es_svc /project.${myproject}.*/_search?${myfield}:${mymessage} )"
+    os::log::debug "$( curl_es $es_svc /_cat/indices?v )"
+    if [ "$es_svc" != "$es_ops_svc" ] ; then
+        os::log::debug "$( curl_es $es_ops_svc /_cat/indices?v )"
     fi
 }
 
@@ -235,7 +235,7 @@ write_and_verify_logs() {
 
     os::log::debug "is_testproj $is_testproj no_container_vals $no_container_vals ===================================="
 
-    local espod=$es_pod
+    local essvc=$es_svc
     local mymessage="GET /$uuid_es 404 "
     local myproject
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
@@ -260,15 +260,15 @@ write_and_verify_logs() {
     local qs="${startqs}]}}}"
     os::log::debug "query string is $qs"
     artifact_log start $( date ) $( date +%s )
-    if ! os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
+    if ! os::cmd::try_until_text "curl_es $essvc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
         artifact_log end $( date ) $( date +%s )
         qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${mymessage}"'"}}}}}'
-        curl_es $espod /${myproject}.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
-        curl_es $espod /project.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
-        curl_es $espod /fluentd/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
+        curl_es $essvc /project.*/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
+        curl_es $essvc /fluentd/_count -XPOST -d "$qs" | python -mjson.tool | artifact_out
         # grab the first and last records in the index
-        curl_es $espod /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
-        curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         if docker_uses_journal ; then
             artifact_log First matching record:
             sudo journalctl | grep -m 1 "${mymessage}" | artifact_out || :
@@ -285,34 +285,34 @@ write_and_verify_logs() {
         # other logs with project.testproj tag
         local myfield="SYSLOG_IDENTIFIER"
         myproject=project.testproj
-        espod=$es_pod
+        essvc=$es_svc
         # make sure this namespace exists
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
     elif [ $no_project_tag -eq 1 ]; then
         local myfield="SYSLOG_IDENTIFIER"
         myproject=project.mux-undefined
-        espod=$es_pod
+        essvc=$es_svc
         # make sure this namespace exists
         os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | artifact_out
     else
         local myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
-        espod=$es_ops_pod
+        essvc=$es_ops_svc
     fi
     mymessage=$uuid_es_ops
     artifact_log start $( date ) $( date +%s )
-    if ! os::cmd::try_until_text "curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
+    if ! os::cmd::try_until_text "curl_es $essvc /${myproject}.*/_count?q=${myfield}:$mymessage | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
         artifact_log end $( date ) $( date +%s )
-        curl_es $espod /${myproject}.*/_count?q=${myfield}:$mymessage | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_count?q=${myfield}:$mymessage | python -mjson.tool | artifact_out
         # grab the first and last records in the index
-        curl_es $espod /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
-        curl_es $espod /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
+        curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         # find the record in the journal
         sudo journalctl -o export -t $uuid_es_ops | artifact_out || :
         exit 1
     fi
-    os::cmd::expect_success_and_not_text "curl_es $es_pod /_cat/indices" "project\.default"
-    os::cmd::expect_success_and_not_text "curl_es $es_ops_pod /_cat/indices" "project\.default"
+    os::cmd::expect_success_and_not_text "curl_es $es_svc /_cat/indices" "project\.default"
+    os::cmd::expect_success_and_not_text "curl_es $es_ops_svc /_cat/indices" "project\.default"
 }
 
 reset_ES_HOST() {
@@ -352,8 +352,8 @@ cleanup() {
     fi
     $mycmd mux test finished at $( date )
     # get indices at the end
-    curl_es $es_pod /_cat/indices > $ARTIFACT_DIR/es.indices.after 2>&1
-    curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.after 2>&1
+    curl_es $es_svc /_cat/indices > $ARTIFACT_DIR/es.indices.after 2>&1
+    curl_es $es_ops_svc /_cat/indices > $ARTIFACT_DIR/es-ops.indices.after 2>&1
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
         oc logs $fpod > $ARTIFACT_DIR/mux.$fpod.log 2>&1
@@ -367,9 +367,9 @@ cleanup() {
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
     # delete indices created by this test
-    curl_es $es_pod /project.testproj.* -XDELETE
-    curl_es $es_pod /project.default.* -XDELETE
-    curl_es $es_pod /project.mux-undefined.* -XDELETE
+    curl_es $es_svc /project.testproj.* -XDELETE
+    curl_es $es_svc /project.default.* -XDELETE
+    curl_es $es_svc /project.mux-undefined.* -XDELETE
     os::cmd::expect_success flush_fluentd_pos_files
     sudo rm -f /var/lib/fluentd/buffer*.log
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
@@ -400,8 +400,8 @@ else
 fi
 
 # save indices at the start
-curl_es $es_pod /_cat/indices > $ARTIFACT_DIR/es.indices.before 2>&1
-curl_es $es_ops_pod /_cat/indices > $ARTIFACT_DIR/es-ops.indices.before 2>&1
+curl_es $es_svc /_cat/indices > $ARTIFACT_DIR/es.indices.before 2>&1
+curl_es $es_ops_svc /_cat/indices > $ARTIFACT_DIR/es-ops.indices.before 2>&1
 
 muxpod=$( get_running_pod mux )
 
@@ -473,22 +473,22 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     # kibana logs with kibana container/pod values
     if [ ${LOGGING_NS} = "logging" ] ; then
         myproject=project.logging
-        espod=$es_pod
+        essvc=$es_svc
     else
         myproject=".operations"
-        espod=$es_ops_pod
+        essvc=$es_ops_svc
     fi
 
     mymessage="GET /${uuid_es} 404 "
     qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
     os::log::debug "Check kibana log - message \"${mymessage}\""
-    os::cmd::try_until_success "curl_es $espod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
+    os::cmd::try_until_success "curl_es $essvc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 
     myproject=.operations
     mymessage=$uuid_es_ops
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${mymessage}"'"}}}'
     os::log::debug "Check system log - SYSLOG_IDENTIFIER \"${mymessage}\""
-    os::cmd::try_until_success "curl_es $es_ops_pod /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
+    os::cmd::try_until_success "curl_es $es_ops_svc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 fi
 
 os::log::info "------- Test case $SET_CONTAINER_VALS -------"
