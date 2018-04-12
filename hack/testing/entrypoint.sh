@@ -52,6 +52,10 @@ oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 # MUX_CLIENT_MODE=maximal or minimal
 oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 
+# Starting in 3.10, we can no longer mount /var/lib/docker/containers
+oc volumes -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
+    --name=varlibdockercontainers -m /var/lib/docker --path=/var/lib/docker || :
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     # assumes running in a subshell
@@ -93,9 +97,28 @@ monitor_journal_lograte() {
     done  > $ARTIFACT_DIR/monitor_journal_lograte.log 2>&1
 }
 
+monitor_es_bulk_stats() {
+    local interval=5
+    while true ; do
+        local espod=$( get_es_pod es ) || :
+        local esopspod=$( get_es_pod es-ops ) || :
+        esopspod=${esopspod:-$espod}
+        if [ -n "${espod}" ] ; then
+            date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
+            curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
+        fi
+        if [ -n "${esopspod}" -a "${espod}" != "${esopspod}" ] ; then
+            date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1
+            curl_es $esopspod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
+        fi
+        sleep $interval
+    done
+}
+
 monitor_fluentd_top & killpids=$!
 monitor_fluentd_pos & killpids="$killpids $!"
 monitor_journal_lograte & killpids="$killpids $!"
+monitor_es_bulk_stats & killpids="$killpids $!"
 
 function cleanup() {
   return_code=$?
