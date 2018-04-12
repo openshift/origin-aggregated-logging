@@ -88,6 +88,11 @@ export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 
+# Check the existing main fluent.conf has the @OUTPUT label
+# If it exists, we could use the label and take advantage.
+# If not, give up one output tag per plugin for now.
+output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
+
 if [ "${USE_MUX:-}" = "true" ] ; then
     # copy our standard mux configs to the openshift dir
     cp $CFG_DIR/input-*-mux.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
@@ -117,20 +122,29 @@ fi
 K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
 
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
-    mux_client_filename=filter-pre-mux-client.conf
     if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
-        mux_client_filename=output-pre-mux-client.conf
         # do not remove the CONTAINER_ fields - pass them through to mux
         # sed assumes CONTAINER_ fields are neither first nor last fields in list
         K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
                                   sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
         # tell the viaq filter not to construct an elasticsearch index name
         # for project because we have no kubernetes metadata yet
+    elif [ "${MUX_CLIENT_MODE:-}" = minimal ] ; then
+        # retag container logs with .raw suffix so mux server will know it has to process
+        cp -f $CFG_DIR/filter-pre-mux-client-retag-raw.conf $CFG_DIR/openshift/filter-pre-mux-client-retag-raw.conf
+        if [ -z "${output_label}" ] ; then
+            # the above relies on having an output label - if there is no output label, rely
+            # on the fact that the input plugins all send their input directly to the
+            # @INGRESS label, rather than simply falling through to the next line
+            # in fluent.conf - add an input-post-output.conf which has the @OUTPUT
+            # label
+            cp -f $CFG_DIR/input-post-output.conf $CFG_DIR/openshift/input-post-output.conf
+        fi
     fi
-    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
+    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
     # copy any user defined files, possibly overwriting the standard ones
     if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
-        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/$mux_client_filename
+        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
     fi
     # rm k8s meta plugin - do not hit the API server - just do json parsing
     if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
@@ -155,11 +169,6 @@ if [ -z $ES_PORT ]; then
     echo "ERROR: Environment variable ES_PORT for Elasticsearch port number is not set."
     exit 1
 fi
-
-# Check the existing main fluent.conf has the @OUTPUT label
-# If it exists, we could use the label and take advantage.
-# If not, give up one output tag per plugin for now.
-output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
 
 # How many outputs?
 if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
