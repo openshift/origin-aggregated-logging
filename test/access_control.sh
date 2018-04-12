@@ -25,7 +25,7 @@ function cleanup() {
         done
     fi
     if [ -n "${espod:-}" ] ; then
-        curl_es $espod /project.access-control-* -XDELETE > /dev/null
+        curl_es_pod $espod /project.access-control-* -XDELETE > /dev/null
     fi
     for proj in access-control-1 access-control-2 access-control-3 ; do
         oc delete project $proj 2>&1 | artifact_out
@@ -66,7 +66,7 @@ function add_message_to_index() {
     local project_uuid=$( oc get project $1 -o jsonpath='{ .metadata.uid }' )
     local index="project.$1.$project_uuid.$(date -u +'%Y.%m.%d')"
     local espod=$3
-    curl_es "$espod" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 | artifact_out
+    curl_es_pod "$espod" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 | artifact_out
 }
 
 # test the following
@@ -108,11 +108,11 @@ function test_user_has_proper_access() {
             continue
         fi
         os::log::info See if user $user $negverb read /project.$proj.*
-        nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | \
+        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_name $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
             os::log::error $user $verb access project.$proj.* indices from es
-            curl_es_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
+            curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
             exit 1
         fi
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $test_name $test_token | \
@@ -123,11 +123,11 @@ function test_user_has_proper_access() {
             exit 1
         fi
         # no user name - allow it - look up username corresponding to token
-        nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" "" $test_token | \
+        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" "" $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
             os::log::error $user $verb access project.$proj.* indices from es
-            curl_es_with_token $espod "/project.$proj.*/_count" "" $test_token | python -mjson.tool
+            curl_es_pod_with_token $espod "/project.$proj.*/_count" "" $test_token | python -mjson.tool
             exit 1
         fi
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" "" $test_token | \
@@ -139,11 +139,11 @@ function test_user_has_proper_access() {
         fi
         # if wrong user name is given, allow it - server will look up and use correct user name, so
         # not possible to specify a privileged username to use for access with an unprivileged token
-        nrecs=$( curl_es_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | \
+        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
             os::log::error $user $verb access project.$proj.* indices from es
-            curl_es_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | python -mjson.tool
+            curl_es_pod_with_token $espod "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | python -mjson.tool
             exit 1
         fi
         nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $LOG_ADMIN_USER $test_token | \
@@ -156,23 +156,23 @@ function test_user_has_proper_access() {
         if [ "$expected" = 1 ] ; then
             # make sure no access with incorrect auth
             # username with no token
-            os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
+            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
             os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
             # username and bogus token
-            os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
+            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
             os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
             # no username, no token
-            os::cmd::expect_success_and_text "curl_es_with_token $espod '/project.$proj.*/_count' '' '' -w '%{response_code}\n'" '^401$'
+            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '' '' -w '%{response_code}\n'" '^401$'
             os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' '' -w '%{response_code}\n' -o /dev/null" '^403$'
         fi
     done
 
     os::log::info See if user $user is denied /.operations.*
-    nrecs=$( curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
+    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices from es
-        curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | python -mjson.tool
+        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | python -mjson.tool
         exit 1
     fi
     esopshost=logging-es-ops
@@ -183,36 +183,36 @@ function test_user_has_proper_access() {
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices from kibana
-        curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | python -mjson.tool
+        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | python -mjson.tool
         exit 1
     fi
 
     os::log::info See if user $user is denied /.operations.* with no token
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' $user '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $user '' -w '%{response_code}\n'" '^401$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $user '' -w '%{response_code}\n'" '^401$'
 
     os::log::info See if user $user is denied /.operations.* with no username
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' '' $test_token -w '%{response_code}\n'" '}403$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' '' $test_token -w '%{response_code}\n'" '}403$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' $test_token -w '%{response_code}\n'" '}403$'
 
     os::log::info See if user $user is denied /.operations.* with no token using $LOG_ADMIN_USER
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '^401$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '^401$'
 
     os::log::info See if user $user is denied /.operations.* with a bogus token using $LOG_ADMIN_USER
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
 
     os::log::info See if access is denied to /.operations.* with no username and no token
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' '' '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' '' '' -w '%{response_code}\n'" '^401$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' '' -w '%{response_code}\n' -o /dev/null" '^403$'
 
     os::log::info See if user $user is denied /.operations.* with username that does not correspond to token
-    os::cmd::expect_success_and_text "curl_es_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER $test_token -w '%{response_code}\n'" '}403$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER $test_token -w '%{response_code}\n'" '}403$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER $test_token -w '%{response_code}\n'" '}403$'
 }
 
-curl_es $espod /project.access-control-* -XDELETE 2>&1 | artifact_out
+curl_es_pod $espod /project.access-control-* -XDELETE 2>&1 | artifact_out
 
 for proj in access-control-1 access-control-2 access-control-3 ; do
     os::log::info Creating project $proj
@@ -269,11 +269,11 @@ fi
 os::log::info now auth using admin + token
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
 if [ ${LOGGING_NS} = "logging" ] && [ $espod != $esopspod] ; then
-  nrecs=$( curl_es_with_token $espod "/${logging_index}/_count" $test_name $test_token | \
+  nrecs=$( curl_es_pod_with_token $espod "/${logging_index}/_count" $test_name $test_token | \
            get_count_from_json )
   os::cmd::expect_success "test $nrecs -gt 1"
 fi
-nrecs=$( curl_es_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
+nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
          get_count_from_json )
 os::cmd::expect_success "test $nrecs -gt 1"
 

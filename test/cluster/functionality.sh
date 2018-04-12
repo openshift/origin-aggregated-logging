@@ -62,14 +62,14 @@ done
 
 for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
-	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
+	os::cmd::try_until_text "curl_es_pod '${elasticsearch_pod}' '/' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::try_until_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} recovered its indices after starting..."
-	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cluster/state/master_node' -w '%{response_code}'" "}200$" "$(( 10*TIME_MIN ))"
-	es_master_id="$( curl_es "${elasticsearch_pod}" "/_cluster/state/master_node" | python -c  'import json, sys; print json.load(sys.stdin)["master_node"];' )"
-	es_pod_node_id="$( curl_es "${elasticsearch_pod}" "/_nodes/_local" | python -c  'import json, sys; print json.load(sys.stdin)["nodes"].keys()[0];' )"
-	es_detected_master_id="$( curl_es "${elasticsearch_pod}" "/_cat/master?h=id" )"
+	os::cmd::try_until_text "curl_es_pod '${elasticsearch_pod}' '/_cluster/state/master_node' -w '%{response_code}'" "}200$" "$(( 10*TIME_MIN ))"
+	es_master_id="$( curl_es_pod "${elasticsearch_pod}" "/_cluster/state/master_node" | python -c  'import json, sys; print json.load(sys.stdin)["master_node"];' )"
+	es_pod_node_id="$( curl_es_pod "${elasticsearch_pod}" "/_nodes/_local" | python -c  'import json, sys; print json.load(sys.stdin)["nodes"].keys()[0];' )"
+	es_detected_master_id="$( curl_es_pod "${elasticsearch_pod}" "/_cat/master?h=id" )"
 	if [[ "${es_master_id}" == "${es_pod_node_id}" ]]; then
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} is the master"
 	elif [[ -n "${es_detected_master_id}" ]]; then
@@ -83,7 +83,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
 	# BUT NOTE: There may be no project.* indices yet, and logs from projects
 	#     default openshift openshift-* will go to .operations
-	for index in $( curl_es "${elasticsearch_pod}" '/_cat/indices?h=index' ); do
+	for index in $( curl_es_pod "${elasticsearch_pod}" '/_cat/indices?h=index' ); do
 		if [[ "${index}" == ".operations"* ]]; then
 			# If this is an operations index, we will be searching
 			# the journal for it
@@ -110,13 +110,13 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
 	os::cmd::expect_success "oc exec -c elasticsearch ${elasticsearch_pod} -- ls -1 /usr/share/java/elasticsearch/index_templates"
 	for template in $( oc exec -c elasticsearch "${elasticsearch_pod}" -- ls -1 /usr/share/java/elasticsearch/index_templates ); do
-		os::cmd::expect_success_and_text "curl_es '${elasticsearch_pod}' '/_template/${template}' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200'
+		os::cmd::expect_success_and_text "curl_es_pod '${elasticsearch_pod}' '/_template/${template}' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200'
 	done
 
 	os::log::debug "Checking that Elasticsearch pod ${elasticsearch_pod} has expected plugins installed"
-	curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&v'
+	curl_es_pod "${elasticsearch_pod}" '/_cat/plugins?local=true&v'
 	matching_plugins=0
-	found_plugins=$( curl_es "${elasticsearch_pod}" '/_cat/plugins?local=true&h=component' )
+	found_plugins=$( curl_es_pod "${elasticsearch_pod}" '/_cat/plugins?local=true&h=component' )
 	for plugin in $found_plugins[@] ; do
 		os::log::info "Installed plugin: ${plugin}"
 		if [ "${plugin}" = "cloud-kubernetes" ]; then
@@ -137,7 +137,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 #	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
 #	user_name="prometheus" #?
 #	barer_token="_na_"     #?
-#	prometheus_metrics=$( curl_es_with_token "${elasticsearch_pod}" '/_prometheus/metrics' "$user_name" "$barer_token" )
+#	prometheus_metrics=$( curl_es_pod_with_token "${elasticsearch_pod}" '/_prometheus/metrics' "$user_name" "$barer_token" )
 
 done
 
