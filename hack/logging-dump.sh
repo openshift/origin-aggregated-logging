@@ -50,7 +50,7 @@ if [ -z "${NAMESPACE:-''}" ] && oc get project logging > /dev/null ; then
   NAMESPACE=logging
 fi
 
-NAMESPACE=${NAMESPACE:-openshift-logging}
+NAMESPACE=${NAMESPACE:-logging}
 
 DATE=`date +%Y%m%d_%H%M%S`
 target=${target:-"logging-$DATE"}
