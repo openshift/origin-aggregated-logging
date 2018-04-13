@@ -147,7 +147,7 @@ function run_suite() {
 	suite_name="$( basename "${test}" '.sh' )"
 	os::test::junit::declare_suite_start "test/setup/${suite_name}"
 	os::cmd::expect_success "oc login -u system:admin"
-	os::cmd::expect_success "oc project logging"
+	os::cmd::expect_success "oc project $LOGGING_NS"
 	os::test::junit::declare_suite_end
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
