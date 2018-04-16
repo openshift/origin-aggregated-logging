@@ -74,7 +74,16 @@ wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 fullmsg="GET /${logmessage} 404 "
 qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
 proj=$ARTIFACT_DIR/rsyslog-proj.json
-curl_es $es_pod /project.logging.*/_search -X POST -d "$qs" | jq .hits.hits[0] > $proj 2>&1
+if [ ${LOGGING_NS} = "logging" ] ; then
+  logging_index="project.logging.*"
+  ops_pod=$es_pod
+else
+  #assume openshift-logging which means
+  #all logs go to ops instance
+  logging_index=".operations.*"
+  ops_pod=$es_ops_pod
+fi
+curl_es $ops_pod /$logging_index/_search -X POST -d "$qs" | jq .hits.hits[0] > $proj 2>&1
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
 ops=$ARTIFACT_DIR/rsyslog-ops.json
 curl_es $es_ops_pod /.operations.*/_search -X POST -d "$qs" | jq .hits.hits[0] > $ops 2>&1

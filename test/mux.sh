@@ -244,7 +244,14 @@ write_and_verify_logs() {
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
     else
         # kibana logs with kibana container/pod values
-        local myproject=project.logging
+        if [ ${LOGGING_NS} = "logging" ] ; then
+          local myproject=project.logging
+        else
+          #assume openshift-logging which means
+          #all logs go to ops instance
+          logging_index=".operations"
+          espod=$es_ops_pod
+        fi
     fi
     # could be different fields depending on the container log driver - so just
     # search for the exact phrase in all fields
