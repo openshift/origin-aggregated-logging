@@ -61,9 +61,9 @@ monitor_fluentd_top() {
     # assumes running in a subshell
     cp $KUBECONFIG $ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
     export KUBECONFIG=$ARTIFACT_DIR/monitor_fluentd_top.kubeconfig
-    oc project logging > /dev/null
+    oc project ${LOGGING_NS} > /dev/null 
     while true ; do
-        fpod=$( get_running_pod fluentd )
+        fpod=$( get_running_pod fluentd 2> /dev/null ) || :
         if [ -n "$fpod" ] ; then
             oc exec $fpod -- top -b -d 1 || :
         else
@@ -99,9 +99,12 @@ monitor_journal_lograte() {
 
 monitor_es_bulk_stats() {
     local interval=5
+    cp $KUBECONFIG $ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
+    export KUBECONFIG=$ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
+    oc project ${LOGGING_NS} > /dev/null
     while true ; do
-        local espod=$( get_es_pod es ) || :
-        local esopspod=$( get_es_pod es-ops ) || :
+        local espod=$( get_es_pod es 2> /dev/null ) || :
+        local esopspod=$( get_es_pod es-ops 2> /dev/null ) || :
         esopspod=${esopspod:-$espod}
         if [ -n "${espod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
@@ -148,7 +151,7 @@ function run_suite() {
 	suite_name="$( basename "${test}" '.sh' )"
 	os::test::junit::declare_suite_start "test/setup/${suite_name}"
 	os::cmd::expect_success "oc login -u system:admin"
-	os::cmd::expect_success "oc project logging"
+	os::cmd::expect_success "oc project $LOGGING_NS"
 	os::test::junit::declare_suite_end
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
