@@ -9,9 +9,16 @@ os::util::environment::use_sudo
 os::test::junit::declare_suite_start "test/bulk_rejection"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
-esopspod=${esopspod:-$espod}
+esopsdc=$( get_es_dcs es-ops )
+if [ -z "${esopsdc}" ] ; then
+    esopsdc=$( get_es_dcs es )
+fi
+
+keyname=threadpool
+es_ver=$( get_es_major_ver )
+if [ "${es_ver:-2}" -gt 2 ] ; then
+    keyname=thread_pool
+fi
 
 function cleanup() {
     local result_code="$?"
@@ -22,21 +29,20 @@ function cleanup() {
     if [ -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; then
         rm -f $bulktestjson
     fi
-    if [ -n "${save_size}" -a -n "${save_qsize}" ] ; then
-        echo restore settings | artifact_out
-        curl_es $espod /_cluster/settings -XPUT -d '{
-            "transient" : {
-                "threadpool.bulk.queue_size" : '$save_qsize',
-                "threadpool.bulk.size": '$save_size'
-            }
-        }' | jq . | artifact_out
-    fi
-    curl_es $espod /bulkindextest -XDELETE | jq . | artifact_out
+    curl_es $esopspod /bulkindextest -XDELETE | jq . | artifact_out
     fpod=$( get_running_pod fluentd )
     if [ -f /var/log/fluentd.log ] ; then
         cp /var/log/fluentd.log $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
     else
         oc logs $fpod > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
+    fi
+    if [ -n "${es_cm:-}" -a -f "${es_cm:-}" ] ; then
+        oc replace --force -f $es_cm 2>&1 | tee artifact_out
+    fi
+    if [ -n "${esopsdc:-}" ] ; then
+        oc rollout latest $esopsdc 2>&1 | tee artifact_out
+        oc rollout status -w $esopsdc 2>&1 | tee artifact_out
+        # have to get esopspod again if needed
     fi
     if [ -n "${f_cm:-}" -a -f "${f_cm:-}" ] ; then
         oc replace --force -f $f_cm
@@ -44,7 +50,7 @@ function cleanup() {
     if [ -n "${f_ds:-}" -a -f "${f_ds:-}" ] ; then
         oc replace --force -f $f_ds
     fi
-    os::cmd::try_until_failure "oc describe pod $fpod"
+    os::cmd::try_until_failure "oc get pod $fpod"
     sleep 1
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     if [ -n "${bulkdonefile:-}" -a -f "${bulkdonefile:-}" ] ; then
@@ -57,6 +63,28 @@ function cleanup() {
 
 trap cleanup EXIT
 
+# save current es settings
+es_cm=$( mktemp )
+oc get cm/logging-elasticsearch -o yaml > $es_cm
+
+# thanks es5 - https://www.elastic.co/guide/en/elasticsearch/reference/5.1/breaking_50_settings_changes.html#_threadpool_settings
+# change queue size and pool size to make it easy to hit limit
+oc get cm/logging-elasticsearch -o yaml | \
+    sed '/^  elasticsearch.yml/a\
+    thread_pool:\
+      bulk:\
+        queue_size: 1\
+        size: 1' | oc replace --force -f - 2>&1 | artifact_out
+
+oc rollout latest $esopsdc 2>&1 | artifact_out
+oc rollout status -w $esopsdc 2>&1 | artifact_out
+espod=$( get_es_pod es )
+esopspod=$( get_es_pod es-ops )
+esopspod=${esopspod:-$espod}
+
+# check settings
+bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
+curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
 # save current fluentd settings
 f_cm=$( mktemp )
 f_ds=$( mktemp )
@@ -71,29 +99,6 @@ cat $f_cm | \
     </system>,' | oc replace --force -f -
 
 oc set env ds/logging-fluentd DEBUG=true
-
-# save current es settings
-
-save_size=$( curl_es $espod /_cluster/settings | jq -r .transient.threadpool.bulk.size )
-if [ $save_size = null ] ; then
-    save_size=$( curl_es $espod /_cat/thread_pool?h=bs )
-fi
-
-save_qsize=$( curl_es $espod /_cluster/settings | jq -r .transient.threadpool.bulk.queue_size )
-if [ $save_qsize = null ] ; then
-    save_qsize=$( curl_es $espod /_cat/thread_pool?h=bqs )
-fi
-
-# change bulk queue_size and size to 1 to make it easy to overload
-curl_es $espod /_cluster/settings -XPUT -d '{
-    "transient" : {
-        "threadpool.bulk.queue_size" : 1,
-        "threadpool.bulk.size": 1
-    }
-}' | jq . | artifact_out
-
-# check settings
-curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs | artifact_out
 
 # create a really large bulk index request json file:
 bulktestjson=$( mktemp )
@@ -116,23 +121,24 @@ do_curl_bulk_index() {
     local bulkpids=""
     for ii in $( seq 1 $parallel_curls ) ; do
         while [ ! -s $bulkdonefile -a -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; do
-            cat $bulktestjson | curl_es_input $espod /_bulk -XPOST --data-binary @- > /dev/null
+            cat $bulktestjson | curl_es_input $esopspod /_bulk -XPOST --data-binary @- > /dev/null
         done & bulkpids="$bulkpids $!"
     done
-    curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs | artifact_out
+    curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
     wait $bulkpids
-    curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs | artifact_out
+    curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
 }
 
 do_curl_bulk_index & curlpid=$!
 # wait for elasticsearch to report bulk index rejections
-os::cmd::try_until_not_text "curl_es $espod /_cat/thread_pool?h=br" "^0\$"
+bulk_reject_url=$( get_bulk_thread_pool_url $es_ver "" r )
+os::cmd::try_until_not_text "curl_es $esopspod ${bulk_reject_url}" "^0\$"
 
 # restart fluentd to make sure the logs are clear
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 oc delete pod --force $fpod
-os::cmd::try_until_failure "oc describe pod $fpod"
+os::cmd::try_until_failure "oc get pod $fpod"
 sleep 1
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
@@ -142,21 +148,15 @@ flog=/var/log/fluentd.log
 os::cmd::try_until_success "grep -q BulkIndexQueueFull /var/log/fluentd.log" $(( 300 * second ))
 
 # write some messages
-uuid_es=$( openssl rand -hex 64 )
 uuid_es_ops=$( openssl rand -hex 64 )
 
 wait_for_fluentd_ready
-count=40
 countops=500
-os::log::info Adding $count project log records and $countops operations log records . . .
+os::log::info Adding $countops operations log records . . .
 starttime=$( date +%s )
 # not sure why, but it seems the operations messages get sent
 # to es much faster - so add more of them to see if we can get
 # them to be rejected
-for jj in $( seq 1 $count ) ; do
-    add_test_message "$uuid_es-$jj"
-    os::log::debug added es message $uuid_es-$jj
-done
 
 opsloglines=$( mktemp )
 python -c 'import sys
@@ -164,23 +164,10 @@ for ii in xrange(1,int(sys.argv[1])+1):
     print "{0}-{1}".format(sys.argv[2], ii)
 ' $countops $uuid_es_ops > $opsloglines
 logger -i -p local6.info -t $uuid_es_ops -f $opsloglines
-os::log::debug added es-ops message $uuid_es_ops-$jj
 rm -f $opsloglines
 
-os::log::info Finished adding $count project and $countops operation log records
+os::log::info Finished adding $countops operation log records
 
-fullmsg="GET /${uuid_es}-"
-qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
-case "${LOGGING_NS}" in
-default|openshift|openshift-*) logging_index=".operations.*" ; espod=$esopspod ;;
-*) logging_index="project.${LOGGING_NS}.*" ;;
-esac
-firstcount=$( curl_es ${espod} /${logging_index}/_count -X POST -d "$qs" | get_count_from_json )
-if [ "${firstcount:-0}" -eq $count ] ; then
-    os::log::warning All project records added - some should have been queued due to bulk index rejection
-else
-    os::log::info Found $firstcount of $count project records in Elasticsearch
-fi
 qsops='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
 firstcount=$( curl_es ${esopspod} /.operations.*/_count -X POST -d "$qsops" | get_count_from_json )
 if [ "${firstcount:-0}" -eq $countops ] ; then
@@ -242,26 +229,6 @@ fi
 
 rc=0
 timeout=$(( 180 * second ))
-# duplicates can be added when bulk ops are retried, so greater than or equal
-if os::cmd::try_until_success "curl_es ${espod} /${logging_index}/_count -X POST -d '$qs' | jq '.count == ${count}'" $timeout ; then
-    os::log::debug good - found $count record project ${LOGGING_NS} for \'$fullmsg\'
-else
-    os::log::error not found $count record project ${LOGGING_NS} for \'$fullmsg\' after timeout
-    os::log::debug "$( curl_es ${espod} /${logging_index}/_search -X POST -d "$qs" )"
-    os::log::error "Checking journal for '$fullmsg' ..."
-    if sudo journalctl | grep -q "$fullmsg" ; then
-        os::log::error "Found '$fullmsg' in journal"
-        os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
-    elif sudo grep -q "$fullmsg" /var/log/containers/* ; then
-        os::log::error "Found '$fullmsg' in /var/log/containers/*"
-        os::log::debug "$( sudo grep -q "$fullmsg" /var/log/containers/* )"
-    else
-        os::log::error "Unable to find '$fullmsg' in journal or /var/log/containers/*"
-    fi
-
-    rc=1
-fi
-
 if os::cmd::try_until_success "curl_es ${esopspod} /.operations.*/_count -X POST -d '$qsops' | jq '.count == ${countops}'" $timeout ; then
     os::log::debug good - found $countops record project .operations for $uuid_es_ops
 else

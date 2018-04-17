@@ -7,7 +7,7 @@ fi
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
 function get_es_dcs() {
-    oc get dc --selector logging-infra=elasticsearch -o name
+    oc get dc --selector logging-infra=elasticsearch ${1:+-l component=$1} -o name
 }
 
 function get_curator_dcs() {
@@ -345,4 +345,39 @@ artifact_out() {
     while IFS= read -r line ; do
         internal_artifact_log "${ts}" "$line"
     done
+}
+
+# e.g. 2 or 5 or 6
+get_es_major_ver() {
+    local es_pod=$( get_es_pod es )
+    curl_es $es_pod "" | jq -r '.version.number | split(".")[0]'
+}
+
+# fields are given like this: c a r s q
+get_bulk_thread_pool_url() {
+    local es_ver=$1
+    local headers=$2
+    shift; shift
+    # remaining args are fields
+    local url="/_cat/thread_pool"
+    local comma=""
+    local pref=""
+
+    if [ "${es_ver}" -gt 2 ] ; then
+        url="${url}/bulk"
+    else
+        pref="b"
+    fi
+    url="${url}?"
+    if [ -n "${headers}" ] ; then
+        url="${url}v&h="
+    else
+        url="${url}h="
+    fi
+    while [ -n "${1:-}" ] ; do
+        url="${url}${comma}${pref}$1"
+        comma=,
+        shift
+    done
+    echo $url
 }
