@@ -46,7 +46,7 @@ then
     components=( "kibana" "fluentd" "curator" "elasticsearch" "project_info" )
 fi
 
-if [ -z "${NAMESPACE:-''}" ] && oc get project logging > /dev/null ; then
+if [ -z "${NAMESPACE:-}" ] && oc get project logging > /dev/null ; then
   NAMESPACE=logging
 fi
 
