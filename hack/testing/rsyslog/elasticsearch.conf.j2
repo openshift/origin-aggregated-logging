@@ -1,0 +1,50 @@
+template(name="viaq_template" type="list") {
+    property(name="$!all-json-plain")
+}
+
+template(name="index_pattern" type="list") {
+    property(name="$.viaq_index_prefix")
+    property(name="$!@timestamp" dateFormat="rfc3339" position.from="1" position.to="4")
+    constant(value=".")
+    property(name="$!@timestamp" dateFormat="rfc3339" position.from="6" position.to="7")
+    constant(value=".")
+    property(name="$!@timestamp" dateFormat="rfc3339" position.from="9" position.to="10")
+}
+
+{% if openshift_logging_use_ops | default(False) %}
+if $.viaq_index_prefix startswith "project." then {
+{% endif %}
+action(
+    type="omelasticsearch"
+    server="{{ elasticsearch_server_host | default('logging-es') }}"
+    serverport="{{ elasticsearch_server_port | default(9200) }}"
+    template="viaq_template"
+    searchIndex="index_pattern"
+    dynSearchIndex="on"
+    searchType="com.redhat.viaq.common"
+    bulkmode="on"
+    usehttps="on"
+    tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
+    tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
+    tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    errorfile="/var/lib/rsyslog/es-errors.log"
+)
+{% if openshift_logging_use_ops | default(False) %}
+} else {
+action(
+    type="omelasticsearch"
+    server="{{ elasticsearch_ops_server_host | default('logging-es-ops') }}"
+    serverport="{{ elasticsearch_ops_server_port | default(9200) }}"
+    template="viaq_template"
+    searchIndex="index_pattern"
+    dynSearchIndex="on"
+    searchType="com.redhat.viaq.common"
+    bulkmode="on"
+    usehttps="on"
+    tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
+    tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
+    tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    errorfile="/var/lib/rsyslog/es-errors.log"
+)
+}
+{% endif %}

@@ -36,13 +36,12 @@ os::log::info Starting json-parsing test at $( date )
 # logging should parse this and make "type", "tags", "statusCode", etc. as top level fields
 # the "message" field should contain only the embedded message and not the entire JSON blob
 
-get_uuid_es() {
+get_record() {
     json_test_uuid=$1
+    cp $2 $ARTIFACT_DIR/json-parsing-output.json
 }
-wait_for_fluentd_to_catch_up get_uuid_es
-
-es_pod=$( get_es_pod es )
+wait_for_fluentd_to_catch_up get_record
 
 os::log::info Testing if record is in correct format . . .
-os::cmd::expect_success "curl_es $es_pod /project.logging.*/_search?q=message:$json_test_uuid | \
+os::cmd::expect_success "cat $ARTIFACT_DIR/json-parsing-output.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-json-parsing.py $json_test_uuid"

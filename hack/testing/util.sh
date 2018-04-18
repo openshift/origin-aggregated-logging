@@ -4,10 +4,10 @@ if ! type -t os::log::info > /dev/null ; then
     source "${OS_O_A_L_DIR:-..}/hack/lib/init.sh"
 fi
 
-LOGGING_NS=${LOGGING_NS:-logging}
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
 function get_es_dcs() {
-    oc get dc --selector logging-infra=elasticsearch -o name
+    oc get dc --selector logging-infra=elasticsearch ${1:+-l component=$1} -o name
 }
 
 function get_curator_dcs() {
@@ -205,61 +205,95 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
-    local project=${4:-logging}
+    local appsproject=${4:-$LOGGING_NS}
     local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
+
+    # look for the messages in the source
+    local fullmsg="GET /${uuid_es} 404 "
+    local using_journal=0
+    local checkpids
+    if docker_uses_journal ; then
+        using_journal=1
+        sudo journalctl -f -o export | \
+            awk -v es=$uuid_es -v es_ops=$uuid_es_ops \
+            -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+                BEGIN{RS="";FS="\n"};
+                $0 ~ es {print > es_out; found += 1};
+                $0 ~ es_ops {print > es_ops_out; found += 1};
+                {if (found == 2) {exit 0}}' > /dev/null 2>&1 & checkpids=$!
+    else
+        sudo journalctl -f -o export | \
+            awk -v es_ops=$uuid_es_ops -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+                BEGIN{RS="";FS="\n"};
+                $0 ~ es_ops {print > es_ops_out; exit 0}' > /dev/null 2>&1 & checkpids=$!
+        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt ; do
+            sleep 1
+        done & checkpids="$checkpids $!"
+    fi
+
     add_test_message $uuid_es
-    os::log::debug added es message $uuid_es
+    artifact_log added es message $uuid_es
     logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
-    os::log::debug added es-ops message $uuid_es_ops
+    artifact_log added es-ops message $uuid_es_ops
 
     local rc=0
+    local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+    case "${appsproject}" in
+    default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
+    *) logging_index="project.${appsproject}.*" ;;
+    esac
 
     # poll for logs to show up
-    local fullmsg="GET /${uuid_es} 404 "
-    local qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-    if os::cmd::try_until_text "curl_es ${es_pod} /project.logging.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
-        os::log::debug good - $FUNCNAME: found $expected record project logging for \'$fullmsg\'
-    else
-        os::log::error $FUNCNAME: not found $expected record project logging for \'$fullmsg\' after $timeout seconds
-        os::log::debug "$( curl_es ${es_pod} /project.logging.*/_search -X POST -d "$qs" )"
-        os::log::error "Checking journal for '$fullmsg' ..."
-        if sudo journalctl | grep -q "$fullmsg" ; then
-            os::log::error "Found '$fullmsg' in journal"
-            os::log::debug "$( sudo journalctl | grep "$fullmsg" )"
-        elif sudo grep -q "$fullmsg" /var/log/containers/* ; then
-            os::log::error "Found '$fullmsg' in /var/log/containers/*"
-            os::log::debug "$( sudo grep -q "$fullmsg" /var/log/containers/* )"
-        else
-            os::log::error "Unable to find '$fullmsg' in journal or /var/log/containers/*"
+    if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+        os::log::debug good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
+        if [ -n "${1:-}" ] ; then
+            curl_es ${es_pod} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
+            $1 $uuid_es $ARTIFACT_DIR/apps.json
         fi
+    else
+        os::log::error $FUNCNAME: not found $expected record $logging_index for \'$fullmsg\' after $timeout seconds
+        os::log::debug "$( curl_es ${es_pod} /${logging_index}/_search -X POST -d "$qs" )"
+        if [ -s $ARTIFACT_DIR/es_out.txt ] ; then
+            os::log::error "$( cat $ARTIFACT_DIR/es_out.txt )"
+        else
+            os::log::error apps record for "$fullmsg" not found in source
+        fi
+        if sudo test -f /var/log/es-containers.log.pos ; then
+            os::log::error here are the current container log positions
+            sudo cat /var/log/es-containers.log.pos
+        fi
+        os::log::error here is the current fluentd journal cursor
+        sudo cat /var/log/journal.pos
 
         rc=1
     fi
 
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
     if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
-        os::log::debug good - $FUNCNAME: found $expected record project .operations for $uuid_es_ops
+        os::log::debug good - $FUNCNAME: found $expected record .operations for $uuid_es_ops
+        if [ -n "${2:-}" ] ; then
+            curl_es ${es_ops_pod} "/.operations.*/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/ops.json
+            $2 $uuid_es_ops $ARTIFACT_DIR/ops.json
+        fi
     else
-        os::log::error $FUNCNAME: not found $expected record project .operations for $uuid_es_ops after $timeout seconds
+        os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
         os::log::debug "$( curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" )"
         os::log::error "Checking journal for $uuid_es_ops..."
-        if sudo journalctl | grep -q $uuid_es_ops ; then
-            os::log::error "Found $uuid_es_ops in journal"
-            os::log::debug "$( sudo journalctl | grep $uuid_es_ops )"
+        if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
+            os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
         else
-            os::log::error "Unable to find $uuid_es_ops in journal"
+            os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
+        os::log::error here is the current fluentd journal cursor
+        sudo cat /var/log/journal.pos
         rc=1
     fi
 
-    if [ -n "${1:-}" ] ; then
-        $1 $uuid_es
-    fi
-    if [ -n "${2:-}" ] ; then
-        $2 $uuid_es_ops
-    fi
+    kill $checkpids > /dev/null 2>&1 || :
+    kill -9 $checkpids > /dev/null 2>&1 || :
+
     local endtime=`date +%s`
     os::log::debug END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
     return $rc
@@ -273,7 +307,7 @@ docker_uses_journal() {
     # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
     # authoritative
     # otherwise, look for /etc/sysconfig/docker
-    if type -p docker > /dev/null && sudo docker info | grep -q 'Logging Driver: journald' ; then
+    if type -p docker > /dev/null && sudo docker info 2>&1 | grep -q 'Logging Driver: journald' ; then
         return 0
     elif sudo grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
         if sudo grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
@@ -303,11 +337,47 @@ internal_artifact_log() {
     echo \[${ts}\] "$@" >> $extra_artifacts
 }
 artifact_log() {
-    internal_artifact_log "$( date --rfc-3339=ns )" "$@"
+    internal_artifact_log "$( date +%Y-%m-%dT%H:%M:%S.%3N%z )" "$@"
 }
 artifact_out() {
-    local ts="$( date --rfc-3339=ns )"
-    while read line ; do
+    local ts="$( date +%Y-%m-%dT%H:%M:%S.%3N%z )"
+    local line
+    while IFS= read -r line ; do
         internal_artifact_log "${ts}" "$line"
     done
+}
+
+# e.g. 2 or 5 or 6
+get_es_major_ver() {
+    local es_pod=$( get_es_pod es )
+    curl_es $es_pod "" | jq -r '.version.number | split(".")[0]'
+}
+
+# fields are given like this: c a r s q
+get_bulk_thread_pool_url() {
+    local es_ver=$1
+    local headers=$2
+    shift; shift
+    # remaining args are fields
+    local url="/_cat/thread_pool"
+    local comma=""
+    local pref=""
+
+    if [ "${es_ver}" -gt 2 ] ; then
+        url="${url}/bulk"
+    else
+        pref="b"
+    fi
+    url="${url}?"
+    if [ -n "${headers}" ] ; then
+        url="${url}v&h="
+    else
+        url="${url}h="
+    fi
+    while [ -n "${1:-}" ] ; do
+        url="${url}${comma}${pref}$1"
+        comma=,
+        shift
+    done
+    echo $url
 }

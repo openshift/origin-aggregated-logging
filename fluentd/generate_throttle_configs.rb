@@ -21,12 +21,16 @@ DEFAULT_OPS_PROJECTS = !ENV['OCP_OPERATIONS_PROJECTS'].nil? ? ENV['OCP_OPERATION
 DEFAULT_FILENAME = "/etc/fluent/configs.d/user/throttle-config.yaml"
 
 VALID_SETTINGS = {"read_lines_limit" => "number"}
+CONTAINER_LOG_DRIVER = ENV['USE_CRIO'] == 'true' ? "CRIO" : "JSON_FILE"
+POS_FILE = CONTAINER_LOG_DRIVER + "_POS_FILE"
+READ_FROM_HEAD = CONTAINER_LOG_DRIVER + "_READ_FROM_HEAD"
+CONT_LOGS_PATH = CONTAINER_LOG_DRIVER + "_PATH"
 
-def json_pos_file
-  ENV['JSON_FILE_POS_FILE'] || '/var/log/es-containers.log.pos'
+def cont_pos_file
+  ENV[POS_FILE] || '/var/log/es-containers.log.pos'
 end
 
-def get_json_pos_file_name(name)
+def get_cont_pos_file_name(name)
   return "/var/log/es-container-#{name}.log.pos"
 end
 
@@ -80,7 +84,7 @@ end
 
 ## This will copy the pos entries from the throttle configs back to the default pos file
 def revert_throttle()
-  get_all_throttle_files.each { |file_name| move_pos_file_project_entry(file_name, json_pos_file, '.*') }
+  get_all_throttle_files.each { |file_name| move_pos_file_project_entry(file_name, cont_pos_file, '.*') }
 end
 
 def seed_file(file_name, project)
@@ -91,10 +95,10 @@ def seed_file(file_name, project)
     ## openshift-* is a protected project prefix -- so users would not be able to create
     ## a project that starts with this. Guard taken to prevent possible collision with a
     ## user created project 'operations'
-    pos_file = get_json_pos_file_name('openshift-operations')
+    pos_file = get_cont_pos_file_name('openshift-operations')
   else
     path = get_project_pattern(project)
-    pos_file = get_json_pos_file_name(project)
+    pos_file = get_cont_pos_file_name(project)
   end
 
   File.open(file_name, 'w') { |file|
@@ -109,8 +113,8 @@ def seed_file(file_name, project)
   }
 
   # Set up the initial pos file in case we had already read from container files
-  move_pos_file_project_entry(json_pos_file, pos_file, project) unless project.eql?('.operations')
-  DEFAULT_OPS_PROJECTS.each{ |ops_project| move_pos_file_project_entry(json_pos_file, pos_file, ops_project) } if project.eql?('.operations')
+  move_pos_file_project_entry(cont_pos_file, pos_file, project) unless project.eql?('.operations')
+  DEFAULT_OPS_PROJECTS.each{ |ops_project| move_pos_file_project_entry(cont_pos_file, pos_file, ops_project) } if project.eql?('.operations')
 end
 
 def write_to_file(project, key, value)
@@ -139,7 +143,7 @@ def close_file(project)
   tag kubernetes.*
   format json
   keep_time_key true
-  read_from_head "#{ENV['JSON_FILE_READ_FROM_HEAD'] || 'true'}"
+  read_from_head "#{ENV[READ_FROM_HEAD] || 'true'}"
 </source>
     CONF
   } if File.exist?(file_name)
@@ -155,13 +159,13 @@ def create_default_docker(excluded)
 <source>
   @type tail
   @label @INGRESS
-  path "#{ENV['JSON_FILE_PATH'] || '/var/log/containers/*.log'}"
-  pos_file "#{ENV['JSON_FILE_POS_FILE'] || '/var/log/es-containers.log.pos'}"
+  path "#{ENV[CONT_LOGS_PATH] || '/var/log/containers/*.log'}"
+  pos_file "#{ENV[POS_FILE] || '/var/log/es-containers.log.pos'}"
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format #{ENV['USE_CRIO'] == 'true' ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/' : 'json'}
   keep_time_key true
-  read_from_head "#{ENV['JSON_FILE_READ_FROM_HEAD'] || 'true'}"
+  read_from_head "#{ENV[READ_FROM_HEAD] || 'true'}"
   exclude_path #{excluded}
 </source>
     CONF

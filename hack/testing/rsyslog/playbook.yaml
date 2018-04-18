@@ -1,0 +1,216 @@
+---
+- name: install/configure prerequisites
+  hosts: all
+  gather_facts: true
+  tasks:
+  - name: get patched rsyslog repo
+    get_url:
+      url: https://copr.fedorainfracloud.org/coprs/rmeggins/rsyslog/repo/epel-7/rmeggins-rsyslog-epel-7.repo
+      dest: /etc/yum.repos.d/rmeggins-rsyslog-epel-7.repo
+      mode: 0444
+    when: use_mmk8s | default(True)
+
+  - name: install prereqs
+    yum: state=latest name={{ item }}
+    with_items:
+    - rsyslog
+    - rsyslog-mmnormalize
+    - rsyslog-mmjsonparse
+    - nmap-ncat
+    - systemd-python
+    - rsyslog-elasticsearch
+    - policycoreutils
+    - checkpolicy
+    - policycoreutils-python
+
+  - name: pkgs
+    yum: state=latest name={{ item }}
+    with_items:
+    - rsyslog-mmkubernetes
+    when: use_mmk8s | default(True)
+
+  - name: create rsyslog viaq subdir
+    file: path=/etc/rsyslog.d/viaq state=directory mode=0700
+
+  - name: get fluentd secret for token and k8s CA
+    shell: |
+      for name in $( oc get -n {{ openshift_logging_namespace }} sa aggregated-logging-fluentd -o jsonpath='{.secrets[*].name}' ) ; do
+        case $name in
+        *-fluentd-token-*) echo $name ; break ;;
+        esac
+      done
+    register: fluentdsecret
+    when: use_mmk8s | default(True)
+
+  - name: get fluentd token
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=token --to=-
+    register: fluentdtoken
+    when: use_mmk8s | default(True)
+
+  - name: get fluentd CA cert for k8s
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=ca.crt --to=-
+    register: fluentdcak8s
+    when: use_mmk8s | default(True)
+
+  - name: install token file
+    copy: content={{ fluentdtoken.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.token mode=0400
+    when: use_mmk8s | default(True)
+
+  - name: install CA cert file
+    copy: content={{ fluentdcak8s.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.ca.crt mode=0400
+    when: use_mmk8s | default(True)
+
+  - name: get k8s api url from node kubeconfig
+    shell: |
+      found=0
+      for file in /etc/origin/node/node*.kubeconfig \
+        /etc/origin/node/system\:node\:*.kubeconfig \
+        /var/lib/origin/openshift.local.config/node*/*.kubeconfig ; do
+        if [ -f "$file" ] ; then
+          oc --config="$file" config view -o jsonpath='{.clusters[0].cluster.server}'
+          found=1
+          break
+        fi
+      done
+      if [ $found -eq 0 ] ; then
+          oc config view -o jsonpath='{.clusters[0].cluster.server}'
+      fi
+    register: k8s_api_url
+    when:
+    - openshift_master_api_url is not defined
+    - use_mmk8s | default(True)
+
+  - name: set k8s api url
+    set_fact:
+      openshift_master_api_url: "{{ k8s_api_url.stdout }}"
+    when:
+    - openshift_master_api_url is not defined
+    - use_mmk8s | default(True)
+
+  - name: install template config files
+    template: src={{ item }}.j2 dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
+    with_items:
+    - mmk8s.conf
+    when: use_mmk8s | default(True)
+
+  - name: get fluentd CA cert for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=ca --to=-
+    register: fluentdcaes
+
+  - name: get fluentd client cert for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=cert --to=-
+    register: fluentdcert
+
+  - name: get fluentd client key for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=key --to=-
+    register: fluentdkey
+
+  - name: get es ip addr
+    command: >
+      oc get -n {{ openshift_logging_namespace }} endpoints logging-es -o jsonpath='{.subsets[0].addresses[0].ip}'
+    register: esip
+    when: elasticsearch_server_host is not defined
+
+  - name: setup host alias for es ip
+    shell: |
+      if grep -q '^{{ esip.stdout }} .* logging-es$' ; then
+        echo already have alias logging-es for {{ esip.stdout }}
+      else
+        sudo sed -i '/^{{ esip.stdout }}/d' /etc/hosts
+        sudo sed -i '/ logging-es$/d' /etc/hosts
+        echo {{ esip.stdout }} logging-es | sudo tee -a /etc/hosts
+      fi
+    when: elasticsearch_server_host is not defined
+
+  - name: install ES CA cert file
+    copy: content={{ fluentdcaes.stdout }} dest=/etc/rsyslog.d/viaq/es-ca.crt mode=0400
+
+  - name: install ES client cert file
+    copy: content={{ fluentdcert.stdout }} dest=/etc/rsyslog.d/viaq/es-cert.pem mode=0400
+
+  - name: install ES client key file
+    copy: content={{ fluentdkey.stdout }} dest=/etc/rsyslog.d/viaq/es-key.pem mode=0400
+
+  - name: handle es-ops
+    when: openshift_logging_use_ops
+    block:
+    - name: get es-ops ip addr
+      command: >
+        oc get -n {{ openshift_logging_namespace }} endpoints logging-es-ops -o jsonpath='{.subsets[0].addresses[0].ip}'
+      register: esopsip
+      when: elasticsearch_ops_server_host is not defined
+
+    - name: setup host alias for es-ops ip
+      shell: |
+        if grep -q '^{{ esopsip.stdout }} .* logging-es-ops$' ; then
+          echo already have alias logging-es-ops for {{ esopsip.stdout }}
+        else
+          sudo sed -i '/^{{ esopsip.stdout }}/d' /etc/hosts
+          sudo sed -i '/ logging-es-ops$/d' /etc/hosts
+          echo {{ esopsip.stdout }} logging-es-ops | sudo tee -a /etc/hosts
+        fi
+      when: elasticsearch_server_host is not defined
+
+  - name: install template config files
+    template: src={{ item }}.j2 dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
+    with_items:
+    - elasticsearch.conf
+
+  - name: install config files
+    copy: src={{ item }} dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
+    with_items:
+    - normalize_level.json
+    - prio_to_level.json
+    - viaq_formatting.conf
+    - k8s_filename.rulebase
+    - k8s_container_name.rulebase
+    - parse_json.rulebase
+
+  - name: install main viaq config file
+    copy: src={{ item }} dest=/etc/rsyslog.d/{{ item }} mode=0400
+    with_items:
+    - viaq_main.conf
+
+  - name: copy selinux policy files
+    copy: src={{ item }} dest=/root/ mode=0400
+    with_items:
+    - rsyslog2k8s.te
+    - rsyslog2es.te
+    - varlibdockercont.te
+    - rsyslogaccessnssdb.te
+
+  - name: build policy
+    shell: |
+      cd /root
+      sysmods=$( semodule -l | awk '{print $1}' )
+      for mod in varlibdockercont rsyslog2k8s rsyslogaccessnssdb rsyslog2es ; do
+        if echo "$sysmods" | grep -q $mod ; then
+          echo using existing selinux module $mod
+        elif [ -f ${mod}.te ] ; then
+          checkmodule -M -m -o ${mod}.mod ${mod}.te
+          semodule_package -o ${mod}.pp -m ${mod}.mod
+          semodule -i ${mod}.pp
+        fi
+      done
+
+  # openshift devenv is very noisy - need to increase rsyslog limits for imjournal
+  - name: Update rsyslog.conf imjournal
+    lineinfile:
+      dest: /etc/rsyslog.conf
+      regexp: '^(\$ModLoad imjournal|module\(load="imjournal")'
+      line: 'module(load="imjournal" StateFile="imjournal.state" UsePidFromSystem="on" RateLimit.Burst="{{ imjournal_ratelimit_burst|default(1000000) }}" RateLimit.Interval="{{ imjournal_ratelimit_interval|default(10) }}" PersistStateInterval="1000")'
+      backup: yes
+
+  - name: Comment out rsyslog.conf IMJournalStateFile
+    lineinfile:
+      dest: /etc/rsyslog.conf
+      regexp: '^\$IMJournalStateFile|^#\$IMJournalStateFile'
+      line: '#$IMJournalStateFile imjournal.state'
+
+  - name: restart rsyslog
+    systemd: name=rsyslog state=restarted

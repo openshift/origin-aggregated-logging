@@ -3,15 +3,19 @@ Introduction
 
 When Fluentd is collecting node logs, the main sources are the system logs from
 the journal, and container logs, the source of which depends on the `docker
---log-driver` configuration:
+--log-driver` configuration and container runtime selection configured in
+`/etc/origin/node/node-config.yaml` mounted to fluentd container from host:
 
 * `journald` - container logs are written to the journal and denoted with the
   `CONTAINER_NAME` field
 * `json-file` - container logs are made available in `/var/log/containers`
   (through a long a complicated process of several layers of symlinks).
+* `cri-o` - container logs are made available in `/var/log/containers` similarly
+  to the `json-file` log driver but with cri-o format
 
 Fluentd will always read system logs from the journal, and will always read
-container logs from both `journald` and `json-file`.
+container logs from `journald` or `/var/log/containers`, latter formatted either
+as `json` or `cri-o`.
 
 ### JSON file container log parameters ###
 
@@ -27,6 +31,21 @@ reading from where it left off if the Fluentd pod is restarted.
 * `JSON_FILE_READ_FROM_HEAD` - default `true` - if `false`, start reading from
 the tail/end of the file.  If the `JSON_FILE_POS_FILE` exists and has an
 entry for this file, the `JSON_FILE_READ_FROM_HEAD` setting is ignored.
+
+### cri-o container log parameters ###
+
+Just like the json-file, these are provided for documentation purposes only.
+Do not set these unless you know what you are doing.
+
+* `CRIO_FILE_PATH` - default `/var/log/containers/*.log` - full path and filename
+match pattern for docker json-file log driver logs
+* `CRIO_FILE_POS_FILE` - default `/var/log/es-containers.log.pos` - full path
+and filename for the Fluentd `in_tail` position file.  This file should be on a
+persistent volume (e.g. bind mounted from the host) so that Fluentd can resume
+reading from where it left off if the Fluentd pod is restarted.
+* `CRIO_FILE_READ_FROM_HEAD` - default `true` - if `false`, start reading from
+the tail/end of the file.  If the `CRIO_FILE_POS_FILE` exists and has an
+entry for this file, the `CRIO_FILE_READ_FROM_HEAD` setting is ignored.
 
 ### journal parameters ###
 

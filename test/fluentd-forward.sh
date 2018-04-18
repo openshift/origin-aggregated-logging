@@ -57,6 +57,10 @@ update_current_fluentd() {
       else
     # edit so we don't send to ES
     oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+      <filter **>\
+        @type record_transformer\
+        remove_keys _id, viaq_msg_id\
+      </filter>\
       <match **>\
         @type copy\
         @include configs.d/user/secure-forward1.conf\
@@ -245,16 +249,16 @@ os::log::info Starting fluentd-forward test at $( date )
 # make sure fluentd is working normally
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-os::cmd::expect_success wait_for_fluentd_to_catch_up
+wait_for_fluentd_to_catch_up
 
 # FORWARDCNT must be 1 or 2
 FORWARDCNT=1
 create_forwarding_fluentd
 update_current_fluentd
-os::cmd::expect_success wait_for_fluentd_to_catch_up
+wait_for_fluentd_to_catch_up
 cleanup
 
 FORWARDCNT=2
 create_forwarding_fluentd
 update_current_fluentd
-os::cmd::expect_success "wait_for_fluentd_to_catch_up '' '' 2"
+wait_for_fluentd_to_catch_up '' '' 2

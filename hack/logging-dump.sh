@@ -99,7 +99,7 @@ check_project_info() {
   echo -- Project Description
   oc get namespace ${NAMESPACE} -o yaml > $project_folder/logging-project
   echo -- Events
-  oc get events > $project_folder/events
+  oc get events --sort-by='.lastTimestamp' > $project_folder/events
   # Don't get the secrets content for security reasons
   echo -- Secrets
   oc describe secrets > $project_folder/secrets
