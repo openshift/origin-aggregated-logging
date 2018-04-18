@@ -60,69 +60,65 @@ popd > /dev/null
 
 get_logmessage() {
     logmessage="$1"
+    cp $2 $ARTIFACT_DIR/zzz-rsyslog-record.json
 }
 get_logmessage2() {
     logmessage2="$1"
+    cp $2 $ARTIFACT_DIR/zzz-rsyslog-record-ops.json
 }
 sudo systemctl stop rsyslog
 # make test run faster by resetting journal cursor to "now"
 sudo journalctl -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
 sudo systemctl start rsyslog
 sleep 10
-# we're actually waiting for rsyslog instead . . .
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
-fullmsg="GET /${logmessage} 404 "
-qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-proj=$ARTIFACT_DIR/rsyslog-proj.json
-curl_es $es_pod /project.logging.*/_search -X POST -d "$qs" | jq .hits.hits[0] > $proj 2>&1
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${logmessage2}"'"}}}'
-ops=$ARTIFACT_DIR/rsyslog-ops.json
-curl_es $es_ops_pod /.operations.*/_search -X POST -d "$qs" | jq .hits.hits[0] > $ops 2>&1
+proj=$ARTIFACT_DIR/zzz-rsyslog-record.json
+ops=$ARTIFACT_DIR/zzz-rsyslog-record-ops.json
 
 # see if the kubernetes metadata matches
-actual_pod_name=$( cat $proj | jq -r ._source.kubernetes.pod_name )
-actual_ns_name=$( cat $proj | jq -r ._source.kubernetes.namespace_name )
-actual_pod_id=$( cat $proj | jq -r ._source.kubernetes.pod_id )
-actual_ns_id=$( cat $proj | jq -r ._source.kubernetes.namespace_id )
-actual_pod_host=$( cat $proj | jq -r ._source.kubernetes.host )
+actual_pod_name=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.pod_name )
+actual_ns_name=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.namespace_name )
+actual_pod_id=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.pod_id )
+actual_ns_id=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.namespace_id )
+actual_pod_host=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.host )
 os::cmd::expect_success "test $actual_pod_id = $( oc get pod $actual_pod_name -o jsonpath='{.metadata.uid}' )"
 os::cmd::expect_success "test $actual_pod_host = $( oc get pod $actual_pod_name -o jsonpath='{.spec.nodeName}' )"
 os::cmd::expect_success "test $actual_ns_id = $( oc get project $actual_ns_name -o jsonpath='{.metadata.uid}' )"
 oc get pod $actual_pod_name -o json | jq -S .metadata.labels | \
     jq 'with_entries(.key |= gsub("[.]";"_"))' > $ARTIFACT_DIR/zzz-rsyslog-expected-labels.json
-cat $proj | jq -S ._source.kubernetes.labels > $ARTIFACT_DIR/zzz-rsyslog-actual-labels.json
+cat $proj | jq -S '.hits.hits[0]._source.kubernetes.labels' > $ARTIFACT_DIR/zzz-rsyslog-actual-labels.json
 os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-labels.json $ARTIFACT_DIR/zzz-rsyslog-actual-labels.json"
 
 oc get pod $actual_pod_name -o json | jq -S .metadata.annotations | \
     jq 'with_entries(.key |= gsub("[.]";"_"))' > $ARTIFACT_DIR/zzz-rsyslog-expected-annotations.json
-cat $proj | jq -S ._source.kubernetes.annotations > $ARTIFACT_DIR/zzz-rsyslog-actual-annotations.json
+cat $proj | jq -S '.hits.hits[0]._source.kubernetes.annotations' > $ARTIFACT_DIR/zzz-rsyslog-actual-annotations.json
 os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-annotations.json $ARTIFACT_DIR/zzz-rsyslog-actual-annotations.json"
 
 if [ -n "$( oc get project $actual_ns_name -o jsonpath='{.metadata.labels}')" ] ; then
     oc get project $actual_ns_name -o json | jq -S .metadata.labels | \
         jq 'with_entries(.key |= gsub("[.]";"_"))' > $ARTIFACT_DIR/zzz-rsyslog-expected-nslabels.json
-    cat $proj | jq -S ._source.kubernetes.namespace_labels > $ARTIFACT_DIR/zzz-rsyslog-actual-nslabels.json
+    cat $proj | jq -S '.hits.hits[0]._source.kubernetes.namespace_labels' > $ARTIFACT_DIR/zzz-rsyslog-actual-nslabels.json
     os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-nslabels.json $ARTIFACT_DIR/zzz-rsyslog-actual-nslabels.json"
 else
-    os::cmd::expect_success_and_text "cat $proj | jq ._source.metadata.namespace_labels" "^null\$"
+    os::cmd::expect_success_and_text "cat $proj | jq .hits.hits[0]._source.metadata.namespace_labels" "^null\$"
 fi
 
 if [ -n "$( oc get project $actual_ns_name -o jsonpath='{.metadata.annotations}')" ] ; then
     oc get project $actual_ns_name -o json | jq -S .metadata.annotations | \
         jq 'with_entries(.key |= gsub("[.]";"_"))' > $ARTIFACT_DIR/zzz-rsyslog-expected-nsannotations.json
-    cat $proj | jq -S ._source.kubernetes.namespace_annotations > $ARTIFACT_DIR/zzz-rsyslog-actual-nsannotations.json
+    cat $proj | jq -S '.hits.hits[0]._source.kubernetes.namespace_annotations' > $ARTIFACT_DIR/zzz-rsyslog-actual-nsannotations.json
     os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-nsannotations.json $ARTIFACT_DIR/zzz-rsyslog-actual-nsannotations.json"
 else
-    os::cmd::expect_success_and_text "cat $proj | jq ._source.metadata.namespace_annotations" "^null\$"
+    os::cmd::expect_success_and_text "cat $proj | jq .hits.hits[0]._source.metadata.namespace_annotations" "^null\$"
 fi
 
 # see if ops fields are present
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.systemd.t.TRANSPORT" "^null$"
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.systemd.t.SELINUX_CONTEXT" "^null$"
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.systemd.u.SYSLOG_FACILITY" "^null$"
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.systemd.u.SYSLOG_PID" "^null$"
-os::cmd::expect_success_and_text "cat $ops | jq -r ._source.message" "^${logmessage2}\$"
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.level" "^null$"
-os::cmd::expect_success_and_not_text "cat $ops | jq -r ._source.hostname" "^null$"
-ts=$( cat $ops | jq -r '._source."@timestamp"' )
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.t.TRANSPORT" "^null$"
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.t.SELINUX_CONTEXT" "^null$"
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.u.SYSLOG_FACILITY" "^null$"
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.u.SYSLOG_PID" "^null$"
+os::cmd::expect_success_and_text "cat $ops | jq -r .hits.hits[0]._source.message" "^${logmessage2}\$"
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.level" "^null$"
+os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.hostname" "^null$"
+ts=$( cat $ops | jq -r '.hits.hits[0]._source."@timestamp"' )
 os::cmd::expect_success "test ${ts} != null"
