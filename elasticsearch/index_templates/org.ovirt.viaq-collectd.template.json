@@ -8,7 +8,7 @@
         "enabled": false
       },
       "_meta": {
-        "version": "2018.02.15.0"
+        "version": "2018.04.03.0"
       },
       "_source": {
         "enabled": false
@@ -1291,6 +1291,11 @@
           "analyzer": "whitespace",
           "doc_values": false,
           "index": "analyzed",
+          "type": "string"
+        },
+        "viaq_msg_id": {
+          "doc_values": true,
+          "index": "not_analyzed",
           "type": "string"
         }
       }
