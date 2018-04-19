@@ -350,7 +350,7 @@ artifact_out() {
 # e.g. 2 or 5 or 6
 get_es_major_ver() {
     local es_pod=$( get_es_pod es )
-    curl_es $es_pod "" | jq -r '.version.number | split(".")[0]'
+    curl_es $es_pod "/" | jq -r '.version.number | split(".")[0]'
 }
 
 # fields are given like this: c a r s q
