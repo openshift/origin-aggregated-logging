@@ -1,6 +1,2 @@
 #! /bin/bash
-
-set -o nounset
-set -o pipefail
-
-set -a && source /etc/sysconfig/kibana
+# no-op

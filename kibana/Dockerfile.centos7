@@ -6,10 +6,10 @@ EXPOSE 5601
 
 ENV ELASTICSEARCH_URL=https://logging-es:9200 \
     HOME=/opt/app-root/src \
-    KIBANA_HOME=/usr/share/kibana \
-    KIBANA_CONF_DIR=/etc/kibana \
-    KIBANA_VER=5.5.2 \
     KIBANA_BIN=/usr/share/kibana/bin/kibana \
+    KIBANA_CONF_DIR=/etc/kibana \
+    KIBANA_HOME=/usr/share/kibana \
+    KIBANA_VER=5.5.2 \
     RELEASE_STREAM=origin
 
 LABEL io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
