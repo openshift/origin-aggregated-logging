@@ -78,11 +78,11 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 		os::log::fatal "Elasticsearch pod ${elasticsearch_pod} isn't master and was unable to detect a master"
 	fi
 
-	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} has persisted indices created by Fluentd..."
-	os::cmd::try_until_text "curl_es '${elasticsearch_pod}' '/_cat/indices?h=index'" "^(project|\.operations)\." "$(( 10*TIME_MIN ))"
 	# We are interested in indices with one of the following formats:
 	#     .operations.<year>.<month>.<day>
 	#     project.<namespace>.<uuid>.<year>.<month>.<day>
+	# BUT NOTE: There may be no project.* indices yet, and logs from projects
+	#     default openshift openshift-* will go to .operations
 	for index in $( curl_es "${elasticsearch_pod}" '/_cat/indices?h=index' ); do
 		if [[ "${index}" == ".operations"* ]]; then
 			# If this is an operations index, we will be searching
