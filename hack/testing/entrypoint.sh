@@ -102,10 +102,16 @@ monitor_es_bulk_stats() {
     cp $KUBECONFIG $ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
     export KUBECONFIG=$ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
     oc project ${LOGGING_NS} > /dev/null
-    es_ver=$( get_es_major_ver )
+    # wait for espod
+    local espod=$( get_es_pod es 2> /dev/null ) || :
+    while [ -z "${espod}" ] ; do
+        sleep 1
+        espod=$( get_es_pod es 2> /dev/null ) || :
+    done
+    es_ver=$( get_es_major_ver ) || :
     bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
     while true ; do
-        local espod=$( get_es_pod es 2> /dev/null ) || :
+        espod=$( get_es_pod es 2> /dev/null ) || :
         local esopspod=$( get_es_pod es-ops 2> /dev/null ) || :
         esopspod=${esopspod:-$espod}
         if [ -n "${espod}" ] ; then

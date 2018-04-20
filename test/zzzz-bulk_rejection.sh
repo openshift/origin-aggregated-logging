@@ -71,7 +71,7 @@ oc get cm/logging-elasticsearch -o yaml > $es_cm
 # change queue size and pool size to make it easy to hit limit
 oc get cm/logging-elasticsearch -o yaml | \
     sed '/^  elasticsearch.yml/a\
-    thread_pool:\
+    '$keyname':\
       bulk:\
         queue_size: 1\
         size: 1' | oc replace --force -f - 2>&1 | artifact_out
