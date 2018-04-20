@@ -32,19 +32,23 @@ if [[ -z "${source_tag}" ]]; then
   source_tag="latest"
 fi
 
-curbranch=$( git rev-parse --abbrev-ref HEAD )
-if [[ "${curbranch:-master}" == es5.x ]] ; then
-  name_suffix="5"
-fi
-
 images=(
-  ${PREFIX}logging-curator${name_suffix:-}
+  ${PREFIX}logging-curator
   ${PREFIX}logging-fluentd
-  ${PREFIX}logging-elasticsearch${name_suffix:-}
-  ${PREFIX}logging-kibana${name_suffix:-}
+  ${PREFIX}logging-elasticsearch
+  ${PREFIX}logging-kibana
   ${PREFIX}logging-auth-proxy
   ${PREFIX}logging-eventrouter
 )
+
+curbranch=$( git rev-parse --abbrev-ref HEAD )
+if [[ "${curbranch:-master}" == es5.x ]] ; then
+  images=(
+    ${PREFIX}logging-curator5
+    ${PREFIX}logging-elasticsearch5
+    ${PREFIX}logging-kibana5
+  )
+fi
 
 PUSH_OPTS=""
 if docker push --help | grep -q force; then
