@@ -164,8 +164,7 @@ example, something like this:
     done
 
 If the tag is not in the `project.namespacename` format, the log records will
-use a namespace of `mux-undefined`, so the log records will be in an index
-named something like `project.mux-undefined.$mux-undefined_uuid.YYYY.MM.DD`
+will be in an index named something like `.orphaned.YYYY.MM.DD`
 
 ### Data Format ###
 
@@ -276,12 +275,13 @@ In addition to the above, mux will examine the tags of the incoming
 of the cluster.  It is expected that the record has the `@timestamp` field and
 is already formatted for the ViaQ data model.  If the tag matches
 `project.namespacename.**`, mux extracts the `namespacename` and passes this to
-the k8s meta filter plugin in order to get the namespace uuid.  If the tag does
-not match, mux uses a namespacename of `mux-undefined`.  Except for the k8s
+the k8s meta filter plugin in order to get the namespace uuid.  Except for the k8s
 meta filter, and the viaq filter, the record is not processed.  The record is
 written to Elasticsearch in the index
 `project.namespacename.namespaceuuid.YYYY.MM.DD`, similar to how OpenShift
 container records are written.
+If the tag does not match, the log records will will be in an index 
+`.orphaned.YYYY.MM.DD`
 
 Flow:![External Cluster mux](mux-logging-service-diag3.png)
 
@@ -360,8 +360,8 @@ The next stage in the pipeline is this filter:
 
 This examines the tag to see if it is of the form
 `project.namespacename.whatever`, and sets the field `mux_namespace_name` to
-the value of `namespacename` if it is in that form, or `mux-undefined`
-otherwise.  This also examines the record to see if the
+the value of `namespacename` if it is in that form.
+This also examines the record to see if the
 `kubernetes.metadata_uuid` field exists and has a value, to see if the record
 can bypass the k8s metadata plugin, and adds the field `mux_need_k8s_meta` with
 a value of `true` or `false`.
