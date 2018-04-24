@@ -20,3 +20,18 @@ is already created by ansible installer.
 Fluentd pod on startup automatically determines from the `node-config.yaml`
 whether to setup `in_tail` plugin to parse cri-o formatted logs in
 `/var/log/containers/*` or whether to read logs from docker driver.
+
+## Utilities
+### sanitize_msg_chunks
+Sanitize file buffer chunks by removing corrupt records.
+
+There are known [cases](https://bugzilla.redhat.com/show_bug.cgi?id=1562004) where fluentd is stuck processing
+messages that were buffered to corrupt file buffer chunks. This utility is run manually and deserializes each
+file chunk, perform a limited set of operations to confirm message validity. Use this utility by:
+
+* Stopping fluentd
+* Running the utility
+* Restarting fluentd
+
+**Note:** THIS OPERATION IS DESTRUCTIVE; It will rewrite the existing file buffer chunks.  Consider backing up
+the files before running this utility.

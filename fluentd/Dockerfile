@@ -66,6 +66,8 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+COPY utils/** ${HOME}/bin
+
 WORKDIR ${HOME}
 
 CMD ["sh", "run.sh"]
