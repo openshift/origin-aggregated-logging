@@ -98,17 +98,25 @@ monitor_es_bulk_stats() {
     cp $KUBECONFIG $ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
     export KUBECONFIG=$ARTIFACT_DIR/monitor_es_bulk_stats.kubeconfig
     oc project ${LOGGING_NS} > /dev/null
+    # wait for espod
+    local espod=$( get_es_pod es 2> /dev/null ) || :
+    while [ -z "${espod}" ] ; do
+        sleep 1
+        espod=$( get_es_pod es 2> /dev/null ) || :
+    done
+    es_ver=$( get_es_major_ver ) || :
+    bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
     while true ; do
-        local espod=$( get_es_pod es 2> /dev/null ) || :
+        espod=$( get_es_pod es 2> /dev/null ) || :
         local esopspod=$( get_es_pod es-ops 2> /dev/null ) || :
         esopspod=${esopspod:-$espod}
         if [ -n "${espod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
-            curl_es $espod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
+            curl_es $espod "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
         fi
         if [ -n "${esopspod}" -a "${espod}" != "${esopspod}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1
-            curl_es $esopspod /_cat/thread_pool?v\&h=bc,br,ba,bq,bs,bqs >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
+            curl_es $esopspod "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
         fi
         sleep $interval
     done
