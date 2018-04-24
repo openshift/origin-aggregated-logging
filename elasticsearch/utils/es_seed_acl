@@ -6,7 +6,7 @@ MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
 info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
-config=${ES_HOME}/config/elasticsearch.yml
+config=${ES_CONF}/elasticsearch.yml
 index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
 
 now=0

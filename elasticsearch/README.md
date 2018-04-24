@@ -27,7 +27,7 @@ $ oc exec -c elasticsearch $POD -- allocate-shard .kibana.02c55f18a892b365bcd180
 
 ### logs
 Retrieve Elasticsearch logs from the log directory. This command defaults to retrieving
-the file `/elasticsearch/logging-es/logs/logging-es.log` which may not be directed to
+the file `/elasticsearch/persistent/logging-es/logs/logging-es.log` which may not be directed to
 `STDOUT` by the logging configuration.
 
 Example to follow the default file:

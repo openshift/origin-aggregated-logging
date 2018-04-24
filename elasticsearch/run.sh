@@ -7,6 +7,9 @@ if [ ${DEBUG:-""} = "true" ]; then
     LOGLEVEL=7
 fi
 
+export ES_LOGS_MAX_BACKUP=${ES_LOGS_MAX_BACKUP:-7}
+export ES_LOGS_DATE_PATTERN=${ES_LOGS_DATE_PATTERN:-"'.'yyyy-MM-dd"}
+
 source "logging"
 
 info Begin Elasticsearch startup script
@@ -23,6 +26,47 @@ REPLICA_SHARDS=${REPLICA_SHARDS:-0}
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
+
+# modify configs as needed
+mkdir -p ${HOME}/config
+cp ${ES_CONF}/* ${HOME}/config
+pushd ${HOME}/config
+  if [ -f logging.yml ] && ! grep -q "io\.openshift\.log4jextras" logging.yml ; then
+    python -c '
+import yaml
+with open("logging.yml") as file:
+  c = yaml.load(file)
+  for appender in ["file", "deprecation_log_file", "index_search_slow_log_file", "index_indexing_slow_log_file"]:
+    if "appender" in c and appender in c["appender"]:
+      f = c["appender"][appender]
+      f["type"] = "io.openshift.log4jextras.appender.DailyRollingFileAppender"
+      f["maxBackupIndex"] = "${ES_LOGS_MAX_BACKUP}"
+      f["datePattern"] = "${ES_LOGS_DATE_PATTERN}"
+      f["append"] = True
+  with open("logging.new","w") as target:
+    yaml.dump(c, target)
+' ||:
+    if [ -f logging.new ] ; then
+      mv logging.new logging.yml
+    fi
+  fi
+
+  if [ -f elasticsearch.yml ] && ! grep -q '/elasticsearch/persistent/.*/logs' elasticsearch.yml ; then
+    python -c '
+import yaml
+with open("elasticsearch.yml") as file:
+  c = yaml.load(file)
+  if "path" in c and "logs" in c["path"]:
+    f = c["path"]
+    f["logs"] = "/elasticsearch/persistent/${CLUSTER_NAME}/logs"
+  with open("elasticsearch.new","w") as target:
+    yaml.dump(c, target)
+' ||:
+    if [ -f elasticsearch.new ] ; then
+      mv elasticsearch.new elasticsearch.yml
+    fi
+  fi
+popd
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
 secret_dir=/etc/elasticsearch/secret
@@ -169,4 +213,4 @@ HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
 
-exec ${ES_HOME}/bin/elasticsearch --path.conf=$ES_CONF --security.manager.enabled false
+exec ${ES_HOME}/bin/elasticsearch --path.conf=${HOME}/config --security.manager.enabled false

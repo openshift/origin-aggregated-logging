@@ -22,6 +22,9 @@ chmod -R og+w $ES_CONF ${ES_HOME} ${HOME} /elasticsearch
 chmod -R o+rx /etc/elasticsearch
 chmod +x ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
 
+#add custom log appender
+mv /tmp/lib/openshift-log4jextras/*.jar ${ES_HOME}/lib
+
 # document needed by sg plugin to properly initialize
 passwd=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 20 | head -n 1)
 cat > ${HOME}/sgconfig/sg_internal_users.yml << CONF
