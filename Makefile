@@ -4,7 +4,7 @@ build-images:
 .PHONY: build-images
 
 test:
-	EXCLUDE_SUITE=upgrade hack/testing/entrypoint.sh
+	EXCLUDE_SUITE="upgrade|test-curator" hack/testing/entrypoint.sh
 .PHONY: test
 
 test-upgrade:
