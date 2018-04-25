@@ -328,9 +328,10 @@ cleanup() {
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
     # delete indices created by this test
-    curl_es $es_svc /project.testproj.* -XDELETE
-    curl_es $es_svc /project.default.* -XDELETE
-    curl_es $es_svc /project..orphaned.* -XDELETE
+    for index in testproj default .orphaned openshift- kube-
+    do
+      curl_es $es_svc /project.$index* -XDELETE
+    done
     os::cmd::expect_success flush_fluentd_pos_files
     sudo rm -f /var/lib/fluentd/buffer*.log
     os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
