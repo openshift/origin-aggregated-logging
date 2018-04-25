@@ -92,6 +92,12 @@ f_ds=$( mktemp )
 oc get cm/logging-fluentd -o yaml > $f_cm
 oc get ds/logging-fluentd -o yaml > $f_ds
 
+# stop fluentd to make sure the logs are clear
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+fpod=$( get_running_pod fluentd )
+os::cmd::expect_success "oc label node --all logging-infra-fluentd-"
+os::cmd::try_until_failure "oc get pod $fpod"
+
 # turn on debug output
 cat $f_cm | \
     sed -e 's,@include configs.d/openshift/system.conf,<system>\
@@ -99,6 +105,18 @@ cat $f_cm | \
     </system>,' | oc replace --force -f -
 
 oc set env ds/logging-fluentd DEBUG=true
+
+# the -r is because some tests create subdirs of this
+sudo rm -rf /var/lib/fluentd/*
+sudo rm -f /var/log/journal.pos
+
+os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
+os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+wait_for_fluentd_ready
+fpod=$( get_running_pod fluentd )
+
+# wait for fluentd to get up and running
+sleep 15
 
 # create a really large bulk index request json file:
 bulktestjson=$( mktemp )
@@ -133,27 +151,12 @@ do_curl_bulk_index & curlpid=$!
 # wait for elasticsearch to report bulk index rejections
 bulk_reject_url=$( get_bulk_thread_pool_url $es_ver "" r )
 os::cmd::try_until_not_text "curl_es $esopspod ${bulk_reject_url}" "^0\$"
-
-# restart fluentd to make sure the logs are clear
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-fpod=$( get_running_pod fluentd )
-oc delete pod --force $fpod
-os::cmd::try_until_failure "oc get pod $fpod"
-sleep 1
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-fpod=$( get_running_pod fluentd )
-
-# wait for BulkIndexQueueFull errors in fluentd log
-flog=/var/log/fluentd.log
-os::cmd::try_until_success "grep -q BulkIndexQueueFull /var/log/fluentd.log" $(( 300 * second ))
+start_bulk_rejections=$( curl_es $esopspod ${bulk_reject_url} )
 
 # write some messages
 uuid_es_ops=$( openssl rand -hex 64 )
-
-wait_for_fluentd_ready
 countops=500
 os::log::info Adding $countops operations log records . . .
-starttime=$( date +%s )
 # not sure why, but it seems the operations messages get sent
 # to es much faster - so add more of them to see if we can get
 # them to be rejected
@@ -163,6 +166,7 @@ python -c 'import sys
 for ii in xrange(1,int(sys.argv[1])+1):
     print "{0}-{1}".format(sys.argv[2], ii)
 ' $countops $uuid_es_ops > $opsloglines
+starttime=$( date +%s )
 logger -i -p local6.info -t $uuid_es_ops -f $opsloglines
 rm -f $opsloglines
 
@@ -183,6 +187,11 @@ fi
 echo done > $bulkdonefile
 wait $curlpid
 endtime=$( date +%s )
+end_bulk_rejections=$( curl_es $esopspod ${bulk_reject_url} )
+
+if ! os::cmd::expect_success "test ${start_bulk_rejections} -lt ${end_bulk_rejections}" ; then
+    os::log::warning No bulk rejections reported between $( date --date=@$starttime ) and $( date --date=@$endtime )
+fi
 
 # check the logs to see if there are bulk index rejection errors between starttime and endtime
 found=
@@ -210,12 +219,7 @@ while read datestr timestr tz logline ; do
             lastsuc=$dt
         fi
     fi
-done < $flog
-
-if [ -z "${found:-}" ] ; then
-    os::log::error There were no bulk index errors recorded by fluentd during the test run between $( date --date=@$starttime ) and $( date --date=@$endtime )
-    exit 1
-fi
+done < /var/log/fluentd.log
 
 os::log::info There were $founderr bulk index errors and $foundsuc successful retries recorded by fluentd during the test run between $( date --date=@$starttime ) and $( date --date=@$endtime )
 
