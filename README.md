@@ -1,4 +1,8 @@
-# Origin-Aggregated-Logging [![Build Status](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test-origin-aggregated-logging)](https://ci.openshift.redhat.com/jenkins/job/test-origin-aggregated-logging)
+# Origin-Aggregated-Logging
+* Build and Push - master - [![Build and Push - master](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=build-and-release-latest-origin-aggregated-logging)](https://ci.openshift.redhat.com/jenkins/view/All/job/build-and-release-latest-origin-aggregated-logging/)
+* Build and Push - branch release - [![Build and Push - branch release](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=push_origin_aggregated_logging_release)](https://ci.openshift.redhat.com/jenkins/view/All/job/push_origin_aggregated_logging_release/)
+* Test Pull Request - master/journald - [![Test Pull Request - master/journald](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test_pull_request_openshift_ansible_logging)](https://ci.openshift.redhat.com/jenkins/view/All/job/test_pull_request_openshift_ansible_logging/)
+* Test Pull Request - master/json-file - [![Test Pull Request - master/json-file](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test_pull_request_origin_aggregated_logging_json_file)](https://ci.openshift.redhat.com/jenkins/view/All/job/test_pull_request_origin_aggregated_logging_json_file/)
 
 This repo contains the image definitions for the components of the logging
 stack as well as tools for building and deploying them.  The logging subsystem
@@ -71,3 +75,6 @@ Additionally, see [Checking EFK Health](docs/checking-efk-health.md)
 
 Any issues against the origin stack can be filed at https://github.com/openshift/origin-aggregated-logging/issues.  Please
 include as many [details](docs/issues.md) as possible in order to assist us in resolving the issue.
+
+## Troubleshooting CI
+[Troubleshooting CI](docs/troubleshooting-ci.md)
