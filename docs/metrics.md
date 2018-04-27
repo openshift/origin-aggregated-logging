@@ -40,8 +40,8 @@ The implementation of metrics is such that requests between the oauth-proxy and 
 ```
   <oauth token>     ---------------   <username/passwd>   -----------------
     Request   ----> | oauth-proxy | ----- Request ------> | Elasticsearch |
+    Response  <---- |             | <---- Respose ------- |               |
                     ---------------                       -----------------
-              <------------------- Response ----------------------|      
 ```
 ### Scrape Rules
 A service is deployed for the metrics endpoint which is [annotated](https://github.com/openshift/openshift-ansible/blob/master/roles/openshift_logging_elasticsearch/tasks/main.yaml#L395) to allow auto-discovery of the
