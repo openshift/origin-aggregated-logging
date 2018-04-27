@@ -1,4 +1,4 @@
-FROM rhel7.3:7.3-released
+FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -20,16 +20,7 @@ ENV HOME=/opt/app-root/src \
     CURATOR_VER=3.5.0-2 \
     CURATOR_TIMEOUT=300
 
-LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator ${CURATOR_VER}" \
-  io.openshift.tags="logging,elk,elasticsearch,curator" \
-  com.redhat.component=logging-curator-docker \
-  name="openshift3/logging-curator" \
-  version="3.6.0" \
-  release="1" \
-  architecture=x86_64
-
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
+RUN yum-config-manager --enable rhel-7-server-ose-3.8-rpms \
                        --enable rhel-7-server-extras-rpms && \
     INSTALL_PKGS="elastic-curator-${CURATOR_VER}.el7 \
                   PyYAML \
@@ -51,3 +42,16 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
 WORKDIR ${HOME}
 USER 1001
 CMD ["python", "-u", "run_cron.py"]
+
+LABEL \
+        io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
+        com.redhat.component="logging-curator-docker" \
+        vendor="Red Hat" \
+        name="openshift3/logging-curator" \
+        License="GPLv2+" \
+        io.k8s.display-name="Curator 3.5.0-2" \
+        version="v3.9.27" \
+        architecture="x86_64" \
+        release="1" \
+        io.openshift.tags="logging,elk,elasticsearch,curator"
+
