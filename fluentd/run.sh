@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export MERGE_JSON_LOG=${MERGE_JSON_LOG:-true}
 CFG_DIR=/etc/fluent/configs.d
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
 OCP_FLUENTD_TAGS=""
@@ -37,6 +38,13 @@ if [[ -f "$node_config" ]]; then
 else
     echo "WARNING: Unable to check for cri-o"
 fi
+
+issue_deprecation_warnings() {
+  if grep -q '$.*merge_json_log .*true.*$' ${CFG_DIR}/openshift/filter-k8s-meta.conf ||
+      [ "z${MERGE_JSON_LOG:-}" = "ztrue" ]; then
+        echo "[DEPRECATION WARNING]: 'merge_json_log' for the fluent-plugin-kubernetes_metadata_filter will no longer be supported in future releases"
+  fi
+}
 
 docker_uses_journal() {
     # need to be able to handle cases like
@@ -341,6 +349,8 @@ if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
   rm -f $CFG_DIR/openshift/filter-exclude-journal-debug.conf
   touch $CFG_DIR/openshift/filter-exclude-journal-debug.conf
 fi
+
+issue_deprecation_warnings
 
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
