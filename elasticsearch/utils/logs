@@ -17,7 +17,7 @@
 set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-logging-es}
-log_dir=/elasticsearch/${CLUSTER_NAME}/logs
+log_dir=/elasticsearch/persistent/${CLUSTER_NAME}/logs
 file=${1:-$CLUSTER_NAME.log}
 cmd=cat
 
