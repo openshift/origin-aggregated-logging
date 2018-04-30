@@ -1100,6 +1100,34 @@ type: keyword
 Cluster name of the oVirt host.
 
 
+==== ovirt.class
+
+type: keyword
+
+Class name of the oVirt host.
+
+
+==== ovirt.module_lineno
+
+type: keyword
+
+Module and line number of the oVirt host.
+
+
+==== ovirt.thread
+
+type: keyword
+
+Thread name of the oVirt host.
+
+
+==== ovirt.correlationid
+
+type: keyword
+
+Correlation ID of the oVirt host.
+
+
 
 '''
 [[exported-fields-aushape]]
