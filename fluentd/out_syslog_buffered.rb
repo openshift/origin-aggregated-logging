@@ -14,7 +14,7 @@ module Fluent
     config_param :port, :integer, :default => 25
     config_param :hostname, :string, :default => ""
     config_param :remove_tag_prefix, :string, :default => nil
-    config_param :tag_key, :array, default: nil
+    config_param :tag_key, :array, default: []
     config_param :facility, :string, :default => 'user'
     config_param :severity, :string, :default => 'debug'
     config_param :use_record, :string, :default => nil
@@ -124,7 +124,7 @@ module Fluent
       end
       @packet.time = time
       @packet.tag = @random_string
-      if @tag_key.any? && record.any?
+      if !@tag_key.empty? && !record.empty?
         # tag_key is an array type
         # E.g., tag_key ident,systemd.u.SYSLOG_IDENTIFIER,ident
         #       tkey = ident
