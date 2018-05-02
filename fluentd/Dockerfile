@@ -47,7 +47,8 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.9-rpms && \
                 rubygem-fluent-plugin-rewrite-tag-filter \
                 rubygem-fluent-plugin-secure-forward \
                 rubygem-fluent-plugin-systemd \
-                rubygem-fluent-plugin-viaq_data_model" && \
+                rubygem-fluent-plugin-viaq_data_model \
+                rubygem-fluent-plugin-prometheus" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all

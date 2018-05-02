@@ -106,6 +106,7 @@ def seed_file(file_name, project)
     file.write(<<-CONF)
 <source>
   @type tail
+  @id #{project}-input
   @label @INGRESS
   path #{path}
   pos_file #{pos_file}
@@ -158,6 +159,7 @@ def create_default_docker(excluded)
     file.write(<<-CONF)
 <source>
   @type tail
+  @id docker-input
   @label @INGRESS
   path "#{ENV[CONT_LOGS_PATH] || '/var/log/containers/*.log'}"
   pos_file "#{ENV[POS_FILE] || '/var/log/es-containers.log.pos'}"
