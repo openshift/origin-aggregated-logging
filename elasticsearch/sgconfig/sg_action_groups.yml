@@ -72,7 +72,10 @@ INDEX_ANY_ADMIN:
   - READ
 
 INDEX_KIBANA:
-  - ALL
+  - MANAGE
+  - INDEX
+  - READ
+  - DELETE
 INDEX_ANY_KIBANA:
   - INDEX_ANY_ADMIN
   - MANAGE
@@ -86,9 +89,15 @@ INDEX_PROJECT:
   - INDEX_ALL
 METRICS:
   - cluster:monitor/prometheus/metrics
+USER_ALL_INDEX_OPS:
+  - "indices:data/read/field_caps*"
 USER_CLUSTER_OPERATIONS:
   - "indices:data/read/scroll*"
   - CLUSTER_COMPOSITE_OPS_RO
+USER_KIBANA_CLUSTER_OPERATIONS:
+  - MONITOR
+  - CLUSTER_COMPOSITE_OPS
+
 
 ###### CLUSTER LEVEL ######
 
