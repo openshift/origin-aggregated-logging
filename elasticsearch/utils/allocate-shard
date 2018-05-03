@@ -1,0 +1,71 @@
+#!/bin/bash -e
+#
+# Copyright 2017 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+set -euo pipefail
+source es_util_env
+
+shard=0
+allow_primary=true
+
+helpMsg() {
+cat <<MSG
+
+ Usage: $0 <index> [es_node] [options]
+ Command to manually allocate a shard to a given Elasticsearch node
+
+   args:
+     index                Required. The index to allocate(e.g. .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674)
+     es_node              Optional. The name of the Elasticsearch node (Default: ${DC_NAME:-}
+
+   options:
+     --shard=<number>            The shard to allocate. (Default: ${shard})
+     --allow-primary=true|false  Default: true
+     --help,-h                   This message.
+MSG
+}
+
+index=${1:-}
+node=${2:-"$DC_NAME"}
+
+if [ -z "${index}" ]; then
+    helpMsg
+    exit 1
+fi
+
+while (($#))
+do
+case $1 in
+    --shard=*)
+      shard=${1#*=}
+      ;;
+    --allow-primary=*)
+      allow_primary=${1#*=}
+      ;;
+    --help|-h)
+      helpMsg
+      exit 0
+      ;;
+  esac
+  shift
+done
+
+if [ "${allow_primary}" != "true" ] ; then
+  allow_primary='false'
+fi
+
+payload="{\"commands\":[{\"allocate\":{\"index\":\"${index}\",\"shard\":${shard},\"node\":\"${node}\",\"allow_primary\":\"${allow_primary}\"}}]}"
+
+es_util --query=_cluster/reroute?pretty -XPOST -d ${payload}
