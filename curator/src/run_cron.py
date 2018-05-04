@@ -67,8 +67,11 @@ class CuratorCronJob():
         until_next_retry = 1
         es = self.get_es_client()
         while True:
-            if es.ping():
-                break
+            try:
+                if es.ping():
+                    break
+            except elasticsearch.ElasticsearchException as err:
+                self.logger.error(err)
             time.sleep(until_next_retry)
             if until_next_retry < 300:
                 until_next_retry *= 2
