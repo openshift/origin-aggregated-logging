@@ -334,8 +334,20 @@ check_elasticsearch() {
   done
 }
 
+create_html_report(){
+    echo -- Generating html report for $1
+    case $1 in
+      kibana )
+        ;;
+    esac
+
+}
+
+
+
 oc project $NAMESPACE
 echo Retrieving results to $target
+
 
 if [ ! -d ${target} ]
 then
@@ -345,4 +357,5 @@ fi
 for comp in "${components[@]}"
 do
     eval "check_${comp}" || echo Unrecognized function check_${comp} to check component: ${comp}
+    create_html_report ${comp}
 done
