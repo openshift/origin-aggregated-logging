@@ -29,10 +29,9 @@ EOF
 cleanup(){
     local return_code="$?"
 
-    for index in $(oc rsh -c elasticsearch $es_pod es_util  --query=_cat/indices?h=index,docs.count | grep pelle | awk '{ print $1 }')
-    do 
-        oc exec -c elasticsearch $es_pod -- curl --key /etc/elasticsearch/secret/admin-key   --cert /etc/elasticsearch/secret/admin-cert   --cacert /etc/elasticsearch/secret/admin-ca -XDELETE   "https://localhost:9200/$index"
-    done
+    # delete all the $NS indices
+    curl_es $espod /project.$NS.* -XDELETE || :
+
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
 
@@ -61,7 +60,10 @@ do
     while oc get namespace $NS &>/dev/null; do sleep 1; done
 done
 
-# Test indexing, if the amount of indices created other than 20, return with 1:
+# Dump indices to artifact_out before ending the test
+curl_es $es_pod /_cat/indices 2>&1 | artifact_out
+
+# Test indexing, if the amount of indices created is other than 20, exit with 1:
 amount_of_idx=$(oc rsh -c elasticsearch $espod es_util  --query=_cat/indices?h=index,docs.count | grep pelle | wc -l)
 if [ $amount_of_idx -ne 20 ]; then  exit 1; fi
 
