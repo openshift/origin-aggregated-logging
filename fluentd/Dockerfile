@@ -21,24 +21,13 @@ ENV DATA_VERSION=1.6.0 \
 
 ARG TEST_REPO
 
-LABEL io.k8s.description="Fluentd container for collecting of docker container logs" \
-      io.k8s.display-name="Fluentd ${FLUENTD_VERSION}" \
-      io.openshift.tags="logging,elk,fluentd" \
-      com.redhat.component=logging-fluentd-docker \
-      name="openshift3/logging-fluentd" \
-      version="v3.9.0" \
-      release="1" \
-      architecture=x86_64
-
-USER 0
-
-RUN test -n "${TEST_REPO}" && curl -s -o /etc/yum.repos.d/test.repo ${TEST_REPO}
-
-RUN yum-config-manager --enable rhel-7-server-ose-3.9-rpms && \
+RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
                 hostname \
                 bc \
                 iproute \
+                rubygem-syslog_protocol \
+                rubygem-fluent-mixin-config-placeholders \
                 rubygem-fluent-plugin-elasticsearch \
                 rubygem-fluent-plugin-flatten-hash \
                 rubygem-fluent-plugin-kubernetes_metadata_filter \
@@ -69,3 +58,18 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
 WORKDIR ${HOME}
 
 CMD ["sh", "run.sh"]
+
+LABEL io.k8s.display-name=Fluentd
+
+LABEL \
+        io.k8s.description="Fluentd container for collecting of container logs" \
+        com.redhat.component="logging-fluentd-container" \
+        vendor="Red Hat" \
+        name="openshift3/logging-fluentd" \
+        License="GPLv2+" \
+        io.k8s.display-name="Fluentd" \
+        version="v3.10.0" \
+        architecture="x86_64" \
+        release="0.37.0.0" \
+        io.openshift.tags="logging,elk,fluentd"
+
