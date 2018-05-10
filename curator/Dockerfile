@@ -1,4 +1,13 @@
-FROM rhel7.3:7.3-released
+#oit## This file is managed by the OpenShift Image Tool: https://github.com/openshift/enterprise-images
+#oit## by the OpenShift Continuous Delivery team (#aos-cd-team on IRC).
+#oit## 
+#oit## Any yum repos listed in this file will effectively be ignored during CD builds.
+#oit## Yum repos must be enabled in the oit configuration files.
+#oit## The content of this file is managed from an external source.
+#oit## Changes made directly in distgit will be lost during the next
+#oit## reconciliation process.
+#oit## 
+FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -17,22 +26,17 @@ ENV HOME=/opt/app-root/src \
     CURATOR_TIMEOUT=300
 
 ARG LOCAL_REPO
-ADD sources /tmp/lib/
-WORKDIR /tmp/lib
-RUN while read -r hash file ; do \
-      curl -s -o $file http://pkgs.devel.redhat.com/repo/containers/logging-curator5-container/$file/$hash/$file ; \
-    done <sources
-
 RUN if [ -n "${LOCAL_REPO}" ] ; then \
      curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
     fi
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.8-rpms \
-                       --enable rhel-7-server-extras-rpms && \
-    INSTALL_PKGS="elasticsearch-curator-5.2.0-1.x86_64.rpm \
-                  python2-ruamel-yaml" && \
+ADD elasticsearch-curator-5.2.0-1.x86_64.rpm /tmp/ocp/
+
+RUN yum install -y --setopt=tsflags=nodocs /tmp/ocp/elasticsearch-curator-5.2.0-1.x86_64.rpm && \
+    INSTALL_PKGS="python2-ruamel-yaml" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
     rpm -V elasticsearch-curator python2-ruamel-yaml && \
+    rm -rf /tmp/ocp && \
     yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
@@ -47,11 +51,15 @@ WORKDIR ${HOME}
 USER 1001
 CMD ["sh", "run.sh"]
 
-LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator ${CURATOR_VER}" \
-  io.openshift.tags="logging,elk,elasticsearch,curator" \
-  com.redhat.component=logging-curator-docker \
-  name="openshift3/logging-curator" \
-  version="3.9.0" \
-  release="1" \
-  architecture=x86_64
+LABEL \
+        io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
+        com.redhat.component="logging-curator5-container" \
+        vendor="Red Hat" \
+        name="openshift3/ose-logging-curator5" \
+        License="GPLv2+" \
+        io.k8s.display-name="Curator 5" \
+        version="v3.10.0" \
+        architecture="x86_64" \
+        release="998" \
+        io.openshift.tags="logging,elk,elasticsearch,curator"
+
