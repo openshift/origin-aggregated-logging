@@ -418,3 +418,81 @@ sudo egrep "/${mymessage}" /var/log/messages 2>&1 | artifact_out || :
 if [ $rc -eq 1 ] ; then
     exit 1
 fi
+
+title="Test 7, no tag_key"
+os::log::info $title
+
+myhost=$( hostname )
+
+if [ "$fluentdtype" = "fluentd" ] ; then
+    # make sure fluentd is running after previous test
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+
+    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
+    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+
+    mypod=$( get_running_pod fluentd )
+else
+    # make sure fluentd is running after previous test
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+
+    os::log::debug "$( oc set env daemonset/logging-fluentd FORWARD_INPUT_LOG_LEVEL=info )"
+    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+
+    # make sure mux is running after previous test
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
+    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
+    os::log::debug "$( oc set env dc/logging-mux FORWARD_INPUT_LOG_LEVEL=info USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
+    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
+
+    mypod=$( get_running_pod mux )
+fi
+os::cmd::try_until_success "oc exec $mypod find /etc/fluent/configs.d/dynamic/output-remote-syslog.conf" $MUX_WAIT_TIME
+
+artifact_log $title $mypod
+
+mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
+add_test_message $mymessage
+fullmsg="GET /${mymessage} 404 "
+qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+case "${LOGGING_NS}" in
+default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
+*) logging_index="project.${LOGGING_NS}.*" ;;
+esac
+rc=0
+if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
+    artifact_log good - found $mymessage
+else
+    artifact_log failed - not found $mymessage
+    rc=1
+fi
+os::cmd::try_until_success "sudo egrep -q '${mymessage}' /var/log/messages" $MUX_WAIT_TIME
+artifact_log Log test message by kibana: $mymessage
+sudo egrep "/${mymessage}" /var/log/messages 2>&1 | artifact_out || :
+if [ $rc -eq 1 ] ; then
+    exit 1
+fi
+
+hasNoMethodError()
+{
+    oc logs $mypod 2>&1 | artifact_out || :
+    no_tag_key_log=$( mktemp )
+    oc logs $mypod > $no_tag_key_log 2>&1 || :
+    found=$( grep NoMethodError $no_tag_key_log || : )
+    if [ "$found" == "" ]; then
+        artifact_log "good - no NoMethodError in the no tag_key case"
+        return 0
+    else
+        artifact_log "failed - NoMethodError found in the no tag_key case"
+        return 1
+    fi
+}
+hasNoMethodError
