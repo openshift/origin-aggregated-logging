@@ -119,7 +119,7 @@ wait_for_port_open() {
     exit 1
 }
 
-verify_or_add_index_templates() {
+push_index_templates() {
     wait_for_port_open
     es_seed_acl
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
@@ -146,22 +146,22 @@ verify_or_add_index_templates() {
             -w '%{response_code}' \
             $ES_REST_BASEURL/_template/$template)
         if [ $response_code == "200" ]; then
-            info "Index template '$template' already present in ES cluster"
+            info "Index template '$template' found in the cluster, overriding it"
         else
             info "Create index template '$template'"
-            curl ${DEBUG:+-v} -s -X PUT \
-                --cacert $secret_dir/admin-ca \
-                --cert $secret_dir/admin-cert \
-                --key  $secret_dir/admin-key \
-                -d@$template_file \
-                $ES_REST_BASEURL/_template/$template
         fi
+        curl ${DEBUG:+-v} -s -X PUT \
+            --cacert $secret_dir/admin-ca \
+            --cert $secret_dir/admin-cert \
+            --key  $secret_dir/admin-key \
+            -d@$template_file \
+            $ES_REST_BASEURL/_template/$template
     done
     shopt -u failglob
     info Finished adding index templates
 }
 
-verify_or_add_index_templates &
+push_index_templates &
 
 cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
 
