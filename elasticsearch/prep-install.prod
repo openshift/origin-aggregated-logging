@@ -12,4 +12,4 @@ do
     popd
     es_plugins+=" file://${es_plugin_file}"
 done
-es_plugins+=" file:///tmp/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip"
+es_plugins+=" file:///tmp/lib/elasticsearch-prometheus-exporter/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip"
