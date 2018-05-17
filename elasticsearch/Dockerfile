@@ -57,13 +57,12 @@ ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
-ADD lib/elasticsearch-prometheus-exporter/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip /tmp/
+ADD lib /tmp/lib
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
-RUN ln -s /usr/local/bin/logging ${HOME}/logging
-
-RUN ${HOME}/install.sh
-RUN rm /tmp/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
+    ${HOME}/install.sh && \
+    rm -rf /tmp/lib
 
 WORKDIR ${HOME}
 USER 1000
