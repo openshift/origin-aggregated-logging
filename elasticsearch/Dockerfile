@@ -1,4 +1,4 @@
-FROM rhel7.3:7.3-released
+FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -29,26 +29,13 @@ ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_URL
 
-LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
-      io.k8s.display-name="Elasticsearch ${ES_VER}" \
-      io.openshift.expose-services="9200:https, 9300:https" \
-      io.openshift.tags="logging,elk,elasticsearch" \
-      com.redhat.component=logging-elasticsearch-docker \
-      architecture=x86_64 \
-      name="openshift3/logging-elasticsearch" \
-      version="v3.7.0" \
-      release="0.127.0.0"
-
-RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms \
-                   --enable rhel-7-server-extras-rpms  && \
-    packages="elasticsearch-${ES_VER} \
+RUN  packages="elasticsearch-${ES_VER} \
               elasticsearch-cloud-kubernetes \
               java-${JAVA_VER}-openjdk-headless \
               openshift-elasticsearch-plugin \
               PyYAML  \
               zip" && \
     yum install -y --setopt=tsflags=nodocs ${packages} && \
-    rpm -V $packages && \
     yum clean all
 
 
@@ -57,14 +44,27 @@ ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
-ADD lib/elasticsearch-prometheus-exporter/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip /tmp/
+ADD lib /tmp/lib
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 RUN ln -s /usr/local/bin/logging ${HOME}/logging
 
 RUN ${HOME}/install.sh
-RUN rm /tmp/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+RUN rm -rf /tmp/lib
 
 WORKDIR ${HOME}
 USER 1000
 CMD ["sh", "/opt/app-root/src/run.sh"]
+
+LABEL \
+        io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
+        com.redhat.component="logging-elasticsearch-container" \
+        vendor="Red Hat" \
+        name="openshift3/logging-elasticsearch" \
+        License="GPLv2+" \
+        io.k8s.display-name="Elasticsearch 2.4.4" \
+        version="v3.9.27" \
+        architecture="x86_64" \
+        io.openshift.expose-services="9200:https, 9300:https" \
+        io.openshift.tags="logging,elk,elasticsearch"
+
