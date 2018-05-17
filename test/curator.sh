@@ -20,7 +20,7 @@ os::util::environment::use_sudo
 os::test::junit::declare_suite_start "test/curator"
 
 curl_output() {
-    python -mjson.tool | artifact_out > /dev/null 2>&1
+    python -mjson.tool 2>&1 | artifact_out
 }
 
 add_message_to_index() {
