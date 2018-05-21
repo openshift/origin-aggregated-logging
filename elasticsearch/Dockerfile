@@ -48,6 +48,7 @@ ADD *.zip /tmp/lib/
 
 RUN yum install -y --setopt=tsflags=nodocs /tmp/ocp/*.rpm && \
     packages="java-${JAVA_VER}-openjdk-headless \
+              hostname \
               PyYAML  \
               zip" && \
     yum install -y --setopt=tsflags=nodocs ${packages} && \
