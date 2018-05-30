@@ -1,0 +1,34 @@
+FROM centos:centos7
+
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
+
+ENV HOME=/opt/app-root/src \
+    ES_HOST=localhost \
+    ES_PORT=9200 \
+    ES_CA=/etc/yacht/keys/ca \
+    ES_CLIENT_CERT=/etc/yacht/keys/cert \
+    ES_CLIENT_KEY=/etc/yacht/keys/key \
+    YACHT_VERSION=0.1 \
+    YACHT_LOG_LEVEL=DEBUG \
+    MAX_WATING_TIME=30000 \
+    RETRY_PERIOD_SECONDS=5
+
+LABEL io.k8s.description="Yacht elasticsearch container for pre-emptive elasticsearch indices creation" \
+  io.k8s.display-name="Yacht ${YACHT_VERSION}" \
+  io.openshift.tags="logging,elk,elasticsearch,yacht"
+
+RUN yum install -y epel-release
+RUN yum install -y --setopt=tsflags=nodocs \
+        python-pip && \
+    pip install 'elasticsearch<4.0'  && \
+    yum clean all
+
+COPY lib/* ${HOME}/
+
+RUN chmod -R u+x ${HOME} && \
+    chgrp -R 0 ${HOME} && \
+    chmod -R g=u ${HOME}
+
+WORKDIR ${HOME}
+USER 1001
+CMD ["python", "-u", "yacht.py"]
