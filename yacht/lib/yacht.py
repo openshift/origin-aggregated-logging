@@ -105,12 +105,14 @@ class Yacht():
         self.ic.create()
 
     def sleep(self):
-        timenow = datetime.datetime.now()
-        lastruntime = timenow.replace(minute=0, second=0, microsecond=0)
+        # cover the edge case when operation finishes in less than a second by adding a second to timenow
+        timenow = datetime.datetime.now() + datetime.timedelta(seconds=1)
+        lastruntime = timenow.replace(minutes=0, second=0, microsecond=0)
         offset = 0
-        if timenow > lastruntime:
+        if timenow >= lastruntime:
             offset = 3600
-        untilnextruntime = (lastruntime + datetime.timedelta(seconds=offset) - timenow).seconds
+        # here the extra second would be neutralized, so we have to get rid of it
+        untilnextruntime = (lastruntime + datetime.timedelta(seconds=offset) - (timenow - datetime.timedelta(seconds=1))).seconds
         self.logger.debug('yacht run finished. [%d] seconds untill next run', untilnextruntime)
         time.sleep(untilnextruntime)
 
