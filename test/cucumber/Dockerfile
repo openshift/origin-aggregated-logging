@@ -3,9 +3,9 @@ FROM fedora:27
 ENV LOGLEVEL=debug \
     LOGFILE=/opt/app/src/log/logging-cucumber.log \
     KUBECONFIG=/tmp/.kube/config/test.kubeconfig \
-    OC_URL=https://github.com/openshift/origin/releases/download/v3.6.0/openshift-origin-client-tools-v3.6.0-c4dd4cf-linux-64bit.tar.gz \
-    BROWSER_DRIVER_GECKO=https://github.com/mozilla/geckodriver/releases/download/v0.19.1/geckodriver-v0.19.1-linux64.tar.gz \
-    INSTALL_PACKAGES="ruby ruby-devel firefox xorg-x11-server-Xvfb redhat-rpm-config wget gcc bzip2" \
+    OC_URL=https://github.com/openshift/origin/releases/download/v3.9.0/openshift-origin-client-tools-v3.9.0-191fece-linux-64bit.tar.gz \
+    BROWSER_DRIVER_GECKO=https://github.com/mozilla/geckodriver/releases/download/v0.20.1/geckodriver-v0.20.1-linux64.tar.gz \
+    INSTALL_PACKAGES="ruby ruby-devel make firefox xorg-x11-server-Xvfb redhat-rpm-config wget gcc bzip2" \
     HOME=/opt/app/src \
     HEADLESS=true
 

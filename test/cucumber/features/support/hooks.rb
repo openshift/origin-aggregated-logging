@@ -1,4 +1,7 @@
 Around do |scenario, block|
+puts '>>>>'
+puts ENV.sort
+puts '>>>>'
   master_url = if  ENV['PUBLIC_MASTER_URL']
     ENV['PUBLIC_MASTER_URL']
   else
@@ -13,9 +16,9 @@ Around do |scenario, block|
   world.logger.debug("SCENARIO: #{scenario.name} ##{scenario.location}")
   world.logger.debug(">>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<")
   
-  world.namespace = 'logging'
+  world.namespace = 'openshift-logging'
   world.master_url = master_url
-  world.login
+  world.login master_url
   block.call
   world.browser.quit unless world.browser?
 end

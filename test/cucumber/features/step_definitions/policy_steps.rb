@@ -10,7 +10,7 @@ end
 Given(/^user (.*) with the role of (.*) for project (.*)$/) do | user, role, project_name|
     world.logger.debug("Using user:#{user} role:#{role} project:#{project_name}")
     world.context[:role] = role
-    token = world.login(username: user).token
+    token = world.login(world.master_url, username: user).token
     admin = world.admin_user.token
     project = world.project(name: project_name, token: admin, not_found: {})
     if project.empty?

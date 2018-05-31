@@ -47,7 +47,7 @@ class OpenshiftWorldImpl
     OpenshiftCliWrapper::LOGGER
   end
 
-  def login(username: 'admin', password: 'password')
+  def login(master_url, username: 'admin', password: 'password')
     @oc.login(master_url)
        .username(username)
        .password(password)

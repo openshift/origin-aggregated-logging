@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 HOME=/opt/app/src
 # By default skip any tagged with '@skip'
 if [ -n "${TAGS}" ] ; then
@@ -6,4 +6,4 @@ if [ -n "${TAGS}" ] ; then
 fi
 OPTS="--tags ~@skip ${TAGS:-}"
 
-PATH=/usr/bin:${PATH} GEM_HOME=./vendor bundle exec cucumber $OPTS
+HEADLESS=true PATH=/usr/bin:${PATH} GEM_HOME=./vendor bundle exec cucumber $OPTS

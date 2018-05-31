@@ -24,14 +24,11 @@ module ResourceHelpers
   end
 
   def deployment_config(name, token: @token, namespace: @namespace)
-    list = @oc.get(:dc, name)
+    dc = @oc.get(:dc, name, {})
         .namespace(namespace)
         .output('yaml')
         .token(token)
         .do()
-    return list unless name.empty?
-    raise "Unable to find deploymentconfig named #{name}" if list.items.empty?
-    list.items[0]
   end
 
   def logs(name, token: nil, namespace: nil)
@@ -43,12 +40,12 @@ module ResourceHelpers
         .do()
   end
 
-  def route(name: '', selector: '')
+  def route(name: '', selector: '', token: @token)
      @oc.get(:route, name)
         .selector("#{selector}")
         .namespace(@namespace)
         .output('yaml')
-        .token(@token)
+        .token(token)
         .do()
   end
 

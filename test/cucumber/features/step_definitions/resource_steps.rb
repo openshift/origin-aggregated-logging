@@ -1,5 +1,5 @@
 And(/^an application is generating logs in (.*)$/) do | project_name|
-  user = world.context[:user]
+  user = world.admin_user
   if world.deployment_config('hello-openshift', token: user.token, namespace: project_name).empty?
     world.new_app('openshift/hello-openshift', project_name, token: user.token)
   end

@@ -33,24 +33,25 @@ Then(/^their access is (.*)$/) do |status|
 end
 
 Given(/^they log into Kibana$/) do
-    route = "https://#{world.route(name: 'logging-kibana').spec.host}"
+    admin_user = world.admin_user
+    route = "https://#{world.route(name: 'logging-kibana', token: admin_user.token).spec.host}"
     world.logger.debug("Kibana route: #{route}")
     b = world.browser
     b.goto route
     fail("Exp. to be at the login page but was: #{b.title }") unless b.title.start_with?('Login')
-
-    admin_user = world.admin_user
-    b.text_field(id: 'inputUsername').set(admin_user[:username])
+    
+    user = world.context[:user]
+    b.text_field(id: 'inputUsername').set(user[:username])
     b.text_field(id: 'inputPassword').set('abc123')
     b.button(class: 'btn-primary').click
     b.a(text: /^.*Discover.*?$/).wait_until(timeout: 30, message: 'Failed to login to Kibana or page didnt load',&:present?)
 end
 
 Given(/^the user has never used Kibana$/) do
-  es_pod = world.pod(selector: 'logging-infra=elasticsearch').items.first
   admin_user = world.admin_user
-  username = admin_user[:username]
   token = admin_user[:token]
+  es_pod = world.es_pod(token: token)
+  username = admin_user[:username]
   world.delete_from_es(es_pod.metadata.name, token, ".kibana.#{Digest::SHA1.hexdigest(username)}")
   sleep(5.0)
 end
