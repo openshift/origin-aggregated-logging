@@ -30,7 +30,7 @@ cleanup(){
     local return_code="$?"
 
     # delete all the $NS indices
-    curl_es $espod /project.$NS.* -XDELETE || :
+    curl_es $es_pod /project.$NS.* -XDELETE || :
 
     # remove temp files used to store uid data
     rm -f temp_ns_uid temp_pod_uid 
@@ -44,7 +44,7 @@ trap "cleanup" EXIT
 
 
 NS="pelle-foo"
-espod=$( get_es_pod es )
+es_pod=$( get_es_pod es )
 
 # Create a namespace named pelle-foo containing a pod, which logs a line and
 # then remove the namespace, repeating this procedure 20 times
@@ -84,7 +84,7 @@ then
 fi
 
 ## example of wrong indexing:
-# oc rsh -c elasticsearch $espod es_util  --query=_cat/indices?h=index,docs.count | grep pelle 
+# oc rsh -c elasticsearch $es_pod es_util  --query=_cat/indices?h=index,docs.count | grep pelle 
 
 # project.pelle-foo.53a8d3e3-42f7-11e8-a037-fa163e2c1fb0.2018.04.18                 3 
 # project.pelle-foo.5b71ac2c-42f7-11e8-a037-fa163e2c1fb0.2018.04.18                13 
