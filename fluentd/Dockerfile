@@ -36,8 +36,7 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
                 rubygem-fluent-plugin-rewrite-tag-filter \
                 rubygem-fluent-plugin-secure-forward \
                 rubygem-fluent-plugin-systemd \
-                rubygem-fluent-plugin-viaq_data_model \
-                rubygem-fluent-plugin-prometheus" && \
+                rubygem-fluent-plugin-viaq_data_model" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all
@@ -71,6 +70,6 @@ LABEL \
         io.k8s.display-name="Fluentd" \
         version="v3.10.0" \
         architecture="x86_64" \
-        release="0.37.0.0" \
+        release="0.56.0.0" \
         io.openshift.tags="logging,elk,fluentd"
 
