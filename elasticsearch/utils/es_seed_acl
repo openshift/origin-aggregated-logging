@@ -2,18 +2,11 @@
 
 source "logging"
 
-MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
-
-info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
-
 config=${ES_CONF}/elasticsearch.yml
 index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
 
-now=0
-numretries=0
-loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
-while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
-    -cd ${HOME}/sgconfig \
+function sgadmin {
+  ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -i $index \
     -ks /etc/elasticsearch/secret/searchguard.key \
     -kst JKS \
@@ -22,7 +15,18 @@ while ! ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -tst JKS \
     -tspass tspass \
     -nhnv \
-    -icl ${DEBUG:+-dg} && [ ${now} -lt ${MAX_WAIT_SEED} ]
+    -icl \
+    ${DEBUG:+-dg} ${@:-}
+}
+
+MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
+
+info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
+
+now=0
+numretries=0
+loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
+while ! sgadmin -cd ${HOME}/sgconfig && [ ${now} -lt ${MAX_WAIT_SEED} ]
 do
     if ! expr $numretries % $loginterval ; then
         warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"
@@ -39,3 +43,12 @@ if [ ${now} -ge ${MAX_WAIT_SEED} ]; then
     exit 1
 fi
 info "Seeded the searchguard ACL index"
+
+info "Disabling auto replication"
+sgadmin -dra
+
+info "Updating replica count to 0"
+sgadmin -us 0
+
+info "Setting filters to allocate shard to this node only"
+es_util --query="$index/_settings" -XPUT -d "{\"index.routing.allocation.include._name\": \"$index\"}"
