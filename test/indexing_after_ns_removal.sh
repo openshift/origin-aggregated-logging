@@ -103,7 +103,7 @@ do
     [ "$?" != "0" ] && os::log::error ${namespace_uid} does not match any UID collected from the actual namespace list during namespace creation
 
     pod_uid=$(curl_es $es_pod /"${index}"/_search?q=kubernetes.namespace_id:* | jq . | grep -i pod_id | awk -F'"' '{ print $4 }')
-    grep -m 1 "${pod_uid}" temp_ns_uid &>/dev/null
+    grep -m 1 "${pod_uid}" temp_pod_uid &>/dev/null
     [ "$?" != "0" ] && os::log::error ${pod_id} does not match any UID collected from the actual pod list during pod creation
 done
 
