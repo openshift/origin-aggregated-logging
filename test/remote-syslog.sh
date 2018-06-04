@@ -23,10 +23,10 @@ fluentdtype="fluentd"
 mpod=$( get_running_pod mux )
 if [ -n "${mpod:-}" ]; then
     # mux is configured; make sure mux client fluentd runs as maximal mode.
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
-    os::log::debug "$( oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     fluentdtype="mux"
     # save mux config
@@ -34,9 +34,7 @@ if [ -n "${mpod:-}" ]; then
     oc get --export dc/logging-mux -o yaml > $savemuxdc
 fi
 
-artifact_log Starting fluentd-plugin-remote-syslog tests on $fluentdtype at "$( date )"
-
-os::log::info Starting fluentd-plugin-remote-syslog tests on $fluentdtype at $( date )
+os::log::info Starting fluentd-plugin-remote-syslog tests at $( date )
 
 cleanup() {
     local return_code="$?"
@@ -53,11 +51,17 @@ cleanup() {
         fi
         oc get events > $ARTIFACT_DIR/remote-syslog-events.txt 2>&1
         sudo journalctl | grep fluentd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-fluentd.log 2>&1
-        sudo journalctl | grep rsyslogd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-rsyslogd.log 2>&1
         sudo grep rsyslog /var/log/audit/audit.log > $ARTIFACT_DIR/remote-syslog-audit-rsyslog.log 2>&1
         artifact_log "/var/log/messages files"
         sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out
-        sudo tail -n 30 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
+        sudo tail -n 200 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
+        set -x
+        if [ -n "${teststart-:}" ] ; then
+            sudo journalctl -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
+            sudo journalctl -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
+            sudo journalctl -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
+        fi
+        set +x
     fi
 
     oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
@@ -117,13 +121,13 @@ if [ -n "$my_remote_syslog_host" ]; then
         os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
         oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
         os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" '^0$' $MUX_WAIT_TIME
-        oc get pods | grep mux 2>&1 | artifact_out
+        oc get pods | grep mux 2>&1 | artifact_out || :
         oc get dc 2>&1 | artifact_out
         oc set env dc/logging-mux USE_REMOTE_SYSLOG=true 2>&1 | artifact_out
-        oc get pods | grep mux 2>&1 | artifact_out
+        oc get pods | grep mux 2>&1 | artifact_out || :
         oc get dc 2>&1 | artifact_out
         oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
-        oc get pods | grep mux 2>&1 | artifact_out
+        oc get pods | grep mux 2>&1 | artifact_out || :
         oc get dc 2>&1 | artifact_out
         os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
         mypod=$( get_running_pod mux )
@@ -175,20 +179,20 @@ title="Test 2, expecting generate_syslog_config.rb to not create a configuration
 os::log::info $title
 
 if [ "$fluentdtype" = "fluentd" ] ; then
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     mypod=$( get_running_pod fluentd )
 else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" '^0$' $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- )"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- 2>&1 | artifact_out
+    oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
     mypod=$( get_running_pod mux )
@@ -201,20 +205,20 @@ title="Test 3, expecting generate_syslog_config.rb to generate multiple stores"
 os::log::info $title
 
 if [ "$fluentdtype" = "fluentd" ] ; then
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     mypod=$( get_running_pod fluentd )
 else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" '^0$' $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 )"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 2>&1 | artifact_out
+    oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
     mypod=$( get_running_pod mux )
@@ -227,20 +231,20 @@ title="Test 4, making sure tag_key=message does not cause remote-syslog plugin c
 os::log::info $title
 
 if [ "$fluentdtype" = "fluentd" ] ; then
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2-)"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2- 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     mypod=$( get_running_pod fluentd )
 else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" '^0$' $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2-)"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2- 2>&1 | artifact_out
+    oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
     mypod=$( get_running_pod mux )
@@ -256,20 +260,20 @@ title="Test 5, making sure tag_key=bogus does not cause remote-syslog plugin cra
 os::log::info $title
 
 if [ "$fluentdtype" = "fluentd" ] ; then
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus)"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     mypod=$( get_running_pod fluentd )
 else
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" '^0$' $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus)"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    oc set env dc/logging-mux USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus 2>&1 | artifact_out
+    oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
     mypod=$( get_running_pod mux )
@@ -307,8 +311,13 @@ if [ -f /etc/rsyslog.d/listen.conf ]; then
 fi
 cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.modified
 
+# date in journalctl -S format
+set -x
+teststart=$( date "+%Y-%m-%d %H:%M:%S" )
+set +x
 # clear the journal
-sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 )
+sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+sudo systemctl restart systemd-journald 2>&1 | artifact_out
 artifact_log Before restarting rsyslog
 sudo service rsyslog status 2>&1 | artifact_out || :
 os::cmd::expect_success "sudo service rsyslog stop"
@@ -385,9 +394,9 @@ es_ops_pod=${es_ops_pod:-$es_pod}
 qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'$ident'"}}}'
 rc=0
 if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" '^1$' $MUX_WAIT_TIME; then
-    artifact_log good - found $mymessage
+    artifact_log good - found $mymessage in $es_ops_pod
 else
-    artifact_log failed - not found $mymessage
+    artifact_log failed - not found $mymessage in $es_ops_pod
     rc=1
 fi
 os::cmd::try_until_success "sudo egrep -q '${mymessage}\$' /var/log/messages" $MUX_WAIT_TIME
@@ -407,9 +416,9 @@ default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_po
 esac
 rc=0
 if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
-    artifact_log good - found $mymessage
+    artifact_log good - found $mymessage in $es_pod
 else
-    artifact_log failed - not found $mymessage
+    artifact_log failed - not found $mymessage in $es_pod
     rc=1
 fi
 os::cmd::try_until_success "sudo egrep -q '${mymessage}' /var/log/messages" $MUX_WAIT_TIME
@@ -427,30 +436,30 @@ myhost=$( hostname )
 if [ "$fluentdtype" = "fluentd" ] ; then
     # make sure fluentd is running after previous test
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     mypod=$( get_running_pod fluentd )
 else
     # make sure fluentd is running after previous test
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd FORWARD_INPUT_LOG_LEVEL=info )"
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true --overwrite=true )"
+    oc set env daemonset/logging-fluentd FORWARD_INPUT_LOG_LEVEL=info 2>&1 | artifact_out
+    oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     # make sure mux is running after previous test
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
-    os::log::debug "$( oc scale --replicas=0 dc logging-mux )"
+    oc scale --replicas=0 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get dc logging-mux -o jsonpath='{ .status.replicas }'" "0" $MUX_WAIT_TIME
-    os::log::debug "$( oc set env dc/logging-mux FORWARD_INPUT_LOG_LEVEL=info USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- )"
-    os::log::debug "$( oc scale --replicas=1 dc logging-mux )"
+    oc set env dc/logging-mux FORWARD_INPUT_LOG_LEVEL=info USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- 2>&1 | artifact_out
+    oc scale --replicas=1 dc logging-mux 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $MUX_WAIT_TIME
 
     mypod=$( get_running_pod mux )
