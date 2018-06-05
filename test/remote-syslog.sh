@@ -36,6 +36,10 @@ fi
 
 os::log::info Starting fluentd-plugin-remote-syslog tests at $( date )
 
+# clear the journal
+sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+sudo systemctl restart systemd-journald 2>&1 | artifact_out
+
 cleanup() {
     local return_code="$?"
     set +e
@@ -55,13 +59,11 @@ cleanup() {
         artifact_log "/var/log/messages files"
         sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out
         sudo tail -n 200 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
-        set -x
         if [ -n "${teststart-:}" ] ; then
             sudo journalctl -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
             sudo journalctl -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
             sudo journalctl -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
         fi
-        set +x
     fi
 
     oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
@@ -312,12 +314,7 @@ fi
 cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.modified
 
 # date in journalctl -S format
-set -x
 teststart=$( date "+%Y-%m-%d %H:%M:%S" )
-set +x
-# clear the journal
-sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
-sudo systemctl restart systemd-journald 2>&1 | artifact_out
 artifact_log Before restarting rsyslog
 sudo service rsyslog status 2>&1 | artifact_out || :
 os::cmd::expect_success "sudo service rsyslog stop"
@@ -385,45 +382,28 @@ oc exec $mypod -- ping $myhost -c 3 | artifact_out || :
 artifact_log docker info
 docker info | artifact_out || :
 
-mymessage="rsyslogTestMessage-"$( date +%Y%m%d-%H%M%S )
-ident=rsyslogTestTag$( openssl rand -hex 16 )
-logger -i -p local1.err -t $ident $mymessage
-es_pod=$( get_es_pod es )
-es_ops_pod=$( get_es_pod es-ops )
-es_ops_pod=${es_ops_pod:-$es_pod}
-qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'$ident'"}}}'
-rc=0
-if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" '^1$' $MUX_WAIT_TIME; then
-    artifact_log good - found $mymessage in $es_ops_pod
-else
-    artifact_log failed - not found $mymessage in $es_ops_pod
-    rc=1
-fi
-os::cmd::try_until_success "sudo egrep -q '${mymessage}\$' /var/log/messages" $MUX_WAIT_TIME
-artifact_log Log test message by logger: $mymessage
-sudo egrep "${mymessage}$" /var/log/messages 2>&1 | artifact_out || :
-if [ $rc -eq 1 ] ; then
-    exit 1
-fi
+getappsmsg() {
+    appsmessage=$1
+    # file containing search output is $2
+}
 
-mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
-add_test_message $mymessage
-fullmsg="GET /${mymessage} 404 "
-qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
-case "${LOGGING_NS}" in
-default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
-*) logging_index="project.${LOGGING_NS}.*" ;;
-esac
+getopsmsg() {
+    opsmessage=$1
+    # file containing search output is $2
+}
+
 rc=0
-if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
-    artifact_log good - found $mymessage in $es_pod
-else
-    artifact_log failed - not found $mymessage in $es_pod
+if ! wait_for_fluentd_to_catch_up getappsmsg getopsmsg ; then
     rc=1
 fi
-os::cmd::try_until_success "sudo egrep -q '${mymessage}' /var/log/messages" $MUX_WAIT_TIME
-artifact_log Log test message by kibana: $mymessage
-sudo egrep "/${mymessage}" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
+    rc=1
+fi
+sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
+    rc=1
+fi
+sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
 if [ $rc -eq 1 ] ; then
     exit 1
 fi
@@ -468,24 +448,17 @@ os::cmd::try_until_success "oc exec $mypod find /etc/fluent/configs.d/dynamic/ou
 
 artifact_log $title $mypod
 
-mymessage="testKibanaMessage-"$( date +%Y%m%d-%H%M%S )
-add_test_message $mymessage
-fullmsg="GET /${mymessage} 404 "
-qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
-case "${LOGGING_NS}" in
-default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
-*) logging_index="project.${LOGGING_NS}.*" ;;
-esac
-rc=0
-if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" 1 $MUX_WAIT_TIME; then
-    artifact_log good - found $mymessage
-else
-    artifact_log failed - not found $mymessage
+if ! wait_for_fluentd_to_catch_up getappsmsg getopsmsg ; then
     rc=1
 fi
-os::cmd::try_until_success "sudo egrep -q '${mymessage}' /var/log/messages" $MUX_WAIT_TIME
-artifact_log Log test message by kibana: $mymessage
-sudo egrep "/${mymessage}" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
+    rc=1
+fi
+sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
+    rc=1
+fi
+sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
 if [ $rc -eq 1 ] ; then
     exit 1
 fi
