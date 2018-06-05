@@ -107,7 +107,7 @@ class Yacht():
     def sleep(self):
         # cover the edge case when operation finishes in less than a second by adding a second to timenow
         timenow = datetime.datetime.now() + datetime.timedelta(seconds=1)
-        lastruntime = timenow.replace(minutes=0, second=0, microsecond=0)
+        lastruntime = timenow.replace(minute=0, second=0, microsecond=0)
         offset = 0
         if timenow >= lastruntime:
             offset = 3600
