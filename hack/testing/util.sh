@@ -186,13 +186,15 @@ function flush_fluentd_pos_files() {
 # $2 - command to call to pass the uuid_es_ops
 # $3 - expected number of matches
 function wait_for_fluentd_to_catch_up() {
-    local starttime=$( date +%s )
-    os::log::debug START wait_for_fluentd_to_catch_up at $( date -u --rfc-3339=ns )
+    local starttime=$( date +%s.%9N )
+    local startsecs=$( date --date=@${starttime} +%s )
+    local tsprefix=$( date --date=@${startsecs} "+%Y%m%d%H%M%S" )
+    os::log::debug START wait_for_fluentd_to_catch_up at $( date --date=@${starttime} -u --rfc-3339=ns )
     local es_pod=$( get_es_pod es )
     local es_ops_pod=$( get_es_pod es-ops )
     es_ops_pod=${es_ops_pod:-$es_pod}
-    local uuid_es=$( uuidgen | sed 's/[-]//g' )
-    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es=${tsprefix}$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=${tsprefix}$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local appsproject=${4:-$LOGGING_NS}
@@ -228,6 +230,7 @@ function wait_for_fluentd_to_catch_up() {
     logger -i -p local6.${priority} -t $uuid_es_ops $uuid_es_ops
     artifact_log added es-ops message $uuid_es_ops
 
+    local errqs
     local rc=0
     local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
     case "${appsproject}" in
@@ -237,14 +240,14 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
     if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
-        os::log::debug good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
+        artifact_log good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
         if [ -n "${1:-}" ] ; then
             curl_es ${es_pod} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
             $1 $uuid_es $ARTIFACT_DIR/apps.json
         fi
     else
         os::log::error $FUNCNAME: not found $expected record $logging_index for \'$fullmsg\' after $timeout seconds
-        os::log::debug "$( curl_es ${es_pod} /${logging_index}/_search -X POST -d "$qs" )"
+        curl_es ${es_pod} /${logging_index}/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
         if [ -s $ARTIFACT_DIR/es_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_out.txt )"
         else
@@ -256,7 +259,9 @@ function wait_for_fluentd_to_catch_up() {
         fi
         os::log::error here is the current fluentd journal cursor
         sudo cat /var/log/journal.pos
-
+        # records since start of function
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u --Ins )"'"}}}}'
+        curl_es ${es_pod} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs.json 2>&1 || :
         rc=1
     fi
 
@@ -269,7 +274,7 @@ function wait_for_fluentd_to_catch_up() {
         fi
     else
         os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
-        os::log::debug "$( curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" )"
+        curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/ops_search_output.raw 2>&1 || :
         os::log::error "Checking journal for $uuid_es_ops..."
         if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
@@ -278,14 +283,18 @@ function wait_for_fluentd_to_catch_up() {
         fi
         os::log::error here is the current fluentd journal cursor
         sudo cat /var/log/journal.pos
+        # records since start of function
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u --Ins )"'"}}}}'
+        curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs.json 2>&1 || :
         rc=1
     fi
 
     kill $checkpids > /dev/null 2>&1 || :
     kill -9 $checkpids > /dev/null 2>&1 || :
 
-    local endtime=`date +%s`
-    os::log::debug END wait_for_fluentd_to_catch_up took `expr $endtime - $starttime` seconds at `date -u --rfc-3339=ns`
+    local endtime=$( date +%s.%9N )
+    local endsecs=$( date --date=@${endtime} +%s )
+    os::log::debug END wait_for_fluentd_to_catch_up took $( expr $endsecs - $startsecs ) seconds at $( date --date=@${endtime} -u --rfc-3339=ns )
     return $rc
 }
 
