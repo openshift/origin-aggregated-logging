@@ -18,36 +18,56 @@ set -euxo pipefail
 
 usage() {
     local bn=$( basename $0 )
-    echo Usage: $0
-    echo Assumes you have $HOME/origin-aggregated-logging and $HOME/openshift-ansible,
-    echo   or set GIT_REPO_BASE_DIR to the directory containing origin-aggregated-logging and openshift-ansible
-    echo Assumes you have installed the origin-ci-tool prerequisites: https://github.com/openshift/origin-ci-tool
-    echo the script will create the .venv directory and install oct and other tools in it
-    echo Put configuration in $HOME/.config/$bn which is sourced as a shell script
-    echo The following variables are most useful to set:
-    echo GIT_REPO_BASE_DIR - (default $HOME) location of your local clones of origin-aggregated-logging and openshift-ansible
-    echo GIT_BRANCH - (default master) your working branch
-    echo GIT_BASE_BRANCH - (default master) the branch your working branch is based on e.g. master, release-3.9
-    echo ANSIBLE_BRANCH - (default master) your working openshift-ansible branch
-    echo ANSIBLE_BASE_BRANCH - (default master) the branch your ansible working branch is based on e.g. master, release-3.9
-    echo LOG_DRIVER - (default json-file) - json-file or journald
-    echo BUILD_IMAGES - (default true) - if false, skip building images - runs faster but relies on having up-to-date images on dockerhub
-    echo ROOT_VOLUME_SIZE - (default 35) - size of disk in GB - set higher if you need more space for long running test results or large db
-    echo PRESERVE - (default none) - if set to 1, the aws machine will be preserved after the test run - WARNING - this means you are responsible
-    echo            to remove the machine when finished
-    echo EXTRA_ENV - (default none) - extra environment variables to pass to the test run e.g.
-    echo             EXTRA_ENV="export ENABLE_OPS_CLUSTER=false; export USE_MUX=true; export MUX_CLIENT_MODE=maximal; export TEST_ONLY=false"
-    echo EXTRA_ANSIBLE - (default none) - extra options to add to the ansible-playbook command line when running the logging playbook e.g.
-    echo                 EXTRA_ANSIBLE="-e openshift_logging_use_ops=False -e openshift_logging_mux_client_mode=maximal"
-    echo see the file $0 for other variables which can be set
-    echo You can also pass these in as environment variables on the command line:
-    echo GIT_BRANCH=my-local-fix $0
-    echo
-    echo The script will add /etc/hosts aliases for kibana, es, etc. to facilitate using Kibana
-    echo but this means you will need to manually delete these entries from time to time
-    echo Use 'oct deprovision' as in the oct docs to delete the machine
-    echo Use 'ssh openshiftdevel' or 'scp somefile openshiftdevel:' to login to and copy files to the machine
+    cat <<EOF
+Usage: $0
+
+Assumes you have $HOME/origin-aggregated-logging and $HOME/openshift-ansible,
+  or set GIT_REPO_BASE_DIR to the directory containing
+  origin-aggregated-logging and openshift-ansible
+Assumes you have installed the origin-ci-tool prerequisites:
+https://github.com/openshift/origin-ci-tool the script will create the .venv
+directory and install oct and other tools in it
+
+Put configuration in $HOME/.config/$bn which is sourced as a shell script
+The following variables are most useful to set:
+GIT_REPO_BASE_DIR - (default $HOME) location of your local clones of
+  origin-aggregated-logging and openshift-ansible
+GIT_BRANCH - (default master) your working branch
+GIT_BASE_BRANCH - (default master) the branch your working branch is based on
+  e.g. master, release-3.9
+ANSIBLE_BRANCH - (default master) your working openshift-ansible branch
+ANSIBLE_BASE_BRANCH - (default master) the branch your ansible working branch
+  is based on e.g. master, release-3.9
+LOG_DRIVER - (default json-file) - json-file or journald
+BUILD_IMAGES - (default true) - if false, skip building images - runs faster
+  but relies on having up-to-date images on dockerhub
+ROOT_VOLUME_SIZE - (default 35) - size of disk in GB - set higher if you need
+  more space for long running test results or large db
+PRESERVE - (default none) - if set to 1, the aws machine will be preserved
+  after the test run - WARNING - this means you are responsible to
+  remove the machine when finished
+EXTRA_ENV - (default none) - extra environment variables to pass to the test
+  EXTRA_ENV="export ENABLE_OPS_CLUSTER=false; export USE_MUX=true;"
+EXTRA_ANSIBLE - (default none) - extra options to add to the ansible-playbook
+  command line when running the logging playbook e.g.
+  EXTRA_ANSIBLE="-e openshift_logging_use_ops=False -e other=True"
+
+see the file $0 for other variables which can be set
+You can also pass these in as environment variables on the command line:
+GIT_BRANCH=my-local-fix $0
+
+The script will add /etc/hosts aliases for kibana, es, etc. to facilitate using
+Kibana but this means you will need to manually delete these entries from time
+to time
+Use 'oct deprovision' as in the oct docs to delete the machine
+Use 'ssh openshiftdevel' or 'scp somefile openshiftdevel:' to login to and copy
+files to the machine
+EOF
 }
+
+case "${1:-}" in
+--h*|-h*) usage ; exit 1 ;;
+esac
 
 getremoteip() {
     #ssh openshiftdevel curl -s http://169.254.169.254/latest/meta-data/public-ipv4
