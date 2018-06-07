@@ -113,6 +113,7 @@ OS_O_A_DIR=${OS_O_A_DIR:-/data/src/github.com/openshift/openshift-ansible}
 OS_A_C_J_DIR=${OS_A_C_J_DIR:-/data/src/github.com/openshift/aos-cd-jobs}
 #USE_AMI=${USE_AMI:-fork_ami_openshift3_logging-1.4-backports}
 export AWS_SECURITY_GROUPS=${AWS_SECURITY_GROUPS:-sg-e1760186}
+ROOT_VOLUME_SIZE=${ROOT_VOLUME_SIZE:-75}
 
 INSTNAME=${INSTNAME:-origin_$USER-$TESTNAME-$OS-1}
 
@@ -145,9 +146,54 @@ if [ "${NO_SKIP:-0}" = 1 ] ; then
 fi
 
 # set instance values
-oct configure aws-defaults master_security_group_ids $AWS_SECURITY_GROUPS
-oct configure aws-defaults master_instance_type $INSTANCE_TYPE
-oct configure aws-defaults master_root_volume_size ${ROOT_VOLUME_SIZE:-35}
+oct configure aws-defaults master_security_group_ids $AWS_SECURITY_GROUPS || {
+    echo Adding configuration for master_security_group_ids
+    echo 'master_security_group_ids: !!python/unicode '"'$AWS_SECURITY_GROUPS'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
+}
+oct configure aws-defaults master_instance_type $INSTANCE_TYPE || {
+    echo Adding configuration for master_instance_type
+    echo 'master_instance_type: !!python/unicode '"'$INSTANCE_TYPE'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
+}
+oct configure aws-defaults master_root_volume_size ${ROOT_VOLUME_SIZE} || {
+    echo Adding configuration for master_root_volume_size
+    echo master_root_volume_size: $ROOT_VOLUME_SIZE >> $HOME/.config/origin-ci-tool/aws_variables.yml
+}
+
+if [ ! -f $HOME/.aws/credentials ] ; then
+    echo Error: no AWS credentials
+    echo see https://github.com/openshift/origin-ci-tool#aws-credentials-and-configuration
+    exit 1
+fi
+
+# make sure aws access is configured
+private_key_path=$( oct configure aws-client --view | awk '/private_key_path:/ {print $2}' )
+keypair_name=$( oct configure aws-client --view | awk '/keypair_name:/ {print $2}' )
+
+if [ "${private_key_path:-None}" = None ] ; then
+    if [ -z "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
+        echo Please set OCT_PRIVATE_KEY_PATH to the path and file of the public key you want to use
+        exit 1
+    fi
+    if [ -f "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
+        oct configure aws-client private_key_path "${OCT_PRIVATE_KEY_PATH}" || {
+            echo Adding configuration for private_key_path
+            echo private_key_path: "${OCT_PRIVATE_KEY_PATH}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
+        }
+    else
+        echo No such file "${OCT_PRIVATE_KEY_PATH:-}"
+        exit 1
+    fi
+fi
+if [ "${keypair_name:-None}" = None ] ; then
+    if [ -z "${OCT_KEYPAIR_NAME:-}" ] ; then
+        echo Please set OCT_KEYPAIR_NAME to the name of the keypair you want to use
+        exit 1
+    fi
+    oct configure aws-client keypair_name "${OCT_KEYPAIR_NAME}" || {
+        echo Adding configuration for keypair_name
+        echo keypair_name: "${OCT_KEYPAIR_NAME}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
+    }
+fi
 
 oct provision remote all-in-one --os $OS --provider aws --stage build --name $INSTNAME
 
