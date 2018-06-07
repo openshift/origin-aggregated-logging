@@ -141,10 +141,6 @@ elif [[ -z "${KUBECONFIG:-}" ]]; then
 	os::log::fatal "A \$KUBECONFIG must be specified with \$TEST_ONLY."
 fi
 
-if [[ -n "${JUNIT_REPORT:-}" ]]; then
-	export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
-fi
-
 # if there is a script that is expected to fail, add it here
 expected_failures=(
     NONE
@@ -160,7 +156,7 @@ function run_suite() {
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
 	ops_cluster=${ENABLE_OPS_CLUSTER:-"true"}
-	if "${test}" "${ops_cluster}"; then
+	if OS_TMP_ENV_SET= LOG_DIR= ARTIFACT_DIR= "${test}" "${ops_cluster}"; then
 		os::log::info "Logging test suite ${suite_name} succeeded at $( date )"
 		if grep -q "${suite_name}" <<<"${expected_failures[@]}"; then
 			os::log::warning "Logging suite ${suite_name} is expected to fail"
