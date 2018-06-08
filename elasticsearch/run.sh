@@ -165,7 +165,7 @@ wait_for_port_open() {
     exit 1
 }
 
-push_index_templates() {
+initialize_cluster() {
     wait_for_port_open
     es_seed_acl
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
@@ -207,7 +207,7 @@ push_index_templates() {
     info Finished adding index templates
 }
 
-push_index_templates &
+initialize_cluster &
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
