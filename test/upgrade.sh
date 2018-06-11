@@ -14,11 +14,11 @@ get_upgrade_test_uuid() {
 }
 
 wait_for_fluentd_to_catch_up get_upgrade_test_uuid
-es_pod=$( get_es_pod es )
+es_svc=$( get_es_svc es )
 
 os::cmd::expect_success "cat $ARTIFACT_DIR/upgrade-record.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-json-parsing.py $upgrade_test_uuid"
 
 old_upgrade_test_uuid=$(cat /tmp/upgrade_test_uuid)
-os::cmd::expect_success "curl_es $es_pod /project.${LOGGING_NS}.*/_search?q=message:$old_upgrade_test_uuid | \
+os::cmd::expect_success "curl_es $es_svc /project.${LOGGING_NS}.*/_search?q=message:$old_upgrade_test_uuid | \
                          python $OS_O_A_L_DIR/hack/testing/test-json-parsing.py $old_upgrade_test_uuid"
