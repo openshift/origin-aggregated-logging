@@ -58,6 +58,7 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+COPY utils/** ${HOME}/utils
 ADD jemalloc/ ${HOME}/jemalloc/
 # note - make dist "fails" here
 # false -o doc/jemalloc.html doc/html.xsl doc/jemalloc.xml
