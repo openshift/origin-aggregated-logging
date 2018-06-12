@@ -295,13 +295,27 @@ get_es_logs() {
   local dc_name=$(oc get po $pod -o jsonpath='{.metadata.labels.deploymentconfig}')
   if [[ $pod == logging-es-ops* ]]
   then
-    path=/elasticsearch/logging-es-ops/logs
+    path=/elasticsearch/persistent/logging-es-ops/logs
   else
-    path=/elasticsearch/logging-es/logs
+    path=/elasticsearch/persistent/logging-es/logs
   fi
-  oc rsync -c elasticsearch -q $pod:$path $logs_folder || echo ---- Unable to get ES logs from pod $pod
-  mv -f $logs_folder/logs $logs_folder/$pod
-  nice xz $logs_folder/$pod/*
+  exists=$( oc exec $pod -c elasticsearch -- ls ${path} 2> /dev/null ) || :
+  if [ -z "$exists" ]; then
+    if [[ $pod == logging-es-ops* ]]
+    then
+      path=/elasticsearch/logging-es-ops/logs
+    else
+      path=/elasticsearch/logging-es/logs
+    fi
+  fi
+  exists=$( oc exec $pod -c elasticsearch -- ls ${path} 2> /dev/null ) || :
+  if [ -z "$exists" ]; then
+    echo ---- Unable to get ES logs from pod $pod
+  else
+    oc rsync -c elasticsearch -q $pod:$path $logs_folder 2> /dev/null || echo ---- Unable to get ES logs from pod $pod
+    mv -f $logs_folder/logs $logs_folder/$pod
+    nice xz $logs_folder/$pod/*
+  fi
 }
 
 list_es_storage() {
