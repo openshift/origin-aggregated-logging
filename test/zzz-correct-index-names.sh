@@ -52,7 +52,7 @@ for project in $OPS_NAMESPACES ; do
     else
        oc describe node 2>&1 | artifact_out
        oc get events -n ${project} 2>&1 | artifact_out
-       oc describe -n ${project} test-pod 2>&1 | artifact_out
+       oc describe -n ${project} pod test-pod 2>&1 | artifact_out
        return 1
     fi
     # The query part will return more than one if successful - due to the fuzzy matching,
