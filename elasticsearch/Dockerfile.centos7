@@ -42,6 +42,8 @@ RUN rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch && \
     yum install -y --setopt=tsflags=nodocs \
                 java-${JAVA_VER}-openjdk-headless \
                 elasticsearch-${ES_VER} \
+                openssl \
+                apr \
                 PyYAML && \
     yum clean all
 

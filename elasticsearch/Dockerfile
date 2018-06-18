@@ -45,6 +45,8 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.7-rpms \
               elasticsearch-cloud-kubernetes \
               java-${JAVA_VER}-openjdk-headless \
               openshift-elasticsearch-plugin \
+              openssl \
+              apr \
               PyYAML  \
               zip" && \
     yum install -y --setopt=tsflags=nodocs ${packages} && \
