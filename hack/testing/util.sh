@@ -23,10 +23,16 @@ function get_es_pod() {
     fi
 }
 
+function get_es_svc() {
+    # $1 - cluster name postfix
+    oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}'
+}
+
 function get_running_pod() {
     # $1 is component for selector
     oc get pods -l component=$1 --no-headers | awk '$3 == "Running" {print $1}'
 }
+
 
 function get_completed_pod() {
     # $1 is component for selector
@@ -36,6 +42,17 @@ function get_completed_pod() {
 function get_error_pod() {
     # $1 is component for selector
     oc get pods -l component=$1 --no-headers | awk '$3 == "Error" {print $1}'
+}
+
+function get_es_cert_path() {
+
+  if [ ! -d "${OS_O_A_L_DIR}/temp/es_certs" ]; then
+    mkdir -p ${OS_O_A_L_DIR}/temp/es_certs
+    oc extract -n $LOGGING_NS secret/logging-elasticsearch --to=${OS_O_A_L_DIR}/temp/es_certs
+  fi
+
+  echo ${OS_O_A_L_DIR}/temp/es_certs
+
 }
 
 # set the test_token, test_name, and test_ip for token auth
@@ -78,7 +95,7 @@ curl_es_from_kibana() {
 # $1 - es pod name
 # $2 - es endpoint
 # rest - any args to pass to curl
-function curl_es() {
+function curl_es_pod() {
     local pod="$1"
     local endpoint="$2"
     shift; shift
@@ -91,23 +108,39 @@ function curl_es() {
                              "https://localhost:9200${endpoint}"
 }
 
-# $1 - es pod name
+# $1 - es svc name
 # $2 - es endpoint
 # rest - any args to pass to curl
-function curl_es_input() {
-    local pod="$1"
+function curl_es() {
+    local svc_name="$1"
     local endpoint="$2"
     shift; shift
     local args=( "${@:-}" )
 
-    local secret_dir="/etc/elasticsearch/secret/"
-    oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
-                                --key "${secret_dir}admin-key"   \
-                                --cert "${secret_dir}admin-cert" \
-                                "https://localhost:9200${endpoint}"
+    local secret_dir="$(get_es_cert_path)/"
+    curl --silent --insecure "${args[@]}" \
+      --key "${secret_dir}/admin-key" \
+      --cert "${secret_dir}/admin-cert" \
+      "https://${svc_name}.${LOGGING_NS}.svc:9200${endpoint}"
 }
 
-function curl_es_with_token() {
+# $1 - es svc name
+# $2 - es endpoint
+# rest - any args to pass to curl
+function curl_es_input() {
+    local svc_name="$1"
+    local endpoint="$2"
+    shift; shift
+    local args=( "${@:-}" )
+
+    local secret_dir="$(get_es_cert_path)/"
+    curl --silent --insecure "${args[@]}" \
+      --key "${secret_dir}admin-key"   \
+      --cert "${secret_dir}admin-cert" \
+      "https://${svc_name}.${LOGGING_NS}.svc:9200${endpoint}"
+}
+
+function curl_es_pod_with_token() {
     local pod="$1"
     local endpoint="$2"
     local test_name="$3"
@@ -121,18 +154,49 @@ function curl_es_with_token() {
                              "https://localhost:9200${endpoint}"
 }
 
-function curl_es_with_token_and_input() {
+function curl_es_with_token() {
+    local svc_name="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+
+    curl --silent --insecure "${args[@]}" \
+      -H "X-Proxy-Remote-User: $test_name" \
+      -H "Authorization: Bearer $test_token" \
+      -H "X-Forwarded-For: 127.0.0.1" \
+      "https://${svc_name}.${LOGGING_NS}:9200${endpoint}"
+}
+
+function curl_es_pod_with_token_and_input() {
     local pod="$1"
     local endpoint="$2"
     local test_name="$3"
     local test_token="$4"
     shift; shift; shift; shift
     local args=( "${@:-}" )
+
     oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
-                                -H "X-Proxy-Remote-User: $test_name" \
-                                -H "Authorization: Bearer $test_token" \
-                                -H "X-Forwarded-For: 127.0.0.1" \
-                                "https://localhost:9200${endpoint}"
+                             -H "X-Proxy-Remote-User: $test_name" \
+                             -H "Authorization: Bearer $test_token" \
+                             -H "X-Forwarded-For: 127.0.0.1" \
+                             "https://localhost:9200${endpoint}"
+}
+
+function curl_es_with_token_and_input() {
+    local svc_name="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_token="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+
+    curl --silent --insecure "${args[@]}" \
+      -H "X-Proxy-Remote-User: $test_name" \
+      -H "Authorization: Bearer $test_token" \
+      -H "X-Forwarded-For: 127.0.0.1" \
+      "https://${svc_name}.${LOGGING_NS}:9200${endpoint}"
 }
 
 # $1 - es pod name
@@ -143,25 +207,25 @@ function curl_es_with_token_and_input() {
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 function query_es_from_es() {
-    curl_es "$1" "/${2}*/${3}?q=${4}:${5}" --connect-timeout 1
+    curl_es_pod "$1" "/${2}*/${3}?q=${4}:${5}" --connect-timeout 1
 }
 
-# $1 is es pod
+# $1 is es svc
 # $2 is timeout
 function wait_for_es_ready() {
     # test for ES to be up first and that our SG index has been created
     echo "Checking if Elasticsearch $1 is ready"
-    secret_dir=/etc/elasticsearch/secret
+    secret_dir="$(get_es_cert_path)/"
     local ii=$2
     local path=${3:-.searchguard.$1}
-    while ! response_code=$(oc exec -c elasticsearch $1 -- curl -s \
+    while ! response_code=$(curl -s \
         --request HEAD --head --output /dev/null \
         --cacert $secret_dir/admin-ca \
         --cert $secret_dir/admin-cert \
         --key  $secret_dir/admin-key \
         --connect-timeout 1 \
         -w '%{response_code}' \
-        "https://localhost:9200/$path") || test "${response_code:-}" != 200
+        "https://${1}.${LOGGING_NS}:9200/$path") || test "${response_code:-}" != 200
     do
         sleep 1
         ii=`expr $ii - 1` || :
@@ -200,11 +264,11 @@ function wait_for_fluentd_to_catch_up() {
     local startsecs=$( date --date=@${starttime} +%s )
     local tsprefix=$( date --date=@${startsecs} "+%Y%m%d%H%M%S" )
     os::log::debug START wait_for_fluentd_to_catch_up at $( date --date=@${starttime} -u --rfc-3339=ns )
-    local es_pod=$( get_es_pod es )
-    local es_ops_pod=$( get_es_pod es-ops )
-    es_ops_pod=${es_ops_pod:-$es_pod}
-    local uuid_es=${tsprefix}$( uuidgen | sed 's/[-]//g' )
-    local uuid_es_ops=${tsprefix}$( uuidgen | sed 's/[-]//g' )
+    local es_svc=$( get_es_svc es )
+    local es_ops_svc=$( get_es_svc es-ops )
+    es_ops_svc=${es_ops_svc:-$es_svc}
+    local uuid_es=$( uuidgen | sed 's/[-]//g' )
+    local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
     local appsproject=${4:-$LOGGING_NS}
@@ -244,20 +308,20 @@ function wait_for_fluentd_to_catch_up() {
     local rc=0
     local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
     case "${appsproject}" in
-    default|openshift|openshift-*) logging_index=".operations.*" ; es_pod=$es_ops_pod ;;
+    default|openshift|openshift-*) logging_index=".operations.*" ; es_svc=$es_ops_svc ;;
     *) logging_index="project.${appsproject}.*" ;;
     esac
 
     # poll for logs to show up
-    if os::cmd::try_until_text "curl_es ${es_pod} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+    if os::cmd::try_until_text "curl_es ${es_svc} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
         artifact_log good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
         if [ -n "${1:-}" ] ; then
-            curl_es ${es_pod} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
+            curl_es ${es_svc} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
             $1 $uuid_es $ARTIFACT_DIR/apps.json
         fi
     else
         os::log::error $FUNCNAME: not found $expected record $logging_index for \'$fullmsg\' after $timeout seconds
-        curl_es ${es_pod} /${logging_index}/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
+        curl_es ${es_svc} /${logging_index}/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
         if [ -s $ARTIFACT_DIR/es_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_out.txt )"
         else
@@ -276,15 +340,15 @@ function wait_for_fluentd_to_catch_up() {
     fi
 
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
-    if os::cmd::try_until_text "curl_es ${es_ops_pod} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+    if os::cmd::try_until_text "curl_es ${es_ops_svc} /.operations.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
         os::log::debug good - $FUNCNAME: found $expected record .operations for $uuid_es_ops
         if [ -n "${2:-}" ] ; then
-            curl_es ${es_ops_pod} "/.operations.*/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/ops.json
+            curl_es ${es_ops_svc} "/.operations.*/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/ops.json
             $2 $uuid_es_ops $ARTIFACT_DIR/ops.json
         fi
     else
         os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
-        curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/ops_search_output.raw 2>&1 || :
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
         os::log::error "Checking journal for $uuid_es_ops..."
         if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
@@ -358,8 +422,8 @@ artifact_out() {
 
 # e.g. 2 or 5 or 6
 get_es_major_ver() {
-    local es_pod=$( get_es_pod es )
-    curl_es $es_pod "/" | jq -r '.version.number | split(".")[0]'
+    local es_svc=$( get_es_svc es )
+    curl_es $es_svc "/" | jq -r '.version.number | split(".")[0]'
 }
 
 # fields are given like this: c a r s q

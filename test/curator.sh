@@ -8,16 +8,16 @@
 # If the ops cluster is enabled, it will test curator-ops
 # as well.
 
-if [[ -n "$(oc get cronjobs)" ]]; then
-    os::log::info "This test does not support curator cronjobs yet - skipping"
-    exit 0
-fi
-
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/curator"
+
+if [[ -n "$(oc get cronjobs)" ]]; then
+    os::log::info "This test does not support curator cronjobs yet - skipping"
+    exit 0
+fi
 
 curl_output() {
     python -mjson.tool 2>&1 | artifact_out
@@ -26,21 +26,21 @@ curl_output() {
 add_message_to_index() {
     local index="$1"
     local message="${2:-'curatortest mesage'}"
-    local espod="$3"
-    curl_es "$espod" "/$index/curatortest/" -XPOST -d '{
+    local essvc="$3"
+    curl_es "$essvc" "/$index/curatortest/" -XPOST -d '{
     "message" : "'${message}${3}'"
 }' | curl_output
 }
 
 delete_indices() {
-    local espod="$1"
-    curl_es $espod "/*.curatortest.*" -XDELETE | curl_output
+    local essvc="$1"
+    curl_es $essvc "/*.curatortest.*" -XDELETE | curl_output
 }
 
 skip_list=("^\." "^default")
 
 create_indices() {
-    local espod=$1
+    local essvc=$1
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtyonedaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     while [ -n "${1:-}" ] ; do
         local proj="$1" ; shift
@@ -51,7 +51,7 @@ create_indices() {
                 break
             fi
         done
-        add_message_to_index "${this_proj}.curatortest.$1" "$this_proj $1 message" $espod
+        add_message_to_index "${this_proj}.curatortest.$1" "$this_proj $1 message" $essvc
         shift
     done
 }
@@ -205,9 +205,9 @@ cleanup() {
     fi
     # delete indices
     artifact_log espod $espod esopspod $esopspod
-    delete_indices $espod
+    delete_indices $essvc
     if [ -n "${esopspod:-}" ] ; then
-        delete_indices $esopspod
+        delete_indices $esopssvc
     fi
     if [ -n "${origschedule:-}" ] ; then
         oc patch cronjob logging-curator -p "$( echo {\"spec\":{\"schedule\":\""${origschedule}"\"}} )" 2>&1 | tee artifact_out
@@ -225,7 +225,7 @@ cleanup() {
         oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | tee artifact_out
     fi
     restart_curator
-    if [ -n "${esopspod:-}" ] ; then
+    if [ -n "${esopssvc:-}" ] ; then
         ops="-ops" restart_curator
     fi
     # this will call declare_test_end, suite_end, etc.
@@ -238,7 +238,9 @@ os::log::info Starting curator test at $( date )
 
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
-
+essvc=$( get_es_svc es )
+esopssvc=$( get_es_svc es-ops )
+curpod=$( get_running_pod curator )
 origschedule="$( oc get cronjob logging-curator -o go-template={{.spec.schedule}} )"
 if [ -n "$esopspod" ]; then
     origscheduleops="$( oc get cronjob logging-curator-ops -o go-template={{.spec.schedule}} )"
@@ -314,9 +316,9 @@ EOF
 }
 
 basictest() {
-    local espod=$1
+    local essvc=$1
     ops=${2:-""}
-    create_indices $espod
+    create_indices $essvc
 
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
     artifact_log current indices before 1st deletion are:
@@ -358,7 +360,7 @@ EOF
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
-    create_indices $espod
+    create_indices $essvc
     # show current indices
     artifact_log current indices before 2nd deletion are:
     oc exec -c elasticsearch $espod indices 2>&1 | artifact_out
@@ -377,9 +379,9 @@ EOF
 }
 
 regextest() {
-    local espod=$1
+    local essvc=$1
     ops=${2:-""}
-    create_indices $espod
+    create_indices $essvc
 
     # show current indices, 1st deletion is triggered by restart curator pod; 2nd deletion is triggered by runhour and runminute
     artifact_log current indices before 1st deletion are:
@@ -415,7 +417,7 @@ EOF
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
-    create_indices $espod
+    create_indices $essvc
     # show current indices
     artifact_log current indices before 2nd deletion are:
     oc exec -c elasticsearch $espod indices 2>&1 | artifact_out
@@ -436,14 +438,14 @@ EOF
 test_project_name_errors
 
 # test without ops cluster first
-basictest $espod
+basictest $essvc
 
-if [ -n "$esopspod" ]; then
-    basictest $esopspod "-ops"
+if [ -n "$esopssvc" ]; then
+    basictest $esopssvc "-ops"
 fi
 
-regextest $espod
+regextest $essvc
 
-if [ -n "$esopspod" ]; then
-    regextest $esopspod "-ops"
+if [ -n "$esopssvc" ]; then
+    regextest $esopssvc "-ops"
 fi
