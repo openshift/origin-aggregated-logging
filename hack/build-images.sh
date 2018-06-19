@@ -16,9 +16,10 @@ if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
 fi
 dockerfile="Dockerfile${docker_suffix}"
 
+name_suf="5"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
-if [ "${curbranch:-master}" = es5.x ] ; then
-  name_suf="5"
+if [ "${curbranch:-master}" != master ] ; then
+  name_suf=""
 fi
 OS_BUILD_IMAGE_ARGS="-f fluentd/${dockerfile}" os::build::image "${tag_prefix}logging-fluentd"             fluentd
 OS_BUILD_IMAGE_ARGS="-f elasticsearch/${dockerfile}" os::build::image "${tag_prefix}logging-elasticsearch${name_suf:-}" elasticsearch
