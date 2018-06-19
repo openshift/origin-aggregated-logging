@@ -1,9 +1,16 @@
-FROM rhel7.3:7.3-released
+#oit## This file is managed by the OpenShift Image Tool: https://github.com/openshift/enterprise-images
+#oit## by the OpenShift Continuous Delivery team (#aos-cd-team on IRC).
+#oit## 
+#oit## Any yum repos listed in this file will effectively be ignored during CD builds.
+#oit## Yum repos must be enabled in the oit configuration files.
+#oit## The content of this file is managed from an external source.
+#oit## Changes made directly in distgit will be lost during the next
+#oit## reconciliation process.
+#oit## 
+FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
-# by default, run the curator cron job at midnight UTC every night, and delete
-# indices older than $CURATOR_DEFAULT_DAYS days old
 ENV HOME=/opt/app-root/src \
     ES_HOST=localhost \
     ES_PORT=9200 \
@@ -11,36 +18,28 @@ ENV HOME=/opt/app-root/src \
     ES_CLIENT_CERT=/etc/curator/keys/cert \
     ES_CLIENT_KEY=/etc/curator/keys/key \
     CURATOR_CONF_LOCATION=/etc/curator/settings/config.yaml \
-    CURATOR_DEFAULT_DAYS=31 \
-    CURATOR_RUN_HOUR=3 \
-    CURATOR_RUN_MINUTE=30 \
-    CURATOR_RUN_TIMEZONE=UTC \
+    CURATOR_CONF_FILE=/etc/curator/settings/curator5.yaml \
+    CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=3.5.0-2 \
+    CURATOR_VER=5.2 \
     CURATOR_TIMEOUT=300
 
-LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-  io.k8s.display-name="Curator ${CURATOR_VER}" \
-  io.openshift.tags="logging,elk,elasticsearch,curator" \
-  com.redhat.component=logging-curator-docker \
-  name="openshift3/logging-curator" \
-  version="3.6.0" \
-  release="1" \
-  architecture=x86_64
+ARG LOCAL_REPO
+RUN if [ -n "${LOCAL_REPO}" ] ; then \
+     curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
+    fi
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.6-rpms \
-                       --enable rhel-7-server-extras-rpms && \
-    INSTALL_PKGS="elastic-curator-${CURATOR_VER}.el7 \
-                  PyYAML \
-                  python-crontab \
-                  python-setuptools \
-                  pytz" && \
+ADD elasticsearch-curator-5.2.0-1.x86_64.rpm /tmp/ocp/
+
+RUN yum install -y --setopt=tsflags=nodocs /tmp/ocp/elasticsearch-curator-5.2.0-1.x86_64.rpm && \
+    INSTALL_PKGS="python2-ruamel-yaml" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-    rpm -V $INSTALL_PKGS && \
+    rpm -V elasticsearch-curator python2-ruamel-yaml && \
+    rm -rf /tmp/ocp && \
     yum clean all
 
-COPY src/* ${HOME}/
+COPY run.sh lib/oalconverter/* ${HOME}/
 
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
@@ -50,4 +49,17 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
 
 WORKDIR ${HOME}
 USER 1001
-CMD ["python", "-u", "run_cron.py"]
+CMD ["sh", "run.sh"]
+
+LABEL \
+        io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
+        com.redhat.component="logging-curator5-container" \
+        vendor="Red Hat" \
+        name="openshift3/ose-logging-curator5" \
+        License="GPLv2+" \
+        io.k8s.display-name="Curator 5" \
+        version="v3.10.0" \
+        architecture="x86_64" \
+        release="998" \
+        io.openshift.tags="logging,elk,elasticsearch,curator"
+

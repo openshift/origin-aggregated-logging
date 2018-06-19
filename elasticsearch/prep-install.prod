@@ -1,15 +1,11 @@
-# reconcile directories
-mkdir -p /usr/share/elasticsearch
-
 # prep the plugins we need
+pushd /tmp/lib
+
 es_plugins=()
-pushd /usr/share/java
-for es_plugin in openshift-elasticsearch-plugin elasticsearch-cloud-kubernetes
+for es_plugin in *.zip
 do
-    es_plugin_file=/tmp/${es_plugin}.zip
-    pushd $es_plugin
-    zip -r $es_plugin_file .
-    popd
+    es_plugin_file=$(pwd)/${es_plugin}
     es_plugins+=" file://${es_plugin_file}"
 done
-es_plugins+=" file:///tmp/lib/elasticsearch-prometheus-exporter/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip"
+
+popd

@@ -33,6 +33,17 @@ function get_running_pod() {
     oc get pods -l component=$1 --no-headers | awk '$3 == "Running" {print $1}'
 }
 
+
+function get_completed_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 --no-headers | awk '$3 == "Completed" {print $1}'
+}
+
+function get_error_pod() {
+    # $1 is component for selector
+    oc get pods -l component=$1 --no-headers | awk '$3 == "Error" {print $1}'
+}
+
 function get_es_cert_path() {
 
   if [ ! -d "${OS_O_A_L_DIR}/temp/es_certs" ]; then

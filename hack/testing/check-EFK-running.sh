@@ -3,8 +3,8 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
-
-oal_expected_deploymentconfigs=( "logging-kibana" "logging-curator" )
+oal_expected_deploymentconfigs=( "logging-kibana" )
+oal_expected_cronjobs=( "logging-curator" )
 oal_expected_routes=( "logging-kibana" )
 oal_expected_services=( "logging-es" "logging-es-cluster" "logging-kibana" )
 oal_expected_oauthclients=( "kibana-proxy" )
@@ -15,7 +15,8 @@ oal_kibana_components=( "kibana" )
 if [ "$1" = "true" ]; then
 	# There is an ops cluster set up, so we
 	# need to expect to see more objects.
-	oal_expected_deploymentconfigs+=( "logging-kibana-ops" "logging-curator-ops" )
+	oal_expected_deploymentconfigs+=( "logging-kibana-ops" )
+	oal_expected_cronjobs+=( "logging-curator-ops" )
 	oal_expected_routes+=( "logging-kibana-ops" )
 	oal_expected_services+=( "logging-es-ops" "logging-es-ops-cluster" "logging-kibana-ops" )
 	oal_elasticseach_components+=( "es-ops" )
@@ -58,4 +59,5 @@ OAL_EXPECTED_ROUTES="${oal_expected_routes[*]}"                       \
 OAL_EXPECTED_SERVICES="${oal_expected_services[*]}"                   \
 OAL_EXPECTED_OAUTHCLIENTS="${oal_expected_oauthclients[*]}"           \
 OAL_EXPECTED_DAEMONSETS="${oal_expected_daemonsets[*]}"               \
+OAL_EXPECTED_CRONJOBS="${oal_expected_cronjobs[*]}"                   \
 "${OS_O_A_L_DIR}/test/cluster/rollout.sh"

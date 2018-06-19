@@ -108,8 +108,9 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	done
 
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
-	os::cmd::expect_success "oc exec -c elasticsearch ${elasticsearch_pod} -- ls -1 /usr/share/java/elasticsearch/index_templates"
-	for template in $( oc exec -c elasticsearch "${elasticsearch_pod}" -- ls -1 /usr/share/java/elasticsearch/index_templates ); do
+	es_home="$( oc exec -c elasticsearch ${elasticsearch_pod} -- env | awk -F= '/^ES_HOME/ {print $2}')"
+	os::cmd::expect_success "oc exec -c elasticsearch ${elasticsearch_pod} -- ls -1 ${es_home}/index_templates"
+	for template in $( oc exec -c elasticsearch "${elasticsearch_pod}" -- ls -1 ${es_home}/index_templates ); do
 		os::cmd::expect_success_and_text "curl_es_pod '${elasticsearch_pod}' '/_template/${template}' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200'
 	done
 
@@ -117,9 +118,9 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	curl_es_pod "${elasticsearch_pod}" '/_cat/plugins?local=true&v'
 	matching_plugins=0
 	found_plugins=$( curl_es_pod "${elasticsearch_pod}" '/_cat/plugins?local=true&h=component' )
-	for plugin in $found_plugins[@] ; do
+	for plugin in ${found_plugins[@]} ; do
 		os::log::info "Installed plugin: ${plugin}"
-		if [ "${plugin}" = "cloud-kubernetes" ]; then
+		if [ "${plugin}" = "discovery-kubernetes" ]; then
 			(( matching_plugins+=1 ))
 		elif [ "${plugin}" = "openshift-elasticsearch" ]; then
 			(( matching_plugins+=1 ))
@@ -128,7 +129,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 		fi
 	done
 	if [ "$matching_plugins" -lt "3" ]; then
-		os::log::fatal "Elasticsearch pod is missing expected plugin(s). Exp cloud-kubernetes, openshift-elasticsearch, prometheus-exporter, found: ${found_plugins[*]}"
+		os::log::fatal "Elasticsearch pod is missing expected plugin(s). Exp discovery-kubernetes, openshift-elasticsearch, prometheus-exporter, found: ${found_plugins[*]}"
 	else
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} contains expected plugin(s)"
 	fi

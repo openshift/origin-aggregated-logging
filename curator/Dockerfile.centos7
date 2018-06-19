@@ -2,8 +2,6 @@ FROM centos:centos7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
-# by default, run the curator cron job at midnight UTC every night, and delete
-# indices older than 31 days old
 ENV HOME=/opt/app-root/src \
     ES_HOST=localhost \
     ES_PORT=9200 \
@@ -11,13 +9,11 @@ ENV HOME=/opt/app-root/src \
     ES_CLIENT_CERT=/etc/curator/keys/cert \
     ES_CLIENT_KEY=/etc/curator/keys/key \
     CURATOR_CONF_LOCATION=/etc/curator/settings/config.yaml \
-    CURATOR_DEFAULT_DAYS=31 \
-    CURATOR_RUN_HOUR=3 \
-    CURATOR_RUN_MINUTE=30 \
-    CURATOR_RUN_TIMEZONE=UTC \
+    CURATOR_CONF_FILE=/etc/curator/settings/curator5.yaml \
+    CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=3.5.1 \
+    CURATOR_VER=5.2 \
     CURATOR_TIMEOUT=300
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
@@ -26,14 +22,11 @@ LABEL io.k8s.description="Curator elasticsearch container for elasticsearch dele
 
 RUN yum install -y epel-release
 RUN yum install -y --setopt=tsflags=nodocs \
-        python-pip \
-        PyYAML \
-        pytz && \
-    pip install 'elasticsearch-curator<4.0'  \
-                 python-crontab && \
+        python-pip && \
+    pip install --no-cache-dir 'ruamel.yaml<=0.15' elasticsearch-curator==${CURATOR_VER} && \
     yum clean all
 
-COPY src/* ${HOME}/
+COPY run.sh lib/oalconverter/* ${HOME}/
 
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
@@ -43,4 +36,4 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
 
 WORKDIR ${HOME}
 USER 1001
-CMD ["python", "-u", "run_cron.py"]
+CMD ["sh", "run.sh"]

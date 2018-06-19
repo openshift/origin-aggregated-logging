@@ -41,6 +41,7 @@ ENABLE_SECURE_FORWARD=0
 SET_CONTAINER_VALS=1
 NO_CONTAINER_VALS=2
 MISMATCH_NAMESPACE_TAG=3
+NO_PROJECT_TAG=4
 update_current_fluentd() {
   # this will update it so the current fluentd does not send logs to an ES host
   # but instead forwards to mux
@@ -149,6 +150,37 @@ update_current_fluentd() {
         MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
+  elif [ $myoption -eq $NO_PROJECT_TAG ]; then
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
+      <filter kubernetes.var.log.containers.**kibana**>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        CONTAINER_NAME k8s_mux.01234567_logging-kibana_'$LOGGING_NS'_00000000-1111-2222-3333-444444444444_55555555\n\
+        CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
+        </record>\n\
+      </filter>\n\
+      <match kubernetes.var.log.containers.**kibana**>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 MESSAGE !.+ test.bogus.external\n\
+        rewriterule2 MESSAGE .+ test.bogus.external\n\
+      </match>\n\
+      <match journal>\n\
+        @type rewrite_tag_filter\n\
+        @label @INGRESS\n\
+        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
+        rewriterule2 MESSAGE .+ test.bogus.external\n\
+        rewriterule3 message .+ test.bogus.external\n\
+      </match>\n\
+      <filter test.bogus.external>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
+        MESSAGE ${record[\"log\"] || record[\"MESSAGE\"]}\n\
+        </record>\n\
+      </filter>"}]' 2>&1 | artifact_out
   else
       os::log::info "Enabling secure forward"
   fi
@@ -176,6 +208,7 @@ write_and_verify_logs() {
     local is_testproj=$2
     local no_container_vals=$3
     local mismatch_namespace=${4:-0}
+    local no_project_tag=${5:-0}
 
     local uuid_es=$( uuidgen | sed 's/[-]//g' )
     local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
@@ -255,6 +288,12 @@ write_and_verify_logs() {
         essvc=$es_svc
         # make sure this namespace exists
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
+    elif [ $no_project_tag -eq 1 ]; then
+        local myfield="SYSLOG_IDENTIFIER"
+        myproject=project.mux-undefined
+        essvc=$es_svc
+        # make sure this namespace exists
+        os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | artifact_out
     else
         local myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
@@ -494,3 +533,20 @@ os::log::info "fluentd forwards kibana and system logs with tag project.testproj
 update_current_fluentd $MISMATCH_NAMESPACE_TAG
 
 write_and_verify_logs 1 1 0 1
+
+os::log::info "------- Test case $NO_PROJECT_TAG -------"
+os::log::info "fluentd forwards kibana and system logs with tag test.bogus.external and no CONTAINER values, which will use a namespace of mux-undefined."
+#
+# results: system logs are stored in project.mux-undefined.*
+#
+
+if oc get project mux-undefined > /dev/null 2>&1 ; then
+    os::log::info using existing project mux-undefined
+else
+    oc adm new-project mux-undefined --node-selector='' 2>&1 | artifact_out
+    os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | artifact_out
+fi
+
+update_current_fluentd $NO_PROJECT_TAG
+
+write_and_verify_logs 1 0 0 1 1

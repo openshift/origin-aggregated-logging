@@ -21,8 +21,14 @@
 update_config_from_env_vars() {
   conf_dir=$1
   kibana_vars=(
+      console.enabled
+      console.proxyConfig
+      console.proxyFilter
+      elasticsearch.customHeaders
+      elasticsearch.password
       elasticsearch.pingTimeout
       elasticsearch.preserveHost
+      elasticsearch.requestHeadersWhitelist
       elasticsearch.requestTimeout
       elasticsearch.shardTimeout
       elasticsearch.ssl.ca
@@ -34,13 +40,59 @@ update_config_from_env_vars() {
       elasticsearch.ssl.verificationMode
       elasticsearch.ssl.verify
       elasticsearch.startupTimeout
+      elasticsearch.tribe.customHeaders
+      elasticsearch.tribe.password
+      elasticsearch.tribe.pingTimeout
+      elasticsearch.tribe.requestHeadersWhitelist
+      elasticsearch.tribe.requestTimeout
+      elasticsearch.tribe.ssl.ca
+      elasticsearch.tribe.ssl.cert
+      elasticsearch.tribe.ssl.certificate
+      elasticsearch.tribe.ssl.certificateAuthorities
+      elasticsearch.tribe.ssl.key
+      elasticsearch.tribe.ssl.keyPassphrase
+      elasticsearch.tribe.ssl.verificationMode
+      elasticsearch.tribe.ssl.verify
+      elasticsearch.tribe.url
+      elasticsearch.tribe.username
       elasticsearch.url
+      elasticsearch.username
       kibana.defaultAppId
+      kibana.index
+      logging.dest
       logging.quiet
       logging.silent
       logging.verbose
+      ops.interval
+      path.data
+      pid.file
+      regionmap
+      regionmap.includeElasticMapsService
       server.basePath
+      server.customResponseHeaders
+      server.defaultRoute
+      server.host
       server.maxPayloadBytes
+      server.name
+      server.port
+      server.ssl.cert
+      server.ssl.certificate
+      server.ssl.certificateAuthorities
+      server.ssl.cipherSuites
+      server.ssl.clientAuthentication
+      server.customResponseHeaders
+      server.ssl.enabled
+      server.ssl.key
+      server.ssl.keyPassphrase
+      server.ssl.redirectHttpFromPort
+      server.ssl.supportedProtocols
+      status.allowAnonymous
+      status.v6ApiFormat
+      tilemap.options.attribution
+      tilemap.options.maxZoom
+      tilemap.options.minZoom
+      tilemap.options.subdomains
+      tilemap.url
   )
   conf_file=${conf_dir}/kibana.yml
   echo "#The following values dynamically added from environment variable overrides:"

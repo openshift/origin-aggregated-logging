@@ -7,9 +7,6 @@ if [ ${DEBUG:-""} = "true" ]; then
     LOGLEVEL=7
 fi
 
-export ES_LOGS_MAX_BACKUP=${ES_LOGS_MAX_BACKUP:-7}
-export ES_LOGS_DATE_PATTERN=${ES_LOGS_DATE_PATTERN:-"'.'yyyy-MM-dd"}
-
 source "logging"
 
 info Begin Elasticsearch startup script
@@ -20,53 +17,12 @@ LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
 RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
 RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 
-PRIMARY_SHARDS=${PRIMARY_SHARDS:-3}
+PRIMARY_SHARDS=${PRIMARY_SHARDS:-1}
 REPLICA_SHARDS=${REPLICA_SHARDS:-0}
 
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
-
-# modify configs as needed
-mkdir -p ${HOME}/config
-cp ${ES_CONF}/* ${HOME}/config
-pushd ${HOME}/config
-  if [ -f logging.yml ] && ! grep -q "io\.openshift\.log4jextras" logging.yml ; then
-    python -c '
-import yaml
-with open("logging.yml") as file:
-  c = yaml.load(file)
-  for appender in ["file", "deprecation_log_file", "index_search_slow_log_file", "index_indexing_slow_log_file"]:
-    if "appender" in c and appender in c["appender"]:
-      f = c["appender"][appender]
-      f["type"] = "io.openshift.log4jextras.appender.DailyRollingFileAppender"
-      f["maxBackupIndex"] = "${ES_LOGS_MAX_BACKUP}"
-      f["datePattern"] = "${ES_LOGS_DATE_PATTERN}"
-      f["append"] = True
-  with open("logging.new","w") as target:
-    yaml.dump(c, target)
-' ||:
-    if [ -f logging.new ] ; then
-      mv logging.new logging.yml
-    fi
-  fi
-
-  if [ -f elasticsearch.yml ] && ! grep -q '/elasticsearch/persistent/.*/logs' elasticsearch.yml ; then
-    python -c '
-import yaml
-with open("elasticsearch.yml") as file:
-  c = yaml.load(file)
-  if "path" in c and "logs" in c["path"]:
-    f = c["path"]
-    f["logs"] = "/elasticsearch/persistent/${CLUSTER_NAME}/logs"
-  with open("elasticsearch.new","w") as target:
-    yaml.dump(c, target)
-' ||:
-    if [ -f elasticsearch.new ] ; then
-      mv elasticsearch.new elasticsearch.yml
-    fi
-  fi
-popd
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
 secret_dir=/etc/elasticsearch/secret
@@ -115,11 +71,9 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
         error "A minimum of $(($MIN_ES_MEMORY_BYTES/$BYTES_PER_MEG))m is required but only $(($num/$BYTES_PER_MEG))m is available or was specified"
         exit 1
     fi
-
-    # Set JVM HEAP size to half of available space
     num=$(($num/2/BYTES_PER_MEG))
-    export ES_HEAP_SIZE="${num}m"
-    info "ES_HEAP_SIZE: '${ES_HEAP_SIZE}'"
+    export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
+    info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
     error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
     exit 1
@@ -165,7 +119,7 @@ wait_for_port_open() {
     exit 1
 }
 
-initialize_cluster() {
+push_index_templates() {
     wait_for_port_open
     es_seed_acl
     # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
@@ -180,8 +134,8 @@ initialize_cluster() {
     shopt -s failglob
     for template_file in ${ES_HOME}/index_templates/*.json
     do
-        sed -i "s,\%REPLICA_SHARDS%,$REPLICA_SHARDS," $template_file
-        sed -i "s,\%PRIMARY_SHARDS%,$PRIMARY_SHARDS," $template_file
+        sed -i "s,\$REPLICA_SHARDS,$REPLICA_SHARDS," $template_file
+        sed -i "s,\$PRIMARY_SHARDS,$PRIMARY_SHARDS," $template_file
         template=`basename $template_file`
         # Check if index template already exists
         response_code=$(curl ${DEBUG:+-v} -s \
@@ -207,10 +161,13 @@ initialize_cluster() {
     info Finished adding index templates
 }
 
-initialize_cluster &
+push_index_templates &
+
+cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
-export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false"
+info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
-exec ${ES_HOME}/bin/elasticsearch --path.conf=${HOME}/config --security.manager.enabled false
+exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF
