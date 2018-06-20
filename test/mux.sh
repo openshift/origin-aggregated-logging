@@ -255,12 +255,6 @@ write_and_verify_logs() {
         essvc=$es_svc
         # make sure this namespace exists
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
-    elif [ $no_project_tag -eq 1 ]; then
-        local myfield="SYSLOG_IDENTIFIER"
-        myproject=project.mux-undefined
-        essvc=$es_svc
-        # make sure this namespace exists
-        os::cmd::try_until_success "oc get project mux-undefined" 2>&1 | artifact_out
     else
         local myfield="systemd.u.SYSLOG_IDENTIFIER"
         myproject=".operations"
@@ -500,4 +494,3 @@ os::log::info "fluentd forwards kibana and system logs with tag project.testproj
 update_current_fluentd $MISMATCH_NAMESPACE_TAG
 
 write_and_verify_logs 1 1 0 1
-
