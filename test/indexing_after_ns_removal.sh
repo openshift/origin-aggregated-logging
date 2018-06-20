@@ -30,11 +30,7 @@ cleanup(){
     local return_code="$?"
 
     # delete all the $NS indices
-<<<<<<< HEAD
     oc rsh -c elasticsearch $es_pod es_util --query=/project.$NS.* -XDELETE || :
-=======
-    curl_es $es_pod /project.$NS.* -XDELETE || :
->>>>>>> 0f6582c8f47b2ce8e281c6458edfb5d1a384ca8f
 
     # remove temp files used to store uid data
     rm -f temp_ns_uid temp_pod_uid 
@@ -48,13 +44,8 @@ trap "cleanup" EXIT
 
 
 NS="pelle-foo"
-<<<<<<< HEAD
 es_pod=$( oc -n logging  get pods -l component=es --no-headers | awk '$3 == "Running" {print $1}' )
 
-
-=======
-es_pod=$( get_es_pod es )
->>>>>>> 0f6582c8f47b2ce8e281c6458edfb5d1a384ca8f
 
 # Create a namespace named pelle-foo containing a pod, which logs a line and
 # then remove the namespace, repeating this procedure 20 times
@@ -113,15 +104,13 @@ do
     grep -m 1 "${namespace_uid}" temp_ns_uid &>/dev/null
     [ "$?" != "0" ] && os::log::error ${namespace_uid} does not match any UID collected from the actual namespace list during namespace creation
 
-<<<<<<< HEAD
     pod_uid=$(oc rsh -c elasticsearch $es_pod es_util --query=/"${index}"/_search?q=kubernetes.namespace_id:* | jq . | grep -m 1 -i pod_id | awk -F'"' '{ print $4}' || true)
     grep -m 1 "${pod_uid}" temp_pod_uid &>/dev/null
     [ "$?" != "0" ] && os::log::error ${pod_uid} does not match any UID collected from the actual pod list during pod creation
-=======
+    
     pod_uid=$(curl_es $es_pod /"${index}"/_search?q=kubernetes.namespace_id:* | jq . | grep -i pod_id | awk -F'"' '{ print $4 }')
     grep -m 1 "${pod_uid}" temp_pod_uid &>/dev/null
     [ "$?" != "0" ] && os::log::error ${pod_id} does not match any UID collected from the actual pod list during pod creation
->>>>>>> 0f6582c8f47b2ce8e281c6458edfb5d1a384ca8f
 done
 
 
