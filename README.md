@@ -1,3 +1,4 @@
+# THIS BRANCH IS NO LONGER ACTIVE
 # Origin-Aggregated-Logging [![Build Status](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test-origin-aggregated-logging)](https://ci.openshift.redhat.com/jenkins/job/test-origin-aggregated-logging)
 
 This repo contains the image definitions for the components of the logging
