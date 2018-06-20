@@ -107,10 +107,6 @@ do
     pod_uid=$(oc rsh -c elasticsearch $es_pod es_util --query=/"${index}"/_search?q=kubernetes.namespace_id:* | jq . | grep -m 1 -i pod_id | awk -F'"' '{ print $4}' || true)
     grep -m 1 "${pod_uid}" temp_pod_uid &>/dev/null
     [ "$?" != "0" ] && os::log::error ${pod_uid} does not match any UID collected from the actual pod list during pod creation
-    
-    pod_uid=$(curl_es $es_pod /"${index}"/_search?q=kubernetes.namespace_id:* | jq . | grep -i pod_id | awk -F'"' '{ print $4 }')
-    grep -m 1 "${pod_uid}" temp_pod_uid &>/dev/null
-    [ "$?" != "0" ] && os::log::error ${pod_id} does not match any UID collected from the actual pod list during pod creation
 done
 
 
