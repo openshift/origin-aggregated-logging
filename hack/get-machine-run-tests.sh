@@ -295,6 +295,8 @@ fi
 last_commit="\$( git log -n 1 --pretty=%h )"
 if sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7" ; then
    rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7"
+elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}" ; then
+   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}"
 else
    # for master, it looks like there is some sort of strange problem with git tags
    # tito will give the packages a N-V-R like this:
