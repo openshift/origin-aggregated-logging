@@ -94,7 +94,7 @@ cat > $cfg <<EOF
     undefined12 \${true}
     empty1 ""
     undefined2 {"undefined2":"undefined2","":"","undefined22":2222,"undefined23":false}
-    undefined3 {"emptyfield":""}
+    undefined3 {"emptyvalue":""}
     undefined4 undefined4
     undefined5 undefined5
   </record>
