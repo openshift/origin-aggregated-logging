@@ -73,4 +73,4 @@ fi
 config=${ES_CONF}/elasticsearch.yml
 index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
 
-QUERY="${index}/${doc}/0?pretty" es_util
+QUERY="${index}/${doc}/0?pretty" es_util | python -c "import sys, json, base64; r = base64.b64decode(json.load(sys.stdin)['_source']['${doc}']); print json.dumps(json.loads(r), indent=2)"

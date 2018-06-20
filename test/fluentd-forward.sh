@@ -10,6 +10,8 @@ FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/fluentd-forward"
 
+extra_artifacts=$ARTIFACT_DIR/fluentd-forward-artifacts.txt
+
 update_current_fluentd() {
     cnt=${FORWARDCNT:-1}
     # this will update it so the current fluentd does not send logs to an ES host
@@ -234,6 +236,7 @@ cleanup() {
   os::cmd::expect_success flush_fluentd_pos_files
   os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
   if [ $cnt -gt 1 ]; then
+    cat $extra_artifacts
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
   fi

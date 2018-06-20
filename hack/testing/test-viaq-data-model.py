@@ -95,7 +95,7 @@ test2match = {
               "undefined4": "undefined4",
               "undefined5": "undefined5",
               "empty1": "",
-              "undefined3": {"": ""}
+              "undefined3": {"emptyvalue": ""}
     }
 }
 

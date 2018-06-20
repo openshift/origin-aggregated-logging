@@ -30,18 +30,13 @@ set -euo pipefail
 
 # override styles for branding
 if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
-  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/installedPlugins/origin-kibana/public/styles"
+  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/plugins/origin-kibana/public/styles"
   rm -rf "${KIBANA_HOME}/optimize/bundles/**"
 fi
 
 # override images for branding
 if [ -d "/etc/openshift/kibana/images" ]; then
-  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/installedPlugins/origin-kibana/public/images"
-fi
-
-if [ -n "${KIBANA_DEFAULTAPPID:-}" ] ; then
-    echo Setting the kibana.defaultAppId to "${KIBANA_DEFAULTAPPID}"
-    sed -i "s/^.*kibana\.defaultAppId.*/kibana\.defaultAppId: ${KIBANA_DEFAULTAPPID}/" "${KIBANA_CONF_DIR}/kibana.yml"
+  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/plugins/origin-kibana/public/images"
 fi
 
 #set the max memory
@@ -77,6 +72,9 @@ else
     exit 1
 fi
 
+if [ -n "${ES_URL:-}" ] ; then
+  ELASTICSEARCH_URL="${ES_URL}"
+fi
 if [ -z "${ELASTICSEARCH_URL:-}" ] ; then
   ELASTICSEARCH_URL="https://${ES_HOST:-localhost}:${ES_PORT:-9200}"
 fi
@@ -84,4 +82,4 @@ update_config_from_env_vars ${KIBANA_CONF_DIR}
 
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
-set -a && source /etc/sysconfig/kibana && "${NODE_BIN}" "${KIBANA_HOME}/src/cli"
+"${KIBANA_BIN}"

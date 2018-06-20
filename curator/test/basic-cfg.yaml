@@ -1,0 +1,16 @@
+---
+myapp-dev:
+  delete:
+    days: 1
+
+myapp-qe:
+  delete:
+    weeks: 1
+
+.operations:
+  delete:
+    weeks: 8
+
+.defaults:
+  delete:
+    days: 20

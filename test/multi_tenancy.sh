@@ -96,6 +96,9 @@ function test_user_has_proper_access() {
         if ! os::cmd::expect_success "test $nrecs = 1" ; then
             os::log::error $user cannot access project.$proj.* indices
             curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
+            os::log::info "acl documents"
+            oc exec -c elasticsearch $espod -- es_acl get --doc=roles
+            oc exec -c elasticsearch $espod -- es_acl get --doc=rolesmapping
             exit 1
         fi
         indices="${indices}${comma}"'"'"project.$proj.*"'"'
@@ -156,8 +159,8 @@ done
 # use different usernames, otherwise you'll get this odd error:
 # # oc login --username=loguser --password=loguser
 # error: The server was unable to respond - verify you have provided the correct host and port and that the server is currently running.
-LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser-$RANDOM}
-LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser-$RANDOM}
+LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser1-$RANDOM}
+LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser1-$RANDOM}
 
 LOG_USER2=${LOG_USER2:-loguser2-$RANDOM}
 LOG_PW2=${LOG_PW2:-loguser2-$RANDOM}

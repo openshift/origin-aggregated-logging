@@ -33,16 +33,16 @@ if [[ -z "${source_tag}" ]]; then
 fi
 
 images=(
-  ${PREFIX}logging-curator
+  ${PREFIX}logging-curator5
   ${PREFIX}logging-fluentd
-  ${PREFIX}logging-elasticsearch
-  ${PREFIX}logging-kibana
+  ${PREFIX}logging-elasticsearch5
+  ${PREFIX}logging-kibana5
   ${PREFIX}logging-auth-proxy
   ${PREFIX}logging-eventrouter
 )
 
 curbranch=$( git rev-parse --abbrev-ref HEAD )
-if [[ "${curbranch:-master}" == es5.x ]] ; then
+if [[ "${curbranch:-master}" != master ]] ; then
   images=(
     ${PREFIX}logging-curator5
     ${PREFIX}logging-elasticsearch5

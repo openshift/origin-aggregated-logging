@@ -1,0 +1,20 @@
+---
+actions:
+  1:
+    action: delete_indices
+    description: auto-generated
+    filters:
+    - exclude: true
+      kind: regex
+      filtertype: pattern
+      value: '^\.searchguard\..*$|^\.kibana.*$'
+    - direction: older
+      filtertype: age
+      source: name
+      timestring: '%Y.%m.%d'
+      unit_count: 31
+      unit: days
+    options:
+      continue_if_exception: false
+      timeout_override: 300
+      ignore_empty_list: true

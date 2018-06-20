@@ -1,15 +1,11 @@
-#reconcile upstream to downstream
-es_source=/usr/share/elasticsearch
-mv "${es_source}"/* "${ES_HOME}"
-
 # list of plugins to be installed
 if [ -z "${ES_CLOUD_K8S_URL:-}" ] ; then
-    ES_CLOUD_K8S_URL=io.fabric8/elasticsearch-cloud-kubernetes/${ES_CLOUD_K8S_VER}
+    ES_CLOUD_K8S_URL=io.fabric8:elasticsearch-cloud-kubernetes:${ES_CLOUD_K8S_VER}
 fi
 if [ -z "${OSE_ES_URL:-}" ] ; then
     OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/releases/download/openshift-elasticsearch-plugin-${OSE_ES_VER}/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
 fi
 if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
-    PROMETHEUS_EXPORTER_URL=file:///tmp/lib/elasticsearch-prometheus-exporter/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+    PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 fi
 es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL $PROMETHEUS_EXPORTER_URL)
