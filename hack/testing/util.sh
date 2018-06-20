@@ -333,7 +333,7 @@ function wait_for_fluentd_to_catch_up() {
         os::log::error here is the current fluentd journal cursor
         sudo cat /var/log/journal.pos
         # records since start of function
-        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u --Ins )"'"}}}}'
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
         curl_es ${es_pod} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs.json 2>&1 || :
         rc=1
     fi
@@ -357,7 +357,7 @@ function wait_for_fluentd_to_catch_up() {
         os::log::error here is the current fluentd journal cursor
         sudo cat /var/log/journal.pos
         # records since start of function
-        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u --Ins )"'"}}}}'
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
         curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs.json 2>&1 || :
         rc=1
     fi
