@@ -168,17 +168,6 @@ LOG_PW2=${LOG_PW2:-loguser2-$RANDOM}
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
 
-# test failure
-os::cmd::expect_failure_and_text "hack_msearch_access" "Usage:"
-os::cmd::expect_failure_and_text "hack_msearch_access no-such-user no-such-project" "user no-such-user not found"
-os::cmd::expect_failure_and_text "hack_msearch_access $LOG_NORMAL_USER no-such-project" "project no-such-project not found"
-os::cmd::expect_failure_and_text "hack_msearch_access $LOG_NORMAL_USER default" "$LOG_NORMAL_USER does not have access to view logs in project default"
-
-os::cmd::expect_success "hack_msearch_access $LOG_NORMAL_USER multi-tenancy-1 multi-tenancy-2"
-cleanup_msearch_access="$cleanup_msearch_access $LOG_NORMAL_USER"
-os::cmd::expect_success "hack_msearch_access $LOG_USER2 --all"
-cleanup_msearch_access="$cleanup_msearch_access $LOG_USER2"
-
 oc login --username=system:admin > /dev/null
 oc project $LOGGING_PROJECT > /dev/null
 
