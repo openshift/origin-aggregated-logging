@@ -31,9 +31,7 @@ RUN if [ -n "${LOCAL_REPO}" ] ; then \
      curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
     fi
 
-ADD *.rpm /tmp/lib/
-WORKDIR /tmp/lib
-RUN INSTALLED_PKGS="kibana-${KIBANA_VER}-x86_64.rpm" && \
+RUN INSTALLED_PKGS="kibana-${KIBANA_VER}*" && \
     yum install -y --setopt=tsflags=nodocs  ${INSTALLED_PKGS} && \
     yum clean all
 
@@ -43,8 +41,8 @@ ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD lib/* ${HOME}/
 ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
 ADD logo-OCP-console-hdr-thin.svg ${KIBANA_HOME}/installedPlugins/origin-kibana/public/images/logo-origin-thin.svg
-RUN sh ${HOME}/install.sh
-RUN rm -r /tmp/lib
+RUN (type -p node || ln -s $(which $NODE_BIN) "/usr/bin/node") && \
+    sh ${HOME}/install.sh
 
 WORKDIR ${HOME}
 CMD ["./run.sh"]
@@ -56,9 +54,9 @@ LABEL \
         name="openshift3/ose-logging-kibana5" \
         License="GPLv2+" \
         io.k8s.display-name="Kibana" \
-        version="v3.10.0" \
+        version="v3.11.0" \
         architecture="x86_64" \
-        release="667" \
+        release="0.69.0.0" \
         io.openshift.expose-services="5601:http" \
         io.openshift.tags="logging,elk,kibana"
 
