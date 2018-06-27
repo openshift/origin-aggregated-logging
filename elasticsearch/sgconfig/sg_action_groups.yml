@@ -89,6 +89,8 @@ INDEX_PROJECT:
   - INDEX_ALL
 METRICS:
   - cluster:monitor/prometheus/metrics
+  - cluster:monitor/nodes/stats
+  - cluster:monitor/health
 USER_ALL_INDEX_OPS:
   - "indices:data/read/field_caps*"
 USER_CLUSTER_OPERATIONS:
