@@ -49,7 +49,7 @@ info Adding the index pattern for "$INDEX_PATTERN" . . .
 
 cat $INDEX_PATTERN_FILE | \
     sed "s/[$]TITLE[$]/$INDEX_PATTERN/g" | \
-    QUERY="/$kibindex/$INDEX_PATTERN_TYPE/$INDEX_PATTERN" es_util -XPUT --data-binary @- | curl_output
+    es_util --query="$kibindex/$INDEX_PATTERN_TYPE/$INDEX_PATTERN" -XPUT --data-binary @- | curl_output
 
 info Adding the Kibana UI objects . . .
 {
@@ -71,6 +71,6 @@ for doc in obj:
   sys.stdout.write("\n")
 '
     done
-} | QUERY="/$kibindex/_bulk" es_util -XPOST --data-binary @- | curl_output
+} | es_util --query="$kibindex/_bulk" -H "Content-type: application/json" -XPOST --data-binary @- | curl_output
 
 info Success
