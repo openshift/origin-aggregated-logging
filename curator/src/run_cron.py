@@ -6,7 +6,7 @@ import elasticsearch
 from curator_cmd import CuratorCmd
 from crontab import CronTab
 from datetime import datetime, timedelta
-from util import create_logger
+from util import create_logger, get_es_client
 
 class CuratorCronJob():
 
@@ -24,6 +24,7 @@ class CuratorCronJob():
         self.key =      os.getenv('ES_CLIENT_KEY', '/etc/curator/keys/key')
         self.es_host =  os.getenv('ES_HOST', 'logging-es')
         self.es_port =  os.getenv('ES_PORT', '9200')
+        self.es_hostport = self.es_host + ':' + self.es_port
 
     def setup_cron(self):
         for cmd in self.cmd_list:
@@ -65,30 +66,33 @@ class CuratorCronJob():
 
     def server_ready(self):
         until_next_retry = 1
-        es = self.get_es_client()
-        while True:
-            try:
-                if es.ping():
-                    break
-            except elasticsearch.ElasticsearchException as err:
-                self.logger.error(err)
-            time.sleep(until_next_retry)
-            if until_next_retry < 300:
-                until_next_retry *= 2
-        return True
-
-    def get_es_client(self):
-        es = elasticsearch.Elasticsearch(
-            [self.es_host + ':' + self.es_port],
+        failed_retries = 0
+        es = get_es_client(
+            [self.es_hostport],
             use_ssl=True,
             verify_certs=True,
             ca_certs=self.ca,
             client_cert=self.cert,
             client_key=self.key
         )
-        es.transport.max_retries = 0
-        es.transport.retry_on_status = ()
-        return es
+        while True:
+            try:
+                if es.ping():
+                    break
+                else:
+                    # ping returns False if returned http code isn't 2xx
+                    failed_retries += 1
+                    self.logger.error('Connection to elasticsearch at [%s] failed. Number of failed retries: %d', \
+                        self.es_hostport, failed_retries)
+            except elasticsearch.ElasticsearchException as err:
+                # ping() also throws TransportError if elasticsearch is not available
+                failed_retries += 1
+                self.logger.error('Connection to elasticsearch at [%s] failed. Number of failed retries: %d', \
+                    self.es_hostport, failed_retries)
+            time.sleep(until_next_retry)
+            if until_next_retry < 300:
+                until_next_retry *= 2
+        return True
 
 if __name__ == '__main__':
     ccj = CuratorCronJob()

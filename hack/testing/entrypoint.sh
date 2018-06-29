@@ -18,7 +18,7 @@
 #    filter.
 #  - EXCLUDE_SUITE: a regex that will choose which test suites
 #    are not run. Test suite entrypoints exist under hack/testing/
-#    with the test- prefix. The regex in $EXCLUDE_SUITE is 
+#    with the test- prefix. The regex in $EXCLUDE_SUITE is
 #    a simple filter like $SUITE only with opposite effect.
 #  - JUNIT_REPORT: generate a jUnit XML report for tests
 
@@ -107,16 +107,16 @@ monitor_es_bulk_stats() {
     es_ver=$( get_es_major_ver ) || :
     bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
     while true ; do
-        espod=$( get_es_pod es 2> /dev/null ) || :
-        local esopspod=$( get_es_pod es-ops 2> /dev/null ) || :
-        esopspod=${esopspod:-$espod}
-        if [ -n "${espod}" ] ; then
+        local essvc=$( get_es_svc es 2> /dev/null ) || :
+        local esopssvc=$( get_es_svc es-ops 2> /dev/null ) || :
+        esopspod=${esopssvc:-$essvc}
+        if [ -n "${essvc}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1
-            curl_es $espod "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
+            curl_es $essvc "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es.log 2>&1 || :
         fi
-        if [ -n "${esopspod}" -a "${espod}" != "${esopspod}" ] ; then
+        if [ -n "${esopssvc}" -a "${essvc}" != "${esopssvc}" ] ; then
             date -Ins >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1
-            curl_es $esopspod "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
+            curl_es $esopssvc "${bulk_url}" >> $ARTIFACT_DIR/monitor_es_bulk_stats-es-ops.log 2>&1 || :
         fi
         sleep $interval
     done
@@ -141,10 +141,6 @@ elif [[ -z "${KUBECONFIG:-}" ]]; then
 	os::log::fatal "A \$KUBECONFIG must be specified with \$TEST_ONLY."
 fi
 
-if [[ -n "${JUNIT_REPORT:-}" ]]; then
-	export JUNIT_REPORT_OUTPUT="${LOG_DIR}/raw_test_output.log"
-fi
-
 # if there is a script that is expected to fail, add it here
 expected_failures=(
     NONE
@@ -160,7 +156,7 @@ function run_suite() {
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
 	ops_cluster=${ENABLE_OPS_CLUSTER:-"true"}
-	if "${test}" "${ops_cluster}"; then
+	if OS_TMP_ENV_SET= LOG_DIR= ARTIFACT_DIR= "${test}" "${ops_cluster}"; then
 		os::log::info "Logging test suite ${suite_name} succeeded at $( date )"
 		if grep -q "${suite_name}" <<<"${expected_failures[@]}"; then
 			os::log::warning "Logging suite ${suite_name} is expected to fail"

@@ -29,7 +29,7 @@ function cleanup() {
     if [ -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; then
         rm -f $bulktestjson
     fi
-    curl_es $esopspod /bulkindextest -XDELETE | jq . | artifact_out
+    curl_es $esopssvc /bulkindextest -XDELETE | jq . | artifact_out
     fpod=$( get_running_pod fluentd )
     if [ -f /var/log/fluentd.log ] ; then
         cp /var/log/fluentd.log $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
@@ -42,7 +42,7 @@ function cleanup() {
     if [ -n "${esopsdc:-}" ] ; then
         oc rollout latest $esopsdc 2>&1 | tee artifact_out
         oc rollout status -w $esopsdc 2>&1 | tee artifact_out
-        # have to get esopspod again if needed
+        # have to get esopssvc again if needed
     fi
     if [ -n "${f_cm:-}" -a -f "${f_cm:-}" ] ; then
         oc replace --force -f $f_cm
@@ -78,13 +78,13 @@ oc get cm/logging-elasticsearch -o yaml | \
 
 oc rollout latest $esopsdc 2>&1 | artifact_out
 oc rollout status -w $esopsdc 2>&1 | artifact_out
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
-esopspod=${esopspod:-$espod}
+essvc=$( get_es_svc es )
+esopssvc=$( get_es_svc es-ops )
+esopssvc=${esopssvc:-$essvc}
 
 # check settings
 bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
-curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
+curl_es $esopssvc "${bulk_url}" 2>&1 | artifact_out
 # save current fluentd settings
 f_cm=$( mktemp )
 f_ds=$( mktemp )
@@ -139,19 +139,19 @@ do_curl_bulk_index() {
     local bulkpids=""
     for ii in $( seq 1 $parallel_curls ) ; do
         while [ ! -s $bulkdonefile -a -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; do
-            cat $bulktestjson | curl_es_input $esopspod /_bulk -XPOST --data-binary @- > /dev/null
+            cat $bulktestjson | curl_es_input $esopssvc /_bulk -XPOST --data-binary @- > /dev/null
         done & bulkpids="$bulkpids $!"
     done
-    curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
+    curl_es $esopssvc "${bulk_url}" 2>&1 | artifact_out
     wait $bulkpids
-    curl_es $esopspod "${bulk_url}" 2>&1 | artifact_out
+    curl_es $esopssvc "${bulk_url}" 2>&1 | artifact_out
 }
 
 do_curl_bulk_index & curlpid=$!
 # wait for elasticsearch to report bulk index rejections
 bulk_reject_url=$( get_bulk_thread_pool_url $es_ver "" r )
-os::cmd::try_until_not_text "curl_es $esopspod ${bulk_reject_url}" "^0\$"
-start_bulk_rejections=$( curl_es $esopspod ${bulk_reject_url} )
+os::cmd::try_until_not_text "curl_es $esopssvc ${bulk_reject_url}" "^0\$"
+start_bulk_rejections=$( curl_es $esopssvc ${bulk_reject_url} )
 
 # write some messages
 uuid_es_ops=$( openssl rand -hex 64 )
@@ -173,21 +173,21 @@ rm -f $opsloglines
 os::log::info Finished adding $countops operation log records
 
 qsops='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${uuid_es_ops}"'"}}}'
-firstcount=$( curl_es ${esopspod} /.operations.*/_count -X POST -d "$qsops" | get_count_from_json )
+firstcount=$( curl_es ${esopssvc} /.operations.*/_count -X POST -d "$qsops" | get_count_from_json )
 if [ "${firstcount:-0}" -eq $countops ] ; then
     os::log::warning All operations records added - some should have been queued due to bulk index rejection
 else
     os::log::info Found $firstcount of $countops operations records in Elasticsearch
 fi
 
-#curl_es ${esopspod} "/.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$uuid_es_ops&sort=@timestamp:asc&size=1" | jq .
-#curl_es ${esopspod} "/.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$uuid_es_ops&sort=@timestamp:desc&size=1" | jq .
+#curl_es ${esopssvc} "/.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$uuid_es_ops&sort=@timestamp:asc&size=1" | jq .
+#curl_es ${esopssvc} "/.operations.*/_search?q=systemd.u.SYSLOG_IDENTIFIER:$uuid_es_ops&sort=@timestamp:desc&size=1" | jq .
 
 # shutdown the do_curl_bulk_index
 echo done > $bulkdonefile
 wait $curlpid
 endtime=$( date +%s )
-end_bulk_rejections=$( curl_es $esopspod ${bulk_reject_url} )
+end_bulk_rejections=$( curl_es $esopssvc ${bulk_reject_url} )
 
 if ! os::cmd::expect_success "test ${start_bulk_rejections} -lt ${end_bulk_rejections}" ; then
     os::log::warning No bulk rejections reported between $( date --date=@$starttime ) and $( date --date=@$endtime )
@@ -233,11 +233,11 @@ fi
 
 rc=0
 timeout=$(( 180 * second ))
-if os::cmd::try_until_success "curl_es ${esopspod} /.operations.*/_count -X POST -d '$qsops' | jq '.count == ${countops}'" $timeout ; then
+if os::cmd::try_until_success "curl_es ${esopssvc} /.operations.*/_count -X POST -d '$qsops' | jq '.count == ${countops}'" $timeout ; then
     os::log::debug good - found $countops record project .operations for $uuid_es_ops
 else
     os::log::error not found $countops record project .operations for $uuid_es_ops after timeout
-    os::log::debug "$( curl_es ${esopspod} /.operations.*/_search -X POST -d "$qsops" )"
+    os::log::debug "$( curl_es ${esopssvc} /.operations.*/_search -X POST -d "$qsops" )"
     os::log::error "Checking journal for $uuid_es_ops..."
     if sudo journalctl | grep -q $uuid_es_ops ; then
         os::log::error "Found $uuid_es_ops in journal"

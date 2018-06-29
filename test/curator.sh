@@ -21,21 +21,21 @@ curl_output() {
 add_message_to_index() {
     local index="$1"
     local message="${2:-'curatortest mesage'}"
-    local espod="$3"
-    curl_es "$espod" "/$index/curatortest/" -XPOST -d '{
+    local essvc="$3"
+    curl_es "$essvc" "/$index/curatortest/" -XPOST -d '{
     "message" : "'${message}${3}'"
 }' | curl_output
 }
 
 delete_indices() {
-    local espod="$1"
-    curl_es $espod "/*.curatortest.*" -XDELETE | curl_output
+    local essvc="$1"
+    curl_es $essvc "/*.curatortest.*" -XDELETE | curl_output
 }
 
 skip_list=("^\." "^default")
 
 create_indices() {
-    local espod=$1
+    local essvc=$1
     set -- project-dev "$today" project-dev "$yesterday" project-qe "$today" project-qe "$lastweek" project-prod "$today" project-prod "$fourweeksago" .operations "$today" .operations "$twomonthsago" default-index "$today" default-index "$thirtyonedaysago" project2-qe "$today" project2-qe "$lastweek" project3-qe "$today" project3-qe "$lastweek"
     while [ -n "${1:-}" ] ; do
         local proj="$1" ; shift
@@ -46,7 +46,7 @@ create_indices() {
                 break
             fi
         done
-        add_message_to_index "${this_proj}.curatortest.$1" "$this_proj $1 message" $espod
+        add_message_to_index "${this_proj}.curatortest.$1" "$this_proj $1 message" $essvc
         shift
     done
 }
@@ -188,10 +188,9 @@ cleanup() {
         oc logs $curpod > $ARTIFACT_DIR/curator-$curpod.log 2>&1
     fi
     # delete indices
-    artifact_log espod $espod esopspod $esopspod
-    delete_indices $espod
-    if [ -n "${esopspod:-}" ] ; then
-        delete_indices $esopspod
+    delete_indices $essvc
+    if [ -n "${esopssvc:-}" ] ; then
+        delete_indices $esopssvc
     fi
     if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
         oc replace --force -f $origconfig 2>&1 | artifact_out
@@ -201,16 +200,16 @@ cleanup() {
         oc delete secret curator-config 2>&1 | artifact_out
         oc delete secret curator-config-ops 2>&1 | artifact_out
         oc set volumes dc/logging-curator --remove --name=curator-config 2>&1 | artifact_out
-        if [ -n "${esopspod:-}" ] ; then
+        if [ -n "${esopssvc:-}" ] ; then
             oc set volumes dc/logging-curator-ops --remove --name=curator-config 2>&1 | artifact_out
         fi
     fi
     oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
-    if [ -n "${esopspod:-}" ] ; then
+    if [ -n "${esopssvc:-}" ] ; then
         oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
     fi
     restart_curator
-    if [ -n "${esopspod:-}" ] ; then
+    if [ -n "${esopssvc:-}" ] ; then
         ops="-ops" restart_curator
     fi
     # this will call declare_test_end, suite_end, etc.
@@ -221,13 +220,13 @@ trap "cleanup" EXIT
 
 os::log::info Starting curator test at $( date )
 
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
+essvc=$( get_es_svc es )
+esopssvc=$( get_es_svc es-ops )
 curpod=$( get_running_pod curator )
 stop_curator $curpod
 oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
 restart_curator
-if [ -n "${esopspod:-}" ] ; then
+if [ -n "${esopssvc:-}" ] ; then
     curopspod=$( get_running_pod curator-ops )
     ops="-ops" stop_curator $curopspod
     oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
@@ -299,9 +298,9 @@ EOF
 }
 
 basictest() {
-    local espod=$1
+    local essvc=$1
     ops=${2:-""}
-    create_indices $espod
+    create_indices $essvc
 
     sleeptime=${CURATOR_WAIT_SECS:-120} # seconds
     # get current curator pod
@@ -358,7 +357,7 @@ EOF
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
-    create_indices $espod
+    create_indices $essvc
     # show current indices
     artifact_log current indices before 2nd deletion are:
     oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
@@ -381,9 +380,9 @@ EOF
 }
 
 regextest() {
-    local espod=$1
+    local essvc=$1
     ops=${2:-""}
-    create_indices $espod
+    create_indices $essvc
 
     sleeptime=${CURATOR_WAIT_SECS:-120} # seconds
     # get current curator pod
@@ -435,7 +434,7 @@ EOF
     os::cmd::expect_success "verify_indices $curpod $ops"
 
     # now, add back the same messages/indices and see if runhour and runminute are working
-    create_indices $espod
+    create_indices $essvc
     # show current indices
     artifact_log current indices before 2nd deletion are:
     oc exec $curpod -- curator --host logging-es${ops} --use_ssl --certificate /etc/curator/keys/ca \
@@ -460,14 +459,14 @@ EOF
 test_project_name_errors
 
 # test without ops cluster first
-basictest $espod
+basictest $essvc
 
-if [ -n "$esopspod" ]; then
-    basictest $esopspod "-ops"
+if [ -n "$esopssvc" ]; then
+    basictest $esopssvc "-ops"
 fi
 
-regextest $espod
+regextest $essvc
 
-if [ -n "$esopspod" ]; then
-    regextest $esopspod "-ops"
+if [ -n "$esopssvc" ]; then
+    regextest $esopssvc "-ops"
 fi
