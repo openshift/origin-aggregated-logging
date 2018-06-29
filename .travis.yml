@@ -1,9 +1,11 @@
-sudo: required
+matrix:
+  include:
+    - env: NAME='fluentd - generate_throttle_configs test'
+      language: ruby
+      rvm:
+      - 2.0
+      before_script:
+        cd fluentd/lib/generate_throttle_configs
+      script:
+        rake test
 
-language: ruby
-
-services:
-  - docker
-
-script:
-  - cd hack && PREFIX="openshift/origin-" ./build-images.sh
