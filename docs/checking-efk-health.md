@@ -56,6 +56,35 @@ especially if the SearchGuard stack trace is repeated multiple times:
 [ERROR][com.floragunn.searchguard.auth.BackendRegistry] Not yet initialized
 ```
 
+The following error is caused from using a headless services to provide Elasticsearch node discovery.  This log message is present when an Elasticsearch node boots and attempts to discover the
+other members of the cluster before the Kublet is able to publish all the pod endpoints.
+
+```
+[2018-06-22T18:36:11,210][DEBUG][o.e.a.a.i.e.i.TransportIndicesExistsAction] [logging-es-data-master-x6fia9t2] no known master node, scheduling a retry
+[2018-06-22T18:36:11,286][WARN ][o.e.d.z.UnicastZenPing   ] [logging-es-data-master-x6fia9t2] failed to resolve host [logging-es-cluster]
+java.net.UnknownHostException: logging-es-cluster: Name or service not known
+	at java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method) ~[?:1.8.0_171]
+	at java.net.InetAddress$2.lookupAllHostAddr(InetAddress.java:928) ~[?:1.8.0_171]
+	at java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1323) ~[?:1.8.0_171]
+	at java.net.InetAddress.getAllByName0(InetAddress.java:1276) ~[?:1.8.0_171]
+	at java.net.InetAddress.getAllByName(InetAddress.java:1192) ~[?:1.8.0_171]
+	at java.net.InetAddress.getAllByName(InetAddress.java:1126) ~[?:1.8.0_171]
+	at org.elasticsearch.transport.TcpTransport.parse(TcpTransport.java:911) ~[elasticsearch-5.6.9.jar:5.6.9]
+	at org.elasticsearch.transport.TcpTransport.addressesFromString(TcpTransport.java:866) ~[elasticsearch-5.6.9.jar:5.6.9]
+	at org.elasticsearch.transport.TransportService.addressesFromString(TransportService.java:701) ~[elasticsearch-5.6.9.jar:5.6.9]
+	at org.elasticsearch.discovery.zen.UnicastZenPing.lambda$null$0(UnicastZenPing.java:212) ~[elasticsearch-5.6.9.jar:5.6.9]
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_171]
+	at org.elasticsearch.common.util.concurrent.ThreadContext$ContextPreservingRunnable.run(ThreadContext.java:575) [elasticsearch-5.6.9.jar:5.6.9]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_171]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_171]
+	at java.lang.Thread.run(Thread.java:748) [?:1.8.0_171]
+```
+This is an acceptable message unless the cluster is not able to elect a master or form a quorum. The election of a master is indicated by a mesage like:
+
+```
+[2018-06-22T18:36:14,337][INFO ][o.e.c.s.ClusterService   ] [logging-es-data-master-x6fia9t2] new_master {logging-es-data-master-x6fia9t2}{fEQ6fBt0QuGIC_JyPlLw_A}{GNaZBu9VS_OQcpkOBskfSw}{10.128.0.35}{10.128.0.35:9300}, reason: zen-disco-elected-as-master ([0] nodes joined)[, ]
+```
+
 Another message that can be ignore is the following WARN message from `io.fabric8.elasticsearch.plugin.acl.DynamicACLFilter`, again, so long as it doesn't persist for a long time.
 This message comes from the ***openshift-elasticsearch-plugin*** attempting to initialize SearchGuard's configuration, however the Elasticsearch cluster is not yet in a 'yellow' state:
 ```
