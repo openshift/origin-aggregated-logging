@@ -3,31 +3,25 @@
   hosts: all
   gather_facts: true
   tasks:
-  - name: get patched rsyslog repo
-    get_url:
-      url: https://copr.fedorainfracloud.org/coprs/rmeggins/rsyslog/repo/epel-7/rmeggins-rsyslog-epel-7.repo
-      dest: /etc/yum.repos.d/rmeggins-rsyslog-epel-7.repo
-      mode: 0444
-    when: use_mmk8s | default(True)
+  - set_fact:
+      rsyslog_image_prefix: "viaq/"
+      when: rsyslog_image_prefix is not defined
+
+  - set_fact:
+      rsyslog_image_version: "latest"
+      when: rsyslog_image_version is not defined
+
+  - name: get rsyslog image
+    command: docker pull {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
 
   - name: install prereqs
     yum: state=latest name={{ item }}
     with_items:
-    - rsyslog
-    - rsyslog-mmnormalize
-    - rsyslog-mmjsonparse
     - nmap-ncat
     - systemd-python
-    - rsyslog-elasticsearch
     - policycoreutils
     - checkpolicy
     - policycoreutils-python
-
-  - name: pkgs
-    yum: state=latest name={{ item }}
-    with_items:
-    - rsyslog-mmkubernetes
-    when: use_mmk8s | default(True)
 
   - name: create rsyslog viaq subdir
     file: path=/etc/rsyslog.d/viaq state=directory mode=0700
@@ -212,5 +206,18 @@
       regexp: '^\$IMJournalStateFile|^#\$IMJournalStateFile'
       line: '#$IMJournalStateFile imjournal.state'
 
-  - name: restart rsyslog
-    systemd: name=rsyslog state=restarted
+  - name: disable rsyslog
+    systemd:
+      name: rsyslog.service
+      enabled: no
+      state: stopped
+
+  - name: install rsyslog container systemd service
+    template: src=rsyslog-container.service.j2 dest=/usr/lib/systemd/system/rsyslog-container.service mode=0400
+
+  - name: enable and run rsyslog-container.service
+    systemd:
+      name: rsyslog-container.service
+      daemon_reload: yes
+      enabled: yes
+      state: started

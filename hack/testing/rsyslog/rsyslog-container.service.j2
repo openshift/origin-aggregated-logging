@@ -1,0 +1,27 @@
+[Unit]
+Description=rsyslog container
+After=docker.service
+Requires=docker.service
+Conflicts=rsyslog.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker stop %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStartPre=/usr/bin/docker pull {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
+ExecStart=/usr/bin/docker run --env /etc/sysconfig/rsyslog --privileged --name %n \
+--net=host --pid=host \
+-v /etc/pki/rsyslog:/etc/pki/rsyslog \
+-v /etc/rsyslog.conf:/etc/rsyslog.conf \
+-v /etc/sysconfig/rsyslog:/etc/sysconfig/rsyslog \
+-v /etc/rsyslog.d:/etc/rsyslog.d \
+-v /var/log:/var/log \
+-v /var/lib/rsyslog:/var/lib/rsyslog \
+-v /var/lib/docker:/var/lib/docker \
+-v /run:/run \
+-v /etc/machine-id:/etc/machine-id \
+-v /etc/localtime:/etc/localtime --rm {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
+
+[Install]
+WantedBy=multi-user.target

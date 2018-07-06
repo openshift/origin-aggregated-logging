@@ -13,18 +13,21 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
+rsyslog_service=rsyslog-container
+# rsyslog_service=rsyslog
+
 cleanup() {
     local return_code="$?"
     set +e
-    if [ -n "${tmpinv}" -a -f "${tmpinv}" ] ; then
+    if [ -n "${tmpinv:-}" -a -f "${tmpinv:-}" ] ; then
         rm -f $tmpinv
     fi
-    sudo journalctl -u rsyslog --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
+    sudo journalctl -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
     if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
         sudo rm -rf /etc/rsyslog.d/*
         sudo cp -p ${rsyslog_save}/* /etc/rsyslog.d
         rm -rf ${rsyslog_save}
-        sudo systemctl restart rsyslog
+        sudo systemctl restart $rsyslog_service
     fi
     # cleanup fluentd pos file and restart
     flush_fluentd_pos_files
@@ -66,10 +69,10 @@ get_logmessage2() {
     logmessage2="$1"
     cp $2 $ARTIFACT_DIR/zzz-rsyslog-record-ops.json
 }
-sudo systemctl stop rsyslog
+sudo systemctl stop $rsyslog_service
 # make test run faster by resetting journal cursor to "now"
 sudo journalctl -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
-sudo systemctl start rsyslog
+sudo systemctl start $rsyslog_service
 sleep 10
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 proj=$ARTIFACT_DIR/zzz-rsyslog-record.json
@@ -100,7 +103,7 @@ if [ -n "$( oc get project $actual_ns_name -o jsonpath='{.metadata.labels}')" ] 
     cat $proj | jq -S '.hits.hits[0]._source.kubernetes.namespace_labels' > $ARTIFACT_DIR/zzz-rsyslog-actual-nslabels.json
     os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-nslabels.json $ARTIFACT_DIR/zzz-rsyslog-actual-nslabels.json"
 else
-    os::cmd::expect_success_and_text "cat $proj | jq .hits.hits[0]._source.metadata.namespace_labels" "^null\$"
+    os::cmd::expect_success_and_text "cat $proj | jq -r .hits.hits[0]._source.kubernetes.namespace_labels" "^null\$"
 fi
 
 if [ -n "$( oc get project $actual_ns_name -o jsonpath='{.metadata.annotations}')" ] ; then
@@ -109,7 +112,7 @@ if [ -n "$( oc get project $actual_ns_name -o jsonpath='{.metadata.annotations}'
     cat $proj | jq -S '.hits.hits[0]._source.kubernetes.namespace_annotations' > $ARTIFACT_DIR/zzz-rsyslog-actual-nsannotations.json
     os::cmd::expect_success "diff $ARTIFACT_DIR/zzz-rsyslog-expected-nsannotations.json $ARTIFACT_DIR/zzz-rsyslog-actual-nsannotations.json"
 else
-    os::cmd::expect_success_and_text "cat $proj | jq .hits.hits[0]._source.metadata.namespace_annotations" "^null\$"
+    os::cmd::expect_success_and_text "cat $proj | jq -r .hits.hits[0]._source.kubernetes.namespace_annotations" "^null\$"
 fi
 
 # see if ops fields are present
