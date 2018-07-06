@@ -24,7 +24,30 @@ es_svc=$( get_es_svc es )
 es_ops_svc=$( get_es_svc es-ops )
 es_ops_svc=${es_ops_svc:-$es_svc}
 
-OPS_NAMESPACES="default openshift openshift-infra openshift-this-is-a-test"
+OPS_NAMESPACES="default openshift openshift-infra openshift-this-is-a-test kube-public kube-system"
+
+cleanup() {
+  local return_code="$?"
+  set +e
+  es_pod=$( get_es_pod es )
+  es_ops_pod=$( get_es_pod es-ops )
+  es_ops_pod=${es_ops_pod:-$es_pod}
+
+  echo ">>> Indices $es_pod <<<" | artifact_out
+  oc exec -c elasticsearch $es_pod -- indices 2>&1 | artifact_out
+
+  echo ">>> Indices $es_ops_pod <<<" | artifact_out
+  oc exec -c elasticsearch $es_ops_pod -- indices 2>&1 | artifact_out
+
+  fpod=$( get_running_pod fluentd )
+  oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+
+  oc exec $fpod -- env | sort > $ARTIFACT_DIR/env_vars.log 2>&1
+  oc exec $fpod -- sh -c "find  /etc/fluent/configs.d -type f -exec cat {} \;" > $ARTIFACT_DIR/fluent_conf.log 2>&1
+
+  exit $return_code
+}
+trap "cleanup" EXIT
 
 # write some logs from namespace openshift and openshift-infra
 test_template=$OS_O_A_L_DIR/hack/testing/templates/test-template.yaml

@@ -17,7 +17,7 @@ ENV.sort.each do |entry|
   log.debug entry
 end if log.debug?
 
-DEFAULT_OPS_PROJECTS = !ENV['OCP_OPERATIONS_PROJECTS'].nil? ? ENV['OCP_OPERATIONS_PROJECTS'].split(' ') : ['default', 'openshift', 'openshift-infra']
+DEFAULT_OPS_PROJECTS = !ENV['OCP_OPERATIONS_PROJECTS'].nil? ? ENV['OCP_OPERATIONS_PROJECTS'].split(' ') : ['default', 'openshift', 'openshift-infra', 'kube-system']
 DEFAULT_FILENAME = "/etc/fluent/configs.d/user/throttle-config.yaml"
 
 VALID_SETTINGS = {"read_lines_limit" => "number"}

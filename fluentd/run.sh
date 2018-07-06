@@ -2,7 +2,7 @@
 
 export MERGE_JSON_LOG=${MERGE_JSON_LOG:-true}
 CFG_DIR=/etc/fluent/configs.d
-OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift-"}
+OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift- kube-"}
 OCP_FLUENTD_TAGS=""
 for p in ${OCP_OPERATIONS_PROJECTS}; do
     if [[ "${p}" == *- ]] ; then
