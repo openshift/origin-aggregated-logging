@@ -1,0 +1,66 @@
+FROM centos:centos7
+
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
+
+EXPOSE 9200
+EXPOSE 9300
+USER 0
+
+ENV ES_CLOUD_K8S_VER=5.6.9.2 \
+    ES_CONF=/etc/elasticsearch/ \
+    ES_HOME=/usr/share/elasticsearch \
+    ES_VER=5.6.9 \
+    HOME=/opt/app-root/src \
+    INSTANCE_RAM=512G \
+    JAVA_VER=1.8.0 \
+    JAVA_HOME=/usr/lib/jvm/jre \
+    NODE_QUORUM=1 \
+    OSE_ES_VER=5.6.9.0 \
+    PROMETHEUS_EXPORTER_VER=5.6.9.0 \
+    PLUGIN_LOGLEVEL=INFO \
+    RECOVER_AFTER_NODES=1 \
+    RECOVER_EXPECTED_NODES=1 \
+    RECOVER_AFTER_TIME=5m \
+    RELEASE_STREAM=origin \
+    ADDITIONAL_PLUGINS=repository-s3
+
+ARG ES_CLOUD_K8S_VER=5.6.9.2
+ARG OSE_ES_VER=5.6.9.0
+ARG SG_VER=5.6.9-19
+
+LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
+      io.k8s.display-name="Elasticsearch ${ES_VER}" \
+      io.openshift.expose-services="9200:https, 9300:https" \
+      io.openshift.tags="logging,elk,elasticsearch" \
+      architecture=x86_64 \
+      name="openshift3/logging-elasticsearch"
+
+ADD elasticsearch.repo /etc/yum.repos.d/elasticsearch.repo
+# install the RPMs in a separate step so it can be cached
+RUN rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch && \
+    yum install -y --setopt=tsflags=nodocs --nogpgcheck \
+                java-${JAVA_VER}-openjdk-headless \
+                elasticsearch-${ES_VER} \
+                PyYAML && \
+    yum clean all
+
+ADD sgconfig/ ${HOME}/sgconfig/
+ADD index_templates/ ${ES_HOME}/index_templates/
+ADD index_patterns/ ${ES_HOME}/index_patterns/
+ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
+ADD probe/ ${ES_HOME}/probe/
+ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
+COPY utils/** /usr/local/bin/
+
+ARG ES_CLOUD_K8S_URL
+ARG OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/releases/download/openshift-elasticsearch-plugin-5.6.9.0/openshift-elasticsearch-plugin-5.6.9.0.zip
+ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/5.6.9.0/elasticsearch-prometheus-exporter-5.6.9.0.zip
+ARG SG_URL
+
+RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
+    ${HOME}/install.sh && \
+    rm -rf /tmp/lib
+
+WORKDIR ${HOME}
+USER 1000
+CMD ["sh", "/opt/app-root/src/run.sh"]
