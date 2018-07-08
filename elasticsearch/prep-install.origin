@@ -8,4 +8,7 @@ fi
 if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
     PROMETHEUS_EXPORTER_URL=https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 fi
-es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL $PROMETHEUS_EXPORTER_URL)
+if [ -z "${ADDITIONAL_PLUGINS:-}" ] ; then
+    ADDITIONAL_PLUGINS=
+fi
+es_plugins=($ES_CLOUD_K8S_URL $OSE_ES_URL $PROMETHEUS_EXPORTER_URL $ADDITIONAL_PLUGINS)
