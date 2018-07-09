@@ -15,8 +15,7 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CLOUD_K8S_VER=5.6.9.2 \
-    ES_CONF=/etc/elasticsearch/ \
+ENV ES_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
     ES_VER=5.6.9 \
     HOME=/opt/app-root/src \
@@ -31,10 +30,8 @@ ENV ES_CLOUD_K8S_VER=5.6.9.2 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=prod
 
-ARG ES_CLOUD_K8S_VER=5.6.9.2
 ARG OSE_ES_VER=5.6.9.1
 ARG OSE_ES_URL
-ARG ES_CLOUD_K8S_URL
 ARG PROMETHEUS_EXPORTER_URL
 ARG LOCAL_REPO
 

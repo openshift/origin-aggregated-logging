@@ -6,8 +6,7 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CLOUD_K8S_VER=5.6.9.2 \
-    ES_CONF=/etc/elasticsearch/ \
+ENV ES_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
     ES_VER=5.6.9 \
     HOME=/opt/app-root/src \
@@ -23,7 +22,6 @@ ENV ES_CLOUD_K8S_VER=5.6.9.2 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=origin
 
-ARG ES_CLOUD_K8S_VER=5.6.9.2
 ARG OSE_ES_VER=5.6.9.1
 ARG SG_VER=5.6.9-19
 
@@ -51,7 +49,6 @@ ADD probe/ ${ES_HOME}/probe/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
-ARG ES_CLOUD_K8S_URL
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/5.6.9.0/elasticsearch-prometheus-exporter-5.6.9.0.zip
 ARG SG_URL
