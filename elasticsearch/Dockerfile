@@ -44,7 +44,7 @@ ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
-ADD lib /tmp/lib
+ADD lib/ /tmp/lib/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 RUN ln -s /usr/local/bin/logging ${HOME}/logging
@@ -67,4 +67,3 @@ LABEL \
         architecture="x86_64" \
         io.openshift.expose-services="9200:https, 9300:https" \
         io.openshift.tags="logging,elk,elasticsearch"
-
