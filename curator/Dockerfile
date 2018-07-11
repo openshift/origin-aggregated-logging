@@ -22,7 +22,7 @@ ENV HOME=/opt/app-root/src \
     CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=5.2 \
+    CURATOR_VER=5.2.0 \
     CURATOR_TIMEOUT=300
 
 ARG LOCAL_REPO
@@ -30,13 +30,10 @@ RUN if [ -n "${LOCAL_REPO}" ] ; then \
      curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
     fi
 
-ADD elasticsearch-curator-5.2.0-1.x86_64.rpm /tmp/ocp/
-
-RUN yum install -y --setopt=tsflags=nodocs /tmp/ocp/elasticsearch-curator-5.2.0-1.x86_64.rpm && \
-    INSTALL_PKGS="python2-ruamel-yaml" && \
+RUN INSTALL_PKGS="elastic-curator-${CURATOR_VER} \
+                  python2-ruamel-yaml" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-    rpm -V elasticsearch-curator python2-ruamel-yaml && \
-    rm -rf /tmp/ocp && \
+    rpm -V ${INSTALL_PKGS} && \
     yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
@@ -58,8 +55,8 @@ LABEL \
         name="openshift3/ose-logging-curator5" \
         License="GPLv2+" \
         io.k8s.display-name="Curator 5" \
-        version="v3.10.0" \
+        version="v3.11.0" \
         architecture="x86_64" \
-        release="998" \
+        release="1" \
         io.openshift.tags="logging,elk,elasticsearch,curator"
 
