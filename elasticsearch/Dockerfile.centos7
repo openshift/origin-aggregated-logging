@@ -22,7 +22,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=origin
 
-ARG OSE_ES_VER=5.6.10.0
+ARG OSE_ES_VER=5.6.10.1-SNAPSHOT
 ARG SG_VER=5.6.10-19.2
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
@@ -49,7 +49,7 @@ ADD probe/ ${ES_HOME}/probe/
 ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
-ARG OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/files/2182569/openshift-elasticsearch-plugin-5.6.10.0.zip
+ARG OSE_ES_URL=https://github.com/josefkarasek/openshift-elasticsearch-plugin/releases/download/openshift-elasticsearch-plugin-5.6.10.1-SNAPSHOT/openshift-elasticsearch-plugin-5.6.10.1-SNAPSHOT.zip
 ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/5.6.10.0/elasticsearch-prometheus-exporter-5.6.10.0.zip
 ARG SG_URL
 
