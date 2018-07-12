@@ -153,6 +153,32 @@ function curl_es_pod_with_token() {
                              "https://localhost:9200${endpoint}"
 }
 
+function curl_es_pod_with_username_password() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_password="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+
+    oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             -H "Authorization: Basic $( echo -n ${test_name}:${test_password} | base64 -w 0 )" \
+                             "https://localhost:9200${endpoint}"
+}
+
+function curl_es_pod_with_username_password_not_silent() {
+    local pod="$1"
+    local endpoint="$2"
+    local test_name="$3"
+    local test_password="$4"
+    shift; shift; shift; shift
+    local args=( "${@:-}" )
+
+    oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --insecure "${args[@]}" \
+                             -H "Authorization: Basic $( echo -n ${test_name}:${test_password} | base64 -w 0 )" \
+                             "https://localhost:9200${endpoint}"
+}
+
 function curl_es_with_token() {
     local svc_name="$1"
     local endpoint="$2"
