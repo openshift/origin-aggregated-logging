@@ -45,7 +45,8 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
-     'fluent-plugin-remote-syslog:1.1'
+     'fluent-plugin-remote-syslog:1.1' \
+     'fluent-plugin-prometheus:<1.0.0'
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/

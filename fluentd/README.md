@@ -6,6 +6,7 @@ Following are the environment variables that can be modified to adjust the confi
 
 | Environment Variable | Description |Example|
 |----------------------|-------------|---|
+| `ENABLE_PROMETHEUS_ENDPOINT`| Enable or diable the prometheus endpoint (Default: true)| `ENABLE_PROMETHEUS_ENDPOINT=false`|
 | `MERGE_JSON_LOG`     | **DEPRECATED** Parse JSON log messages and merge them into the JSON payload to be indexed to Elasticsearch. **Default:** True | `MERGE_JSON_LOG=true`|
 | `OCP_OPERATIONS_PROJECTS`| The list of project or patterns for which messages will be sent to the operations indices|`OCP_OPERATIONS_PROJECTS="default openshift openshift- kube-*"`
 
