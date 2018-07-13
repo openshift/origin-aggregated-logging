@@ -499,6 +499,7 @@ if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; the
                         -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
                         -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
                         -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+                        -e openshift_console_install=False \
                         /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
 fi
 
@@ -520,6 +521,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-network.log ansible-playbook -vvv --become        
   -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
   -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
   -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+  -e openshift_console_install=False \
   \${playbook}
 
 if [[ -s "\${playbook_base}deploy_cluster.yml" ]]; then
@@ -545,6 +547,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e openshift_node_port_range=30000-32000 \
   -e 'osm_controller_args={"enable-hostpath-provisioner":["true"]}' -e @sjb/inventory/base.cfg \
   -e skip_sanity_checks=true -e 'openshift_disable_check=*' -e openshift_install_examples=false \
+  -e openshift_console_install=False \
   \${playbook}
 EOF
 scp $runfile openshiftdevel:/tmp
