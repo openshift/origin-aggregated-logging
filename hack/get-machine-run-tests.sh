@@ -607,12 +607,14 @@ fi
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd
 logging_extras=""
-if [[ "\$curbranch" == es5.x ]]; then
-    logging_extras="\${logging_extras} -e openshift_logging_es5_techpreview=True"
-#                    -e openshift_logging_image_version=latest"
-#elif [[ "\${curbranch}" == master ]]; then
-#    # force image version/tag to be latest, otherwise it will use openshift_tag_version
-#    logging_extras="\${logging_extras} -e openshift_logging_image_version=latest"
+if [[ "\${curbranch}" == master ]]; then
+    # force image version/tag to be latest, otherwise it will use openshift_tag_version
+    # also use oauth-proxy 1.1.0 for 3.11 and later, and for kibana
+    logging_extras="\${logging_extras} -e openshift_logging_image_version=latest \
+    -e openshift_logging_elasticsearch_proxy_image=docker.io/openshift/oauth-proxy:v1.1.0 \
+    -e openshift_logging_kibana_proxy_image=docker.io/openshift/oauth-proxy:v1.1.0"
+else
+    logging_extras="\${logging_extras} -e openshift_logging_elasticsearch_proxy_image=docker.io/openshift/oauth-proxy:v1.0.0"
 fi
 ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   --become-user root \
@@ -633,7 +635,6 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   -e openshift_logging_es_allow_external=${ES_ALLOW_EXTERNAL:-True} \
   -e openshift_logging_es_ops_allow_external=${ES_OPS_ALLOW_EXTERNAL:-True} \
   -e oreg_url='openshift/origin-\${component}:'"\${release_commit}" \
-  -e openshift_logging_elasticsearch_proxy_image=openshift/oauth-proxy:v1.0.0 \
   ${EXTRA_ANSIBLE:-} \${logging_extras} \
   \${playbook} \
   --skip-tags=update_master_config
