@@ -25,7 +25,12 @@ function get_es_pod() {
 
 function get_es_svc() {
     # $1 - cluster name postfix
-    oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}'
+    oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}' 2> /dev/null || {
+        if [ "$1" != "es-ops" ] ; then
+            # ignore missing es-ops - probably not deployed with ops cluster - otherwise, report it
+            oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}' 2>&1 | artifact_out || :
+        fi
+    }
 }
 
 function get_running_pod() {
