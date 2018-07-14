@@ -120,11 +120,13 @@ function curl_es() {
     local endpoint="$2"
     shift; shift
     local args=( "${@:-}" )
+    local cert=${CURL_ES_CERT:-${secret_dir}/admin-cert}
+    local key=${CURL_ES_KEY:-${secret_dir}/admin-key}
 
     local secret_dir="$(get_es_cert_path)/"
     curl --silent --insecure "${args[@]}" \
-      --key "${secret_dir}/admin-key" \
-      --cert "${secret_dir}/admin-cert" \
+      --key "${key}" \
+      --cert "${cert}" \
       "https://${svc_name}.${LOGGING_NS}.svc:9200${endpoint}"
 }
 
@@ -136,11 +138,13 @@ function curl_es_input() {
     local endpoint="$2"
     shift; shift
     local args=( "${@:-}" )
+    local cert=${CURL_ES_CERT:-${secret_dir}/admin-cert}
+    local key=${CURL_ES_KEY:-${secret_dir}/admin-key}
 
     local secret_dir="$(get_es_cert_path)/"
     curl --silent --insecure "${args[@]}" \
-      --key "${secret_dir}admin-key"   \
-      --cert "${secret_dir}admin-cert" \
+      --key "${key}"   \
+      --cert "${cert}" \
       "https://${svc_name}.${LOGGING_NS}.svc:9200${endpoint}"
 }
 
