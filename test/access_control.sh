@@ -70,11 +70,11 @@ function add_message_to_index() {
 }
 
 function check_es_acls() {
-
-  os::log::debug "Checking that Elasticsearch pod ${espod} has expected acl definitions configured"
+  local doc=""
+  local ts=$( date +%s )
   for doc in roles rolesmapping actiongroups; do
-    es_acls=$( oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} )
-    os::log::info "Configured ${doc}: ${es_acls}"
+    artifact_log Checking that Elasticsearch pod ${espod} has expected acl definitions $ARTIFACT_DIR/$doc.$ts
+    oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
   done
 }
 
