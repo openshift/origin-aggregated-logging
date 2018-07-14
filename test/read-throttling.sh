@@ -28,14 +28,21 @@ oc get configmap logging-fluentd -o yaml > $savecm
 stop_fluentd() {
   artifact_log at this point there should be 1 fluentd running in Running state
   oc get pods 2>&1 | artifact_out
-  os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
+  local fpod=$( get_running_pod fluentd )
+  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
   os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
   artifact_log at this point there should be no fluentd running - number ready is 0
   oc get pods 2>&1 | artifact_out
+  # for some reason, in this test, after .status.numberReady is 0, the fluentd pod hangs around
+  # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
+  # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
+  if [ -n "${fpod:-}" ] ; then
+    os::cmd::try_until_failure "oc get pod $fpod > /dev/null 2>&1" $FLUENTD_WAIT_TIME
+  fi
 }
 
 start_fluentd() {
-  os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
   os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 }
 
@@ -66,15 +73,14 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
-    os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
-        os::log::debug "$( oc replace --force -f $savecm 2>&1 )"
+        oc replace --force -f $savecm 2>&1 | artifact_out
     fi
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
-        os::log::debug "$( oc replace --force -f $saveds 2>&1 )"
+        oc replace --force -f $saveds 2>&1 | artifact_out
     fi
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+    start_fluentd
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -85,9 +91,9 @@ fpod=$( get_running_pod fluentd )
 
 # generate throttle config with invalid YAML
 stop_fluentd
-os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
+oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
-    test-proj: read_lines_limit: bogus-value"}]' )"
+    test-proj: read_lines_limit: bogus-value"}]' 2>&1 | artifact_out
 start_fluentd
 fpod=$( get_running_pod fluentd )
 # should have fluentd log messages like this
@@ -95,18 +101,18 @@ os::cmd::expect_success_and_text "oc logs $fpod" "Could not parse YAML file"
 
 # generate a throttle config that properly generates different pos files
 stop_fluentd
-os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
+oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
-    test-proj:\n  read_lines_limit: 5\n.operations:\n  read_lines_limit: 5"}]' )"
+    test-proj:\n  read_lines_limit: 5\n.operations:\n  read_lines_limit: 5"}]' 2>&1 | artifact_out
 start_fluentd
 check_fluentd_pod_for_files '/var/log/es-container-test-proj.log.pos' '/var/log/es-container-openshift-operations.log.pos'
 check_fluentd_pod_file_content_for '/var/log/es-container-openshift-operations.log.pos' '.*_default_.*'
 
 # generate throttle config with a bogus key - verify the correct error
 stop_fluentd
-os::log::debug "$( oc patch configmap/logging-fluentd --type=json \
+oc patch configmap/logging-fluentd --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
-    test-proj:\n  read_lines_limit: bogus-value\nbogus-project:\n  bogus-key: bogus-value"}]' )"
+    test-proj:\n  read_lines_limit: bogus-value\nbogus-project:\n  bogus-key: bogus-value"}]' 2>&1 | artifact_out
 start_fluentd
 fpod=$( get_running_pod fluentd )
 # should have fluentd log messages like this
