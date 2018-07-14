@@ -120,10 +120,10 @@ function curl_es() {
     local endpoint="$2"
     shift; shift
     local args=( "${@:-}" )
+    local secret_dir="$(get_es_cert_path)/"
     local cert=${CURL_ES_CERT:-${secret_dir}/admin-cert}
     local key=${CURL_ES_KEY:-${secret_dir}/admin-key}
 
-    local secret_dir="$(get_es_cert_path)/"
     curl --silent --insecure "${args[@]}" \
       --key "${key}" \
       --cert "${cert}" \
@@ -138,10 +138,10 @@ function curl_es_input() {
     local endpoint="$2"
     shift; shift
     local args=( "${@:-}" )
+    local secret_dir="$(get_es_cert_path)/"
     local cert=${CURL_ES_CERT:-${secret_dir}/admin-cert}
     local key=${CURL_ES_KEY:-${secret_dir}/admin-key}
 
-    local secret_dir="$(get_es_cert_path)/"
     curl --silent --insecure "${args[@]}" \
       --key "${key}"   \
       --cert "${cert}" \
