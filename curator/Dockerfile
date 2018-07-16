@@ -1,12 +1,3 @@
-#oit## This file is managed by the OpenShift Image Tool: https://github.com/openshift/enterprise-images
-#oit## by the OpenShift Continuous Delivery team (#aos-cd-team on IRC).
-#oit## 
-#oit## Any yum repos listed in this file will effectively be ignored during CD builds.
-#oit## Yum repos must be enabled in the oit configuration files.
-#oit## The content of this file is managed from an external source.
-#oit## Changes made directly in distgit will be lost during the next
-#oit## reconciliation process.
-#oit## 
 FROM rhel7:7-released
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
@@ -22,8 +13,9 @@ ENV HOME=/opt/app-root/src \
     CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=5.2.0 \
-    CURATOR_TIMEOUT=300
+    CURATOR_VER=5.2 \
+    CURATOR_TIMEOUT=300 \
+    container=oci
 
 ARG LOCAL_REPO
 RUN if [ -n "${LOCAL_REPO}" ] ; then \
