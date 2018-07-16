@@ -12,6 +12,9 @@ LOGGING_NS=${LOGGING_NS:-openshift-logging}
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
+es_svc=$( get_es_svc es )
+es_ops_svc=$( get_es_svc es-ops )
+es_ops_svc=${es_ops_svc:-$es_svc}
 
 delete_users=""
 REUSE=${REUSE:-false}
@@ -70,11 +73,11 @@ function add_message_to_index() {
 }
 
 function check_es_acls() {
-
-  os::log::debug "Checking that Elasticsearch pod ${espod} has expected acl definitions configured"
+  local doc=""
+  local ts=$( date +%s )
   for doc in roles rolesmapping actiongroups; do
-    es_acls=$( oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} )
-    os::log::info "Configured ${doc}: ${es_acls}"
+    artifact_log Checking that Elasticsearch pod ${espod} has expected acl definitions $ARTIFACT_DIR/$doc.$ts
+    oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
   done
 }
 
@@ -331,18 +334,11 @@ openssl ca \
     -extensions v3_req \
     -batch \
     -extensions server_ext 2>&1 | artifact_out
-oc rsync -c elasticsearch $certdir $espod:/tmp 2>&1 | artifact_out
-if [ "$espod" != "$esopspod" ] ; then
-    oc rsync -c elasticsearch $certdir $esopspod:/tmp 2>&1 | artifact_out
-fi
 
-os::cmd::expect_failure "oc exec -c elasticsearch $espod -- \
-    curl -s -k --cert $certdir/test.crt --key $certdir/test.key \
-    https://localhost:9200/.kibana/_count"
-os::cmd::expect_failure "oc exec -c elasticsearch $espod -- \
-    curl -s -k --cert $certdir/test.crt --key $certdir/test.key \
-    https://localhost:9200/project.*/_count"
-os::cmd::expect_failure "oc exec -c elasticsearch $esopspod -- \
-    curl -s -k --cert $certdir/test.crt --key $certdir/test.key \
-    https://localhost:9200/.operations.*/_count"
+CURL_ES_CERT=$certdir/test.crt CURL_ES_KEY=$certdir/test.key \
+    os::cmd::expect_failure "curl_es $es_svc /.kibana/_count"
+CURL_ES_CERT=$certdir/test.crt CURL_ES_KEY=$certdir/test.key \
+    os::cmd::expect_failure "curl_es $es_svc /project.*/_count"
+CURL_ES_CERT=$certdir/test.crt CURL_ES_KEY=$certdir/test.key \
+    os::cmd::expect_failure "curl_es $es_ops_svc /.operations.*/_count"
 rm -rf $certdir

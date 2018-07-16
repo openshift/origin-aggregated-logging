@@ -23,8 +23,12 @@ fluentdtype="fluentd"
 mpod=$( get_running_pod mux )
 if [ -n "${mpod:-}" ]; then
     # mux is configured; make sure mux client fluentd runs as maximal mode.
+    artifact_log at this point there should be 1 fluentd running in Running state
+    oc get pods 2>&1 | artifact_out
     oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" '^0$' $FLUENTD_WAIT_TIME
+    artifact_log at this point there should be 0 fluentd running
+    oc get pods 2>&1 | artifact_out
     oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
     oc label node --all logging-infra-fluentd=true --overwrite=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "

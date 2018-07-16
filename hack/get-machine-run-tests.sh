@@ -499,6 +499,7 @@ if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; the
                         -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
                         -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
                         -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+                        -e openshift_console_install=False \
                         /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
 fi
 
@@ -520,6 +521,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-network.log ansible-playbook -vvv --become        
   -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
   -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
   -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+  -e openshift_console_install=False \
   \${playbook}
 
 if [[ -s "\${playbook_base}deploy_cluster.yml" ]]; then
@@ -545,6 +547,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e openshift_node_port_range=30000-32000 \
   -e 'osm_controller_args={"enable-hostpath-provisioner":["true"]}' -e @sjb/inventory/base.cfg \
   -e skip_sanity_checks=true -e 'openshift_disable_check=*' -e openshift_install_examples=false \
+  -e openshift_console_install=False \
   \${playbook}
 EOF
 scp $runfile openshiftdevel:/tmp
@@ -604,12 +607,14 @@ fi
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd
 logging_extras=""
-if [[ "\$curbranch" == es5.x ]]; then
-    logging_extras="\${logging_extras} -e openshift_logging_es5_techpreview=True"
-#                    -e openshift_logging_image_version=latest"
-#elif [[ "\${curbranch}" == master ]]; then
-#    # force image version/tag to be latest, otherwise it will use openshift_tag_version
-#    logging_extras="\${logging_extras} -e openshift_logging_image_version=latest"
+if [[ "\${curbranch}" == master ]]; then
+    # force image version/tag to be latest, otherwise it will use openshift_tag_version
+    # also use oauth-proxy 1.1.0 for 3.11 and later, and for kibana
+    logging_extras="\${logging_extras} -e openshift_logging_image_version=latest \
+    -e openshift_logging_elasticsearch_proxy_image=docker.io/openshift/oauth-proxy:v1.1.0 \
+    -e openshift_logging_kibana_proxy_image=docker.io/openshift/oauth-proxy:v1.1.0"
+else
+    logging_extras="\${logging_extras} -e openshift_logging_elasticsearch_proxy_image=docker.io/openshift/oauth-proxy:v1.0.0"
 fi
 ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   --become-user root \
@@ -630,7 +635,6 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   -e openshift_logging_es_allow_external=${ES_ALLOW_EXTERNAL:-True} \
   -e openshift_logging_es_ops_allow_external=${ES_OPS_ALLOW_EXTERNAL:-True} \
   -e oreg_url='openshift/origin-\${component}:'"\${release_commit}" \
-  -e openshift_logging_elasticsearch_proxy_image=openshift/oauth-proxy:v1.0.0 \
   ${EXTRA_ANSIBLE:-} \${logging_extras} \
   \${playbook} \
   --skip-tags=update_master_config
