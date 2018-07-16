@@ -23,7 +23,7 @@ class EsClientFactory(object):
             EsClientFactory._es.transport.max_retries = 0
             EsClientFactory._es.transport.retry_on_status = ()
 
-        if log_level is not None:
+        if log_level is not None and log_level in logging._levelNames:
             EsClientFactory._log_level(log_level)
 
         return EsClientFactory._es

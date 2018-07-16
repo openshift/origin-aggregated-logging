@@ -3,15 +3,14 @@ import os
 import datetime
 import time
 from esclientfactory import EsClientFactory
-from curatoresclientfactory import CuratorEsClientFactory
 from esutil import EsUtil
 from util import create_logger
 
 class IndexSource():
 
-    def __init__(self):
-        self.logger = create_logger(__name__,  os.getenv('YACHT_LOG_LEVEL', 'INFO'))
-        self.es = CuratorEsClientFactory.curator_es_client(False, 'ERROR')
+    def __init__(self, es, log_level):
+        self.logger = create_logger(__name__,  log_level)
+        self.es = es
 
     def indices_tomorrow(self):
         all_indices = self.get_indices()
@@ -55,27 +54,25 @@ class IndexSource():
 
 class IndexCreator():
 
-    def __init__(self):
-        self.logger = create_logger(__name__,  os.getenv('YACHT_LOG_LEVEL', 'DEBUG'))
+    def __init__(self, es, log_level):
+        self.logger = create_logger(__name__, log_level)
         self.wait_limit = int(os.getenv('MAX_WATING_TIME', '30000'))
         self.retry_period = int(os.getenv('RETRY_PERIOD_SECONDS', '5'))
-        self.index_source = IndexSource()
-        self.es = CuratorEsClientFactory.curator_es_client(False, 'ERROR')
-        self.es_util = EsUtil(self.es)
+        self.index_source = IndexSource(es, log_level)
+        self.es = es
+        self.es_util = EsUtil(self.es, log_level)
 
     def create(self):
         self.es_util.server_running()
         self.server_busy()
         indices_tomorrow = self.index_source.indices_tomorrow()
-        for i in range(len(indices_tomorrow)):
-            self.logger.info('Creating index %d of %d [%s]', i+1, len(indices_tomorrow), indices_tomorrow[i])
+        indices_total = len(indices_tomorrow)
+        for i, index in enumerate(indices_tomorrow):
+            self.logger.info('Creating index %d of %d [%s]', i+1, indices_total, index)
             try:
-                self.es.indices.create(indices_tomorrow[i], ignore=400)
+                self.es.indices.create(index, ignore=400)
             except elasticsearch.ElasticsearchException as err:
                 self.logger.error(err)
-        # job done, relly on garbage collector to close open connections to es
-        # will sleep now...
-        # EsClientFactory.es_reset_con()
 
     def server_busy(self):
         while self.queue() > self.wait_limit:
@@ -92,9 +89,16 @@ class IndexCreator():
 
 class Yacht():
 
-    def __init__(self):
-        self.logger = create_logger(__name__,  os.getenv('YACHT_LOG_LEVEL', 'DEBUG'))
-        self.ic = IndexCreator()
+    def __init__(self, log_level):
+        self.logger = create_logger(__name__,  log_level)
+        ca =       os.getenv('ES_CA', '/etc/curator/keys/ca')
+        cert =     os.getenv('ES_CLIENT_CERT', '/etc/curator/keys/cert')
+        key =      os.getenv('ES_CLIENT_KEY', '/etc/curator/keys/key')
+        es_host =  os.getenv('ES_HOST', 'logging-es')
+        es_port =  os.getenv('ES_PORT', '9200')
+        es_hostport_list = [es_host + ':' + es_port]
+        es = EsClientFactory.es_client_factory(ca, cert, key, es_hostport_list, False, None)
+        self.ic = IndexCreator(es, log_level)
 
     def loop(self):
         while True:
@@ -117,5 +121,5 @@ class Yacht():
         time.sleep(untilnextruntime)
 
 if __name__ == '__main__':
-    yacht = Yacht()
+    yacht = Yacht(os.getenv('YACHT_LOG_LEVEL', 'INFO'))
     yacht.loop()

@@ -1,14 +1,13 @@
 import time
-import os
 import elasticsearch
 from util import create_logger
 
 class EsUtil():
 
-    def __init__(self, es):
+    def __init__(self, es, log_level):
         if es is None:
             raise ValueError('Received empty elasticsearch client')
-        self.logger = create_logger(__name__,  os.getenv('YACHT_LOG_LEVEL', 'INFO'))
+        self.logger = create_logger(__name__,  log_level)
         self.es = es
 
     def server_running(self):

@@ -9,7 +9,7 @@ ENV HOME=/opt/app-root/src \
     ES_CLIENT_CERT=/etc/yacht/keys/cert \
     ES_CLIENT_KEY=/etc/yacht/keys/key \
     YACHT_VERSION=0.1 \
-    YACHT_LOG_LEVEL=DEBUG \
+    YACHT_LOG_LEVEL=INFO \
     MAX_WATING_TIME=30000 \
     RETRY_PERIOD_SECONDS=5
 
