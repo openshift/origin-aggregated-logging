@@ -25,6 +25,8 @@ max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
 
 mkdir -p /elasticsearch/$CLUSTER_NAME
+# the deployment mounts the secrets at this location - not necessarily the same
+# as $ES_CONF
 secret_dir=/etc/elasticsearch/secret
 
 BYTES_PER_MEG=$((1024*1024))
@@ -163,7 +165,8 @@ push_index_templates() {
 
 push_index_templates &
 
-cp /usr/share/java/elasticsearch/config/* /etc/elasticsearch/
+# this is because the deployment mounts the configmap at /usr/share/java/elasticsearch/config
+cp /usr/share/java/elasticsearch/config/* $ES_CONF
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"

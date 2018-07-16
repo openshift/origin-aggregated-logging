@@ -8,9 +8,13 @@ source ${HOME}/prep-install.${RELEASE_STREAM}
 echo "ES plugins: ${es_plugins[@]}"
 for es_plugin in ${es_plugins[@]}
 do
-  ${ES_HOME}/bin/elasticsearch-plugin install -b $es_plugin
+  if [ -x ${ES_HOME}/bin/elasticsearch-plugin ] ; then
+    plugincmd=${ES_HOME}/bin/elasticsearch-plugin
+  else
+    plugincmd=${ES_HOME}/bin/plugin
+  fi
+  $plugincmd install -b $es_plugin
 done
-
 
 #fix location from config
 if [[ "${ES_HOME}" != "/usr/share/elasticsearch" ]]; then
@@ -19,8 +23,12 @@ if [[ "${ES_HOME}" != "/usr/share/elasticsearch" ]]; then
   ln -s ${ES_HOME}/kibana_ui_objects /usr/share/elasticsearch/kibana_ui_objects
 fi
 
-mkdir /elasticsearch
-mkdir -p $ES_CONF
+if [ ! -d /elasticsearch ] ; then
+  mkdir /elasticsearch
+fi
+if [ ! -d $ES_CONF ] ; then
+  mkdir -p $ES_CONF
+fi
 chmod -R og+w $ES_CONF ${ES_HOME} ${HOME} /elasticsearch
 chmod -R o+rx /etc/elasticsearch
 chmod +x ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
