@@ -1,0 +1,13 @@
+
+module rsyslogvar 1.0;
+
+require {
+	type syslogd_t;
+	type var_t;
+	class dir read;
+}
+
+#============= syslogd_t ==============
+
+#!!!! WARNING: 'var_t' is a base type.
+allow syslogd_t var_t:dir read;
