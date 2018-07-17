@@ -1,4 +1,4 @@
-module(load="mmkubernetes" kubernetesurl="{{ openshift_master_api_url | default('https://localhost:8443') }}"
+module(load="mmkubernetes"
        filenamerulebase="/etc/rsyslog.d/viaq/k8s_filename.rulebase"
        containerrulebase="/etc/rsyslog.d/viaq/k8s_container_name.rulebase"
        tls.cacert="/etc/rsyslog.d/viaq/mmk8s.ca.crt"
