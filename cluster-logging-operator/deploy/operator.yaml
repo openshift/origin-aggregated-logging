@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-logging-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: cluster-logging-operator
+  template:
+    metadata:
+      labels:
+        name: cluster-logging-operator
+    spec:
+      serviceAccountName: cluster-logging-operator
+      containers:
+      - name: cluster-logging-operator
+        image: quay.io/openshift/cluster-logging-operator
+        imagePullPolicy: IfNotPresent
+        command:
+        - cluster-logging-operator

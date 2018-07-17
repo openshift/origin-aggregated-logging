@@ -1,0 +1,3 @@
+apiVersion: logging.openshift.io/v1alpha1
+kind: ClusterLogging
+projectName: cluster-logging-operator
