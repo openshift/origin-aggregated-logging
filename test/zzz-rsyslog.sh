@@ -13,8 +13,13 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
-rsyslog_service=rsyslog-container
-# rsyslog_service=rsyslog
+if [ "${USE_RSYSLOG_RPMS:-false}" = true ] ; then
+    rsyslog_service=rsyslog
+    extra_ansible_evars=""
+else
+    rsyslog_service=rsyslog-container
+    extra_ansible_evars="-e use_rsyslog_image=True"
+fi
 
 cleanup() {
     local return_code="$?"
@@ -57,7 +62,7 @@ cat > $tmpinv <<EOF
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops openshift_logging_namespace=${LOGGING_NS:-logging}
 EOF
 os::cmd::expect_success "ansible-playbook -vvv --become --become-user root --connection local \
-    -e use_mmk8s=True -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
+    $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
 rm -f $tmpinv
 popd > /dev/null
 
