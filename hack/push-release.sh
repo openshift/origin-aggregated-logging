@@ -37,7 +37,6 @@ images=(
   ${PREFIX}logging-fluentd
   ${PREFIX}logging-elasticsearch5
   ${PREFIX}logging-kibana5
-  ${PREFIX}logging-auth-proxy
   ${PREFIX}logging-eventrouter
 )
 
@@ -47,6 +46,7 @@ if [[ "${curbranch:-master}" != master ]] ; then
     ${PREFIX}logging-curator5
     ${PREFIX}logging-elasticsearch5
     ${PREFIX}logging-kibana5
+    ${PREFIX}logging-auth-proxy
   )
 fi
 
