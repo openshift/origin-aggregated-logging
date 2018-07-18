@@ -19,7 +19,8 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
     RECOVER_AFTER_TIME=5m \
-    RELEASE_STREAM=prod
+    RELEASE_STREAM=prod \
+    container=oci
 
 ARG OSE_ES_VER=5.6.10.1
 ARG OSE_ES_URL

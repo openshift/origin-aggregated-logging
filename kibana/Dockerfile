@@ -1,12 +1,3 @@
-#oit## This file is managed by the OpenShift Image Tool: https://github.com/openshift/enterprise-images
-#oit## by the OpenShift Continuous Delivery team (#aos-cd-team on IRC).
-#oit## 
-#oit## Any yum repos listed in this file will effectively be ignored during CD builds.
-#oit## Yum repos must be enabled in the oit configuration files.
-#oit## The content of this file is managed from an external source.
-#oit## Changes made directly in distgit will be lost during the next
-#oit## reconciliation process.
-#oit## 
 FROM rhscl/nodejs-6-rhel7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
@@ -21,7 +12,8 @@ ENV ELASTICSEARCH_URL=https://logging-es:9200 \
     KIBANA_VER=5.6.10 \
     NODE_BIN=nodescl-node \
     NODE_ENV=production \
-    RELEASE_STREAM=prod
+    RELEASE_STREAM=prod \
+    container=oci
 
 ARG LOCAL_REPO
 
