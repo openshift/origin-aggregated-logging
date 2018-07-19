@@ -13,6 +13,7 @@
 
   - name: get rsyslog image
     command: docker pull {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
+    when: use_rsyslog_image | default(False)
 
   - name: install prereqs
     yum: state=latest name={{ item }}
@@ -23,10 +24,21 @@
     - checkpolicy
     - policycoreutils-python
 
+  - name: install rsyslog packages
+    yum: state=latest name={{ item }}
+    with_items:
+    - rsyslog
+    - rsyslog-mmkubernetes
+    - rsyslog-elasticsearch
+    - rsyslog-mmjsonparse
+    - rsyslog-mmnormalize
+    - libfastjson
+    when: not use_rsyslog_image | default(False)
+
   - name: create rsyslog viaq subdir
     file: path=/etc/rsyslog.d/viaq state=directory mode=0700
 
-  - name: get fluentd secret for token and k8s CA
+  - name: get fluentd secret for kubernetes api
     shell: |
       for name in $( oc get -n {{ openshift_logging_namespace }} sa aggregated-logging-fluentd -o jsonpath='{.secrets[*].name}' ) ; do
         case $name in
@@ -34,60 +46,27 @@
         esac
       done
     register: fluentdsecret
-    when: use_mmk8s | default(True)
 
   - name: get fluentd token
     command: >
       oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=token --to=-
     register: fluentdtoken
-    when: use_mmk8s | default(True)
 
   - name: get fluentd CA cert for k8s
     command: >
       oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=ca.crt --to=-
     register: fluentdcak8s
-    when: use_mmk8s | default(True)
 
   - name: install token file
     copy: content={{ fluentdtoken.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.token mode=0400
-    when: use_mmk8s | default(True)
 
   - name: install CA cert file
     copy: content={{ fluentdcak8s.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.ca.crt mode=0400
-    when: use_mmk8s | default(True)
-
-  - name: get k8s api url from node kubeconfig
-    shell: |
-      found=0
-      for file in /etc/origin/node/node*.kubeconfig \
-        /etc/origin/node/system\:node\:*.kubeconfig \
-        /var/lib/origin/openshift.local.config/node*/*.kubeconfig ; do
-        if [ -f "$file" ] ; then
-          oc --config="$file" config view -o jsonpath='{.clusters[0].cluster.server}'
-          found=1
-          break
-        fi
-      done
-      if [ $found -eq 0 ] ; then
-          oc config view -o jsonpath='{.clusters[0].cluster.server}'
-      fi
-    register: k8s_api_url
-    when:
-    - openshift_master_api_url is not defined
-    - use_mmk8s | default(True)
-
-  - name: set k8s api url
-    set_fact:
-      openshift_master_api_url: "{{ k8s_api_url.stdout }}"
-    when:
-    - openshift_master_api_url is not defined
-    - use_mmk8s | default(True)
 
   - name: install template config files
     template: src={{ item }}.j2 dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
     with_items:
     - mmk8s.conf
-    when: use_mmk8s | default(True)
 
   - name: get fluentd CA cert for ES
     command: >
@@ -177,12 +156,13 @@
     - rsyslog2es.te
     - varlibdockercont.te
     - rsyslogaccessnssdb.te
+    - rsyslogvar.te
 
   - name: build policy
     shell: |
       cd /root
       sysmods=$( semodule -l | awk '{print $1}' )
-      for mod in varlibdockercont rsyslog2k8s rsyslogaccessnssdb rsyslog2es ; do
+      for mod in varlibdockercont rsyslog2k8s rsyslogaccessnssdb rsyslog2es rsyslogvar ; do
         if echo "$sysmods" | grep -q $mod ; then
           echo using existing selinux module $mod
         elif [ -f ${mod}.te ] ; then
@@ -211,9 +191,11 @@
       name: rsyslog.service
       enabled: no
       state: stopped
+    when: use_rsyslog_image | default(False)
 
   - name: install rsyslog container systemd service
     template: src=rsyslog-container.service.j2 dest=/usr/lib/systemd/system/rsyslog-container.service mode=0400
+    when: use_rsyslog_image | default(False)
 
   - name: enable and run rsyslog-container.service
     systemd:
@@ -221,3 +203,4 @@
       daemon_reload: yes
       enabled: yes
       state: started
+    when: use_rsyslog_image | default(False)
