@@ -59,7 +59,11 @@ sudo cp -p /etc/rsyslog.d/* $rsyslog_save
 pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
 tmpinv=$( mktemp )
 cat > $tmpinv <<EOF
-localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops openshift_logging_namespace=${LOGGING_NS:-logging}
+[masters]
+localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
+
+[nodes]
+localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
 EOF
 os::cmd::expect_success "ansible-playbook -vvv --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
