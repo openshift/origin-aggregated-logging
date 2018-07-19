@@ -26,6 +26,7 @@ ARG OSE_ES_VER=5.6.10.1
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_VER=5.6.10.0
 ARG PROMETHEUS_EXPORTER_URL
+ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/

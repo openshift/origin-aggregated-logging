@@ -1,0 +1,4 @@
+es_plugins=(
+    ${MAVEN_REPO_URL}io/fabric8/elasticsearch/openshift-elasticsearch-plugin/$OSE_ES_VER/openshift-elasticsearch-plugin-$OSE_ES_VER.zip
+    ${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/elasticsearch-prometheus-exporter/$PROMETHEUS_EXPORTER_VER/elasticsearch-prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+)
