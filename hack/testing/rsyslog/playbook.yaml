@@ -1,6 +1,88 @@
 ---
-- name: install/configure prerequisites
-  hosts: all
+- name: Get OpenShift information from the first master
+  hosts: masters[0]
+  gather_facts: false
+  tasks:
+  - name: see if openshift-logging namespace exists
+    command: oc get project openshift-logging -o name
+    register: openshiftloggingexists
+    ignore_errors: yes
+    when: openshift_logging_namespace is not defined
+
+  - name: use openshift-logging as namespace
+    set_fact:
+      openshift_logging_namespace: "openshift-logging"
+    when:
+    - openshift_logging_namespace is not defined
+    - openshiftloggingexists.rc == 0
+
+  - name: use logging as namespace
+    set_fact:
+      openshift_logging_namespace: "logging"
+    when:
+    - openshift_logging_namespace is not defined
+    - openshiftloggingexists.rc != 0
+
+  - name: get fluentd secret for kubernetes api
+    shell: |
+      for name in $( oc get -n {{ openshift_logging_namespace }} sa aggregated-logging-fluentd -o jsonpath='{.secrets[*].name}' ) ; do
+        case $name in
+        *-fluentd-token-*) echo $name ; break ;;
+        esac
+      done
+    register: fluentdsecret
+
+  - name: get fluentd token
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=token --to=-
+    register: fluentdtoken
+
+  - name: get fluentd CA cert for k8s
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=ca.crt --to=-
+    register: fluentdcak8s
+
+  - name: get fluentd CA cert for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=ca --to=-
+    register: fluentdcaes
+
+  - name: get fluentd client cert for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=cert --to=-
+    register: fluentdcert
+
+  - name: get fluentd client key for ES
+    command: >
+      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=key --to=-
+    register: fluentdkey
+
+  - name: get es ip addr
+    command: >
+      oc get -n {{ openshift_logging_namespace }} endpoints logging-es -o jsonpath='{.subsets[0].addresses[0].ip}'
+    register: esip
+    when: elasticsearch_server_host is not defined
+
+  - name: get es-ops ip addr
+    command: >
+      oc get -n {{ openshift_logging_namespace }} endpoints logging-es-ops -o jsonpath='{.subsets[0].addresses[0].ip}'
+    register: esopsip
+    when:
+    - elasticsearch_ops_server_host is not defined
+    - openshift_logging_use_ops | default(False)
+
+  - name: set facts for nodes
+    set_fact:
+      fluentdtoken: "{{ fluentdtoken.stdout }}"
+      fluentdcak8s: "{{ fluentdcak8s.stdout }}"
+      fluentdcaes: "{{ fluentdcaes.stdout }}"
+      fluentdcert: "{{ fluentdcert.stdout }}"
+      fluentdkey: "{{ fluentdkey.stdout }}"
+      esip: "{{ esip.stdout | default('') }}"
+      esopsip: "{{ esopsip.stdout | default('') }}"
+
+- name: install and configure rsyslog on the nodes
+  hosts: nodes
   gather_facts: true
   tasks:
   - set_fact:
@@ -38,96 +120,49 @@
   - name: create rsyslog viaq subdir
     file: path=/etc/rsyslog.d/viaq state=directory mode=0700
 
-  - name: get fluentd secret for kubernetes api
-    shell: |
-      for name in $( oc get -n {{ openshift_logging_namespace }} sa aggregated-logging-fluentd -o jsonpath='{.secrets[*].name}' ) ; do
-        case $name in
-        *-fluentd-token-*) echo $name ; break ;;
-        esac
-      done
-    register: fluentdsecret
-
-  - name: get fluentd token
-    command: >
-      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=token --to=-
-    register: fluentdtoken
-
-  - name: get fluentd CA cert for k8s
-    command: >
-      oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=ca.crt --to=-
-    register: fluentdcak8s
-
   - name: install token file
-    copy: content={{ fluentdtoken.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.token mode=0400
+    copy: content={{ hostvars[groups['masters'][0]]['fluentdtoken'] }} dest=/etc/rsyslog.d/viaq/mmk8s.token mode=0400
 
   - name: install CA cert file
-    copy: content={{ fluentdcak8s.stdout }} dest=/etc/rsyslog.d/viaq/mmk8s.ca.crt mode=0400
+    copy: content={{ hostvars[groups['masters'][0]]['fluentdcak8s'] }} dest=/etc/rsyslog.d/viaq/mmk8s.ca.crt mode=0400
 
   - name: install template config files
     template: src={{ item }}.j2 dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
     with_items:
     - mmk8s.conf
 
-  - name: get fluentd CA cert for ES
-    command: >
-      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=ca --to=-
-    register: fluentdcaes
+  - name: install ES CA cert file
+    copy: content={{ hostvars[groups['masters'][0]]['fluentdcaes'] }} dest=/etc/rsyslog.d/viaq/es-ca.crt mode=0400
 
-  - name: get fluentd client cert for ES
-    command: >
-      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=cert --to=-
-    register: fluentdcert
+  - name: install ES client cert file
+    copy: content={{ hostvars[groups['masters'][0]]['fluentdcert'] }} dest=/etc/rsyslog.d/viaq/es-cert.pem mode=0400
 
-  - name: get fluentd client key for ES
-    command: >
-      oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=key --to=-
-    register: fluentdkey
-
-  - name: get es ip addr
-    command: >
-      oc get -n {{ openshift_logging_namespace }} endpoints logging-es -o jsonpath='{.subsets[0].addresses[0].ip}'
-    register: esip
-    when: elasticsearch_server_host is not defined
+  - name: install ES client key file
+    copy: content={{ hostvars[groups['masters'][0]]['fluentdkey'] }} dest=/etc/rsyslog.d/viaq/es-key.pem mode=0400
 
   - name: setup host alias for es ip
     shell: |
-      if grep -q '^{{ esip.stdout }} .* logging-es$' ; then
-        echo already have alias logging-es for {{ esip.stdout }}
+      if grep -q '^{{ hostvars[groups['masters'][0]]['esip'] }} .* logging-es$' ; then
+        echo already have alias logging-es for {{ hostvars[groups['masters'][0]]['esip'] }}
       else
-        sudo sed -i '/^{{ esip.stdout }}/d' /etc/hosts
+        sudo sed -i '/^{{ hostvars[groups['masters'][0]]['esip'] }}/d' /etc/hosts
         sudo sed -i '/ logging-es$/d' /etc/hosts
-        echo {{ esip.stdout }} logging-es | sudo tee -a /etc/hosts
+        echo {{ hostvars[groups['masters'][0]]['esip'] }} logging-es | sudo tee -a /etc/hosts
       fi
     when: elasticsearch_server_host is not defined
 
-  - name: install ES CA cert file
-    copy: content={{ fluentdcaes.stdout }} dest=/etc/rsyslog.d/viaq/es-ca.crt mode=0400
-
-  - name: install ES client cert file
-    copy: content={{ fluentdcert.stdout }} dest=/etc/rsyslog.d/viaq/es-cert.pem mode=0400
-
-  - name: install ES client key file
-    copy: content={{ fluentdkey.stdout }} dest=/etc/rsyslog.d/viaq/es-key.pem mode=0400
-
-  - name: handle es-ops
-    when: openshift_logging_use_ops
-    block:
-    - name: get es-ops ip addr
-      command: >
-        oc get -n {{ openshift_logging_namespace }} endpoints logging-es-ops -o jsonpath='{.subsets[0].addresses[0].ip}'
-      register: esopsip
-      when: elasticsearch_ops_server_host is not defined
-
-    - name: setup host alias for es-ops ip
-      shell: |
-        if grep -q '^{{ esopsip.stdout }} .* logging-es-ops$' ; then
-          echo already have alias logging-es-ops for {{ esopsip.stdout }}
-        else
-          sudo sed -i '/^{{ esopsip.stdout }}/d' /etc/hosts
-          sudo sed -i '/ logging-es-ops$/d' /etc/hosts
-          echo {{ esopsip.stdout }} logging-es-ops | sudo tee -a /etc/hosts
-        fi
-      when: elasticsearch_server_host is not defined
+  - name: setup host alias for es-ops ip
+    shell: |
+      if grep -q '^{{ hostvars[groups['masters'][0]]['esopsip'] }} .* logging-es-ops$' ; then
+        echo already have alias logging-es-ops for {{ hostvars[groups['masters'][0]]['esopsip'] }}
+      else
+        sudo sed -i '/^{{ hostvars[groups['masters'][0]]['esopsip'] }}/d' /etc/hosts
+        sudo sed -i '/ logging-es-ops$/d' /etc/hosts
+        echo {{ hostvars[groups['masters'][0]]['esopsip'] }} logging-es-ops | sudo tee -a /etc/hosts
+      fi
+    when:
+    - elasticsearch_ops_server_host is not defined
+    - openshift_logging_use_ops | default(False)
 
   - name: install template config files
     template: src={{ item }}.j2 dest=/etc/rsyslog.d/viaq/{{ item }} mode=0400
