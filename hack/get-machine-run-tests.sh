@@ -268,6 +268,30 @@ EOF
 scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
+#      title: "enable ansible 2.6 repo"
+cat > $runfile <<EOF
+set -euxo pipefail
+pushd $OS_O_A_L_DIR > /dev/null
+curbranch=\$( git rev-parse --abbrev-ref HEAD )
+popd > /dev/null
+if [[ "\${curbranch}" == master ]] ; then
+    sudo touch /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+    sudo chmod a+rw /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+cat <<REPO >/etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+[rhel-7-server-ansible-2.6-rpms]
+name=rhel-7-server-ansible-2.6-rpms
+baseurl=https://mirror.openshift.com/enterprise/rhel/rhel-7-server-ansible-2.6-rpms/
+enabled=1
+sslclientcert=/var/lib/yum/client-cert.pem
+sslclientkey=/var/lib/yum/client-key.pem
+sslverify=0
+REPO
+    sudo yum repolist
+fi
+EOF
+scp $runfile openshiftdevel:/tmp
+ssh -n openshiftdevel "bash $runfile"
+
 #      title: "install the openshift-ansible release"
 #      repository: "openshift-ansible"
 cat > $runfile <<EOF
