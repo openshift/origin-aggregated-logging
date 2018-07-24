@@ -87,81 +87,6 @@ sg_role_prometheus:
     - "${PROMETHEUS_USER:-system:serviceaccount:prometheus:prometheus}"
 CONF
 
-build_jks_from_pem() {
-
-  jks_name=$1
-  key_name=$2
-  cert_name=$3
-  ca_name=$4
-
-  openssl                                   \
-    pkcs12                                  \
-    -export                                 \
-    -in $secret_dir/$cert_name              \
-    -inkey $secret_dir/$key_name            \
-    -out $secret_dir/$jks_name.p12
-
-  keytool                                   \
-    -importkeystore                         \
-    -srckeystore $secret_dir/$jks_name.p12  \
-    -srcstoretype PKCS12                    \
-    -destkeystore $secret_dir/$jks_name.jks \
-    -deststoretype JKS                      \
-    -storepass $ks_pass                     \
-    -noprompt                               \
-    -alias $jks_name
-
-  keytool                                   \
-    -import                                 \
-    -file $secret_dir/$ca_name              \
-    -keystore $secret_dir/$jks_name.jks     \
-    -storepass $ks_pass                     \
-    -noprompt                               \
-    -alias sig-ca
-}
-
-# Pull in the certs provided in our secret and generate our necessary jks and truststore files
-build_jks_truststores() {
-  info "Building required jks files and truststore"
-
-  # check for lack of admin.jks
-  if [[ ! -e $secret_dir/admin.jks ]]; then
-    build_jks_from_pem "admin" "admin-key" "admin-cert" "admin-ca"
-  fi
-
-  # check for elasticsearch.key and elasticsearch.crt
-  if [[ -e $secret_dir/elasticsearch.key && -e $secret_dir/elasticsearch.crt ]]; then
-    build_jks_from_pem "elasticsearch" "elasticsearch.key" "elasticsearch.crt" "admin-ca"
-    mv $secret_dir/elasticsearch.jks $secret_dir/searchguard.key
-  fi
-
-  # check for logging-es.key and logging-es.crt
-  if [[ -e $secret_dir/logging-es.key && -e $secret_dir/logging-es.crt ]]; then
-    build_jks_from_pem "logging-es" "logging-es.key" "logging-es.crt" "admin-ca"
-    mv $secret_dir/logging-es.jks $secret_dir/key
-  fi
-
-  if [[ ! -e $secret_dir/truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/truststore             \
-      -storepass $ts_pass                          \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-
-  if [[ ! -e $secret_dir/searchguard.truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/searchguard.truststore \
-      -storepass $ts_pass                          \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-}
-
 # Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
 wait_for_port_open() {
     rm -f $LOG_FILE
@@ -237,8 +162,6 @@ push_index_templates() {
     shopt -u failglob
     info Finished adding index templates
 }
-
-build_jks_truststores
 
 push_index_templates &
 
