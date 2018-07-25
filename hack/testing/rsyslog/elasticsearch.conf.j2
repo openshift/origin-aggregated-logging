@@ -11,40 +11,78 @@ template(name="index_pattern" type="list") {
     property(name="$!@timestamp" dateFormat="rfc3339" position.from="9" position.to="10")
 }
 
-{% if openshift_logging_use_ops | default(False) %}
-if $.viaq_index_prefix startswith "project." then {
-{% endif %}
-action(
-    type="omelasticsearch"
-    server="{{ elasticsearch_server_host | default('logging-es') }}"
-    serverport="{{ elasticsearch_server_port | default(9200) }}"
-    template="viaq_template"
-    searchIndex="index_pattern"
-    dynSearchIndex="on"
-    searchType="com.redhat.viaq.common"
-    bulkmode="on"
-    usehttps="on"
-    tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
-    tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
-    tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
-    errorfile="/var/lib/rsyslog/es-errors.log"
-)
-{% if openshift_logging_use_ops | default(False) %}
-} else {
-action(
-    type="omelasticsearch"
-    server="{{ elasticsearch_ops_server_host | default('logging-es-ops') }}"
-    serverport="{{ elasticsearch_ops_server_port | default(9200) }}"
-    template="viaq_template"
-    searchIndex="index_pattern"
-    dynSearchIndex="on"
-    searchType="com.redhat.viaq.common"
-    bulkmode="on"
-    usehttps="on"
-    tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
-    tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
-    tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
-    errorfile="/var/lib/rsyslog/es-errors.log"
-)
+template(name="id-template" type="string" string="%$!viaq_msg_id%")
+
+if strlen($!viaq_msg_id) == 0 then {
+	# NOTE: depends on rsyslog being compiled with --enable-uuid
+	set $!viaq_msg_id = $uuid;
 }
+
+ruleset(name="error_es") {
+	action(type="omfile" template="viaq_template" file="/var/lib/rsyslog/es-bulk-errors.log")
+}
+
+ruleset(name="try_es") {
+	if strlen($.omes!status) > 0 then {
+		# retry case
+		if ($.omes!status == 200) or ($.omes!status == 201) or (($.omes!status == 409) and ($.omes!writeoperation == "create")) then {
+			stop # successful
+		}
+		if ($.omes!writeoperation == "unknown") or (strlen($.omes!error!type) == 0) or (strlen($.omes!error!reason) == 0) then {
+			call error_es
+			stop
+		}
+		if ($.omes!status == 400) or ($.omes!status < 200) then {
+			call error_es
+			stop
+		}
+		# else fall through to retry operation
+	}
+{% if openshift_logging_use_ops | default(False) %}
+    if $.viaq_index_prefix startswith "project." then {
 {% endif %}
+    action(
+        type="omelasticsearch"
+        server="{{ elasticsearch_server_host | default('logging-es') }}"
+        serverport="{{ elasticsearch_server_port | default(9200) }}"
+        template="viaq_template"
+        searchIndex="index_pattern"
+        dynSearchIndex="on"
+        searchType="com.redhat.viaq.common"
+        bulkmode="on"
+        writeoperation="create"
+        bulkid="id-template"
+	    dynbulkid="on"
+	    retryfailures="on"
+	    retryruleset="try_es"
+        usehttps="on"
+        tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
+        tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
+        tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    )
+{% if openshift_logging_use_ops | default(False) %}
+    } else {
+    action(
+        type="omelasticsearch"
+        server="{{ elasticsearch_ops_server_host | default('logging-es-ops') }}"
+        serverport="{{ elasticsearch_ops_server_port | default(9200) }}"
+        template="viaq_template"
+        searchIndex="index_pattern"
+        dynSearchIndex="on"
+        searchType="com.redhat.viaq.common"
+        bulkmode="on"
+        writeoperation="create"
+        bulkid="id-template"
+	    dynbulkid="on"
+	    retryfailures="on"
+	    retryruleset="try_es"
+        usehttps="on"
+        tls.cacert="/etc/rsyslog.d/viaq/es-ca.crt"
+        tls.mycert="/etc/rsyslog.d/viaq/es-cert.pem"
+        tls.myprivkey="/etc/rsyslog.d/viaq/es-key.pem"
+    )
+    }
+{% endif %}
+}
+
+call try_es

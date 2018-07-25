@@ -239,3 +239,11 @@
       enabled: yes
       state: started
     when: use_rsyslog_image | default(False)
+
+  - name: reload and restart rsyslog.service
+    systemd:
+      name: rsyslog.service
+      daemon_reload: yes
+      enabled: yes
+      state: restarted
+    when: not use_rsyslog_image | default(False)
