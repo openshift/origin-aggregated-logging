@@ -1,1 +1,2 @@
-rule=:%payload:json%
+version=2
+rule=:%.:json%
