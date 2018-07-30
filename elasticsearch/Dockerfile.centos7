@@ -50,7 +50,7 @@ ADD run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
 ARG OSE_ES_URL
-ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/5.6.10.0/elasticsearch-prometheus-exporter-5.6.10.0.zip
+ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 ARG SG_URL
 
 RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
