@@ -39,6 +39,7 @@
           "message_field": {
             "mapping": {
               "index": "analyzed",
+              "analyzer": "whitespace",
               "norms": {
                 "enabled": false
               },
@@ -439,6 +440,7 @@
         "message": {
           "doc_values": false,
           "index": "analyzed",
+          "analyzer": "whitespace",
           "norms": {
             "enabled": false
           },
