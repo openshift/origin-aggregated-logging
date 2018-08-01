@@ -91,11 +91,17 @@ if [ -f $HOME/.config/$scriptname ] ; then
     . $HOME/.config/$scriptname
 fi
 
+if echo "${EXTRA_ANSIBLE_OPENSHIFT:-}" | grep -q -i "use_crio=true" ; then
+    USE_CRIO=true
+else
+    USE_CRIO=${USE_CRIO:-false}
+fi
+export GOPATH=${GOPATH:-/data}
 OS=${OS:-rhel}
 TESTNAME=${TESTNAME:-logging}
 INSTANCE_TYPE=${INSTANCE_TYPE:-m4.xlarge}
 # on the remote machine
-OS_ROOT=${OS_ROOT:-/data/src/github.com/openshift/origin}
+OS_ROOT=${OS_ROOT:-$GOPATH/src/github.com/openshift/origin}
 RELDIR=${RELDIR:-$OS_ROOT/_output/local/releases}
 # for cloning origin-aggregated-logging from a specific repo and branch
 # you can override just the GITHUB_REPO=myusername or the entire GIT_URL
@@ -108,14 +114,15 @@ ANSIBLE_REPO=${ANSIBLE_REPO:-openshift}
 ANSIBLE_BRANCH=${ANSIBLE_BRANCH:-master}
 ANSIBLE_URL=${ANSIBLE_URL:-https://github.com/${ANSIBLE_REPO}/openshift-ansible}
 OAL_LOCAL_PATH=`echo $GIT_URL | sed 's,https://,,'`
-OS_O_A_L_DIR=${OS_O_A_L_DIR:-/data/src/github.com/openshift/origin-aggregated-logging}
-OS_O_A_DIR=${OS_O_A_DIR:-/data/src/github.com/openshift/openshift-ansible}
-OS_A_C_J_DIR=${OS_A_C_J_DIR:-/data/src/github.com/openshift/aos-cd-jobs}
+OS_O_A_L_DIR=${OS_O_A_L_DIR:-$GOPATH/src/github.com/openshift/origin-aggregated-logging}
+OS_O_A_DIR=${OS_O_A_DIR:-$GOPATH/src/github.com/openshift/openshift-ansible}
+OS_A_C_J_DIR=${OS_A_C_J_DIR:-$GOPATH/src/github.com/openshift/aos-cd-jobs}
 #USE_AMI=${USE_AMI:-fork_ami_openshift3_logging-1.4-backports}
 export AWS_SECURITY_GROUPS=${AWS_SECURITY_GROUPS:-sg-e1760186}
 ROOT_VOLUME_SIZE=${ROOT_VOLUME_SIZE:-75}
 
 INSTNAME=${INSTNAME:-origin_$USER-$TESTNAME-$OS-1}
+
 
 pushd $GIT_REPO_BASE_DIR/origin-aggregated-logging
 
@@ -384,7 +391,6 @@ if [[ "\${curbranch}" == master ]] || [[ "\${curbranch}" == es5.x ]] ; then
     cp \${jobs_repo}/ORIGIN_COMMIT \${jobs_repo}/ORIGIN_IMAGE_TAG
     sudo yum-config-manager --disable origin-deps-rhel7\* || true
     sudo yum-config-manager --disable rhel-7-server-ose\* || true
-    #sudo yum -y downgrade skopeo-0.1.27\* skopeo-containers-0.1.27\*
 elif [[ "\${curbranch}" =~ ^release-* ]] ; then
     pushd $OS_O_A_L_DIR
     # get repo ver from branch name
@@ -494,11 +500,11 @@ SCRIPT
 scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
-#      title: "install origin"
-#      repository: "aos-cd-jobs"
-cat > $runfile <<EOF
+if [ "$USE_CRIO" = true ] ; then
+    #      title: "enable repo with crio"
+    cat > $runfile <<EOF
 set -euxo pipefail
-cd $OS_A_C_J_DIR
+pushd $OS_A_C_J_DIR > /dev/null
 # richm 20180531 - openshift/origin-service-catalog:a861408 not found
 # for some reason, the service-catalog image is not available
 # docker images|grep service-catalog is empty
@@ -509,6 +515,40 @@ if [ -z "\${scname:-}" ] ; then
 fi
 imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
 docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+popd > /dev/null
+pushd $OS_O_A_L_DIR > /dev/null
+curbranch=\$( git rev-parse --abbrev-ref HEAD )
+popd > /dev/null
+if [[ "\${curbranch}" == master ]] || [[ "\${curbranch}" == release-3.11 ]] ; then
+    sudo touch /etc/yum.repos.d/crio.repo
+    sudo chmod a+rw /etc/yum.repos.d/crio.repo
+cat <<REPO >/etc/yum.repos.d/crio.repo
+[crio]
+name=crio
+baseurl=http://cbs.centos.org/repos/paas7-openshift-origin311-candidate/x86_64/os/
+enabled=1
+gpgcheck=0
+REPO
+    # install skopeo
+    sudo yum -y install skopeo
+    # #  title: "copy openshift images from docker storage to CRI-O storage"
+    for i in \$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -v "<none>" | grep -v "latest" | grep "openshift\/"); do
+      sudo skopeo copy docker-daemon:\$i containers-storage:\[overlay@/var/lib/containers/storage+/var/run/containers/storage:overlay.override_kernel_check=1\]\$i
+    done
+fi
+EOF
+    scp $runfile openshiftdevel:/tmp
+    ssh -n openshiftdevel "bash $runfile"
+
+
+fi
+
+#      title: "install origin"
+#      repository: "aos-cd-jobs"
+cat > $runfile <<EOF
+set -euxo pipefail
+cd $OS_A_C_J_DIR
+EXTRA_ANSIBLE_OPENSHIFT="${EXTRA_ANSIBLE_OPENSHIFT:-}"
 
 if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; then
     ANSIBLE_LOG_PATH=/tmp/ansible-prereq.log ansible-playbook -vvv --become               \
@@ -524,6 +564,7 @@ if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; the
                         -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
                         -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
                         -e openshift_console_install=False \
+                        \${EXTRA_ANSIBLE_OPENSHIFT:-} \
                         /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
 fi
 
@@ -546,6 +587,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-network.log ansible-playbook -vvv --become        
   -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
   -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
   -e openshift_console_install=False \
+  \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
 
 if [[ -s "\${playbook_base}deploy_cluster.yml" ]]; then
@@ -572,6 +614,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e 'osm_controller_args={"enable-hostpath-provisioner":["true"]}' -e @sjb/inventory/base.cfg \
   -e skip_sanity_checks=true -e 'openshift_disable_check=*' -e openshift_install_examples=false \
   -e openshift_console_install=False \
+  \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
 EOF
 scp $runfile openshiftdevel:/tmp
