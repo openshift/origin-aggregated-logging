@@ -82,4 +82,4 @@ update_config_from_env_vars ${KIBANA_CONF_DIR}
 
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
-"${KIBANA_BIN}"
+set -a && source /etc/sysconfig/kibana && "${KIBANA_BIN}"
