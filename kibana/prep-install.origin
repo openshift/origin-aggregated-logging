@@ -4,4 +4,7 @@ set -o nounset
 set -o pipefail
 
 #normalize files with downstream
-touch /etc/sysconfig/kibana
+cat > /etc/sysconfig/kibana <<EOF
+CONFIG_PATH=/etc/kibana/kibana.yml
+NODE_ENV=production
+EOF
