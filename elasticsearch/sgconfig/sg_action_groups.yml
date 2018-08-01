@@ -112,7 +112,7 @@ CLUSTER_MONITOR_KIBANA:
   - cluster:monitor/nodes/info
   - cluster:monitor/health
 CLUSTER_OPERATIONS:
-  - ALL
+  - CLUSTER_ALL
 
 CLUSTER_COMPOSITE_OPS_RO:
   - "indices:data/read/mget"
