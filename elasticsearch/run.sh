@@ -87,19 +87,18 @@ sg_role_prometheus:
     - "${PROMETHEUS_USER:-system:serviceaccount:prometheus:prometheus}"
 CONF
 
-# Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
+# This in future can be removed and will be replaced by the readiness probe as all 
+# initialization will move to some init container or operator
+# that will only run after the pods are ready to accept traffic
 wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
-    info "Checking if Elasticsearch is ready on $ES_REST_BASEURL"
-    while ! response_code=$(curl ${DEBUG:+-v} -s \
+    info "Checking if Elasticsearch is ready"
+    while ! response_code=$(es_util --query=/ \
+        ${DEBUG:+-v} -s \
         --request HEAD --head \
-        --cacert $secret_dir/admin-ca \
-        --cert $secret_dir/admin-cert \
-        --key  $secret_dir/admin-key \
         --max-time $max_time \
-        -o $LOG_FILE -w '%{response_code}' \
-        $ES_REST_BASEURL) || test $response_code != "200"
+        -o $LOG_FILE -w '%{response_code}') || test $response_code != "200"
     do
         sleep $RETRY_INTERVAL
         (( retry -= 1 )) || :
@@ -113,7 +112,7 @@ wait_for_port_open() {
         error "Timed out waiting for Elasticsearch to be ready"
     else
         rm -f $LOG_FILE
-        info Elasticsearch is ready and listening at $ES_REST_BASEURL
+        info Elasticsearch is ready and listening
         return 0
     fi
     cat $LOG_FILE
@@ -121,49 +120,7 @@ wait_for_port_open() {
     exit 1
 }
 
-push_index_templates() {
-    wait_for_port_open
-    es_seed_acl
-    # Uncomment this if you want to wait for cluster becoming more stable before index template being pushed in.
-    # Give up on timeout and continue...
-    # curl -v -s -X GET \
-    #     --cacert $secret_dir/admin-ca \
-    #     --cert $secret_dir/admin-cert \
-    #     --key  $secret_dir/admin-key \
-    #     "$ES_REST_BASEURL/_cluster/health?wait_for_status=yellow&timeout=${max_time}s"
-
-    info Adding index templates
-    shopt -s failglob
-    for template_file in ${ES_HOME}/index_templates/*.json
-    do
-        sed -i "s,\$REPLICA_SHARDS,$REPLICA_SHARDS," $template_file
-        sed -i "s,\$PRIMARY_SHARDS,$PRIMARY_SHARDS," $template_file
-        template=`basename $template_file`
-        # Check if index template already exists
-        response_code=$(curl ${DEBUG:+-v} -s \
-            --request HEAD --head --output /dev/null \
-            --cacert $secret_dir/admin-ca \
-            --cert $secret_dir/admin-cert \
-            --key  $secret_dir/admin-key \
-            -w '%{response_code}' \
-            $ES_REST_BASEURL/_template/$template)
-        if [ $response_code == "200" ]; then
-            info "Index template '$template' found in the cluster, overriding it"
-        else
-            info "Create index template '$template'"
-        fi
-        curl ${DEBUG:+-v} -s -X PUT \
-            --cacert $secret_dir/admin-ca \
-            --cert $secret_dir/admin-cert \
-            --key  $secret_dir/admin-key \
-            -d@$template_file \
-            $ES_REST_BASEURL/_template/$template
-    done
-    shopt -u failglob
-    info Finished adding index templates
-}
-
-push_index_templates &
+wait_for_port_open && ./init.sh &
 
 # this is because the deployment mounts the configmap at /usr/share/java/elasticsearch/config
 cp /usr/share/java/elasticsearch/config/* $ES_CONF

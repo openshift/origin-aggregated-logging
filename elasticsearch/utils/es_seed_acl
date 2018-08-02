@@ -2,6 +2,8 @@
 
 source "logging"
 
+ES_CLUSTER_HOST=${ES_CLUSTER_HOST:-"localhost"}
+ES_CLUSTER_PORT=${ES_CLUSTER_PORT:-9300}
 MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
 info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
@@ -12,6 +14,8 @@ index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard'
 function sgadmin {
   ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
     -i $index \
+    -h ${ES_CLUSTER_HOST} \
+    -p ${ES_CLUSTER_PORT} \
     -ks /etc/elasticsearch/secret/admin.jks \
     -kst JKS \
     -kspass kspass \
