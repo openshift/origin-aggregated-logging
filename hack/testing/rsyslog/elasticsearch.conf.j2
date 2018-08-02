@@ -2,7 +2,7 @@ template(name="viaq_template" type="list") {
     property(name="$!all-json-plain")
 }
 
-template(name="index_pattern" type="list") {
+template(name="prefix_index_template" type="list") {
     property(name="$.viaq_index_prefix")
     property(name="$!@timestamp" dateFormat="rfc3339" position.from="1" position.to="4")
     constant(value=".")
@@ -11,33 +11,44 @@ template(name="index_pattern" type="list") {
     property(name="$!@timestamp" dateFormat="rfc3339" position.from="9" position.to="10")
 }
 
-template(name="id-template" type="string" string="%$!viaq_msg_id%")
-
-if strlen($!viaq_msg_id) == 0 then {
-	# NOTE: depends on rsyslog being compiled with --enable-uuid
-	set $!viaq_msg_id = $uuid;
-}
+template(name="index_template" type="string" string="%$.viaq_index_name%")
+template(name="id_template" type="string" string="%$.viaq_msg_id%")
 
 ruleset(name="error_es") {
-	action(type="omfile" template="viaq_template" file="/var/lib/rsyslog/es-bulk-errors.log")
+    action(type="omfile" template="viaq_template" file="/var/lib/rsyslog/es-bulk-errors.log")
 }
 
 ruleset(name="try_es") {
-	if strlen($.omes!status) > 0 then {
-		# retry case
-		if ($.omes!status == 200) or ($.omes!status == 201) or (($.omes!status == 409) and ($.omes!writeoperation == "create")) then {
-			stop # successful
-		}
-		if ($.omes!writeoperation == "unknown") or (strlen($.omes!error!type) == 0) or (strlen($.omes!error!reason) == 0) then {
-			call error_es
-			stop
-		}
-		if ($.omes!status == 400) or ($.omes!status < 200) then {
-			call error_es
-			stop
-		}
-		# else fall through to retry operation
-	}
+    if strlen($.omes!status) > 0 then {
+        # retry case
+        if ($.omes!status == 200) or ($.omes!status == 201) or (($.omes!status == 409) and ($.omes!writeoperation == "create")) then {
+            stop # successful
+        }
+        if ($.omes!writeoperation == "unknown") or (strlen($.omes!error!type) == 0) or (strlen($.omes!error!reason) == 0) then {
+            call error_es
+            stop
+        }
+        if ($.omes!status == 400) or ($.omes!status < 200) then {
+            call error_es
+            stop
+        }
+        # else fall through to retry operation
+    }
+    if strlen($!viaq_msg_id) > 0 then {
+	    set $.viaq_msg_id = $!viaq_msg_id;
+    } else if strlen($.omes!_id) > 0 then {
+        # retry
+        set $.viaq_msg_id = $.omes!_id;
+    } else {
+        # NOTE: depends on rsyslog being compiled with --enable-uuid
+        set $.viaq_msg_id = $uuid;
+    }
+    if strlen($.omes!_index) > 0 then {
+        # retry
+        set $.viaq_index_name = $.omes!_index;
+    } else {
+        set $.viaq_index_name = exec_template("prefix_index_template");
+    }
 {% if openshift_logging_use_ops | default(False) %}
     if $.viaq_index_prefix startswith "project." then {
 {% endif %}
@@ -46,12 +57,12 @@ ruleset(name="try_es") {
         server="{{ elasticsearch_server_host | default('logging-es') }}"
         serverport="{{ elasticsearch_server_port | default(9200) }}"
         template="viaq_template"
-        searchIndex="index_pattern"
+        searchIndex="index_template"
         dynSearchIndex="on"
         searchType="com.redhat.viaq.common"
         bulkmode="on"
         writeoperation="create"
-        bulkid="id-template"
+        bulkid="id_template"
 	    dynbulkid="on"
 	    retryfailures="on"
 	    retryruleset="try_es"
@@ -67,12 +78,12 @@ ruleset(name="try_es") {
         server="{{ elasticsearch_ops_server_host | default('logging-es-ops') }}"
         serverport="{{ elasticsearch_ops_server_port | default(9200) }}"
         template="viaq_template"
-        searchIndex="index_pattern"
+        searchIndex="index_template"
         dynSearchIndex="on"
         searchType="com.redhat.viaq.common"
         bulkmode="on"
         writeoperation="create"
-        bulkid="id-template"
+        bulkid="id_template"
 	    dynbulkid="on"
 	    retryfailures="on"
 	    retryruleset="try_es"
