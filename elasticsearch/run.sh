@@ -20,6 +20,9 @@ RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
 PRIMARY_SHARDS=${PRIMARY_SHARDS:-1}
 REPLICA_SHARDS=${REPLICA_SHARDS:-0}
 
+MEM_LIMIT_FILE=/etc/podinfo/mem_limit
+CONTAINER_MEM_LIMIT=${INSTANCE_RAM:-}
+
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
 timeouted=false
@@ -35,11 +38,18 @@ BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
 MAX_ES_MEMORY_BYTES=$((64*${BYTES_PER_GIG}))
 MIN_ES_MEMORY_BYTES=$((256*${BYTES_PER_MEG}))
 
+if [[ -e $MEM_LIMIT_FILE ]]; then
+  limit=$(cat $MEM_LIMIT_FILE)
+  limit=$((limit/$BYTES_PER_MEG))
+
+  CONTAINER_MEM_LIMIT="${limit}M"
+fi
+
 # the amount of RAM allocated should be half of available instance RAM.
 # ref. https://www.elastic.co/guide/en/elasticsearch/guide/current/heap-sizing.html#_give_half_your_memory_to_lucene
 # parts inspired by https://github.com/fabric8io-images/run-java-sh/blob/master/fish-pepper/run-java-sh/fp-files/java-container-options
 regex='^([[:digit:]]+)([GgMm])i?$'
-if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
+if [[ "$CONTAINER_MEM_LIMIT" =~ $regex ]]; then
     num=${BASH_REMATCH[1]}
     unit=${BASH_REMATCH[2]}
     if [[ $unit =~ [Gg] ]]; then
@@ -52,7 +62,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
     info "Comparing the specified RAM to the maximum recommended for Elasticsearch..."
     if [ ${MAX_ES_MEMORY_BYTES} -lt ${num} ]; then
         ((num = ${MAX_ES_MEMORY_BYTES}))
-        warn "Downgrading the INSTANCE_RAM to $(($num / BYTES_PER_MEG))m because ${INSTANCE_RAM} will result in a larger heap then recommended."
+        warn "Downgrading the CONTAINER_MEM_LIMIT to $(($num / BYTES_PER_MEG))m because ${CONTAINER_MEM_LIMIT} will result in a larger heap then recommended."
     fi
 
     #determine max allowable memory
@@ -77,7 +87,7 @@ if [[ "${INSTANCE_RAM:-}" =~ $regex ]]; then
     export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Xms${num}m -Xmx${num}m"
     info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 else
-    error "INSTANCE_RAM env var is invalid: ${INSTANCE_RAM:-}"
+    error "CONTAINER_MEM_LIMIT is invalid: $CONTAINER_MEM_LIMIT"
     exit 1
 fi
 
