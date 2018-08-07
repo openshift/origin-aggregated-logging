@@ -41,10 +41,7 @@ else
 fi
 
 issue_deprecation_warnings() {
-  if grep -q '$.*merge_json_log .*true.*$' ${CFG_DIR}/openshift/filter-k8s-meta.conf ||
-      [ "z${MERGE_JSON_LOG:-}" = "ztrue" ]; then
-        echo "[DEPRECATION WARNING]: 'merge_json_log' for the fluent-plugin-kubernetes_metadata_filter will no longer be supported in future releases"
-  fi
+    : # none at the moment
 }
 
 docker_uses_journal() {
@@ -157,11 +154,7 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     fi
     # rm k8s meta plugin - do not hit the API server - just do json parsing
     if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
-        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-k8s-meta.conf
-    elif [ "${MUX_CLIENT_MODE:-}" = minimal -a "${USE_JOURNAL:-}" = false ] ; then
-        # have to do this before shipping record to mux so embedded "log" field
-        # will be json parsed correctly
-        cp -f $CFG_DIR/filter-k8s-meta-for-mux-client.conf $CFG_DIR/openshift/filter-pre-k8s-meta.conf
+        cp -f $CFG_DIR/filter-parse-json-field.conf $CFG_DIR/openshift/filter-k8s-meta.conf
     fi
     # mux clients do not create elasticsearch index names
     ENABLE_ES_INDEX_NAME=false

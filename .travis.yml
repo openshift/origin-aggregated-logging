@@ -1,6 +1,8 @@
 matrix:
   include:
-    - env: NAME='fluentd - generate_throttle_configs test'
+    - name: fluentd - generate_throttle_configs test
+      env:
+        - NAME='fluentd - generate_throttle_configs test'
       language: ruby
       rvm:
       - 2.0
@@ -8,4 +10,14 @@ matrix:
         cd fluentd/lib/generate_throttle_configs
       script:
         rake test
-
+    - name: fluentd - filter_parse_json_field test
+      env:
+        - FLUENTD_VERSION=0.12.0
+      language: ruby
+      rvm:
+      - 2.0
+      gemfile: fluentd/lib/filter_parse_json_field/Gemfile
+      before_script:
+        cd fluentd/lib/filter_parse_json_field
+      script:
+        rake test
