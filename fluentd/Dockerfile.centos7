@@ -39,7 +39,7 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'elasticsearch:<6' \
       fluentd:${FLUENTD_VERSION} \
      'fluent-plugin-elasticsearch:<2.0.0' \
-     'fluent-plugin-kubernetes_metadata_filter:<1.1.0' \
+     'fluent-plugin-kubernetes_metadata_filter:<2' \
       'fluent-plugin-record-modifier:<1.0.0' \
       'fluent-plugin-rewrite-tag-filter:<1.6.0' \
       fluent-plugin-secure-forward \
@@ -49,11 +49,11 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'fluent-plugin-prometheus:<1.0.0'
 
 ADD configs.d/ /etc/fluent/configs.d/
-ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
 ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
-ADD lib/*/lib/*.rb ${HOME}/
+ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
+ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
