@@ -500,9 +500,8 @@ SCRIPT
 scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
-if [ "$USE_CRIO" = true ] ; then
-    #      title: "enable repo with crio"
-    cat > $runfile <<EOF
+# pull and tag service catalog image with build tag
+cat <<SCRIPT > $runfile
 set -euxo pipefail
 pushd $OS_A_C_J_DIR > /dev/null
 # richm 20180531 - openshift/origin-service-catalog:a861408 not found
@@ -516,6 +515,14 @@ fi
 imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
 docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
 popd > /dev/null
+SCRIPT
+scp $runfile openshiftdevel:/tmp
+ssh -n openshiftdevel "bash $runfile"
+
+if [ "$USE_CRIO" = true ] ; then
+    #      title: "enable repo with crio"
+    cat > $runfile <<EOF
+set -euxo pipefail
 pushd $OS_O_A_L_DIR > /dev/null
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd > /dev/null
