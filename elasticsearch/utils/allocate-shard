@@ -38,7 +38,13 @@ MSG
 }
 
 index=${1:-}
-node=${2:-"$DC_NAME"}
+
+if [[ "$2" == --* ]];
+then
+    node="$DC_NAME"
+else
+    node="$2"
+fi
 
 if [ -z "${index}" ]; then
     helpMsg
