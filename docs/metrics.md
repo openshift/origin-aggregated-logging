@@ -117,5 +117,5 @@ fluentd_output_status_retry_wait{hostname="logging-fluentd-28j4d",plugin_id="ela
 ```
 
 ### Scrape Rules
-The Fluentd pod(s) are [annotated](https://github.com/openshift/openshift-ansible/blob/master/roles/openshift_logging_fluentd/templates/2.x/fluentd.j2#L9)
+The Fluentd pod(s) are [annotated](https://github.com/openshift/openshift-ansible/blob/master/roles/openshift_logging_fluentd/templates/fluentd.j2#L9)
 to allow auto-discovery of the endpoint(s) by Prometheus.
