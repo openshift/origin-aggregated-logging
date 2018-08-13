@@ -58,6 +58,12 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+RUN if [ ! -d /etc/fluent/plugin ] ; then \
+      mkdir -p /etc/fluent/plugin ; \
+    fi ; \
+    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
+    cp $sniffer /etc/fluent/plugin/
+
 COPY utils/** ${HOME}/utils
 ADD jemalloc/ ${HOME}/jemalloc/
 # note - make dist "fails" here
