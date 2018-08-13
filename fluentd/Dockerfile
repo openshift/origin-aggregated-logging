@@ -21,7 +21,7 @@ ENV DATA_VERSION=1.6.0 \
 
 ARG TEST_REPO
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
+RUN yum-config-manager --enable rhel-7-server-ose-3.9-rpms && \
   INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
                 hostname \
                 bc \
@@ -55,6 +55,13 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+# for some reason, this isn't able to be loaded from the gem
+RUN if [ ! -d /etc/fluent/plugin ] ; then \
+      mkdir -p /etc/fluent/plugin ; \
+    fi ; \
+    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
+    cp $sniffer /etc/fluent/plugin/
+
 WORKDIR ${HOME}
 
 CMD ["sh", "run.sh"]
@@ -68,7 +75,7 @@ LABEL \
         name="openshift3/logging-fluentd" \
         License="GPLv2+" \
         io.k8s.display-name="Fluentd" \
-        version="v3.10.0" \
+        version="v3.9.0" \
         architecture="x86_64" \
         release="0.37.0.0" \
         io.openshift.tags="logging,elk,fluentd"
