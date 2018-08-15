@@ -55,6 +55,13 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+# for some reason, this isn't able to be loaded from the gem
+RUN if [ ! -d /etc/fluent/plugin ] ; then \
+      mkdir -p /etc/fluent/plugin ; \
+    fi ; \
+    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
+    cp $sniffer /etc/fluent/plugin/
+
 COPY utils/** ${HOME}/utils
 
 WORKDIR ${HOME}
