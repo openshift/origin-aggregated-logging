@@ -59,8 +59,12 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
 RUN if [ ! -d /etc/fluent/plugin ] ; then \
       mkdir -p /etc/fluent/plugin ; \
     fi ; \
-    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
-    cp $sniffer /etc/fluent/plugin/
+    sniffer=$( rpm -ql rubygem-fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
+    if [ -z "$sniffer" -o ! -f "$sniffer" ] ; then \
+        echo Error: sniffer not found - possibly not using rubygem-fluent-plugin-elasticsearch 1.17.2 or later ; \
+    else \
+        cp $sniffer /etc/fluent/plugin/ ; \
+    fi
 
 WORKDIR ${HOME}
 
