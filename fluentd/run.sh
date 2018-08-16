@@ -286,7 +286,8 @@ fi
 # pods unable to be terminated because fluentd has them busy
 if [ "${USE_MUX:-}" = "true" ] ; then
     : # skip umount
-else
+elif [ "${USE_CRIO:false}" = "false" ] ; then
+    # If oci-umount is fixed, we can remove this. 
     echo "umounts of dead containers will fail. Ignoring..."
     umount /var/lib/docker/containers/*/shm || :
 fi
