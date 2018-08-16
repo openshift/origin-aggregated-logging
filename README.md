@@ -6,7 +6,7 @@
 
 This repo contains the image definitions for the components of the logging
 stack as well as tools for building and deploying them.  The logging subsystem
-consists of multiple [components](#Components) abbreviated as the "EFK"
+consists of multiple [components](#components) abbreviated as the "EFK"
 stack: Elasticsearch, Fluentd, Kibana.
 
 The primary features this integration provides:
