@@ -1,0 +1,13 @@
+---
+# key, cert and token paths to communicate with OpenShift Common Logging stack
+
+logging_mmk8s_token: '{{rsyslog__viaq_config_dir}}/mmk8s.token'
+
+logging_mmk8s_ca_cert: '{{rsyslog__viaq_config_dir}}/mmk8s.ca.crt'
+
+logging_elasticsearch_ca_cert: '{{rsyslog__viaq_config_dir}}/es-ca.crt'
+
+logging_elasticsearch_cert: '{{rsyslog__viaq_config_dir}}/es-cert.pem'
+
+logging_elasticsearch_key: '{{rsyslog__viaq_config_dir}}/es-key.pem'
+

@@ -1,0 +1,148 @@
+---
+- name: Install/Update required packages
+  yum:
+    name: '{{ item }}'
+    state: 'latest'
+  with_flattened:
+    - '{{ rsyslog__base_packages }}'
+    - '{{ rsyslog__viaq_prereq_packages if rsyslog__viaq|bool else [] }}'
+    - '{{ rsyslog__viaq_packages if rsyslog__viaq|bool else [] }}'
+    - '{{ rsyslog__tls_packages if rsyslog__pki|bool else [] }}'
+    - '{{ rsyslog__packages }}'
+  when: rsyslog__enabled|bool and not use_rsyslog_image|default(False)|bool
+
+- name: Create required system group
+  group:
+    name: '{{ rsyslog__group }}'
+    state: 'present'
+    system: True
+  when: rsyslog__unprivileged|bool and rsyslog__group != 'root'
+
+- name: Create required system user
+  user:
+    name: '{{ rsyslog__user }}'
+    group: '{{ rsyslog__group }}'
+    home: '{{ rsyslog__system_log_dir }}'
+    shell: '/bin/false'
+    state: 'present'
+    createhome: False
+    system: True
+  when: rsyslog__unprivileged|bool and rsyslog__user != 'root'
+
+# Creating a work directory
+- name: Create a work directory
+  file:
+    state: directory
+    path: '{{ rsyslog__work_dir }}'
+    owner: '{{ rsyslog__user }}'
+    group: '{{ rsyslog__file_group }}'
+    mode: 0700
+  changed_when: False
+
+# Creating a backup dir for rsyslog.d
+- name: Create a temp directory for rsyslog.d backup
+  command: mktemp -d /tmp/rsyslog.d-XXXXXX
+  register: mktemp
+  changed_when: False
+
+- debug: var=mktemp.stdout
+
+- name: Set backup dir name
+  set_fact:
+    tempdir: '{{ mktemp.stdout }}'
+
+- name: Create a backup dir
+  file:
+    state: directory
+    path: '{{ tempdir }}'
+    owner: '{{ rsyslog__user }}'
+    group: '{{ rsyslog__file_group }}'
+    mode: 0755
+  changed_when: False
+
+# Back up the pre-existing rsyslog config files in the backup dir,
+# then removing the files/dirs in rsyslog.d.
+- name: Moving the contents of {{rsyslog__config_dir}} to the backup dir
+  shell: |
+    tar cf - /etc/rsyslog.conf {{rsyslog__config_dir}} | (cd "{{ tempdir }}"; tar xf -)
+    rm -rf {{rsyslog__config_dir}}/*
+
+- name: create rsyslog viaq subdir
+  file: path="{{ rsyslog__viaq_config_dir }}" state=directory mode=0700
+  when: rsyslog__viaq|bool
+
+- name: Update directory and file permissions
+  shell: |
+    [ ! -d {{ rsyslog__system_log_dir }} ] || ( [ "$(stat -c '%G' {{ rsyslog__system_log_dir }})" = "{{ rsyslog__group }}" ] || ( chown -v root:{{ rsyslog__group }} {{ rsyslog__system_log_dir }} ; chmod -v 775 {{ rsyslog__system_log_dir }} ) )
+  register: rsyslog__register_file_permissions
+  when: rsyslog__unprivileged|bool
+  changed_when: rsyslog__register_file_permissions.stdout != ''
+
+- name: Generate main rsyslog configuration
+  template:
+    src: 'etc/rsyslog.conf.j2'
+    dest: '/etc/rsyslog.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0400'
+  when: rsyslog__enabled|bool
+
+- name: Generate example rsyslog configuration files in rsyslog.d
+  template:
+    src: 'etc/rsyslog.d/rules.conf.j2'
+    dest: '{{rsyslog__config_dir}}/{{ item.filename | d((item.weight if item.weight|d() else rsyslog__weight_map[item.type|d("rules")]) + "-" + (item.name|d("rules")) + "." + (item.suffix |d ("conf"))) }}'
+    owner: '{{ item.owner | d("root") }}'
+    group: '{{ item.group | d("root") }}'
+    mode:  '{{ item.mode  | d("0400") }}'
+  with_flattened:
+    - '{{ rsyslog_pools | d([]) }}'
+    - '{{ rsyslog__default_rules }}'
+    - '{{ rsyslog__rules }}'
+    - '{{ rsyslog__group_rules }}'
+    - '{{ rsyslog__host_rules }}'
+    - '{{ rsyslog__dependent_rules }}'
+  when: (rsyslog__enabled|bool and rsyslog__example|bool and (item.filename|d() or item.name|d()) and
+         (item.state is undefined or item.state != 'absent') and
+         (item.options|d() or item.sections|d()))
+
+- name: Generate viaq configuration files in rsyslog.d and rsyslog.d/viaq
+  template:
+    src: 'etc/rsyslog.d/rules.conf.j2'
+    dest: '{{ item.path | d(rsyslog__config_dir) }}/{{ item.filename | d((item.weight if item.weight|d() else rsyslog__weight_map[item.type|d("rules")]) + "-" + (item.name|d("rules")) + "." + (item.suffix |d ("conf"))) }}'
+    owner: '{{ item.owner | d("root") }}'
+    group: '{{ item.group | d("root") }}'
+    mode:  '{{ item.mode  | d("0400") }}'
+  with_flattened:
+    - '{{ rsyslog__viaq_rules }}'
+  when: (rsyslog__enabled|bool and rsyslog__viaq|bool and (item.filename|d() or item.name|d()) and
+         (item.state is undefined or item.state != 'absent') and
+         (item.options|d() or item.sections|d()))
+
+- name: Remove example config files in rsyslog.d
+  file:
+    path: '{{rsyslog__config_dir}}/{{ item.filename | d((item.weight if item.weight|d() else rsyslog__weight_map[item.type|d("rules")]) + "-" + (item.name|d("rules")) + "." + (item.suffix | d("conf"))) }}'
+    state: 'absent'
+  with_flattened:
+    - '{{ rsyslog_pools | d([]) }}'
+    - '{{ rsyslog__default_rules }}'
+    - '{{ rsyslog__rules }}'
+    - '{{ rsyslog__group_rules }}'
+    - '{{ rsyslog__host_rules }}'
+    - '{{ rsyslog__dependent_rules }}'
+  when: (not rsyslog__enabled|bool or
+         (item.filename|d() or item.name|d()) and
+         (item.state|d() and item.state == 'absent') and
+         (item.options|d() or item.sections|d()))
+
+- name: Remove viaq config files in rsyslog.d and rsyslog.d/viaq
+  template:
+    src: 'etc/rsyslog.d/rules.conf.j2'
+    dest: '{{ item.path | d(rsyslog__config_dir) }}/{{ item.filename | d((item.weight if item.weight|d() else rsyslog__weight_map[item.type|d("rules")]) + "-" + (item.name|d("rules")) + "." + (item.suffix |d ("conf"))) }}'
+    owner: '{{ item.owner | d("root") }}'
+    group: '{{ item.group | d("root") }}'
+    mode:  '{{ item.mode  | d("0400") }}'
+  with_flattened:
+    - '{{ rsyslog__viaq_rules }}'
+  when: (rsyslog__enabled|bool and not rsyslog__viaq|bool and (item.filename|d() or item.name|d()) and
+         (item.state is undefined or item.state == 'absent') and
+         (item.options|d() or item.sections|d()))

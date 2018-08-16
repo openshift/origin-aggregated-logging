@@ -15,9 +15,9 @@ ExecStart=/usr/bin/docker run --env /etc/sysconfig/rsyslog --privileged --name %
 -v /etc/pki/rsyslog:/etc/pki/rsyslog \
 -v /etc/rsyslog.conf:/etc/rsyslog.conf \
 -v /etc/sysconfig/rsyslog:/etc/sysconfig/rsyslog \
--v /etc/rsyslog.d:/etc/rsyslog.d \
--v /var/log:/var/log \
--v /var/lib/rsyslog:/var/lib/rsyslog \
+-v {{rsyslog__config_dir}}:{{rsyslog__config_dir}} \
+-v {{rsyslog__system_log_dir}}:{{rsyslog__system_log_dir}} \
+-v {{rsyslog__work_dir}}:{{rsyslog__work_dir}} \
 -v /var/lib/docker:/var/lib/docker \
 -v /run:/run \
 -v /etc/machine-id:/etc/machine-id \
