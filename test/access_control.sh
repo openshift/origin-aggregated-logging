@@ -176,12 +176,12 @@ function test_user_has_proper_access() {
             # make sure no access with incorrect auth
             # username with no token
             os::log::info Checking access providing username with no token
-            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
-            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '^401$'
+            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '401$'
+            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' '' -w '%{response_code}\n'" '401$'
             # username and bogus token
             os::log::info Checking access providing username with bogus token
-            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
-            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '^401$'
+            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '401$'
+            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '$test_name' BOGUS -w '%{response_code}\n'" '401$'
             # no username, no token
             os::log::info Checking access providing no username or token
             os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '' '' -w '%{response_code}\n'" '401$'
@@ -210,20 +210,20 @@ function test_user_has_proper_access() {
     fi
 
     os::log::info See if user $user is denied /.operations.* with no token
-    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $user '' -w '%{response_code}\n'" '^401$'
-    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $user '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $user '' -w '%{response_code}\n'" '401$'
+    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $user '' -w '%{response_code}\n'" '401$'
 
     os::log::info See if user $user is denied /.operations.* with no username
     os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' '' $test_token -w '%{response_code}\n'" '}403$'
     os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' $test_token -w '%{response_code}\n'" '}403$'
 
     os::log::info See if user $user is denied /.operations.* with no token using $LOG_ADMIN_USER
-    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '^401$'
-    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '401$'
+    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER '' -w '%{response_code}\n'" '401$'
 
     os::log::info See if user $user is denied /.operations.* with a bogus token using $LOG_ADMIN_USER
-    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
-    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '^401$'
+    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '401$'
+    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $LOG_ADMIN_USER BOGUS -w '%{response_code}\n'" '401$'
 
     os::log::info See if access is denied to /.operations.* with no username and no token
     os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' '' '' -w '%{response_code}\n'" '401$'
