@@ -31,7 +31,7 @@ export USE_CRIO=false
 node_config=/etc/origin/node/node-config.yaml
 if [[ -f "$node_config" ]]; then
     cre=$(ruby -e "require 'yaml'; y=YAML.load_file('${node_config}')
-        puts y['kubeletArguments']['container-runtime-endpoint']")
+        puts (y['kubeletArguments']||{})['container-runtime-endpoint']")
     if [[ "$cre" =~ crio ]]; then
         USE_CRIO=true
     fi
