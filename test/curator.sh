@@ -96,17 +96,18 @@ verify_indices() {
 stop_curator() {
     local curpod=$1
     oc scale --replicas=0 dc/logging-curator${ops:-} 2>&1 | artifact_out
-    os::cmd::try_until_failure "oc get pod $curpod > /dev/null 2>&1"
+    os::cmd::try_until_failure "oc get pod $curpod > /dev/null 2>&1" $(( 60 * second ))
 }
 
 restart_curator() {
     # $1 - if present, expect errors
     # redeploy dc
     # if there is a deployment already in progress, do not redeploy
-    if oc rollout status --watch=false dc/logging-curator${ops:-} 2>&1 | grep -q "Waiting for rollout to finish" ; then
-        oc rollout status --watch=false dc/logging-curator${ops:-} 2>&1 | artifact_out # already in progress
-    else
+    if oc rollout status --watch=false dc/logging-curator${ops:-} 2>&1 | grep -q "successfully rolled out" ; then
+        oc rollout status --watch=false dc/logging-curator${ops:-} 2>&1 | artifact_out
         oc rollout latest dc/logging-curator${ops:-} 2>&1 | artifact_out
+    else
+        oc rollout status --watch=true dc/logging-curator${ops:-} 2>&1 | artifact_out # already in progress
     fi
     if [ -n "${1:-}" ] ; then
         oc scale --replicas=1 dc/logging-curator${ops:-} 2>&1 | artifact_out
@@ -119,16 +120,24 @@ restart_curator() {
         # wait until redeployed
         oc rollout status -w dc/logging-curator${ops:-} 2>&1 | artifact_out
         oc scale --replicas=1 dc/logging-curator${ops:-} 2>&1 | artifact_out
-        os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].ready}'" "true"
+        if os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].ready}'" "true" ; then
+            artifact_log curator was started
+        else
+            oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="curator")].ready}'
+            oc get pods
+            oc get dc
+            oc get dc/logging-curator
+            exit 1
+        fi
         curpod=$( get_running_pod curator${ops:-} )
     fi
 }
 
 cleanup_failed_deployments() {
-    oc rollout cancel dc/logging-curator${ops:-} || :
+    oc rollout cancel dc/logging-curator${ops:-} 2>&1 | artifact_out || :
     for pod in $( oc get pods | awk '/^logging-curator-.*-deploy.*Error/ {print $1}' ) ; do
         if [ -n "${pod:-}" ] ; then
-            oc delete pod --force $pod
+            oc delete pod --force $pod 2>&1 | artifact_out
         fi
     done
 }
@@ -179,9 +188,8 @@ cleanup() {
         oc logs $curpod > $ARTIFACT_DIR/curator-$curpod.log 2>&1
     fi
     # delete indices
-    artifact_log espod $espod esopspod $esopspod
     delete_indices $essvc
-    if [ -n "${esopspod:-}" ] ; then
+    if [ -n "${esopssvc:-}" ] ; then
         delete_indices $esopssvc
     fi
     if [ -n "${origconfig:-}" -a -f $origconfig ] ; then
@@ -192,12 +200,12 @@ cleanup() {
         oc delete secret curator-config 2>&1 | artifact_out
         oc delete secret curator-config-ops 2>&1 | artifact_out
         oc set volumes dc/logging-curator --remove --name=curator-config 2>&1 | artifact_out
-        if [ -n "${esopspod:-}" ] ; then
+        if [ -n "${esopssvc:-}" ] ; then
             oc set volumes dc/logging-curator-ops --remove --name=curator-config 2>&1 | artifact_out
         fi
     fi
     oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
-    if [ -n "${esopspod:-}" ] ; then
+    if [ -n "${esopssvc:-}" ] ; then
         oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
     fi
     restart_curator
@@ -212,21 +220,18 @@ trap "cleanup" EXIT
 
 os::log::info Starting curator test at $( date )
 
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
 essvc=$( get_es_svc es )
 esopssvc=$( get_es_svc es-ops )
 curpod=$( get_running_pod curator )
+stop_curator $curpod
 oc set env dc/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
-os::log::info Enabled debug for dc/logging-curator - rolling out . . .
-# the set env may trigger a rollout - if so, wait for it to complete
-oc rollout status -w dc/logging-curator 2>&1 | artifact_out
-os::log::info Rolled out dc/logging-curator
-if [ -n "${esopspod:-}" ] ; then
+restart_curator
+if [ -n "${esopssvc:-}" ] ; then
+    curopspod=$( get_running_pod curator-ops )
+    ops="-ops" stop_curator $curopspod
     oc set env dc/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
-    os::log::info Enabled debug for dc/logging-curator-ops - rolling out . . .
-    oc rollout status -w dc/logging-curator-ops 2>&1 | artifact_out
-    os::log::info Rolled out dc/logging-curator-ops
+    ops="-ops" restart_curator
+    curpod=$( get_running_pod curator )
 fi
 fpod=$( oc get pods --selector component=fluentd  -o jsonpath='{ .items[*].metadata.name }' | head -1 )
 tf='%Y.%m.%d'
