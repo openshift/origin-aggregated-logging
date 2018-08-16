@@ -4,7 +4,7 @@ FROM rhel7:7-released
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.42 \
+    FLUENTD_VERSION=0.12.43 \
     FLUENTD_ES=1.13.0-1 \
     FLUENTD_KUBE_METADATA=1.0.1-1 \
     FLUENTD_REWRITE_TAG=1.5.6-1 \
