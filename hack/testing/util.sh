@@ -327,8 +327,8 @@ function wait_for_fluentd_to_catch_up() {
         sudo journalctl -f -o export | \
             awk -v es_ops=$uuid_es_ops -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
-                $0 ~ es_ops {print > es_ops_out; exit 0}' > /dev/null 2>&1 & checkpids=$!
-        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt ; do
+                $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
+        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
             sleep 1
         done & checkpids="$checkpids $!"
     fi
