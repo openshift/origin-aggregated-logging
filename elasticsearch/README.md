@@ -14,15 +14,26 @@ Example to retrieve the list of nodes
 $ oc exec -c elasticsearch $POD -- es_util --query=_cat/nodes?pretty
 ```
 
-### allocate-shard
-Manually allocate a shard to a given node in the Elasticsearch cluster.  The node
+### allocate-replica
+Manually allocate replica shard to a given node in the Elasticsearch cluster.  The node
 by default will be the one on which the command is executed. This command
-is used to explicitly [reroute and allocate](https://www.elastic.co/guide/en/elasticsearch/reference/2.4/cluster-reroute.html)
-a shard
+is used to explicitly [reroute and allocate](https://www.elastic.co/guide/en/elasticsearch/reference/5.6/cluster-reroute.html#cluster-reroute)
+a replica shard.
 
 Example:
 ```
-$ oc exec -c elasticsearch $POD -- allocate-shard .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674
+$ oc exec -c elasticsearch $POD -- allocate-replica .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674
+```
+
+### allocate-stale-primary
+Manually allocate a stale primary shard to a given node in the Elasticsearch cluster.  The node
+by default will be the one on which the command is executed. This command
+is used to explicitly [reroute and allocate](https://www.elastic.co/guide/en/elasticsearch/reference/5.6/cluster-reroute.html#cluster-reroute)
+a primary shard. **NOTE:** There is a risk of data loss when using this command
+
+Example:
+```
+$ oc exec -c elasticsearch $POD -- allocate-stale-primary .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674
 ```
 
 ### logs

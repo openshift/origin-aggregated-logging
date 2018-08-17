@@ -15,36 +15,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -euo pipefail
-source es_util_env
 
-shard=0
-allow_primary=true
+if [ -z "${OC_CMD:-}" ] ; then
+  source es_util_env
+fi
+
+shard=${SHARD:-0}
 
 helpMsg() {
 cat <<MSG
 
  Usage: $0 <index> [es_node] [options]
- Command to manually allocate a shard to a given Elasticsearch node
+ Command to manually allocate a replica shard
+   Ref: https://www.elastic.co/guide/en/elasticsearch/reference/5.6/cluster-reroute.html
 
    args:
      index                Required. The index to allocate(e.g. .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674)
-     es_node              Optional. The name of the Elasticsearch node (Default: ${DC_NAME:-}
+     es_node              Optional. The name of the Elasticsearch node (Default: ${DC_NAME:-})
 
    options:
      --shard=<number>            The shard to allocate. (Default: ${shard})
-     --allow-primary=true|false  Default: true
      --help,-h                   This message.
 MSG
 }
 
 index=${1:-}
-
-if [[ "$2" == --* ]];
-then
-    node="$DC_NAME"
-else
-    node="$2"
-fi
+node="${2:-${DC_NAME:-}}"
 
 if [ -z "${index}" ]; then
     helpMsg
@@ -57,9 +53,6 @@ case $1 in
     --shard=*)
       shard=${1#*=}
       ;;
-    --allow-primary=*)
-      allow_primary=${1#*=}
-      ;;
     --help|-h)
       helpMsg
       exit 0
@@ -68,10 +61,7 @@ case $1 in
   shift
 done
 
-if [ "${allow_primary}" != "true" ] ; then
-  allow_primary='false'
-fi
+payload="{\"commands\":[{\"allocate_replica\":{\"index\":\"${index}\",\"shard\":${shard},\"node\":\"${node}\"}}]}"
 
-payload="{\"commands\":[{\"allocate\":{\"index\":\"${index}\",\"shard\":${shard},\"node\":\"${node}\",\"allow_primary\":\"${allow_primary}\"}}]}"
+${OC_CMD:-} es_util --query=_cluster/reroute?pretty -XPOST -d ${payload}
 
-es_util --query=_cluster/reroute?pretty -XPOST -d ${payload}
