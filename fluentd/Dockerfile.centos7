@@ -54,7 +54,8 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
      'fluent-plugin-remote-syslog:1.1' \
-     'fluent-plugin-prometheus:<1.0.0'
+     'fluent-plugin-prometheus:<1.0.0' \
+     'fluent-plugin-concat:<2.0.0'
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/

@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  name: fluentdtestmultiline
+  namespace: openshift-logging
+  labels:
+    component: fluentdtestmultiline
+spec:
+  replicas: 1
+  template:
+      metadata:
+        labels:
+          component: fluentdtestmultiline
+      spec:
+        containers:
+        - name: fluentdtestmultiline
+          image: rhel7:latest
+          command:
+          - "/bin/bash"
+          - "-c"
+          - "echo -e 'START\\nmultiline 1\\nmultiline 1\\nSTART\\nmultiline 2\\n'; while true; do sleep 1; done; exit 0"
+          imagePullPolicy: IfNotPresent
+        nodeSelector:
+          logging-infra-fluentd: "true"
+        restartPolicy: Always

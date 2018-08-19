@@ -13,6 +13,7 @@ ENV DATA_VERSION=1.6.0 \
     FLUENTD_VIAQ_DATA_MODEL=0.0.13 \
     FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
     FLUENTD_RECORD_MODIFIER=0.6.1 \
+    FLUENT_CONCAT=1.0.0 \
     GEM_HOME=/usr/share/gems \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
@@ -40,7 +41,8 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
                 rubygem-fluent-plugin-secure-forward \
                 rubygem-fluent-plugin-systemd \
                 rubygem-fluent-plugin-viaq_data_model \
-                rubygem-fluent-plugin-prometheus" && \
+                rubygem-fluent-plugin-prometheus \
+                rubygem-fluent-plugin-concat" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all
