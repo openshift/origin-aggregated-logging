@@ -1,4 +1,4 @@
-FROM rhel7:7-released
+FROM elasticsearch:5.6.10
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -13,8 +13,8 @@ ENV ES_CONF=/etc/elasticsearch/ \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.10.2 \
-    PROMETHEUS_EXPORTER_VER=5.6.10.0 \
+    OSE_ES_VER=5.6.10.2-redhat-1 \
+    PROMETHEUS_EXPORTER_VER=5.6.10.0-redhat-2 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -22,11 +22,11 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RELEASE_STREAM=prod \
     container=oci
 
-ARG OSE_ES_VER=5.6.10.2
+ARG OSE_ES_VER=5.6.10.2-redhat-1
 ARG OSE_ES_URL
-ARG PROMETHEUS_EXPORTER_VER=5.6.10.0
+ARG PROMETHEUS_EXPORTER_VER=5.6.10.0-redhat-2
 ARG PROMETHEUS_EXPORTER_URL
-ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
+ARG MAVEN_REPO_URL=http://download-node-02.eng.bos.redhat.com/brewroot/repos/lpc-rhel-7-maven-build/latest/maven/
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
