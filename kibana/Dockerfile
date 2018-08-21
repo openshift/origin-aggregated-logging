@@ -24,7 +24,7 @@ RUN if [ -n "${LOCAL_REPO}" ] ; then \
     fi
 
 RUN INSTALLED_PKGS="kibana-${KIBANA_VER}*" && \
-    yum install -y --setopt=tsflags=nodocs  ${INSTALLED_PKGS} && \
+    yum install -y --setopt=tsflags=nodocs  ${INSTALLED_PKGS} zip && \
     yum clean all
 
 ADD nodescl-node /usr/bin
@@ -32,7 +32,7 @@ ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD lib/* ${HOME}/
 ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
-ADD logo-OCP-console-hdr-thin.svg ${KIBANA_HOME}/installedPlugins/origin-kibana/public/images/logo-origin-thin.svg
+ADD logo-OCP-console-hdr-thin.svg ${HOME}/kibana/origin-kibana/public/images/logo-origin-thin.svg
 RUN (type -p node || ln -s $(which $NODE_BIN) "/usr/bin/node") && \
     sh ${HOME}/install.sh
 
