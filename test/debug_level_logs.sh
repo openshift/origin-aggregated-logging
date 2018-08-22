@@ -8,7 +8,7 @@ os::test::junit::declare_suite_start "test/debug_level_logs"
 
 get_logmessage2() {
     logmessage2="$1"
-    cat > $ARTIFACT_DIR/debug_level_logs-ops.json
+    cp "$2" $ARTIFACT_DIR/debug_level_logs-ops.json
 }
 
 TEST_REC_PRIORITY=debug wait_for_fluentd_to_catch_up '' get_logmessage2
