@@ -20,29 +20,31 @@ if [ -z "${OC_CMD:-}" ] ; then
   source es_util_env
 fi
 
+shard=${SHARD:-0}
+
 helpMsg() {
 cat <<MSG
 
- Usage: $0 <index> <shard> <from_node> <to_node>
- Command to manually move a replica shard from one Elasticsearch node to another
+ Usage: $0 <index> [es_node] [options]
+ Command to manually allocate a stale primary shard
+
+ NOTE: Use of this commmand can lead to data loss.
+       Ref: https://www.elastic.co/guide/en/elasticsearch/reference/5.6/cluster-reroute.html
 
    args:
-     index                The index to move(e.g. .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674)
-     shard                The shard to move
-     from_node            The node where the shard is currently assigned
-     to_node              The node where the shard is to be moved
+     index                Required. The index to allocate(e.g. .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674)
+     es_node              Optional. The name of the Elasticsearch node (Default: ${DC_NAME:-})
 
    options:
-     --help,-h            This message.
+     --shard=<number>            The shard to allocate. (Default: ${shard})
+     --help,-h                   This message.
 MSG
 }
 
 index=${1:-}
-shard=${2:-}
-from_node=${3:-}
-to_node=${4:-}
+node="${2:-${DC_NAME:-}}"
 
-if [ -z "${index}" ] || [ -z "${shard}" ] || [ -z "${from_node}" ] || [ -z "${to_node}" ] ; then
+if [ -z "${index}" ]; then
     helpMsg
     exit 1
 fi
@@ -50,6 +52,9 @@ fi
 while (($#))
 do
 case $1 in
+    --shard=*)
+      shard=${1#*=}
+      ;;
     --help|-h)
       helpMsg
       exit 0
@@ -58,6 +63,7 @@ case $1 in
   shift
 done
 
-payload="{\"commands\":[{\"move\":{\"index\":\"${index}\",\"shard\":${shard},\"from_node\":\"${from_node}\",\"to_node\":\"${to_node}\"}}]}"
+payload="{\"commands\":[{\"allocate_stale_primary\":{\"index\":\"${index}\",\"shard\":${shard},\"node\":\"${node}\",\"accept_data_loss\":\"true\"}}]}"
 
 ${OC_CMD:-} es_util --query=_cluster/reroute?pretty -XPOST -d ${payload}
+
