@@ -21,3 +21,14 @@ matrix:
         cd fluentd/lib/filter_parse_json_field
       script:
         rake test
+    - name: fluentd - parser_json_or_crio test
+      env:
+        - FLUENTD_VERSION=0.12.0
+      language: ruby
+      rvm:
+      - 2.0
+      gemfile: fluentd/lib/parser_json_or_crio/Gemfile
+      before_script:
+        cd fluentd/lib/parser_json_or_crio
+      script:
+        rake test

@@ -21,18 +21,29 @@ DEFAULT_OPS_PROJECTS = !ENV['OCP_OPERATIONS_PROJECTS'].nil? ? ENV['OCP_OPERATION
 DEFAULT_FILENAME = "/etc/fluent/configs.d/user/throttle-config.yaml"
 
 VALID_SETTINGS = {"read_lines_limit" => "number"}
-CONTAINER_LOG_DRIVER = ENV['USE_CRIO'] == 'true' ? "CRIO" : "JSON_FILE"
-POS_FILE = CONTAINER_LOG_DRIVER + "_POS_FILE"
-READ_FROM_HEAD = CONTAINER_LOG_DRIVER + "_READ_FROM_HEAD"
-CONT_LOGS_PATH = CONTAINER_LOG_DRIVER + "_PATH"
+
+def cont_log_dir
+  ENV['CONT_LOG_DIR'] || '/var/log/containers'
+end
 
 def cont_pos_file
-  ENV[POS_FILE] || '/var/log/es-containers.log.pos'
+  ENV['CONTAINER_POS_FILE'] || ENV['JSON_FILE_POS_FILE'] || ENV['CRIO_POS_FILE'] || '/var/log/es-containers.log.pos'
+end
+
+def read_from_head
+  ENV['CONTAINER_READ_FROM_HEAD'] || ENV['JSON_FILE_READ_FROM_HEAD'] || ENV['CRIO_READ_FROM_HEAD'] || 'true'
+end
+
+def cont_logs_path
+  ENV['CONTAINER_LOGS_PATH'] || ENV['JSON_FILE_PATH'] || ENV['CRIO_PATH'] || "#{cont_log_dir}/*.log"
+end
+
+def container_pos_file_prefix
+  ENV['CONT_POS_FILE_PREFIX'] || '/var/log/es-container-'
 end
 
 def get_cont_pos_file_name(name)
-  prefix = ENV['CONT_POS_FILE_PREFIX']||'/var/log/es-container-' 
-  "#{prefix}#{name}.log.pos"
+  "#{container_pos_file_prefix}#{name}.log.pos"
 end
 
 def get_file_name(name)
@@ -49,7 +60,7 @@ end
 
 ## Returns the names of all throttle configs for parsing through when reverting
 def get_all_throttle_files()
-  return Dir.glob('/var/log/es-container-*.log.pos')
+  return Dir.glob("#{container_pos_file_prefix}*.log.pos")
 end
 
 def move_pos_file_project_entry(source_file, dest_file, project, log)
@@ -144,40 +155,34 @@ def close_file(project, log)
   File.open(file_name, 'a') { |file|
     log.debug "Closing file: #{file_name}"
     file.write(<<-CONF)
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format json_or_crio
   keep_time_key true
-  read_from_head "#{ENV[READ_FROM_HEAD] || 'true'}"
+  read_from_head "#{read_from_head}"
 </source>
     CONF
   } if File.exist?(file_name)
 end
 
-def create_default_docker(input_conf_file, excluded, log, options={})
-  cont_logs_path = options[:cont_logs_path] || '/var/log/containers/*.log'
-  cont_pos_file = options[:cont_pos_file] || '/var/log/es-containers.log.pos'
-  use_crio = options[:use_crio]
-
+def create_default_container_input(input_conf_file, excluded, log, options={})
   File.open(input_conf_file, 'w') { |file|
-    log.debug "Creating default docker input config file #{input_conf_file}"
+    log.debug "Creating default container input config file #{input_conf_file}"
     file.write(<<-CONF)
 <source>
   @type tail
-  @id docker-input
+  @id container-input
   @label @INGRESS
-  path "#{cont_logs_path}"
-  pos_file "#{cont_pos_file}"
-  time_format #{use_crio == 'true' ? '%Y-%m-%dT%H:%M:%S.%N%:z' : '%Y-%m-%dT%H:%M:%S.%N%Z'}
+  path "#{options[:cont_logs_path] || cont_logs_path}"
+  pos_file "#{options[:cont_pos_file] || cont_pos_file}"
   tag kubernetes.*
-  format #{use_crio == 'true' ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/' : 'json'}
+  format json_or_crio
   keep_time_key true
-  read_from_head "#{options[:read_from_head] || 'true'}"
+  read_from_head "#{options[:read_from_head] || read_from_head}"
   exclude_path #{excluded}
 </source>
     CONF
   }
-    log.debug "Created default docker input config file"
+    log.debug "Created default container input config file"
 end
 
 def validate(key, value, log)
@@ -209,8 +214,7 @@ def validate(key, value, log)
 end
 
 def get_project_pattern(name)
-  dir = ENV['CONT_LOG_DIR']||'/var/log/containers'
-  "#{dir}/*_#{name}_*.log"
+  "#{cont_log_dir}/*_#{name}_*.log"
 end
 
 def generate_throttle_configs(input_conf, throttle_conf_file, log, init_options={})
@@ -270,17 +274,16 @@ end
 
 revert_throttle(log) unless throttling
 
-create_default_docker(input_conf, excluded, log, init_options)
+create_default_container_input(input_conf, excluded, log, init_options)
 
 end
 
 if __FILE__ == $0
-    generate_throttle_configs('/etc/fluent/configs.d/dynamic/input-docker-default-docker.conf',
+    generate_throttle_configs('/etc/fluent/configs.d/dynamic/input-docker-default-container.conf',
                               ENV['THROTTLE_CONF_LOCATION'] || DEFAULT_FILENAME,
                               log,
-                              :cont_logs_path=>"#{ENV[CONT_LOGS_PATH] || '/var/log/containers/*.log'}",
-                              :cont_pos_file=>"#{ENV[POS_FILE] || '/var/log/es-containers.log.pos'}",
-                              :use_crio=>ENV['USE_CRIO']||false,
-                              :read_from_head=>ENV[READ_FROM_HEAD] || 'true')
+                              :cont_logs_path=>cont_logs_path,
+                              :cont_pos_file=>cont_pos_file,
+                              :read_from_head=>read_from_head)
 end
 
