@@ -96,12 +96,12 @@ if echo "${EXTRA_ANSIBLE_OPENSHIFT:-}" | grep -q -i "use_crio=true" ; then
 else
     USE_CRIO=${USE_CRIO:-false}
 fi
-export GOPATH=${GOPATH:-/data}
+export REMOTE_GOPATH=${REMOTE_GOPATH:-/data}
 OS=${OS:-rhel}
 TESTNAME=${TESTNAME:-logging}
 INSTANCE_TYPE=${INSTANCE_TYPE:-m4.xlarge}
 # on the remote machine
-OS_ROOT=${OS_ROOT:-$GOPATH/src/github.com/openshift/origin}
+OS_ROOT=${OS_ROOT:-$REMOTE_GOPATH/src/github.com/openshift/origin}
 RELDIR=${RELDIR:-$OS_ROOT/_output/local/releases}
 # for cloning origin-aggregated-logging from a specific repo and branch
 # you can override just the GITHUB_REPO=myusername or the entire GIT_URL
@@ -114,9 +114,9 @@ ANSIBLE_REPO=${ANSIBLE_REPO:-openshift}
 ANSIBLE_BRANCH=${ANSIBLE_BRANCH:-master}
 ANSIBLE_URL=${ANSIBLE_URL:-https://github.com/${ANSIBLE_REPO}/openshift-ansible}
 OAL_LOCAL_PATH=`echo $GIT_URL | sed 's,https://,,'`
-OS_O_A_L_DIR=${OS_O_A_L_DIR:-$GOPATH/src/github.com/openshift/origin-aggregated-logging}
-OS_O_A_DIR=${OS_O_A_DIR:-$GOPATH/src/github.com/openshift/openshift-ansible}
-OS_A_C_J_DIR=${OS_A_C_J_DIR:-$GOPATH/src/github.com/openshift/aos-cd-jobs}
+OS_O_A_L_DIR=${OS_O_A_L_DIR:-$REMOTE_GOPATH/src/github.com/openshift/origin-aggregated-logging}
+OS_O_A_DIR=${OS_O_A_DIR:-$REMOTE_GOPATH/src/github.com/openshift/openshift-ansible}
+OS_A_C_J_DIR=${OS_A_C_J_DIR:-$REMOTE_GOPATH/src/github.com/openshift/aos-cd-jobs}
 #USE_AMI=${USE_AMI:-fork_ami_openshift3_logging-1.4-backports}
 export AWS_SECURITY_GROUPS=${AWS_SECURITY_GROUPS:-sg-e1760186}
 ROOT_VOLUME_SIZE=${ROOT_VOLUME_SIZE:-75}
