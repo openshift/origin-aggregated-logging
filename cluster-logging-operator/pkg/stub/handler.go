@@ -3,7 +3,8 @@ package stub
 import (
 	"context"
 
-	"github.com/openshift/cluster-logging-operator/pkg/apis/logging/v1alpha1"
+	"github.com/openshift/origin-aggregated-logging/cluster-logging-operator/pkg/apis/logging/v1alpha1"
+	"github.com/openshift/origin-aggregated-logging/cluster-logging-operator/pkg/k8shandler"
 
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
 )
 
 func NewHandler() sdk.Handler {
@@ -24,45 +26,27 @@ type Handler struct {
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
 	case *v1alpha1.ClusterLogging:
-		err := sdk.Create(newbusyBoxPod(o))
-		if err != nil && !errors.IsAlreadyExists(err) {
-			logrus.Errorf("Failed to create busybox pod : %v", err)
-			return err
-		}
+		return Reconcile(o)
 	}
 	return nil
 }
 
-// newbusyBoxPod demonstrates how to create a busybox pod
-func newbusyBoxPod(cr *v1alpha1.ClusterLogging) *corev1.Pod {
-	labels := map[string]string{
-		"app": "busy-box",
+func Reconcile(logging *v1alpha1.ClusterLogging)(err error) {
+	logrus.Info("Started reconciliation")
+
+	// Reconcile certs
+  err = k8shandler.CreateOrUpdateCertificates(logging)
+	if err != nil {
+		logrus.FatalF("Unable to create or update certificates: %v", err)
 	}
-	return &corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "busy-box",
-			Namespace: cr.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cr, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
-					Kind:    "ClusterLogging",
-				}),
-			},
-			Labels: labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
+
+	// Reconcile Log Store
+
+	// Reconcile Visualization
+
+	// Reconcile Curation
+
+	// Reconcile Collection
+
+	return nil
 }

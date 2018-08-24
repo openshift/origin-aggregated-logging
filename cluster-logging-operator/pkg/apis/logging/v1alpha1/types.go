@@ -41,6 +41,7 @@ type VisualizationSpec struct {
 type LogStoreSpec struct {
   Disabled          bool `json:"disabled"`
   Resources         v1.ResourceRequirements `json:"resources"`
+  Replicas          int32 `json:"replicas"`
   NodeSelector      map[string]string `json:"nodeSelector,omitempty"`
 }
 
