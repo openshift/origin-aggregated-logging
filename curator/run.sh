@@ -4,6 +4,10 @@ if [ "$CURATOR_SCRIPT_LOG_LEVEL" = DEBUG ] ; then
     set -x
 fi
 
+if [ "$CURATOR_LOG_LEVEL" = WARN ] ; then
+    export CURATOR_LOG_LEVEL="WARNING"
+fi
+
 TIMES=60
 
 function waitForES() {
