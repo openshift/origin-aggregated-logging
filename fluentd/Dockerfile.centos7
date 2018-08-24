@@ -30,6 +30,11 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
       redhat-rpm-config && \
     yum clean all
 
+ADD jemalloc/ ${HOME}/jemalloc/
+RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
+    make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
+    cd .. && rm -rf jemalloc
+
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     gem install -N --conservative --minimal-deps --no-ri --no-doc \
      'activesupport:<5' \
@@ -54,6 +59,7 @@ ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
+COPY utils/** ${HOME}/utils
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
@@ -64,17 +70,6 @@ RUN if [ ! -d /etc/fluent/plugin ] ; then \
     fi ; \
     sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
     cp $sniffer /etc/fluent/plugin/
-
-COPY utils/** ${HOME}/utils
-ADD jemalloc/ ${HOME}/jemalloc/
-# note - make dist "fails" here
-# false -o doc/jemalloc.html doc/html.xsl doc/jemalloc.xml
-# so cannot use &&
-# cannot use make install - will try to install docs - not only does that fail
-# for some reason, but we also don't want them here - use install_lib install_bin
-RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
-    make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
-    cd .. && rm -rf jemalloc
 
 WORKDIR ${HOME}
 USER 0
