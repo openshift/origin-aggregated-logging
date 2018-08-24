@@ -5,6 +5,6 @@ set -o pipefail
 
 # update logo file inside the Kibana plugin before it is installed
 pushd ${HOME}
-zip origin-kibana-v${KIBANA_VER}*.zip kibana/origin-kibana/public/images/logo-origin-thin.svg
+zip origin-kibana-v${KIBANA_VER}*.zip kibana/origin-kibana/public/images/logo-okd.svg
 popd
 
