@@ -68,14 +68,6 @@ fluentd_status_buffer_total_bytes{hostname="logging-fluentd-28j4d",plugin_id="el
 fluentd_status_retry_count{hostname="logging-fluentd-28j4d",plugin_id="elasticsearch-ops",plugin_category="output",type="elasticsearch"} 0.0
 fluentd_status_retry_count{hostname="logging-fluentd-28j4d",plugin_id="elasticsearch-apps",plugin_category="output",type="elasticsearch"} 0.0
 
-# TYPE fluentd_tail_file_position gauge
-# HELP fluentd_tail_file_position Current position of file.
-fluentd_tail_file_position{hostname="logging-fluentd-28j4d",plugin_id="audit-input",type="tail",path="/var/log/audit/audit.log"} 6919255.0
-
-# TYPE fluentd_tail_file_inode gauge
-# HELP fluentd_tail_file_inode Current inode of file.
-fluentd_tail_file_inode{hostname="logging-fluentd-28j4d",plugin_id="audit-input",type="tail",path="/var/log/audit/audit.log"} 4372677.0
-
 # TYPE fluentd_output_status_buffer_queue_length gauge
 # HELP fluentd_output_status_buffer_queue_length Current buffer queue length.
 fluentd_output_status_buffer_queue_length{hostname="logging-fluentd-28j4d",plugin_id="elasticsearch-ops",type="elasticsearch"} 0.0
