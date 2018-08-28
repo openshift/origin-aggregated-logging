@@ -53,8 +53,8 @@ module Fluent
     class LoggerInitializer
       def initialize(path, level, chuser, chgroup, opts)
         path = ENV["LOGGING_FILE_PATH"] || nil
-        age = ENV["LOGGING_FILE_AGE"] || 5
-        size = ENV["LOGGING_FILE_SIZE"] || 1024000
+        age = Integer(ENV["LOGGING_FILE_AGE"])
+        size = Integer(ENV["LOGGING_FILE_SIZE"])
         $openShiftLogger = Logger.new(path, age, size)
         @path = path
         @level = level
