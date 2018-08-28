@@ -54,7 +54,7 @@ module Fluent
       def initialize(path, level, chuser, chgroup, opts)
         envPath = ENV["LOGGING_FILE_PATH"]
         $openShiftLogger = nil
-        if !envPath.nil? do
+        if !envPath.nil?
           path = envPath
           age = Integer(ENV["LOGGING_FILE_AGE"])
           size = Integer(ENV["LOGGING_FILE_SIZE"])
