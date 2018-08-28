@@ -229,15 +229,24 @@ module Fluent
     end
 
     def puts(msg)
-      $openShiftLogger.info("#{msg}")
-      msg
+      if $openShiftLogger.nil?  
+        @out.puts(msg)
+        @out.flush
+        msg
+      else
+        $openShiftLogger.info("#{msg}")
+      end
     rescue
       # FIXME
       nil
     end
 
     def write(data)
-      $openShiftLogger.info("#{msg}")
+      if $openShiftLogger.nil?
+        @out.write(data)
+      else
+        $openShiftLogger.info("Extra info")
+      end
     end
     # We need `#<<` method to use this logger class with other
     # libraries such as aws-sdk
