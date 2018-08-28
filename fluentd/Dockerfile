@@ -13,7 +13,7 @@ ENV DATA_VERSION=1.6.0 \
     FLUENTD_VIAQ_DATA_MODEL=0.0.13 \
     FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
     FLUENTD_RECORD_MODIFIER=0.6.1 \
-    GEM_HOME=/opt/app-root/src \
+    GEM_HOME=/usr/share/gems \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
     RUBY_VERSION=2.0 \
@@ -52,6 +52,7 @@ ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
+ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \

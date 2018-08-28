@@ -20,5 +20,5 @@ LOGGING_NS=${LOGGING_NS:-openshift-logging}
 fpod="$(get_running_pod fluentd)"
 fpod_ip="$(oc get pod ${fpod} -o jsonpath='{.status.podIP}')"
 
-os::cmd::expect_success "curl http://${fpod_ip}:24231/metrics"
-curl http://${fpod_ip}:24231/metrics >> $ARTIFACT_DIR/${fpod}-metrics-scrape 2>&1 || :
+os::cmd::expect_success "curl -k https://${fpod_ip}:24231/metrics"
+curl -k https://${fpod_ip}:24231/metrics >> $ARTIFACT_DIR/${fpod}-metrics-scrape 2>&1 || :
