@@ -1,0 +1,13 @@
+- name: aggregated-logging-apb playbook to provision the application
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  roles:
+  - role: ansible.kubernetes-modules
+    install_python_requirements: no
+  - role: elasticsearch
+    state: provision
+  - role: kibana
+    state: provision
+  - role: fluentd
+    state: provision

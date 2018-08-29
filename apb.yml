@@ -1,0 +1,77 @@
+version: 1.0
+name: aggregated-logging-apb
+description: Aggregated Logging
+bindable: False
+async: optional
+metadata:
+  displayName: "Aggregated Logging (APB)"
+  imageUrl: "https://s3.amazonaws.com/fusor/2017demo/ManageIQ.png"
+  documentationUrl: "https://manageiq.org/docs/"
+  longDescription: "ManageIQ is an open source management platform for Hybrid IT. It can manage small and large environments, and supports multiple technologies such as virtual machines, public clouds and containers."
+  dependencies: ['docker.io/manageiq/manageiq-pods:app-latest-fine', 'docker.io/manageiq/manageiq-pods:memcached-latest', 'docker.io/manageiq/manageiq-pods:app-latest-fine']
+  providerDisplayName: "Red Hat, Inc."
+plans:
+  - name: default
+    description: Typical installation of Aggregated Logging
+    free: True
+    metadata:
+      displayName: Default
+      longDescription: This plan deploys Aggregated Logging
+      cost: $0.00
+    parameters:
+      - name: application_init_delay
+        title: web app time delay
+        description: Time to delay web app startup
+        type: int
+        default: 60
+      - name: database_region
+        title: database region
+        description: MIQ Instance Region
+        type: int
+        default: 1
+      - name: database_service_name
+        title: database service name
+        description: Service Name for the database
+        type: string
+        default: manageiq-postgresql
+      - name: memcached_max_connections
+        title: max connections
+        description: Maximum number of connections memcached will accept
+        type: int
+        default: 1024
+      - name: memcached_max_memory
+        title: max memory
+        description: Maximum memory memcached will use in MB
+        type: int
+        default: 64
+      - name: memcached_slab_page_size
+        title: slab page size
+        description: Memcached Slab Size in bytes
+        type: string
+        default: 1M
+      - name: memcached_service_name
+        title: memcached service name
+        description: Service name of the memcached instance to use
+        type: string
+        default: manageiq-memcached
+      - name: namespace
+        title: namespace
+        description: Namespace/Project to deploy to
+        type: string
+        default: manageiq-apb
+      - name: postgresql_database
+        title: database name
+        description: postgresql database name
+        type: string
+        default: vmdb_production
+      - name: postgresql_password
+        title: database password
+        description: postgresql database password
+        type: string
+        default: admin
+      - name: postgresql_user
+        title: database username
+        description: postgresql database username
+        type: string
+        default: admin
+#

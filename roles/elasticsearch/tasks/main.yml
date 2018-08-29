@@ -1,0 +1,8 @@
+---
+
+- include: "{{ state }}.yml"
+
+- include: "{{ state }}.yml"
+  vars:
+    component: es-ops
+  when: "logging_ops | bool or state is 'deprovision'"

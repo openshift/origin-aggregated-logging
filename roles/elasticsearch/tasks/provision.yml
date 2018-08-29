@@ -1,0 +1,237 @@
+---
+## TODO: allow this to be called for ops and non-ops
+## TODO: move PVC and DC generation into another task to be looped over
+##       or move to stateful sets
+
+# service account
+- name: Create ES service account
+  k8s_v1_service_account:
+    state: present
+    name: aggregated-logging-elasticsearch
+    namespace: "{{ logging_namespace }}"
+    image_pull_secrets: "{{ logging_image_pull_secret | default([]) }}"
+
+
+# rolebinding reader
+- name: Create rolebinding-reader role
+  openshift_v1_cluster_role:
+    state: present
+    name: rolebinding-reader
+    namespace: "{{ logging_namespace }}"
+    rules:
+    - resources:
+        - clusterrolebindings
+      verbs:
+        - get
+
+# SA roles
+## TODO: do we even need this anymore?
+- name: Bind rolebinding-reader for ES serviceaccount
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: cluster-role
+    role_ref_name: rolebinding-reader
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+
+- name: Bind system:auth-delegator for ES serviceaccount
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: cluster-role
+    role_ref_name: system:auth-delegator
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+# logging-metrics-reader role
+- name: Create prometheus-metrics-viewer role
+  k8s_v1beta1_role:
+    state: present
+    name: prometheus-metrics-viewer
+    namespace: "{{ logging_namespace }}"
+    resource_definition:
+      - apiVersion: rbac.authorization.k8s.io/v1beta1
+        kind: Role
+        metadata:
+          annotations:
+            rbac.authorization.kubernetes.io/autoupdate: "true"
+          name: prometheus-metrics-viewer
+          namespace: {{ namespace }}
+        rules:
+        - apiGroups:
+          - metrics.openshift.io
+          resources:
+          - prometheus
+          verbs:
+          - view
+
+
+- name: Bind prometheus-metrics-viewer role
+  k8s_v1beta1_role_binding:
+    name: prometheus-metrics-viewer
+    namespace: "{{ logging_namespace }}"
+    role_ref_kind: role
+    role_ref_name: prometheus-metrics-viewer
+    role_ref_api_group: rbac.authorization.k8s.io
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ prometheus_namespace }}"
+        role_user: "{{ prometheus_sa_name }}"
+
+
+# View role and binding
+- name: Create logging-elasticsearch-view-role rolebinding
+  openshift_v1_cluster_role_binding:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    name: logging-elasticsearch-view-role
+    role_ref_kind: cluster-role
+    role_ref_name: view
+    subjects:
+      - kind: ServiceAccount
+        namespace: "{{ logging_namespace }}"
+        role_user: aggregated-logging-elasticsearch
+
+# configmap
+## TODO: come back to here -- use PR logic for merging changes
+- template:
+    src: elasticsearch-logging.yml.j2
+    dest: "{{ tempdir }}/elasticsearch-logging.yml"
+  vars:
+    root_logger: "{{openshift_logging_es_log_appenders | join(', ')}}"
+  when: es_logging_contents is undefined
+  changed_when: no
+
+- template:
+    src: elasticsearch.yml.j2
+    dest: "{{ tempdir }}/elasticsearch.yml"
+  vars:
+    allow_cluster_reader: "{{ openshift_logging_elasticsearch_ops_allow_cluster_reader | lower | default('false') }}"
+    es_number_of_shards: "{{ openshift_logging_es_number_of_shards | default(1) }}"
+    es_number_of_replicas: "{{ openshift_logging_es_number_of_replicas | default(0) }}"
+    es_kibana_index_mode: "{{ openshift_logging_elasticsearch_kibana_index_mode | default('unique') }}"
+
+  when: es_config_contents is undefined
+  changed_when: no
+
+- copy:
+    content: "{{ es_logging_contents }}"
+    dest: "{{ tempdir }}/elasticsearch-logging.yml"
+  when: es_logging_contents is defined
+  changed_when: no
+
+- copy:
+    content: "{{ es_config_contents }}"
+    dest: "{{ tempdir }}/elasticsearch.yml"
+  when: es_config_contents is defined
+  changed_when: no
+
+- name: Create ES configmap
+  k8s_v1_config_map:
+    state: present
+    namespace: "{{ logging_namespace }}"
+    name: "{{ elasticsearch_name }}"
+    labels:
+      logging-infra: 'support'
+    data:
+      elasticsearch.yml: "{{ lookup('FILE', tempdir ~ '/elasticsearch.yml') | to_yaml }}"
+      logging.yml: "{{ lookup('FILE', tempdir ~ '/elasticsearch-logging.yml') | to_yaml }}"
+
+# secret
+## TODO: come back to here...
+- name: Create ES secret
+  k8s_v1_secret:
+    state: present
+    name: logging-elasticsearch
+    namespace: "{{ logging_namespace }}"
+    labels:
+      logging-infra: 'support'
+    string_data:
+      key: "{{ lookup('FILE', certs_dir ~ '/logging-es.jks') }}"
+      truststore: "{{ lookup('FILE', certs_dir ~ '/truststore.jks') }}"
+      searchguard.key: "{{ lookup('FILE', certs_dir ~ '/elasticsearch.jks') }}"
+      searchguard.truststore: "{{ lookup('FILE', certs_dir ~ '/truststore.jks') }}"
+      admin-key: "{{ lookup('FILE', certs_dir ~ '/system.admin.key') }}"
+      admin-cert: "{{ lookup('FILE', certs_dir ~ '/system.admin.crt') }}"
+      admin-ca: "{{ lookup('FILE', certs_dir ~ '/ca.crt') }}"
+      admin.jks: "{{ lookup('FILE', certs_dir ~ '/system.admin.jks') }}"
+
+# services
+- name: Set logging-{{ component }}-cluster service
+  k8s_v1_service:
+    state: present
+    name: "logging-{{ component }}-cluster"
+    namespace: "{{ logging_namespace }}"
+    spec_selector:
+      component: "{{ component }}"
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - port: 9300
+
+- name: Set logging-{{ component }} service
+  k8s_v1_service:
+    state: present
+    name: "logging-{{ component }}"
+    namespace: "{{ logging_namespace }}"
+    spec_selector:
+      component: "{{ component }}"
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - port: 9200
+        targetPort: "restapi"
+
+- name: Set logging-{{ component }}-prometheus service
+  k8s_v1_service:
+    state: present
+    name: "logging-{{ component }}-prometheus"
+    namespace: "{{ logging_namespace }}"
+    annotations: {'service.alpha.openshift.io/serving-cert-secret-name': 'prometheus-tls', 'prometheus.io/scrape': 'true', 'prometheus.io/scheme': 'https', 'prometheus.io/path': '_prometheus/metrics'}
+    spec_selector:
+      component: "{{ component }}"
+      provider: openshift
+    labels:
+      logging-infra: 'support'
+    spec_ports:
+      - name: proxy
+        port: 443
+        targetPort: 4443
+
+
+# We can loop over this here so that we can create multiple DC and match storage
+# should get facts on current DC for looping here?
+- include: dc_storage_provision.yml
+
+
+
+# External route
+- name: Creating Elasticsearch {{ component }} route
+  openshift_v1_route:
+    name: "logging-{{ component }}"
+    namespace: "{{ logging_namespace }}"
+    state: present
+    labels:
+      component: support
+      logging-infra: support
+      provider: openshift
+    spec_host: "{{ logging_es_hostname }}"
+    spec_tls_termination: reencrypt
+    spec_tls_insecure_edge_termination_policy: "{{ logging_es_edge_term_policy | default() }}"
+    spec_to_kind: Service
+    spec_to_name: logging-es
+    spec_tls_key: "{{ certs_dir }}/system.logging.es.key"
+    spec_tls_certificate: "{{ certs_dir }}/system.logging.es.crt"
+    spec_tls_ca_certificate: "{{ certs_dir }}/ca.crt"
+    spec_tls_destination_ca_certificate: "{{ certs_dir }}/ca.crt"
+  when: logging_allow_external | bool
+
+## Placeholder for migration when necessary ##
