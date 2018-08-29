@@ -234,7 +234,7 @@ module Fluent
         @out.flush
         msg
       else
-        $openShiftLogger.info("#{msg}")
+        $openShiftLogger << msg
       end
     rescue
       # FIXME
@@ -245,7 +245,7 @@ module Fluent
       if $openShiftLogger.nil?
         @out.write(data)
       else
-        $openShiftLogger.info("Extra info")
+        $openShiftLogger << data
       end
     end
     # We need `#<<` method to use this logger class with other
