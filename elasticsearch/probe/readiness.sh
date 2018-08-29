@@ -40,4 +40,9 @@ function check_if_ready() {
   fi
 }
 
+function check_for_init_complete() {
+  test -f ${HOME}/init_complete
+}
+
 check_if_ready "/" "Elasticsearch node is not ready to accept HTTP requests yet"
+check_for_init_complete
