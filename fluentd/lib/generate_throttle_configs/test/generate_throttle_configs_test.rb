@@ -75,7 +75,7 @@ describe 'generate_throttle_configs' do
   @label @INGRESS
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  time_format %Y-%m-%dT%H:%M:%S.%N%:z
   tag kubernetes.*
   format /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
   keep_time_key true

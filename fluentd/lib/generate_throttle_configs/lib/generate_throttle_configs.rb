@@ -168,7 +168,7 @@ def create_default_docker(input_conf_file, excluded, log, options={})
   @label @INGRESS
   path "#{cont_logs_path}"
   pos_file "#{cont_pos_file}"
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  time_format #{use_crio == 'true' ? '%Y-%m-%dT%H:%M:%S.%N%:z' : '%Y-%m-%dT%H:%M:%S.%N%Z'}
   tag kubernetes.*
   format #{use_crio == 'true' ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/' : 'json'}
   keep_time_key true
