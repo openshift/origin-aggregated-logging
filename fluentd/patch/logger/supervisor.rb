@@ -56,9 +56,9 @@ module Fluent
         $openShiftLogger = nil
         if !envPath.nil?
           path = envPath
-          age = Integer(ENV["LOGGING_FILE_AGE"])
-          size = Integer(ENV["LOGGING_FILE_SIZE"])
-          $openShiftLogger = Logger.new(path, age, size)
+          age = Integer(ENV["LOGGING_FILE_AGE"]) || 10
+          logFileSize = Integer(ENV["LOGGING_FILE_SIZE"]) || 1024000
+          $openShiftLogger = Logger.new(path, age, logFileSize)
         end
         @path = path
         @level = level
