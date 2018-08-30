@@ -12,26 +12,11 @@ source "logging"
 info Begin Elasticsearch startup script
 
 export KUBERNETES_AUTH_TRYKUBECONFIG=${KUBERNETES_AUTH_TRYKUBECONFIG:-"false"}
-ES_REST_BASEURL=${ES_REST_BASEURL:-https://localhost:9200}
-LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
-RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
-RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
-
-PRIMARY_SHARDS=${PRIMARY_SHARDS:-1}
-REPLICA_SHARDS=${REPLICA_SHARDS:-0}
 
 MEM_LIMIT_FILE=/etc/podinfo/mem_limit
 CONTAINER_MEM_LIMIT=${INSTANCE_RAM:-}
 
-retry=$RETRY_COUNT
-max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
-timeouted=false
-
 mkdir -p /elasticsearch/$CLUSTER_NAME
-# the deployment mounts the secrets at this location - not necessarily the same
-# as $ES_CONF
-secret_dir=/etc/elasticsearch/secret
-provided_secret_dir=/etc/openshift/elasticsearch/secret
 
 BYTES_PER_MEG=$((1024*1024))
 BYTES_PER_GIG=$((1024*${BYTES_PER_MEG}))
@@ -98,134 +83,9 @@ sg_role_prometheus:
     - "${PROMETHEUS_USER:-system:serviceaccount:prometheus:prometheus}"
 CONF
 
-build_jks_from_pem() {
-
-  jks_name=$1
-  key_name=$2
-  cert_name=$3
-  ca_name=$4
-
-  openssl                                   \
-    pkcs12                                  \
-    -export                                 \
-    -in $secret_dir/$cert_name              \
-    -inkey $secret_dir/$key_name            \
-    -out $secret_dir/$jks_name.p12          \
-    -passout pass:kspass
-
-  keytool                                   \
-    -importkeystore                         \
-    -srckeystore $secret_dir/$jks_name.p12  \
-    -srcstoretype PKCS12                    \
-    -srcstorepass kspass                    \
-    -destkeystore $secret_dir/$jks_name.jks \
-    -deststoretype JKS                      \
-    -deststorepass kspass                   \
-    -noprompt
-
-  keytool                                   \
-    -changealias                            \
-    -keystore $secret_dir/$jks_name.jks     \
-    -storepass kspass                       \
-    -alias 1                                \
-    -destalias $jks_name
-
-  keytool                                   \
-    -import                                 \
-    -file $secret_dir/$ca_name              \
-    -keystore $secret_dir/$jks_name.jks     \
-    -storepass kspass                       \
-    -noprompt                               \
-    -alias sig-ca
-}
-
-copy_keys_to_secretdir() {
-
-  if [ -d $provided_secret_dir ] ; then
-    info "Copying certs from ${provided_secret_dir} to ${secret_dir}"
-    cp $provided_secret_dir/* $secret_dir/
-  fi
-}
-
-# Pull in the certs provided in our secret and generate our necessary jks and truststore files
-build_jks_truststores() {
-
-  copy_keys_to_secretdir
-
-  info "Building required jks files and truststore"
-
-  # check for lack of admin.jks
-  if [[ ! -e $secret_dir/admin.jks ]]; then
-    build_jks_from_pem "admin" "admin-key" "admin-cert" "admin-ca"
-  fi
-
-  # check for elasticsearch.key and elasticsearch.crt
-  if [[ -e $secret_dir/elasticsearch.key && -e $secret_dir/elasticsearch.crt && ! -e $secret_dir/searchguard.key ]]; then
-    build_jks_from_pem "elasticsearch" "elasticsearch.key" "elasticsearch.crt" "admin-ca"
-    mv $secret_dir/elasticsearch.jks $secret_dir/searchguard.key
-  fi
-
-  # check for logging-es.key and logging-es.crt
-  if [[ -e $secret_dir/logging-es.key && -e $secret_dir/logging-es.crt && ! -e $secret_dir/key ]]; then
-    build_jks_from_pem "logging-es" "logging-es.key" "logging-es.crt" "admin-ca"
-    mv $secret_dir/logging-es.jks $secret_dir/key
-  fi
-
-  if [[ ! -e $secret_dir/truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/truststore             \
-      -storepass tspass                            \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-
-  if [[ ! -e $secret_dir/searchguard.truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/searchguard.truststore \
-      -storepass tspass                            \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-}
-
-# Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
-wait_for_port_open() {
-    rm -f $LOG_FILE
-    # test for ES to be up first and that our SG index has been created
-    info "Checking if Elasticsearch is ready"
-    while ! response_code=$(es_util --query=/ \
-        ${DEBUG:+-v} -s \
-        --request HEAD --head \
-        --max-time $max_time \
-        -o $LOG_FILE -w '%{response_code}') || test $response_code != "200"
-    do
-        sleep $RETRY_INTERVAL
-        (( retry -= 1 )) || :
-        if (( retry == 0 )) ; then
-            timeouted=true
-            break
-        fi
-    done
-
-    if [ $timeouted = true ] ; then
-        error "Timed out waiting for Elasticsearch to be ready"
-    else
-        rm -f $LOG_FILE
-        info Elasticsearch is ready and listening
-        return 0
-    fi
-    cat $LOG_FILE
-    rm -f $LOG_FILE
-    exit 1
-}
-
 build_jks_truststores
+./init.sh &
 
-wait_for_port_open && ./init.sh &
 # this is because the deployment mounts the configmap at /usr/share/java/elasticsearch/config
 cp /usr/share/java/elasticsearch/config/* $ES_CONF
 
