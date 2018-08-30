@@ -29,6 +29,31 @@ OPS_NAMESPACES="default openshift openshift-infra"
 # write some logs from namespace openshift and openshift-infra
 test_template=$OS_O_A_L_DIR/hack/testing/templates/test-template.yaml
 
+cleanup() {
+    local return_code="$?"
+    set +e
+
+    os::log::info $es_pod indices
+    curl_es $es_pod /_cat/indices 2>&1 | artifact_out
+    os::log::info $es_ops_pod indices
+    curl_es $es_ops_pod /_cat/indices 2>&1 | artifact_out
+    curl_es $es_ops_pod /.operations.*/_search?q=message:$message_uuid\&sort=@timestamp:desc | jq . > $ARTIFACT_DIR/message.json
+    curl_es $es_ops_pod /.operations.*/_search?q=kubernetes.namespace_name:$project\&sort=@timestamp:desc | jq . > $ARTIFACT_DIR/project.json
+
+    if [ -n "${project-:}" ] ; then
+        oc delete -n ${project} --force pod test-pod 2>&1 | artifact_out || :
+    fi
+    if [ -n "${delete_project:-}" ] ; then
+        oc delete project $delete_project 2>&1 | artifact_out || :
+        os::cmd::try_until_failure "oc get project $delete_project" 2>&1 | artifact_out || :
+    fi
+
+    # this will call declare_test_end, suite_end, etc.
+    os::test::junit::reconcile_output
+    exit $return_code
+}
+trap "cleanup" EXIT
+
 for project in $OPS_NAMESPACES ; do
     delete_project=""
     if oc get project $project 2>&1 | artifact_out ; then
@@ -50,8 +75,12 @@ for project in $OPS_NAMESPACES ; do
     # The query part will return more than one if successful - due to the fuzzy matching,
     # it may return results from more than one namespace - the jq select will ensure that
     # the namespace name matches exactly
+    oc get -n ${project} pods 2>&1 | artifact_out || :
+    oc logs -n ${project} test-pod 2>&1 | artifact_out || :
+    sudo ls -alrtF /var/log/containers | grep "*._${project}_.*.log" 2>&1 | artifact_out || :
+    sudo find /var/log/containers -type f -exec grep $message_uuid {} /dev/null \; 2>&1 | artifact_out || :
     os::cmd::try_until_text "curl_es $es_ops_pod /.operations.*/_search?q=message:$message_uuid | \
-        jq '.hits.hits | map(select(._source.kubernetes.namespace_name == \"${project}\")) | length | . > 0'" "^true\$"
+        jq '.hits.hits | map(select(._source.kubernetes.namespace_name == \"${project}\")) | length | . > 0'" "^true\$" $(( minute * 3 ))
     oc delete -n ${project} --force pod test-pod 2>&1 | artifact_out
     os::cmd::try_until_failure "oc get -n ${project} pod test-pod"
     if [ -n "$delete_project" ] ; then
@@ -59,6 +88,8 @@ for project in $OPS_NAMESPACES ; do
         os::cmd::try_until_failure "oc get project $delete_project" 2>&1 | artifact_out
     fi
 done
+
+delete_project=""
 
 for project in $OPS_NAMESPACES ; do
     qs='{"query":{"term":{"kubernetes.namespace_name":"'"${project}"'"}}}'
