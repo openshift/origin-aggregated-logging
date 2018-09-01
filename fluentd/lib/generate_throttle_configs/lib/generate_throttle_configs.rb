@@ -171,7 +171,6 @@ def create_default_container_input(input_conf_file, excluded, log, options={})
 <source>
   @type tail
   @id container-input
-  @label @INGRESS
   path "#{options[:cont_logs_path] || cont_logs_path}"
   pos_file "#{options[:cont_pos_file] || cont_pos_file}"
   tag kubernetes.*
@@ -179,7 +178,20 @@ def create_default_container_input(input_conf_file, excluded, log, options={})
   keep_time_key true
   read_from_head "#{options[:read_from_head] || read_from_head}"
   exclude_path #{excluded}
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
     CONF
   }
     log.debug "Created default container input config file"

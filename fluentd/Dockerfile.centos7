@@ -48,8 +48,8 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
       fluentd:${FLUENTD_VERSION} \
      'fluent-plugin-elasticsearch:<2.0.0' \
      'fluent-plugin-kubernetes_metadata_filter:<2' \
-      'fluent-plugin-record-modifier:<1.0.0' \
-      'fluent-plugin-rewrite-tag-filter:<1.6.0' \
+     'fluent-plugin-record-modifier:<1.0.0' \
+     'fluent-plugin-rewrite-tag-filter:<1.6.0' \
       fluent-plugin-secure-forward \
      'fluent-plugin-systemd:<0.1.0' \
       fluent-plugin-viaq_data_model \
@@ -62,6 +62,7 @@ ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
+ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
 ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 COPY utils/** ${HOME}/utils/

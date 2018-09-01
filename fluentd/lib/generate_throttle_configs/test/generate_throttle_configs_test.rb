@@ -25,7 +25,6 @@ describe 'generate_throttle_configs' do
       act.must_equal '<source>
   @type tail
   @id container-input
-  @label @INGRESS
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
   tag kubernetes.*
@@ -33,7 +32,20 @@ describe 'generate_throttle_configs' do
   keep_time_key true
   read_from_head "true"
   exclude_path []
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
 '
     end
 
@@ -50,7 +62,6 @@ describe 'generate_throttle_configs' do
       act.must_equal '<source>
   @type tail
   @id container-input
-  @label @INGRESS
   path "/tmp/foo/*.logs"
   pos_file "/tmp/foo/test.logs.pos"
   tag kubernetes.*
@@ -58,7 +69,20 @@ describe 'generate_throttle_configs' do
   keep_time_key true
   read_from_head "false"
   exclude_path []
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
 '
         end
     end
@@ -104,7 +128,6 @@ secondproject:
       act.must_equal"<source>
   @type tail
   @id container-input
-  @label @INGRESS
   path \"/tmp/*.log\"
   pos_file \"#{@pos_file}\"
   tag kubernetes.*
@@ -112,7 +135,20 @@ secondproject:
   keep_time_key true
   read_from_head \"true\"
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
 "
       {"firstproject"=>100, "secondproject"=>200}.each do |project,limit|
         throttle_file = "#{ENV['THROTTLE_PREFIX']}#{project}-#{Date.today.strftime('%Y%m%d')}.conf"
