@@ -204,4 +204,8 @@ oc patch cronjob logging-curator -p '{"spec":{"suspend":false}}
 
 # change cronjob schedule
 oc patch cronjob logging-curator -p '{"spec":{"schedule":"0 0 * * *"}}'
+
+# with oc client v3.10 and newer it's possible to manually create jobs from a cronjob
+# this
+oc create job --from=cronjob/logging-curator <job_name>
 ```
