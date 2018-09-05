@@ -1,0 +1,43 @@
+#!/bin/bash -e
+set -euo pipefail
+
+log_dir=`dirname ${LOGGING_FILE_PATH:-/var/log/fluentd/fluentd.log}`
+cmd=cat
+
+helpMsg() {
+cat <<MSG
+ Usage: $0 [options]
+ Retrieve Fluentd logs from the log directory using "LOGGING_FILE_PATH" environment variable.
+   Options:
+     -f                   Follow the log file in the Fluentd log directory.
+                          Default log file is "fluentd.log".
+     -h --help               Prints out help.
+MSG
+}
+
+
+while (($#))
+do
+case $1 in
+    -f)
+      cmd="tail"
+      tail_args="-f"
+      break
+      ;;
+    --help|-h)
+      helpMsg
+      exit 0
+      ;;
+    *)
+      ;;
+  esac
+  shift
+done
+
+if [ $cmd = "cat" ] ; then
+    for log_file in $( ls $log_dir | sort -Vr ); do
+        cat $log_dir/$log_file
+    done
+else
+    exec tail "$tail_args" $log_dir/fluentd.log
+fi
