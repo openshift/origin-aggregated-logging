@@ -24,7 +24,7 @@ pushd "${ES_HOME}/init"
   files=$(ls | sort)
   for init_file in ${files}; do
     if [ -f "${init_file}" ] ; then
-      ./"${init_file}" || failed=1
+      ./"${init_file}" || { failed=1 ; echo "failed init: ${init_file}" >> ${HOME}/init_failures ; }
     fi
   done
 popd
