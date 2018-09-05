@@ -350,6 +350,9 @@ if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
   touch $CFG_DIR/openshift/filter-exclude-journal-debug.conf
 fi
 
+# Create a directory for Fluentd log files
+mkdir -p /var/log/fluentd/
+
 issue_deprecation_warnings
 
 if [[ $DEBUG ]] ; then

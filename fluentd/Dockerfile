@@ -17,6 +17,9 @@ ENV DATA_VERSION=1.6.0 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
     RUBY_VERSION=2.0 \
+    LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
+    LOGGING_FILE_AGE=10 \
+    LOGGING_FILE_SIZE=1024000 \
     OCP_OPERATIONS_PROJECTS='default openshift openshift-'
 
 ARG TEST_REPO
@@ -65,6 +68,10 @@ RUN if [ ! -d /etc/fluent/plugin ] ; then \
     else \
         cp $sniffer /etc/fluent/plugin/ ; \
     fi
+
+ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
+ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
+COPY utils/** ${HOME}/utils/
 
 WORKDIR ${HOME}
 
