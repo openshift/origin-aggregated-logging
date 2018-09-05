@@ -1,0 +1,8 @@
+{
+  "order": 0,
+  "settings": {
+    "number_of_replicas": $REPLICA_SHARDS,
+    "number_of_shards": $PRIMARY_SHARDS
+  },
+  "template": ".kibana*"
+}

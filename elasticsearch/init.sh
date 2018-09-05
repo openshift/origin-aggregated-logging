@@ -17,11 +17,18 @@
 
 source "logging"
 
+wait_for_port_open
+failed=0
+
 pushd "${ES_HOME}/init"
   files=$(ls | sort)
   for init_file in ${files}; do
     if [ -f "${init_file}" ] ; then
-      ./"${init_file}"
+      ./"${init_file}" || failed=1
     fi
   done
 popd
+
+if [ $failed -eq 0 ]; then
+  touch ${HOME}/init_complete
+fi
