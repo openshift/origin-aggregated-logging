@@ -40,7 +40,7 @@ $HOST_IP
 [nodes]
 $HOST_IP
 ```
-**Note:** An example of a more detailed inventory file for a complete Openshift cluster can be seen [here](https://github.com/openshift/openshift-ansible/blob/master/inventory/byo/hosts.origin.example).
+**Note:** An example of a more detailed inventory file for a complete Openshift cluster can be seen [here](https://github.com/openshift/openshift-ansible/blob/master/inventory/hosts.example).
 
 3. Log into the machine defined by `nodes` with `ansible_ssh_user` to confirm this user can access the master node.
 4. While on `master` log into the cluster as a user who has `cluster-admin` privileges.
