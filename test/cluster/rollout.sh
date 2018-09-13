@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # This rollout test ensures that the DeploymentConfigs
 # that are specified have been created and deployed
@@ -15,10 +15,27 @@
 #                  }: $IFS-delimited lists of
 #    OpenShift ojects that are expected to exist
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
-trap os::test::junit::reconcile_output EXIT
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 FLUENTD_WAIT_TIME=$(( 2 * minute ))
+
+cleanup() {
+  for r in dc ds cronjob ; do
+    oc describe -n ${LOGGING_NS} $r > $ARTIFACT_DIR/$r.describe 2>&1
+  done
+
+  for p in $(oc get pods -n ${LOGGING_NS} -l component=es -o jsonpath={.items[*].metadata.name}) ; do
+    oc logs -c elasticsearch -n ${LOGGING_NS} $p || :  > $ARTIFACT_DIR/$p.rollout.stdout.logs 2>&1
+    oc logs -c proxy -n ${LOGGING_NS} $p > $ARTIFACT_DIR/$p.proxy.stdout.logs 2>&1
+    oc exec -c elasticsearch -n ${LOGGING_NS} $p -- logs || :  > $ARTIFACT_DIR/$p.rollout.file.logs 2>&1
+  done
+  for p in $(oc get pods -n ${LOGGING_NS} -l component!=es -o jsonpath={.items[*].metadata.name}) ; do
+    oc logs -n ${LOGGING_NS} $p || :  > $ARTIFACT_DIR/$p.stdout.logs 2>&1
+  done
+  
+  os::test::junit::reconcile_output
+}
+trap "cleanup" EXIT
 
 os::test::junit::declare_suite_start "test/cluster/rollout"
 

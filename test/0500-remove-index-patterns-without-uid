@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# test init script properly removes desired kibana index patterns
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
+source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
+os::util::environment::use_sudo
+
+test_name=$(basename $0)
+os::test::junit::declare_suite_start ${test_name}
+
+if [ -n "${DEBUG:-}" ] ; then
+    set -x
+fi
+
+cleanup() {
+    local return_code="$?"
+    set +e
+    if [ $return_code = 0 ] ; then
+        mycmd=os::log::info
+    else
+        mycmd=os::log::error
+    fi
+    $mycmd ${test_name} test finished at $( date )
+    # this will call declare_test_end, suite_end, etc.
+    os::test::junit::reconcile_output
+    exit $return_code
+}
+trap "cleanup" EXIT
+
+seed_kibana_data(){
+  local pod=$1
+  local uuid=${2:-}
+  os::log::info Seeding 20 Kibana index-patterns ${uuid:-without uuid}
+  names=(abc123 xyz123 gef123 kjl123 zzz123)
+  for n in "${names[@]}"
+  do
+    for i in $(seq 1 4)
+    do
+      doc=".kibana.$n/index-pattern/project.foo${i}${uuid}.*"
+      result=$(oc exec -c elasticsearch $pod -- es_util --query=$doc -XPOST -d '{"key":"value"}')
+      if [ $? -ne 0 ] ; then
+        os::log::error Error seeding index-patterns
+        exit 1
+      fi
+    done
+  done
+}
+
+function check_patterns() {
+echo $1 | python -c  "
+import json
+import sys
+import re
+resp = json.load(sys.stdin)
+pattern = re.compile('^project\.([a-zA-Z0-9\-]*)\.\*$')
+out=0
+for r in resp['hits']['hits']:
+  if '.uuid1' not in r['_id']:
+    print False
+    break
+"
+}
+
+os::log::info Starting ${test_name} test at $( date )
+
+espod=$( get_es_pod es )
+cmd="oc exec -c elasticsearch -n ${LOGGING_NS} $espod"
+
+# remove kibana indices
+os::cmd::expect_success "$cmd -- es_util --query=.kibana* -XDELETE"
+
+# verify 0 index-patterns is a no-op and script succeeds
+os::log::info "Test install with no kibana indices"
+os::cmd::expect_success "$cmd -- /usr/share/elasticsearch/init/0500-remove-index-patterns-without-uid"
+
+# verify index-patterns are removed
+os::log::info "Test install with some kibana indices"
+os::cmd::expect_success "$cmd -- es_util --query=.kibana* -XDELETE"
+seed_kibana_data $espod
+seed_kibana_data $espod .uuid1
+
+os::cmd::expect_success "$cmd -- /usr/share/elasticsearch/init/0500-remove-index-patterns-without-uid"
+sleep 5
+remaining=$($cmd -- es_util --query=.kibana.*/index-pattern/_count?pretty | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["count"]')
+
+os::log::debug Remaining index-patterns $remaining
+
+if [ $remaining -ne 20 ] ; then
+    os::log::error There are still $remaining index-patterns after running script
+    exit 1
+fi
+
+response=$($cmd -- es_util --query=".kibana.*/index-pattern/_search" -XGET -d '{"stored_fields": ["_id"]}' )
+
+if [ "$(check_patterns $response)" == "False" ] ; then
+  os::log::error Found index-patterns in response that did not include a uuid: $response
+  exit 1
+fi
