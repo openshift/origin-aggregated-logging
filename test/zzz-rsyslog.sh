@@ -77,7 +77,7 @@ cat > $tmpvars <<EOF
 rsyslog__enabled: true
 # install viaq packages & config files
 rsyslog__viaq: true
-rsyslog__capabilities: [ 'viaq' ]
+rsyslog__capabilities: [ 'viaq', 'viaq-k8s' ]
 rsyslog__group: root
 rsyslog__user: root
 # to share rsyslog__config_dir with roles/openshift_logging_rsyslog
@@ -85,6 +85,7 @@ rsyslog__config_dir: /etc/rsyslog.d
 rsyslog__viaq_config_dir: "{{rsyslog__config_dir}}/viaq"
 rsyslog__system_log_dir: /var/log
 rsyslog__work_dir: /var/lib/rsyslog
+use_omelastcsearch_cert: True
 logging_mmk8s_token: "{{rsyslog__viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog__viaq_config_dir}}/mmk8s.ca.crt"
 logging_elasticsearch_ca_cert: "{{rsyslog__viaq_config_dir}}/es-ca.crt"

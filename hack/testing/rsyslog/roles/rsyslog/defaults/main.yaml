@@ -22,7 +22,7 @@ rsyslog__config_dir: '/etc/rsyslog.d'
 # Viaq configuration directory
 rsyslog__viaq_config_dir: '{{rsyslog__config_dir}}/viaq'
 
-# .. envvar:: rsyslog__viaq_config_dir
+# .. envvar:: rsyslog__viaq_log_dir
 #
 # Viaq log directory
 rsyslog__viaq_log_dir: '{{rsyslog__system_log_dir}}/containers'
@@ -35,7 +35,7 @@ rsyslog__work_dir: '/var/lib/rsyslog'
 # .. envvar:: rsyslog__capabilities
 #
 # List of different capabilities to configure. See :ref:`rsyslog__capabilities`
-rsyslog__capabilities: [ 'network', 'remote-files', 'tls', 'viaq' ]
+rsyslog__capabilities: [ 'network', 'remote-files', 'tls', 'viaq', 'viaq-k8s' ]
 
 # .. envvar:: rsyslog__unprivileged
 #
@@ -853,6 +853,9 @@ rsyslog__conf_viaq_mmk8s:
                  tls.cacert="{{logging_mmk8s_ca_cert}}"
                  tokenfile="{{logging_mmk8s_token}}" annotation_match=["."])
           }
+        state: '{{ "present"
+               if ("viaq-k8s" in rsyslog__capabilities)
+               else "absent" }}'
 
 rsyslog__conf_viaq_elasticsearch:
 
@@ -936,9 +939,11 @@ rsyslog__conf_viaq_elasticsearch:
                   retryfailures="on"
                   retryruleset="try_es"
                   usehttps="on"
+              {% if use_omelastcsearch_cert | default(False) %}
                   tls.cacert="{{logging_elasticsearch_ca_cert}}"
                   tls.mycert="{{logging_elasticsearch_cert}}"
                   tls.myprivkey="{{logging_elasticsearch_key}}"
+              {% endif %}
               )
           {% if openshift_logging_use_ops | default(False) %}
               } else {
@@ -957,9 +962,11 @@ rsyslog__conf_viaq_elasticsearch:
                   retryfailures="on"
                   retryruleset="try_es"
                   usehttps="on"
+              {% if use_omelastcsearch_cert | default(False) %}
                   tls.cacert="{{logging_elasticsearch_ca_cert}}"
                   tls.mycert="{{logging_elasticsearch_cert}}"
                   tls.myprivkey="{{logging_elasticsearch_key}}"
+              {% endif %}
               )
               }
           {% endif %}
