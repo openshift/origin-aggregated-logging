@@ -96,6 +96,7 @@ EOF
 os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
 mv $tmpinv $ARTIFACT_DIR/inventory_file
+mv $tmpvars $ARTIFACT_DIR/vars_file
 
 popd > /dev/null
 
