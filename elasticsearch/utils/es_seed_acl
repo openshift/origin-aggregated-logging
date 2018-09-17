@@ -57,6 +57,3 @@ sgadmin -dra
 
 info "Updating replica count to ${REPLICA_SHARDS}"
 sgadmin -us ${REPLICA_SHARDS}
-
-info "Setting filters to allocate shard to this node only"
-es_util --query="$index/_settings" -XPUT -d "{\"index.routing.allocation.include._name\": \"$index\"}"
