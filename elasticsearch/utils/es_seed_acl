@@ -23,6 +23,7 @@ function sgadmin {
     -tst JKS \
     -tspass tspass \
     -nhnv \
+    -arc \
     -icl \
     ${DEBUG:+-dg} ${@:-}
 }
