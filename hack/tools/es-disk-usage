@@ -1,0 +1,5 @@
+#!/bin/bash
+source env-prep
+for p in $(oc -n ${LOGGING_NS} get pods -o jsonpath={.items[*].metadata.name} -l component=es); do
+  oc -n ${LOGGING_NS} exec -c elasticsearch $p -- df -h | grep persistent;
+done

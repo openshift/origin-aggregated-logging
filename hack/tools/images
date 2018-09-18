@@ -1,0 +1,17 @@
+#!/bin/bash
+
+pod=$1
+echo "DCs"
+echo "----"
+oc get dc -n logging -o yaml | grep image: | sort | uniq
+
+echo "DSs"
+echo "----"
+oc get ds -n logging -o yaml | grep image: | sort | uniq
+
+echo "Pods"
+echo "----"
+for p in $(oc get pods -n logging -o jsonpath={.items[*].metadata.name}); do
+  echo "$p : $(oc get pod $p -n logging -o yaml | grep image: | sort | uniq)"
+done
+

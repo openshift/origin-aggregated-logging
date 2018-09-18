@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# This script allocates all unassigned primary shards to a given node using
+# the openshift binary.  The binary must be in the path and the user executing the script
+# must have access to logging project.  The inputs are:
+#   pod   An Elasticsearch pod name
+#   node  (Optional) An node Elasticsearch cluster which should be any one of the DC's.
+
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+pod=$1
+node=${$2:-$(oc -n $LOGGING_NS get dc -l component=es -o jsonpath={.items[0].metadata.name})}
+read -r -d '' SCRIPT << EOF
+import fileinput
+import re
+import sys
+payload=''
+node="${node}"
+pattern = re.compile('(.*).*(\d).(r|p).([A-Z_]*)')
+for line in fileinput.input():
+  m = pattern.match(line)
+  index = m.group(1).strip()
+  shard = m.group(2)
+  type = m.group(3)
+  if type == 'p':
+    if payload:
+      payload = payload + ","
+    payload = payload + '{"allocate":{"index":"%s","shard":%s,"node":"%s","allow_primary":"true"}}' % (index, shard, node)
+payload = payload + "".format(index, shard, node)
+payload = "{\"commands\":[" + payload + "]}"
+sys.stdout.write(payload)
+EOF
+PAYLOAD=$(./unassigned $pod | python -c "${SCRIPT}")
+#echo "$PAYLOAD"
+oc exec -c elasticsearch $pod -- es_util --query=_cluster/reroute?pretty -XPOST -d ${PAYLOAD}

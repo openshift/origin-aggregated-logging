@@ -1,0 +1,8 @@
+#!/bin/bash
+
+source env-prep
+
+pod=$1
+shift
+
+oc -n ${LOGGING_NS} exec -c elasticsearch $pod -- "$@"

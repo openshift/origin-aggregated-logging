@@ -1,0 +1,3 @@
+#!/bin/bash
+hash=$(printf "%s" $1 | sha1sum | awk '{print $1}')
+echo "kibana.$hash"

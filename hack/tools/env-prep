@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ -n "${SDEBUG}" ] ; then
+  set -x
+fi
+
+if [ -f ".logging-ns" ] ; then
+  LOGGING_NS=$(cat .logging-ns)
+fi
+
+export LOGGING_NS=${LOGGING_NS:-openshift-logging}

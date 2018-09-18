@@ -1,0 +1,5 @@
+#!/bin/bash -e
+
+source env-prep
+
+oc exec -n $LOGGING_NS -c elasticsearch $1 -- health

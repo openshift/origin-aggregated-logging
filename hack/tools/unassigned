@@ -1,0 +1,7 @@
+#!/bin/bash
+
+source env-prep
+
+pod=$1
+
+oc exec -c elasticsearch -n $LOGGING_NS $pod -- es_util --query=_cat/shards?h=index,shard,prirep,state,unassigned.reason| grep UNASSIGNED

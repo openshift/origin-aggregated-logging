@@ -1,0 +1,5 @@
+#!/bin/bash
+POD=$1
+enable=${2:-"all"} #or none
+PERSIST=${PERSIST:-"transient"}
+oc exec -n logging -c elasticsearch $POD -- es_util --query=_cluster/settings -XPUT -d "{\"${PERSIST}\":{\"cluster.routing.allocation.enable\":\"${enable}\"}}"
