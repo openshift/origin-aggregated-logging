@@ -619,7 +619,12 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
   -e openshift_node_port_range=30000-32000 \
   -e 'osm_controller_args={"enable-hostpath-provisioner":["true"]}' -e @sjb/inventory/base.cfg \
-  -e skip_sanity_checks=true -e 'openshift_disable_check=*' -e openshift_install_examples=false \
+  -e openshift_install_examples=false \
+  -e openshift_master_public_api_url="https://$fqdn:8443" \
+  -e openshift_master_public_console_url="https://$fqdn:8443/console" \
+  -e openshift_logging_master_public_url="https://$fqdn:8443" \
+  -e openshift_master_logging_public_url="https://$kibana_host" \
+  -e openshift_master_cluster_public_hostname=$fqdn \
   -e openshift_console_install=False \
   \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
@@ -699,8 +704,11 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   -e openshift_logging_image_prefix="openshift/origin-" \
   -e openshift_logging_kibana_hostname="$kibana_host" \
   -e openshift_logging_kibana_ops_hostname="$kibana_ops_host" \
+  -e openshift_master_public_api_url="https://$fqdn:8443" \
+  -e openshift_master_public_console_url="https://$fqdn:8443/console" \
   -e openshift_logging_master_public_url="https://$fqdn:8443" \
   -e openshift_master_logging_public_url="https://$kibana_host" \
+  -e openshift_master_cluster_public_hostname=$fqdn \
   -e openshift_logging_es_hostname=${ES_HOST:-es.$fqdn} \
   -e openshift_logging_es_ops_hostname=${ES_OPS_HOST:-es-ops.$fqdn} \
   -e openshift_logging_mux_hostname=${MUX_HOST:-mux.$fqdn} \
