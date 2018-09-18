@@ -1,0 +1,6 @@
+rsyslog__enabled: true
+# install example packages & config files
+rsyslog__example: true
+rsyslog__capabilities: [ 'network', 'remote-files', 'tls' ]
+rsyslog__group: root
+rsyslog__user: root

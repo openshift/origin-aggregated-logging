@@ -1,0 +1,121 @@
+---
+- set_fact:
+    rsyslog_image_prefix: "viaq/"
+  when: rsyslog_image_prefix is not defined
+
+- set_fact:
+    rsyslog_image_version: "latest"
+  when: rsyslog_image_version is not defined
+
+- name: get rsyslog image
+  command: docker pull {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
+  when: use_rsyslog_image | default(False)
+
+- name: create rsyslog viaq subdir
+  file: path={{rsyslog__viaq_config_dir}} state=directory mode=0700
+
+- name: install token file
+  copy: content={{ hostvars[groups['masters'][0]]['fluentdtoken'] }} dest={{logging_mmk8s_token}} mode=0400
+
+- name: install CA cert file
+  copy: content={{ hostvars[groups['masters'][0]]['fluentdcak8s'] }} dest={{logging_mmk8s_ca_cert}} mode=0400
+
+- name: install ES CA cert file
+  copy: content={{ hostvars[groups['masters'][0]]['fluentdcaes'] }} dest={{logging_elasticsearch_ca_cert}} mode=0400
+
+- name: install ES client cert file
+  copy: content={{ hostvars[groups['masters'][0]]['fluentdcert'] }} dest={{logging_elasticsearch_cert}} mode=0400
+
+- name: install ES client key file
+  copy: content={{ hostvars[groups['masters'][0]]['fluentdkey'] }} dest={{logging_elasticsearch_key}} mode=0400
+
+- name: setup host alias for es ip
+  shell: |
+    if grep -q '^{{ hostvars[groups['masters'][0]]['esip'] }} .* logging-es$' ; then
+      echo already have alias logging-es for {{ hostvars[groups['masters'][0]]['esip'] }}
+    else
+      sudo sed -i '/^{{ hostvars[groups['masters'][0]]['esip'] }}/d' /etc/hosts
+      sudo sed -i '/ logging-es$/d' /etc/hosts
+      echo {{ hostvars[groups['masters'][0]]['esip'] }} logging-es | sudo tee -a /etc/hosts
+    fi
+  when: elasticsearch_server_host is not defined
+
+- name: setup host alias for es-ops ip
+  shell: |
+    if grep -q '^{{ hostvars[groups['masters'][0]]['esopsip'] }} .* logging-es-ops$' ; then
+      echo already have alias logging-es-ops for {{ hostvars[groups['masters'][0]]['esopsip'] }}
+    else
+      sudo sed -i '/^{{ hostvars[groups['masters'][0]]['esopsip'] }}/d' /etc/hosts
+      sudo sed -i '/ logging-es-ops$/d' /etc/hosts
+      echo {{ hostvars[groups['masters'][0]]['esopsip'] }} logging-es-ops | sudo tee -a /etc/hosts
+    fi
+  when:
+  - elasticsearch_ops_server_host is not defined
+  - openshift_logging_use_ops | default(False)
+
+# Set by System policy ???
+- name: copy selinux policy files
+  copy: src={{ item }} dest=/root/ mode=0400
+  with_items:
+  - rsyslog2k8s.te
+  - rsyslog2es.te
+  - varlibdockercont.te
+  - rsyslogaccessnssdb.te
+  - rsyslogvar.te
+
+- name: build policy
+  shell: |
+    cd /root
+    sysmods=$( semodule -l | awk '{print $1}' )
+    for mod in varlibdockercont rsyslog2k8s rsyslogaccessnssdb rsyslog2es rsyslogvar ; do
+      if echo "$sysmods" | grep -q $mod ; then
+        echo using existing selinux module $mod
+      elif [ -f ${mod}.te ] ; then
+        checkmodule -M -m -o ${mod}.mod ${mod}.te
+        semodule_package -o ${mod}.pp -m ${mod}.mod
+        semodule -i ${mod}.pp
+      fi
+    done
+# Set by System policy ???
+
+- name: disable rsyslog
+  systemd:
+    name: rsyslog.service
+    enabled: no
+    state: stopped
+  when: use_rsyslog_image | default(False)
+
+- name: reload and restart rsyslog.service
+  systemd:
+    name: rsyslog.service
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: not use_rsyslog_image | default(False)
+
+- name: install rsyslog container systemd service
+  template: src=rsyslog-container.service.j2 dest=/usr/lib/systemd/system/rsyslog-container.service mode=0400
+  when: use_rsyslog_image | default(False)
+
+- name: Check if rsyslog-container.service exists or not
+  stat:
+    path: /usr/lib/systemd/system/rsyslog-container.service
+  register: rsyslog_container
+
+- name: enable and run rsyslog-container.service
+  systemd:
+    name: rsyslog-container.service
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  when: use_rsyslog_image | default(False)
+
+- name: stop and disable rsyslog-container.service
+  systemd:
+    name: rsyslog-container.service
+    daemon_reload: no
+    enabled: no
+    state: stopped
+  register: task_result
+  when: ((not use_rsyslog_image | default(False)) and (rsyslog_container.stat.exists == True))
+

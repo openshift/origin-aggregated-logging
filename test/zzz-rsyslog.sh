@@ -21,6 +21,12 @@ else
     extra_ansible_evars="-e use_rsyslog_image=True"
 fi
 
+rsyslog__config_dir="/etc/rsyslog.d"
+
+# clear the journal
+sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+sudo systemctl restart systemd-journald 2>&1 | artifact_out
+
 cleanup() {
     local return_code="$?"
     set +e
@@ -29,8 +35,8 @@ cleanup() {
     fi
     sudo journalctl -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
     if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
-        sudo rm -rf /etc/rsyslog.d/*
-        sudo cp -p ${rsyslog_save}/* /etc/rsyslog.d
+        sudo rm -rf ${rsyslog__config_dir}/*
+        sudo cp -p ${rsyslog_save}/* ${rsyslog__config_dir} || :
         rm -rf ${rsyslog_save}
         sudo systemctl restart $rsyslog_service
     fi
@@ -55,7 +61,7 @@ else
     use_es_ops=True
 fi
 rsyslog_save=$( mktemp -d )
-sudo cp -p /etc/rsyslog.d/* $rsyslog_save
+sudo cp -p ${rsyslog__config_dir}/* ${rsyslog_save} || :
 pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
 tmpinv=$( mktemp )
 cat > $tmpinv <<EOF
@@ -65,9 +71,37 @@ localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_loggi
 [nodes]
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
 EOF
-os::cmd::expect_success "ansible-playbook -vvv --become --become-user root --connection local \
+
+tmpvars=$( mktemp )
+cat > $tmpvars <<EOF
+rsyslog__enabled: true
+# install viaq packages & config files
+rsyslog__viaq: true
+rsyslog__capabilities: [ 'viaq', 'viaq-k8s' ]
+rsyslog__group: root
+rsyslog__user: root
+# to share rsyslog__config_dir with roles/openshift_logging_rsyslog
+rsyslog__config_dir: /etc/rsyslog.d
+rsyslog__viaq_config_dir: "{{rsyslog__config_dir}}/viaq"
+rsyslog__system_log_dir: /var/log
+rsyslog__work_dir: /var/lib/rsyslog
+use_omelastcsearch_cert: True
+logging_mmk8s_token: "{{rsyslog__viaq_config_dir}}/mmk8s.token"
+logging_mmk8s_ca_cert: "{{rsyslog__viaq_config_dir}}/mmk8s.ca.crt"
+logging_elasticsearch_ca_cert: "{{rsyslog__viaq_config_dir}}/es-ca.crt"
+logging_elasticsearch_cert: "{{rsyslog__viaq_config_dir}}/es-cert.pem"
+logging_elasticsearch_key: "{{rsyslog__viaq_config_dir}}/es-key.pem"
+EOF
+
+os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
-rm -f $tmpinv
+mv $tmpinv $ARTIFACT_DIR/inventory_file
+mv $tmpvars $ARTIFACT_DIR/vars_file
+
+popd > /dev/null
+
+pushd /etc
+sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
 popd > /dev/null
 
 get_logmessage() {

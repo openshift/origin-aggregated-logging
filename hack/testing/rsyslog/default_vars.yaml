@@ -1,0 +1,5 @@
+rsyslog__enabled: true
+# install default rsyslog.conf
+rsyslog__capabilities: []
+rsyslog__group: root
+rsyslog__user: root

@@ -1,0 +1,78 @@
+---
+- name: see if openshift-logging namespace exists
+  command: oc get project openshift-logging -o name
+  register: openshiftloggingexists
+  ignore_errors: yes
+  when: openshift_logging_namespace is not defined
+
+- name: use openshift-logging as namespace
+  set_fact:
+    openshift_logging_namespace: "openshift-logging"
+  when:
+  - openshift_logging_namespace is not defined
+  - openshiftloggingexists.rc == 0
+
+- name: use logging as namespace
+  set_fact:
+    openshift_logging_namespace: "logging"
+  when:
+  - openshift_logging_namespace is not defined
+  - openshiftloggingexists.rc != 0
+
+- name: get fluentd secret for kubernetes api
+  shell: |
+    for name in $( oc get -n {{ openshift_logging_namespace }} sa aggregated-logging-fluentd -o jsonpath='{.secrets[*].name}' ) ; do
+      case $name in
+      *-fluentd-token-*) echo $name ; break ;;
+      esac
+    done
+  register: fluentdsecret
+
+- name: get fluentd token
+  command: >
+    oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=token --to=-
+  register: fluentdtoken
+
+- name: get fluentd CA cert for k8s
+  command: >
+    oc extract -n {{ openshift_logging_namespace }} secret/{{ fluentdsecret.stdout }} --keys=ca.crt --to=-
+  register: fluentdcak8s
+
+- name: get fluentd CA cert for ES
+  command: >
+    oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=ca --to=-
+  register: fluentdcaes
+
+- name: get fluentd client cert for ES
+  command: >
+    oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=cert --to=-
+  register: fluentdcert
+
+- name: get fluentd client key for ES
+  command: >
+    oc extract -n {{ openshift_logging_namespace }} secret/logging-fluentd --keys=key --to=-
+  register: fluentdkey
+
+- name: get es ip addr
+  command: >
+    oc get -n {{ openshift_logging_namespace }} service logging-es -o jsonpath='{.spec.clusterIP}'
+  register: esip
+  when: elasticsearch_server_host is not defined
+
+- name: get es-ops ip addr
+  command: >
+    oc get -n {{ openshift_logging_namespace }} service logging-es-ops -o jsonpath='{.spec.clusterIP}'
+  register: esopsip
+  when:
+  - elasticsearch_ops_server_host is not defined
+  - openshift_logging_use_ops | default(False)
+
+- name: set facts for nodes
+  set_fact:
+    fluentdtoken: "{{ fluentdtoken.stdout }}"
+    fluentdcak8s: "{{ fluentdcak8s.stdout }}"
+    fluentdcaes: "{{ fluentdcaes.stdout }}"
+    fluentdcert: "{{ fluentdcert.stdout }}"
+    fluentdkey: "{{ fluentdkey.stdout }}"
+    esip: "{{ esip.stdout | default('') }}"
+    esopsip: "{{ esopsip.stdout | default('') }}"
