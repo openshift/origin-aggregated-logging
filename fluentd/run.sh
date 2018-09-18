@@ -27,19 +27,6 @@ else
   set -e
 fi
 
-#NOTE: USE_CRIO variable used in generate_throttle_configs.rb as well
-export USE_CRIO=false
-node_config=/etc/origin/node/node-config.yaml
-if [[ -f "$node_config" ]]; then
-    cre=$(ruby -e "require 'yaml'; y=YAML.load_file('${node_config}')
-        puts (y['kubeletArguments']||{})['container-runtime-endpoint']")
-    if [[ "$cre" =~ crio ]]; then
-        USE_CRIO=true
-    fi
-else
-    echo "WARNING: Unable to check for cri-o"
-fi
-
 issue_deprecation_warnings() {
     : # none at the moment
 }
@@ -70,9 +57,7 @@ if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
             export JOURNAL_SOURCE=/run/log/journal
         fi
     fi
-    if [[ "$USE_CRIO" == true ]]; then
-        export USE_JOURNAL=false
-    elif docker_uses_journal ; then
+    if docker_uses_journal ; then
         export USE_JOURNAL=true
     else
         export USE_JOURNAL=false
@@ -286,10 +271,14 @@ fi
 # pods unable to be terminated because fluentd has them busy
 if [ "${USE_MUX:-}" = "true" ] ; then
     : # skip umount
-elif [ "${USE_CRIO:false}" = "false" ] ; then
+elif [ -d /var/lib/docker/containers ] ; then
     # If oci-umount is fixed, we can remove this. 
-    echo "umounts of dead containers will fail. Ignoring..."
-    umount /var/lib/docker/containers/*/shm || :
+    if [ -n "${VERBOSE:-}" ] ; then
+        echo "umounts of dead containers will fail. Ignoring..."
+        umount /var/lib/docker/containers/*/shm || :
+    else
+        umount /var/lib/docker/containers/*/shm > /dev/null 2>&1 || :
+    fi
 fi
 
 if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
@@ -333,11 +322,6 @@ if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
     touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
 fi
 
-if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true ] ; then
-    export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
-    export LD_BIND_NOW=1 # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1544815
-fi
-
 # Include DEBUG log level messages when collecting from journald
 # https://bugzilla.redhat.com/show_bug.cgi?id=1505602
 if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
@@ -346,7 +330,7 @@ if [ "${COLLECT_JOURNAL_DEBUG_LOGS:-true}" = true ] ; then
 fi
 
 if [ "${ENABLE_PROMETHEUS_ENDPOINT}" != "true" ] ; then
-  echo "INFO: Disabling Prometheus endpint"
+  echo "INFO: Disabling Prometheus endpoint"
   rm -f ${CFG_DIR}/openshift/input-pre-prometheus-metrics.conf
 fi
 
@@ -354,6 +338,14 @@ fi
 mkdir -p /var/log/fluentd/
 
 issue_deprecation_warnings
+
+# this should be the last thing before launching fluentd so as not to use
+# jemalloc with any other processes
+if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true ] ; then
+    export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
+    export LD_BIND_NOW=1 # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1544815
+fi
+
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
 else

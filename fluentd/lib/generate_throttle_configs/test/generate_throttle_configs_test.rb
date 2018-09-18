@@ -24,13 +24,12 @@ describe 'generate_throttle_configs' do
       act = File.read(@input_conf)
       act.must_equal '<source>
   @type tail
-  @id docker-input
+  @id container-input
   @label @INGRESS
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format json_or_crio
   keep_time_key true
   read_from_head "true"
   exclude_path []
@@ -42,7 +41,7 @@ describe 'generate_throttle_configs' do
         it 'should use the specified path and position' do
           options = {
             :cont_logs_path => '/tmp/foo/*.logs',
-            :cont_pos_file => '/tmp/foo/*.logs.pos',
+            :cont_pos_file => '/tmp/foo/test.logs.pos',
             :read_from_head => "false"
           }
 
@@ -50,13 +49,12 @@ describe 'generate_throttle_configs' do
       act = File.read(@input_conf)
       act.must_equal '<source>
   @type tail
-  @id docker-input
+  @id container-input
   @label @INGRESS
   path "/tmp/foo/*.logs"
-  pos_file "/tmp/foo/*.logs.pos"
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  pos_file "/tmp/foo/test.logs.pos"
   tag kubernetes.*
-  format json
+  format json_or_crio
   keep_time_key true
   read_from_head "false"
   exclude_path []
@@ -65,26 +63,6 @@ describe 'generate_throttle_configs' do
         end
     end
 
-    describe 'and is configured to use CRIO' do
-        it 'should use the CRIO log format' do
-      generate_throttle_configs(@input_conf, @throttle_conf, @log, :use_crio=>'true')
-      act = File.read(@input_conf)
-      act.must_equal'<source>
-  @type tail
-  @id docker-input
-  @label @INGRESS
-  path "/var/log/containers/*.log"
-  pos_file "/var/log/es-containers.log.pos"
-  time_format %Y-%m-%dT%H:%M:%S.%N%:z
-  tag kubernetes.*
-  format /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
-  keep_time_key true
-  read_from_head "true"
-  exclude_path []
-</source>
-'
-        end
-    end
   end
 
   describe 'when throttle config exists and is not empty' do
@@ -125,13 +103,12 @@ secondproject:
       act = File.read(@input_conf)
       act.must_equal"<source>
   @type tail
-  @id docker-input
+  @id container-input
   @label @INGRESS
-  path \"/var/log/containers/*.log\"
+  path \"/tmp/*.log\"
   pos_file \"#{@pos_file}\"
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format json_or_crio
   keep_time_key true
   read_from_head \"true\"
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
@@ -150,9 +127,8 @@ secondproject:
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
   read_lines_limit #{limit}
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
-  format json
+  format json_or_crio
   keep_time_key true
   read_from_head \"true\"
 </source>
