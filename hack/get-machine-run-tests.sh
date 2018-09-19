@@ -734,6 +734,26 @@ if [ -n "${PRESERVE:-}" ] ; then
     sed -i -e "s/${INSTNAME}/${INSTNAME}-preserve/" $HOME/.config/origin-ci-tool/inventory/ec2.ini
 fi
 
+#      title: "install origin-monitoring"
+#      repository: "openshift-ansible"
+if [ "${USE_MONITORING:-false}" = true ] ; then
+    cat > $runfile <<EOF
+set -euxo pipefail
+cd $OS_A_C_J_DIR
+
+ANSIBLE_LOG_PATH=/tmp/ansible-monitoring.log ansible-playbook -vvv --become \
+  --become-user root \
+  --connection local \
+  --inventory sjb/inventory/ \
+  -e openshift_deployment_type=origin  \
+  -e openshift_cluster_monitoring_operator_install=True \
+  $OS_O_A_DIR/playbooks/openshift-monitoring/config.yml
+EOF
+    cat $runfile
+    scp $runfile openshiftdevel:/tmp
+    ssh -n openshiftdevel "bash $runfile"
+fi
+
 #      title: "run logging tests"
 #      repository: "origin-aggregated-logging"
 if [ "${USE_LOGGING:-true}" = true ] ; then
