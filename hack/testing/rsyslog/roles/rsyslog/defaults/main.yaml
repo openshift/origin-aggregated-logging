@@ -381,6 +381,7 @@ rsyslog__viaq_rules:
   - '{{ rsyslog__rulebase_viaq_k8s_container_name }}'
   - '{{ rsyslog__json_viaq_normalize_level }}'
   - '{{ rsyslog__json_viaq_prio_to_level }}'
+  - '{{ rsyslog__rulebase_viaq_crio }}'
 
 # Default configuration options [[[
 # ---------------------------------
@@ -845,7 +846,11 @@ rsyslog__conf_viaq_mmk8s:
           if ((strlen($!CONTAINER_NAME) > 0) and (strlen($!CONTAINER_ID_FULL) > 0)) or
               ((strlen($!metadata) > 0) and (strlen($!metadata!filename) > 0) and ($!metadata!filename startswith "{{rsyslog__viaq_log_dir}}/")) then {
               if ((strlen($!metadata) > 0) and (strlen($!metadata!filename) > 0) and ($!metadata!filename startswith "{{rsyslog__viaq_log_dir}}/")) then {
-                  action(type="mmjsonparse" cookie="") # parse entire message as json
+                  if $msg startswith "{" then {
+                      action(type="mmjsonparse" cookie="") # parse entire message as json
+                  } else {
+                      action(type="mmnormalize" rulebase="{{ rsyslog__viaq_config_dir }}/crio.rulebase")
+                  }
               }
               action(type="mmkubernetes"
                  filenamerulebase="{{ rsyslog__viaq_config_dir }}/k8s_filename.rulebase"
@@ -1368,3 +1373,15 @@ rsyslog__json_viaq_prio_to_level:
               {"index": 9, "value": "unknown"}
             ]
           }
+
+rsyslog__rulebase_viaq_crio:
+
+  - name: 'crio'
+    filename: 'crio.rulebase'
+    nocomment: 'true'
+    path: '{{rsyslog__viaq_config_dir }}'
+    sections:
+
+      - options: |-
+          version=2
+          rule=:%time:word% %stream:word% %logtag:word% %log:rest%
