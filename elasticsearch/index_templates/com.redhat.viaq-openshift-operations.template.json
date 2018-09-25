@@ -5,7 +5,7 @@
   "mappings": {
     "_default_": {
       "_meta": {
-        "version": "2018.04.30.0"
+        "version": "2018.09.20.0"
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -154,6 +154,22 @@
             "container_image": {
               "doc_values": true,
               "index": "not_analyzed",
+              "type": "string"
+            },
+            "container_name": {
+              "doc_values": false,
+              "fields": {
+                "raw": {
+                  "doc_values": true,
+                  "ignore_above": 256,
+                  "index": "not_analyzed",
+                  "type": "string"
+                }
+              },
+              "index": "analyzed",
+              "norms": {
+                "enabled": true
+              },
               "type": "string"
             },
             "operation": {

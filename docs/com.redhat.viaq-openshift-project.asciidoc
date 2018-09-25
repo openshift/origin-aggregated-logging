@@ -832,6 +832,13 @@ Namespace for docker container-specific metadata
 
 
 
+==== docker.container_name
+
+type: text
+
+The name of the container - not used for Kubernetes containers.
+
+
 ==== docker.container_id
 
 type: keyword
