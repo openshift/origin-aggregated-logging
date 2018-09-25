@@ -77,12 +77,6 @@ else
     exit 1
 fi
 
-cat <<CONF >> ${HOME}/sgconfig/sg_roles_mapping.yml
-sg_role_prometheus:
-  users:
-    - "${PROMETHEUS_USER:-system:serviceaccount:prometheus:prometheus}"
-CONF
-
 build_jks_truststores
 ./init.sh &
 

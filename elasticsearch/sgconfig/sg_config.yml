@@ -7,16 +7,21 @@ searchguard:
         trustedProxies: '.*'
         internalProxies: '.*'
     authc:
-      authentication_domain_proxy:
+      openshift_domain:
         enabled: true
         order: 0
         http_authenticator:
           challenge: false
-          type: proxy
-          config:
-            user_header: 'x-proxy-remote-user'
+          type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
         authentication_backend:
-          type: noop
+          type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
+          config:
+             subjectAccessReviews:
+               prometheus:
+                 namespace: openshift-logging
+                 verb: view
+                 resource: prometheus
+                 resourceAPIGroup: metrics.openshift.io
       authentication_domain_basic_internal:
         enabled: true
         order: 1
@@ -25,15 +30,3 @@ searchguard:
           challenge: false
         authentication_backend:
           type: noop
-      prometheus_proxy:
-        enabled: true
-        order: 3
-        http_authenticator:
-          challenge: false
-          type: io.fabric8.elasticsearch.plugin.auth.FileAuthenticationBackend
-          config:
-            file_path: /etc/elasticsearch/secret/passwd.yml
-        authentication_backend:
-          type: io.fabric8.elasticsearch.plugin.auth.FileAuthenticationBackend
-          config:
-            file_path: /etc/elasticsearch/secret/passwd.yml

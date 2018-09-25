@@ -91,11 +91,11 @@ function test_user_has_proper_access() {
     for proj in "$@" ; do
         os::log::info See if user $user can read /project.$proj.*
         get_test_user_token $user $pw
-        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_name $test_token | \
+        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = 1" ; then
             os::log::error $user cannot access project.$proj.* indices
-            curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_name $test_token | python -mjson.tool
+            curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_token | python -mjson.tool
             os::log::info "acl documents"
             oc exec -c elasticsearch $espod -- es_acl get --doc=roles
             oc exec -c elasticsearch $espod -- es_acl get --doc=rolesmapping
@@ -110,14 +110,14 @@ function test_user_has_proper_access() {
     os::log::info See if user $user can _msearch "$indices"
     get_test_user_token $user $pw
     nrecs=$( { echo '{"index":'"${indices}"'}'; echo '{"size":0,"query":{"match_all":{}}}'; } | \
-                     curl_es_pod_with_token_and_input $espod "/_msearch" $test_name $test_token -XPOST --data-binary @- | \
+                     curl_es_pod_with_token_and_input $espod "/_msearch" $test_token -XPOST --data-binary @- | \
                      get_count_from_json_from_search )
     if ! os::cmd::expect_success "test $nrecs = 2" ; then
         os::log::error $user cannot access "$indices" indices with _msearch
         {
             echo '{"index":'"${indices}"'}'
             echo '{"query" : {"match_all" : {}}}'
-        } | curl_es_pod_with_token_and_input $espod "/_msearch" $test_name $test_token -XPOST --data-binary @- | \
+        } | curl_es_pod_with_token_and_input $espod "/_msearch" $test_token -XPOST --data-binary @- | \
             python -mjson.tool
         exit 1
     fi
@@ -125,22 +125,22 @@ function test_user_has_proper_access() {
     # verify normal user has no access to default indices
     os::log::info See if user $user is denied /project.default.*
     get_test_user_token $user $pw
-    nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_name $test_token | \
+    nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_token | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to project.default.* indices
-        curl_es_pod_with_token $espod "/project.default.*/_count" $test_name $test_token | python -mjson.tool
+        curl_es_pod_with_token $espod "/project.default.*/_count" $test_token | python -mjson.tool
         exit 1
     fi
 
     # verify normal user has no access to .operations
     os::log::info See if user $user is denied /.operations.*
     get_test_user_token $user $pw
-    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | \
+    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices
-        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_name $test_token | python -mjson.tool
+        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | python -mjson.tool
         exit 1
     fi
 }
