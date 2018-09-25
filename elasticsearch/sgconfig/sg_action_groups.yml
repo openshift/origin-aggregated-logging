@@ -95,8 +95,6 @@ METRICS:
 USER_ALL_INDEX_OPS:
   - "indices:data/read/field_caps*"
 USER_CLUSTER_OPERATIONS:
-  - "indices:data/read/field_caps*"
-  - "indices:data/read/scroll*"
   - CLUSTER_COMPOSITE_OPS_RO
   - MONITOR
   - CLUSTER_COMPOSITE_OPS
@@ -119,10 +117,12 @@ CLUSTER_OPERATIONS:
   - CLUSTER_ALL
 
 CLUSTER_COMPOSITE_OPS_RO:
+  - "indices:data/read/coordinate-msearch*"
+  - "indices:data/read/field_caps*"
   - "indices:data/read/mget"
   - "indices:data/read/msearch"
   - "indices:data/read/mtv"
-  - "indices:data/read/coordinate-msearch*"
+  - "indices:data/read/scroll*"
   - "indices:admin/aliases/exists*"
   - "indices:admin/aliases/get*"
 

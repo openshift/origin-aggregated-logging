@@ -14,7 +14,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     JAVA_VER=1.8.0 \
     JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.10.3 \
+    OSE_ES_VER=5.6.10.4 \
     PROMETHEUS_EXPORTER_VER=5.6.10.0 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
@@ -22,7 +22,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=origin
 
-ARG OSE_ES_VER=5.6.10.3
+ARG OSE_ES_VER=5.6.10.4
 ARG SG_VER=5.6.10-19.2
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
