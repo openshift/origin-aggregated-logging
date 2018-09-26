@@ -55,7 +55,7 @@ you know what you are doing.
 * `JOURNAL_SOURCE` - no default - Fluentd will attempt to use
 `/var/log/journal` if it exists, otherwise, it will fall back on
 `/run/log/journal`.
-* `JOURNAL_POS_FILE` - default `/var/log/journal.pos` - full path
+* `JOURNAL_POS_FILE` - default `/var/log/journal_pos.json` - full path
 and filename for the Fluentd `in_systemd` position file.  This file should be on a
 persistent volume (e.g. bind mounted from the host) so that Fluentd can resume
 reading from where it left off if the Fluentd pod is restarted.

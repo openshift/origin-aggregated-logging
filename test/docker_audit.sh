@@ -72,8 +72,7 @@ esopssvc=$( get_es_svc es-ops )
 esopssvc=${esopssvc:-$essvc}
 
 fpod=$( get_running_pod fluentd )
-os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 180))
+stop_fluentd "$fpod" $((second * 180)) 2>&1 | artifact_out
 
 logs_before=$( get_logs_count $essvc '/project.*/' )
 ops_logs_before=$( get_logs_count $esopssvc '/.operations.*/' )
@@ -81,10 +80,8 @@ ops_logs_before=$( get_logs_count $esopssvc '/.operations.*/' )
 os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
 
-os::cmd::expect_success flush_fluentd_pos_files
-sudo rm -f /var/log/fluentd/fluentd.log
-os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+start_fluentd true $((second * 180)) 2>&1 | artifact_out
+
 fpod=$( get_running_pod fluentd )
 
 # ping,create,attach,start generates 4 docker audit messages

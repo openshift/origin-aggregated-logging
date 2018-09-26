@@ -41,9 +41,7 @@ cleanup() {
         sudo systemctl restart $rsyslog_service
     fi
     # cleanup fluentd pos file and restart
-    flush_fluentd_pos_files
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true 2>&1 | artifact_out
 
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -52,8 +50,7 @@ cleanup() {
 trap "cleanup" EXIT
 
 # turn off fluentd
-oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
-os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 120))
+stop_fluentd "" $((second * 120)) 2>&1 | artifact_out
 
 if [ $es_pod = $es_ops_pod ] ; then
     use_es_ops=False

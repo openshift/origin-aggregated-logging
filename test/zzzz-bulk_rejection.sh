@@ -97,23 +97,17 @@ oc get ds/logging-fluentd -o yaml > $f_ds
 # stop fluentd to make sure the logs are clear
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
-os::cmd::expect_success "oc label node --all logging-infra-fluentd-"
-os::cmd::try_until_failure "oc get pod $fpod"
+stop_fluentd "$fpod" 2>&1 | artifact_out
 
 # turn on debug output
 cat $f_cm | \
     sed -e 's,@include configs.d/openshift/system.conf,<system>\
-      log_level debug\
+      @log_level debug\
     </system>,' | oc replace --force -f -
 
 oc set env ds/logging-fluentd DEBUG=true
 
-# the -r is because some tests create subdirs of this
-sudo rm -rf /var/lib/fluentd/*
-sudo rm -f /var/log/journal.pos
-
-os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+start_fluentd true 2>&1 | artifact_out
 wait_for_fluentd_ready
 fpod=$( get_running_pod fluentd )
 

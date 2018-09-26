@@ -156,9 +156,21 @@ def close_file(project, log)
     log.debug "Closing file: #{file_name}"
     file.write(<<-CONF)
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head "#{read_from_head}"
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format '%Y-%m-%dT%H:%M:%S.%N%Z'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
     CONF
   } if File.exist?(file_name)
@@ -174,11 +186,23 @@ def create_default_container_input(input_conf_file, excluded, log, options={})
   path "#{options[:cont_logs_path] || cont_logs_path}"
   pos_file "#{options[:cont_pos_file] || cont_pos_file}"
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head "#{options[:read_from_head] || read_from_head}"
   exclude_path #{excluded}
   @label @CONCAT
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format '%Y-%m-%dT%H:%M:%S.%N%Z'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
@@ -186,6 +210,7 @@ def create_default_container_input(input_conf_file, excluded, log, options={})
     key log
     partial_key logtag
     partial_value P
+    separator ''
   </filter>
   <match kubernetes.**>
     @type relabel

@@ -1,33 +1,50 @@
 require_relative 'test_helper'
-require 'fluent/test'
-require 'test/unit/rr'
 require File.join(File.dirname(__FILE__), '..', 'lib/filter_parse_json_field') 
 
 class ParseJsonFieldFilterTest < Test::Unit::TestCase
-  include Fluent
+
+  def debugit(driver, msg)
+    return
+    log = driver.instance.log
+    logdev = @driver.instance.log.instance_variable_get(:@logdev)
+    logger = log.instance_variable_get(:@logger)
+    logger_logger = logger.instance_variable_get(:@logger)
+    logger_logger_logdev = logger_logger.instance_variable_get(:@logdev)
+    logs = logdev ? logdev.logs : []
+    logger_logs = logger_logger_logdev ? logger_logger_logdev.logs : []
+    logsid = logs.object_id
+    puts "#{msg} driver [#{driver}] log [#{log}] logger [#{logger}] logdev [#{logdev}] logger_logger [#{logger_logger}] logger_logger_logdev [#{logger_logger_logdev}] logs [#{logsid}] [#{logs}] logger_logs [#{logger_logs.object_id}] [#{logger_logs}] @logs [#{@logs.object_id}] [#{@logs}]"
+  end
 
   setup do
     Fluent::Test.setup
     @time = Fluent::Engine.now
-    log = Fluent::Engine.log
     @timestamp = Time.now
     @timestamp_str = @timestamp.utc.to_datetime.rfc3339(6)
     stub(Time).now { @timestamp }
   end
 
   def create_driver(conf = '')
-    d = Test::FilterTestDriver.new(ParseJSONFieldFilter, 'this.is.a.tag').configure(conf, true)
-    d.instance.log_level = 'DEBUG'
-    @dlog = d.instance.log
+    d = Fluent::Test::Driver::Filter.new(Fluent::Plugin::ParseJSONFieldFilter).configure(conf)
+    @driver = d
+    log = d.instance.log
+    logdev = log.instance_variable_get(:@logdev)
+    logger = log.instance_variable_get(:@logger)
+    logger_logger = logger.instance_variable_get(:@logger)
+    logger_logger_logdev = logger_logger.instance_variable_get(:@logdev)
+    @logs = logdev.logs || logger_logger_logdev.logs || []
+    debugit(d, "in create_driver")
     d
   end
 
   def emit_with_tag(tag, msg={}, conf='')
     d = create_driver(conf)
     d.run {
-      d.emit_with_tag(tag, msg, @time)
-    }.filtered.instance_variable_get(:@record_array)[0]
-  end  
+      d.feed(tag, @time, msg)
+    }
+    debugit(@driver, 'in emit_with_tag')
+    d.filtered.map{|e| e.last}[0]
+  end
 
   sub_test_case 'configure' do
     test 'check default' do
@@ -113,10 +130,12 @@ class ParseJsonFieldFilterTest < Test::Unit::TestCase
       json_string_val2 = '{"k":{"b":"c"},"l":["e","f"],"m":97,"n":{"i":"j"}}'
       orig_a_value = 'orig a value'
       rec = emit_with_tag('tag', {'skip1'=>'{"bogusvalue}', 'a'=>orig_a_value, 'jsonfield'=>json_string_val2},'
+        @log_level debug
         json_fields skip1,skip2,jsonfield
       ')
       assert_equal({'skip1'=>'{"bogusvalue}', 'a'=>orig_a_value, 'jsonfield'=>json_string_val2}, rec)
-      assert_match /\[debug\]: parse_json_field could not parse field \[skip1\] as JSON: value \[\{"bogusvalue\}\]/, @dlog.logs[0]
+      debugit(@driver, 'in test')
+      assert_match /\[debug\]: parse_json_field could not parse field \[skip1\] as JSON: value \[\{"bogusvalue\}\]/, @logs[0]
     end
   end
 end
