@@ -42,6 +42,7 @@ stop_fluentd() {
 }
 
 start_fluentd() {
+  sudo rm -f /var/log/fluentd/fluentd.log
   oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
   os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 }
@@ -71,7 +72,7 @@ cleanup() {
 
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
     stop_fluentd
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
@@ -97,7 +98,7 @@ oc patch configmap/logging-fluentd --type=json \
 start_fluentd
 fpod=$( get_running_pod fluentd )
 # should have fluentd log messages like this
-os::cmd::expect_success_and_text "oc logs $fpod" "Could not parse YAML file"
+os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" "Could not parse YAML file"
 
 # generate a throttle config that properly generates different pos files
 stop_fluentd
@@ -116,9 +117,9 @@ oc patch configmap/logging-fluentd --type=json \
 start_fluentd
 fpod=$( get_running_pod fluentd )
 # should have fluentd log messages like this
-os::cmd::expect_success_and_text "oc logs $fpod" 'Unknown option "bogus-key"'
-os::cmd::expect_success_and_text "oc logs $fpod" 'Invalid key/value pair {"bogus-key":"bogus-value"} provided -- ignoring...'
-os::cmd::expect_success_and_text "oc logs $fpod" 'Invalid value type matched for "bogus-value"'
-os::cmd::expect_success_and_text "oc logs $fpod" 'Invalid key/value pair {"read_lines_limit":"bogus-value"} provided -- ignoring...'
+os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" 'Unknown option "bogus-key"'
+os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" 'Invalid key/value pair {"bogus-key":"bogus-value"} provided -- ignoring...'
+os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" 'Invalid value type matched for "bogus-value"'
+os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" 'Invalid key/value pair {"read_lines_limit":"bogus-value"} provided -- ignoring...'
 ## Throttling should be reverted here, verify we moved our pos log entries
 check_fluentd_pod_file_content_for '/var/log/es-container-openshift-operations.log.pos' ''
