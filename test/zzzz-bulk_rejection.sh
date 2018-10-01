@@ -31,24 +31,26 @@ function cleanup() {
     fi
     curl_es $esopssvc /bulkindextest -XDELETE | jq . | artifact_out
     fpod=$( get_running_pod fluentd )
-    if [ -f /var/log/fluentd.log ] ; then
-        cp /var/log/fluentd.log $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
-    else
-        oc logs $fpod > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
+    if sudo test -f /var/log/fluentd/fluentd.log ; then
+        sudo cat /var/log/fluentd/fluentd.log > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
     fi
+    if [ -f /var/log/fluentd.log ] ; then
+        cat /var/log/fluentd.log >> $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
+    fi
+    oc logs $fpod >> $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log 2>&1
     if [ -n "${es_cm:-}" -a -f "${es_cm:-}" ] ; then
-        oc replace --force -f $es_cm 2>&1 | tee artifact_out
+        oc replace --force -f $es_cm 2>&1 | artifact_out
     fi
     if [ -n "${esopsdc:-}" ] ; then
-        oc rollout latest $esopsdc 2>&1 | tee artifact_out
-        oc rollout status -w $esopsdc 2>&1 | tee artifact_out
+        oc rollout latest $esopsdc 2>&1 | artifact_out
+        oc rollout status -w $esopsdc 2>&1 | artifact_out
         # have to get esopssvc again if needed
     fi
     if [ -n "${f_cm:-}" -a -f "${f_cm:-}" ] ; then
-        oc replace --force -f $f_cm
+        oc replace --force -f $f_cm 2>&1 | artifact_out
     fi
     if [ -n "${f_ds:-}" -a -f "${f_ds:-}" ] ; then
-        oc replace --force -f $f_ds
+        oc replace --force -f $f_ds 2>&1 | artifact_out
     fi
     os::cmd::try_until_failure "oc get pod $fpod"
     sleep 1
