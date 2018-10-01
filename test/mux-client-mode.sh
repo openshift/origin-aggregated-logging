@@ -28,10 +28,10 @@ cleanup() {
     set +e
     # dump the pods before we restart them
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/mux-client-mode-fluentd-pod.log 2>&1
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/mux-client-mode-fluentd-pod.log
     fi
     if [ -n "${muxpod:-}" ] ; then
-        oc logs $muxpod > $ARTIFACT_DIR/mux-client-mode-mux-pod.log 2>&1
+        get_mux_pod_log $muxpod > $ARTIFACT_DIR/mux-client-mode-mux-pod.log 2>&1
     fi
     if [ -n "${saveds:-}" ] ; then
         if [ -f "${saveds:-}" ]; then
@@ -40,6 +40,7 @@ cleanup() {
         fi
     fi
     os::cmd::expect_success flush_fluentd_pos_files
+    sudo rm -f /var/log/fluentd/fluentd.log
     oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     # this will call declare_test_end, suite_end, etc.
@@ -66,6 +67,7 @@ os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status
 oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
 reset_fluentd_daemonset
 os::cmd::expect_success flush_fluentd_pos_files
+sudo rm -f /var/log/fluentd/fluentd.log
 oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
@@ -78,6 +80,7 @@ os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status
 oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
 reset_fluentd_daemonset
 os::cmd::expect_success flush_fluentd_pos_files
+sudo rm -f /var/log/fluentd/fluentd.log
 oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )

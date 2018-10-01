@@ -188,17 +188,17 @@ update_current_fluentd() {
   reset_fluentd_daemonset
 
   os::cmd::expect_success flush_fluentd_pos_files
-  sudo rm -f /var/lib/fluentd/buffer*.log
-  os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
+  sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
+  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
   os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
   fpod=$( get_running_pod fluentd )
 }
 
 print_message() {
-    os::log::debug "$( curl_es $es_svc /project.${myproject}.*/_search?${myfield}:${mymessage} )"
-    os::log::debug "$( curl_es $es_svc /_cat/indices?v )"
+    curl_es $es_svc /project.${myproject}.*/_search?${myfield}:${mymessage} 2>&1 | artifact_out
+    curl_es $es_svc /_cat/indices?v 2>&1 | artifact_out
     if [ "$es_svc" != "$es_ops_svc" ] ; then
-        os::log::debug "$( curl_es $es_ops_svc /_cat/indices?v )"
+        curl_es $es_ops_svc /_cat/indices?v 2>&1 | artifact_out
     fi
 }
 
@@ -343,7 +343,7 @@ cleanup() {
             oc exec $fpod -- ls -alrtF /etc/fluent/configs.d/user 2>&1 | artifact_out
         fi
         if [ -n "${muxpod:-}" ]; then
-            oc logs $muxpod > $ARTIFACT_DIR/mux.mux.pod.log
+            get_mux_pod_log $muxpod > $ARTIFACT_DIR/mux.mux.pod.log
             oc get configmap/logging-mux -o yaml > $ARTIFACT_DIR/mux.mux.configmap.yaml
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/openshift 2>&1 | artifact_out
             oc exec $muxpod -- ls -alrtF /etc/fluent/configs.d/user 2>&1 | artifact_out
@@ -356,23 +356,23 @@ cleanup() {
     curl_es $es_ops_svc /_cat/indices > $ARTIFACT_DIR/es-ops.indices.after 2>&1
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/mux.$fpod.log 2>&1
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/mux.$fpod.log
     fi
-    os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
-        os::log::debug "$( oc replace --force -f $savecm )"
+        oc replace --force -f $savecm 2>&1 | artifact_out
     fi
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
-        os::log::debug "$( oc replace --force -f $saveds )"
+        oc replace --force -f $saveds 2>&1 | artifact_out
     fi
     # delete indices created by this test
     curl_es $es_svc /project.testproj.* -XDELETE
     curl_es $es_svc /project.default.* -XDELETE
     curl_es $es_svc /project.mux-undefined.* -XDELETE
     os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/lib/fluentd/buffer*.log
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+    sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
+    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     oc delete project testproj 2>&1 | artifact_out
     os::cmd::try_until_failure "oc get project testproj" 2>&1 | artifact_out
@@ -459,16 +459,16 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
             fi
         done
     done
-    os::log::debug "$( oc exec $muxpod -- ls -l /var/lib/fluentd )"
-    os::log::debug "$( oc logs $muxpod )"
+    oc exec $muxpod -- ls -l /var/lib/fluentd | artifact_out
+    get_mux_pod_log $muxpod > $ARTIFACT_DIR/mux-before-$muxpod.log 2>&1
 
     # set ES_HOST and OPS_HOST to original
     reset_ES_HOST $ES_HOST_BAK $OPS_HOST_BAK
 
     # wait for the file buffer disappears once
     os::cmd::try_until_text "oc exec $muxpod -- ls -l /var/lib/fluentd" "total 0" $FLUENTD_WAIT_TIME
-    os::log::debug "$( oc exec $muxpod -- ls -l /var/lib/fluentd )"
-    os::log::debug "$( oc logs $muxpod )"
+    oc exec $muxpod -- ls -l /var/lib/fluentd | artifact_out
+    get_mux_pod_log $muxpod > $ARTIFACT_DIR/mux-$muxpod.log 2>&1
 
     # kibana logs with kibana container/pod values
     if [ ${LOGGING_NS} = "logging" ] ; then
