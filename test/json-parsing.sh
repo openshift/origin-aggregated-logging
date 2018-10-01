@@ -23,6 +23,10 @@ cleanup() {
         mycmd=os::log::error
     fi
     $mycmd json-parsing test finished at $( date )
+    fpod=$( get_running_pod fluentd )
+    if [ -n "${fpod:-}" ] ; then
+        get_fluentd_pod_log > $ARTIFACT_DIR/json-parsing-fluentd-pod.log
+    fi
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
