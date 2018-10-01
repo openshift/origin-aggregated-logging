@@ -28,9 +28,12 @@ cleanup() {
     $mycmd viaq-data-model test finished at $( date )
     # dump the pod before we restart it
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
     fi
-    os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
+    if [ -n "${muxpod:-}" ] ; then
+        get_mux_pod_log $muxpod > $ARTIFACT_DIR/$muxpod.log 2>&1
+    fi
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         os::log::debug "$( oc replace --force -f $savecm )"
@@ -39,7 +42,8 @@ cleanup() {
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
     os::cmd::expect_success flush_fluentd_pos_files
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+    sudo rm -f /var/log/fluentd/fluentd.log
+    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out || :
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -108,6 +112,7 @@ os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --name=viaq-te
                    --path $cfg 2>&1 )"
 
 os::cmd::expect_success flush_fluentd_pos_files
+sudo rm -f /var/log/fluentd/fluentd.log
 os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
@@ -196,5 +201,6 @@ if [ -n "$is_maximal" ] ; then
     oc set env dc/logging-mux CDM_KEEP_EMPTY_FIELDS-
     os::cmd::try_until_failure "oc get pod $muxpod"
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
+    muxpod=$( get_running_pod mux )
 fi
 
