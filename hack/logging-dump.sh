@@ -143,6 +143,10 @@ get_pod_logs() {
   do
     oc logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
   done
+  if [ "$fluentd_folder" == "$2" ]
+  then
+    oc exec $1 logs | nice xz >> $logs_folder/$pod.log.xz
+  fi  
 }
 
 check_fluentd_connectivity() {

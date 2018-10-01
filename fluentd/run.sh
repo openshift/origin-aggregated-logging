@@ -15,6 +15,12 @@ for file in ${ocp_fluentd_files} ; do
     sed -i -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file
 done
 
+echo "============================="
+echo "Fluentd logs have been redirected to: $LOGGING_FILE_PATH"
+echo "If you want to print out the logs, use command:"
+echo "oc exec <pod_name> $HOME/utils/logs"
+echo "============================="
+
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
   set -ex
