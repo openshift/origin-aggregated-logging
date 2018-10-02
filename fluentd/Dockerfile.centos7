@@ -68,6 +68,7 @@ ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 COPY utils/** ${HOME}/utils/
 ADD lib/parser_json_or_crio/lib/*.rb /etc/fluent/plugin/
 ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
+ADD metadata-plugin/* /etc/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
