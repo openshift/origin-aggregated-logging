@@ -73,24 +73,21 @@ function get_test_user_token() {
 # $1 - kibana pod name
 # $2 - es hostname (e.g. logging-es or logging-es-ops)
 # $3 - endpoint (e.g. /projects.*/_search)
-# $4 - username
-# $5 - token
+# $4 - token
 # stdout is the JSON output from Elasticsearch
 # stderr is curl errors
 curl_es_from_kibana() {
     local pod="$1"
     local eshost="$2"
     local endpoint="$3"
-    local test_name="$4"
-    local test_token="$5"
-    shift; shift; shift; shift; shift
+    local test_token="$4"
+    shift; shift; shift; shift
     local args=( "${@:-}" )
 
     local secret_dir="/etc/kibana/keys/"
     oc -n $LOGGING_NS exec "${pod}" -c kibana -- curl --connect-timeout 1 --silent --insecure "${args[@]}" \
        --cert "${secret_dir}cert" \
        --key "${secret_dir}key" \
-       -H "X-Proxy-Remote-User: $test_name" \
        -H "Authorization: Bearer $test_token" \
        -H "X-Forwarded-For: 127.0.0.1" \
        "https://${eshost}:9200${endpoint}"
@@ -151,12 +148,10 @@ function curl_es_input() {
 function curl_es_pod_with_token() {
     local pod="$1"
     local endpoint="$2"
-    local test_name="$3"
-    local test_token="$4"
-    shift; shift; shift; shift
+    local test_token="$3"
+    shift; shift; shift;
     local args=( "${@:-}" )
     oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
-                             -H "X-Proxy-Remote-User: $test_name" \
                              -H "Authorization: Bearer $test_token" \
                              -H "X-Forwarded-For: 127.0.0.1" \
                              "https://localhost:9200${endpoint}"
@@ -191,45 +186,38 @@ function curl_es_pod_with_username_password_not_silent() {
 function curl_es_with_token() {
     local svc_name="$1"
     local endpoint="$2"
-    local test_name="$3"
-    local test_token="$4"
-    shift; shift; shift; shift
+    local test_token="$3"
+    shift; shift; shift
     local args=( "${@:-}" )
 
     curl --silent --insecure "${args[@]}" \
-      -H "X-Proxy-Remote-User: $test_name" \
       -H "Authorization: Bearer $test_token" \
-      -H "X-Forwarded-For: 127.0.0.1" \
-      "https://${svc_name}.${LOGGING_NS}:9200${endpoint}"
+      "https://${svc_name}:9200${endpoint}"
 }
 
 function curl_es_pod_with_token_and_input() {
     local pod="$1"
     local endpoint="$2"
-    local test_name="$3"
-    local test_token="$4"
-    shift; shift; shift; shift
+    local test_token="$3"
+    shift; shift; shift
     local args=( "${@:-}" )
 
     oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
-                             -H "X-Proxy-Remote-User: $test_name" \
                              -H "Authorization: Bearer $test_token" \
-                             -H "X-Forwarded-For: 127.0.0.1" \
+                             -H "Content-type: application/json" \
                              "https://localhost:9200${endpoint}"
 }
 
 function curl_es_with_token_and_input() {
     local svc_name="$1"
     local endpoint="$2"
-    local test_name="$3"
-    local test_token="$4"
-    shift; shift; shift; shift
+    local test_token="$3"
+    shift; shift; shift
     local args=( "${@:-}" )
 
     curl --silent --insecure "${args[@]}" \
-      -H "X-Proxy-Remote-User: $test_name" \
       -H "Authorization: Bearer $test_token" \
-      -H "X-Forwarded-For: 127.0.0.1" \
+      -H "Content-type: application/json" \
       "https://${svc_name}.${LOGGING_NS}:9200${endpoint}"
 }
 

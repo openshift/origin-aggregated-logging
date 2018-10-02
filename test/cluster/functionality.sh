@@ -50,6 +50,16 @@ test_token="$( oc whoami -t )"
 os::cmd::expect_success "oc login --username=system:admin"
 os::cmd::expect_success "oc project ${LOGGING_NS}"
 
+result=$(oc get sa prometheus-scraper -n ${LOGGING_NS} ||:)
+if [ "$result" == "" ] ; then
+  oc create sa prometheus-scraper -n ${LOGGING_NS}
+fi
+result=$(oc get rolebinding prometheus-scraper -n ${LOGGING_NS} prometheus-scraper ||:)
+if [ "$result" == "" ] ; then
+  oc create rolebinding prometheus-scraper --serviceaccount=${LOGGING_NS}:prometheus-scraper --role=prometheus-metrics-viewer
+fi
+SATOKEN=$(oc -n ${LOGGING_NS} serviceaccounts get-token prometheus-scraper)
+
 # We can reach the Elasticsearch service at serviceName:apiPort
 elasticsearch_api="$( oc get svc "${OAL_ELASTICSEARCH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
 
@@ -132,17 +142,14 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} contains expected plugin(s)"
 	fi
 
-#	WIP, uncommented unless we figure out how to get user name
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
-	passwd_contents="$(oc extract secret/logging-elasticsearch --keys=passwd.yml --to=-)"
-	user_name="$(echo ${passwd_contents} | cut -d'"' -f2)"
-	user_passwd="$(echo ${passwd_contents} | cut -d'"' -f4 | base64 -d)"
+    es_pod_ip=$(oc get pod ${elasticsearch_pod} -o jsonpath={.status.podIP})
 
-	if os::cmd::expect_success_and_text "curl_es_pod_with_username_password '${elasticsearch_pod}' '/_prometheus/metrics' '$user_name' '$user_passwd' --output /dev/null --write-out '%{response_code}'" '200'; then
+	if os::cmd::expect_success_and_text "curl_es_with_token '${es_pod_ip}' '/_prometheus/metrics' '${SATOKEN}' --output /dev/null --write-out '%{response_code}' -v" '200'; then
 		os::log::info "Received data from metrics endpoint"
 	else
 		artifact_log unable to connect to prometheus end point:
-		artifact_log $( curl_es_pod_with_username_password_not_silent "${elasticsearch_pod}" '/_prometheus/metrics' "$user_name" "$user_passwd" )
+		artifact_log $( curl_es_with_token "${es_pod_ip}" '/_prometheus/metrics' "$SATOKEN" )
 		artifact_log $(oc exec -n $LOGGING_NS -c elasticsearch ${elasticsearch_pod} -- es_acl get --doc=actiongroups)
 		os::log::fatal "Failed while curling _prometheus/metrics endpoint"
 	fi
