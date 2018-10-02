@@ -82,6 +82,7 @@ os::log::info "ops diff before:  $ops_logs_before"
 os::log::info "proj diff before: $logs_before"
 
 os::cmd::expect_success flush_fluentd_pos_files
+sudo rm -f /var/log/fluentd/fluentd.log
 os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
@@ -92,7 +93,7 @@ docker run --rm centos:7 echo "running test container"
 
 if ! os::cmd::try_until_success "logs_count_is_ge $esopssvc '/.operations.*/' 4 $timestamp" $((second * 60)) ; then
     sudo grep VIRT_CONTROL /var/log/audit/audit.log | tail -40 > $ARTIFACT_DIR/docker_audit_audit.log
-    oc logs $fpod > $ARTIFACT_DIR/docker_audit_fluentd.log 2>&1
+    get_fluentd_pod_log $fpod > $ARTIFACT_DIR/docker_audit_fluentd.log
     ops_logs_after=$( get_logs_count $esopssvc '/.operations.*/' )
     logs_after=$( get_logs_count $essvc '/project.*/' )
     get_logs_source $esopssvc '/.operations.*/' > $ARTIFACT_DIR/docker_audit_ops.json 2>&1

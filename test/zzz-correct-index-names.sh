@@ -40,7 +40,7 @@ cleanup() {
   oc exec -c elasticsearch $es_ops_pod -- indices 2>&1 | artifact_out
 
   fpod=$( get_running_pod fluentd )
-  oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+  get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
 
   oc exec $fpod -- env | sort > $ARTIFACT_DIR/env_vars.log 2>&1
   oc exec $fpod -- sh -c "find  /etc/fluent/configs.d -type f -exec cat {} \;" > $ARTIFACT_DIR/fluent_conf.log 2>&1
