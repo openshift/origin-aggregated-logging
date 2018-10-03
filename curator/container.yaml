@@ -1,0 +1,6 @@
+---
+compose:
+  packages:
+    - elastic-curator
+    - python-crontab
+    - python-setuptools

@@ -1,0 +1,6 @@
+---
+compose:
+  packages:
+    - elasticsearch
+    - elasticsearch-cloud-kubernetes
+    - openshift-elasticsearch-plugin
