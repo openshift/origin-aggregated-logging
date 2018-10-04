@@ -185,6 +185,11 @@ copy_keys_to_secretdir() {
 
   if [ -d $provided_secret_dir ] ; then
     info "Copying certs from ${provided_secret_dir} to ${secret_dir}"
+
+    if [ ! -d $secret_dir ] ; then
+      mkdir $secret_dir
+    fi
+
     cp $provided_secret_dir/* $secret_dir/
   fi
 }
