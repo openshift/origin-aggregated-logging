@@ -91,7 +91,11 @@ cp /usr/share/java/elasticsearch/config/* $ES_CONF
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
-export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false"
+
+#bz1627086 - These options should be removable after 5.x"
+es5x_java_opts="-Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.type=unpooled"
+
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false ${es5x_java_opts:-}"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
 exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF
