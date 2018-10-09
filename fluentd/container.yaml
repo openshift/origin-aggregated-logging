@@ -1,0 +1,15 @@
+---
+compose:
+  packages:
+    - fluentd
+    - rubygem-syslog_protocol
+    - rubygem-fluent-mixin-config-placeholders
+    - rubygem-fluent-plugin-elasticsearch
+    - rubygem-fluent-plugin-flatten-hash
+    - rubygem-fluent-plugin-kubernetes_metadata_filter
+    - rubygem-fluent-plugin-record-modifier
+    - rubygem-fluent-plugin-remote-syslog
+    - rubygem-fluent-plugin-rewrite-tag-filter
+    - rubygem-fluent-plugin-secure-forward
+    - rubygem-fluent-plugin-systemd
+    - rubygem-fluent-plugin-viaq_data_model

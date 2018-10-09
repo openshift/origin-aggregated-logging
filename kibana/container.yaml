@@ -1,0 +1,4 @@
+---
+compose:
+  packages:
+    - kibana
