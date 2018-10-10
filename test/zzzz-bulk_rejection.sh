@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 # test bulk rejection handling
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
@@ -10,8 +10,10 @@ os::test::junit::declare_suite_start "test/bulk_rejection"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 esopsdc=$( get_es_dcs es-ops )
+es_configmap=logging-elasticsearch-ops
 if [ -z "${esopsdc}" ] ; then
     esopsdc=$( get_es_dcs es )
+    es_configmap=logging-elasticsearch
 fi
 
 keyname=threadpool
@@ -65,16 +67,23 @@ trap cleanup EXIT
 
 # save current es settings
 es_cm=$( mktemp )
-oc get cm/logging-elasticsearch -o yaml > $es_cm
+oc get cm/${es_configmap} -o yaml > $es_cm
 
 # thanks es5 - https://www.elastic.co/guide/en/elasticsearch/reference/5.1/breaking_50_settings_changes.html#_threadpool_settings
 # change queue size and pool size to make it easy to hit limit
-oc get cm/logging-elasticsearch -o yaml | \
+oc get cm/${es_configmap} -o yaml | \
     sed '/^  elasticsearch.yml/a\
     '$keyname':\
       bulk:\
         queue_size: 1\
         size: 1' | oc replace --force -f - 2>&1 | artifact_out
+
+if [ "$(oc get $esopsdc -o jsonpath='{.spec.template.spec.volumes[?(@.name=="elasticsearch-config")].configMap.name}')" != "${es_configmap}" ] ; then
+    os::log::info Patching $esopsdc because the elasticsearch-config is not the expected one: ${es_configmap}
+    oc patch $esopsdc --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/template/spec/volumes/2/configMap/name\", \"value\":\"${es_configmap}\"}]"
+else
+    os::log::info The DeploymentConfig $esopsdc has the correct configmap: ${es_configmap}
+fi
 
 oc rollout latest $esopsdc 2>&1 | artifact_out
 oc rollout status -w $esopsdc 2>&1 | artifact_out
