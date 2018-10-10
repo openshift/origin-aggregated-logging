@@ -40,16 +40,6 @@ images=(
   ${PREFIX}logging-eventrouter
 )
 
-curbranch=$( git rev-parse --abbrev-ref HEAD )
-if [[ "${curbranch:-master}" != master ]] ; then
-  images=(
-    ${PREFIX}logging-curator5
-    ${PREFIX}logging-elasticsearch5
-    ${PREFIX}logging-kibana5
-    ${PREFIX}logging-auth-proxy
-  )
-fi
-
 PUSH_OPTS=""
 if docker push --help | grep -q force; then
   PUSH_OPTS="--force"
