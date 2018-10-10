@@ -16,7 +16,7 @@ update_current_fluentd() {
     # but instead forwards to the forwarding fluentd
 
     # undeploy fluentd
-    os::log::debug "$( oc label node --all logging-infra-fluentd- )"
+    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
     os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
 
     FLUENTD_FORWARD=()
@@ -102,21 +102,23 @@ update_current_fluentd() {
     # 256/8
     EXP_BUFFER_QUEUE_LIMIT=$( expr 256 / 8 )
 
-    os::log::debug "$( oc set env daemonset/logging-fluentd FILE_BUFFER_LIMIT=${MY_FILE_BUFFER_LIMIT} BUFFER_SIZE_LIMIT=${MY_BUFFER_SIZE_LIMIT} )"
+    oc set env daemonset/logging-fluentd FILE_BUFFER_LIMIT=${MY_FILE_BUFFER_LIMIT} BUFFER_SIZE_LIMIT=${MY_BUFFER_SIZE_LIMIT} 2>&1 | artifact_out
     # redeploy fluentd
     os::cmd::expect_success flush_fluentd_pos_files
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
+    sudo rm -f /var/log/fluentd/fluentd.log
+    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     artifact_log update_current_fluentd $cnt
     fpod=$( get_running_pod fluentd ) || :
-    artifact_log update_current_fluentd $cnt "(oc logs $fpod)"
+    artifact_log update_current_fluentd $cnt
+    oc get pods 2>&1 | artifact_out || :
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod 2>&1 | artifact_out
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.1.log
         id=$( expr $cnt - 1 ) || :
         artifact_log update_current_fluentd $cnt "(/etc/fluent/configs.d/user/secure-forward${id}.conf)"
         oc exec $fpod -- cat /etc/fluent/configs.d/user/secure-forward${id}.conf | artifact_out || :
-        artifact_log update_current_fluentd $cnt "(oc get pods)"
-        oc get pods 2>&1 | artifact_out
+        artifact_log update_current_fluentd $cnt
+        oc get pods 2>&1 | artifact_out || :
     fi
 
     # check set BUFFER_QUEUE_LIMIT
@@ -126,7 +128,7 @@ update_current_fluentd() {
     if [ -z "$REAL_BUFFER_QUEUE_LIMIT" ]; then
         os::log::error Environment variable BUFFER_QUEUE_LIMIT is empty.
     elif [ "$REAL_BUFFER_QUEUE_LIMIT" = "$EXP_BUFFER_QUEUE_LIMIT" ]; then
-        os::log::debug "Environment variable BUFFER_QUEUE_LIMIT is correctly set to $EXP_BUFFER_QUEUE_LIMIT."
+        artifact_log "Environment variable BUFFER_QUEUE_LIMIT is correctly set to $EXP_BUFFER_QUEUE_LIMIT."
     else
         os::log::error "Environment variable BUFFER_QUEUE_LIMIT is set to $REAL_BUFFER_QUEUE_LIMIT, which is suppose to be $EXP_BUFFER_QUEUE_LIMIT."
     fi
@@ -138,7 +140,7 @@ create_forwarding_fluentd() {
   while [ $id -lt $cnt ]; do
     # create forwarding configmap named "logging-forward-fluentd"
     oc create configmap logging-forward-fluentd${id} \
-       --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf
+       --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf 2>&1 | artifact_out
 
     # create a directory for file buffering so as not to conflict with fluentd
     if [ ! -d /var/lib/fluentd/forward${id} ] ; then
@@ -154,7 +156,7 @@ create_forwarding_fluentd() {
             -e '/image:/ a \
         ports: \
           - containerPort: 24284' | \
-        oc create -f -
+        oc create -f - 2>&1 | artifact_out
     else
       oc get daemonset/logging-fluentd -o yaml | \
         sed -e "s/logging-infra-fluentd:/logging-infra-forward-fluentd1:/" \
@@ -163,22 +165,23 @@ create_forwarding_fluentd() {
             -e '/image:/ a \
         ports: \
           - containerPort: 24284' | \
-        oc create -f -
+        oc create -f - 2>&1 | artifact_out
     fi
 
     # make it use a different hostpath than fluentd
     oc set volumes daemonset/logging-forward-fluentd${id} --add --overwrite \
        --name=filebufferstorage --type=hostPath \
-       --path=/var/lib/fluentd/forward${id} --mount-path=/var/lib/fluentd
-
+       --path=/var/lib/fluentd/forward${id} --mount-path=/var/lib/fluentd 2>&1 | artifact_out
+    # make it use a different log file than fluentd
+    oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/fluentd.$id.log
     os::cmd::expect_success flush_fluentd_pos_files
-    os::log::debug "$( oc label node --all logging-infra-forward-fluentd${id}=true )"
+    oc label node --all logging-infra-forward-fluentd${id}=true  2>&1 | artifact_out
 
     # wait for forward-fluentd to start
     os::cmd::try_until_text "oc get pods -l component=forward-fluentd${id}" "^logging-forward-fluentd${id}-.* Running "
     POD=$( oc get pods -l component=forward-fluentd${id} -o name )
-    artifact_log create_forwarding_fluentd $cnt "(oc logs $POD)"
-    oc logs $POD 2>&1 | artifact_out || :
+    artifact_log create_forwarding_fluentd $cnt
+    get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/fluentd-forward.$id.log
     id=$( expr $id + 1 )
   done
 }
@@ -202,37 +205,37 @@ cleanup() {
   cnt=${FORWARDCNT:-0}
   # dump the pod before we restart it
   if [ -n "${fpod:-}" ] ; then
-    artifact_log cleanup "(oc logs $fpod)"
-    oc logs $fpod 2>&1 | artifact_out || :
+    get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.cleanup.log
   fi
   oc get pods 2>&1 | artifact_out
   id=0
   while [ $id -lt $cnt ]; do
     POD=$( oc get pods -l component=forward-fluentd${id} -o name ) || :
-    artifact_log cleanup $cnt "(oc logs $POD)"
-    oc logs $POD 2>&1 | artifact_out || :
+    artifact_log cleanup $cnt
+    get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/$fpod.$id.cleanup.log
     id=$( expr $id + 1 )
   done
-  os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
+  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
   os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
   if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
-    os::log::debug "$( oc replace --force -f $savecm )"
+    oc replace --force -f $savecm 2>&1 | artifact_out
   fi
   if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
-    os::log::debug "$( oc replace --force -f $saveds )"
+    oc replace --force -f $saveds 2>&1 | artifact_out
   fi
   id=0
   while [ $id -lt $cnt ]; do
     $mycmd fluentd-forward${id} test finished at $( date )
 
     # Clean up only if it's still around
-    os::log::debug "$( oc delete daemonset/logging-forward-fluentd${id} 2>&1 || : )"
-    os::log::debug "$( oc delete configmap/logging-forward-fluentd${id} 2>&1 || : )"
-    os::log::debug "$( oc label node --all logging-infra-forward-fluentd${id}- 2>&1 || : )"
+    oc delete daemonset/logging-forward-fluentd${id} 2>&1 | artifact_out
+    oc delete configmap/logging-forward-fluentd${id} 2>&1 | artifact_out
+    oc label node --all logging-infra-forward-fluentd${id}- 2>&1 | artifact_out
     id=$( expr $id + 1 )
   done
-  os::cmd::expect_success flush_fluentd_pos_files
-  os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
+  flush_fluentd_pos_files 2>&1 | artifact_out
+  sudo rm -f /var/log/fluentd/fluentd.log
+  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
   if [ $cnt -gt 1 ]; then
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
