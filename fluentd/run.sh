@@ -180,6 +180,11 @@ if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
     if [ -n "$output_label" ]; then
         cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
     fi
+    # Enable "output-es-ops-config.conf in output-operations.conf"
+    # we need something there so output-operations.conf won't have an empty @copy without a <store> block
+    # but it won't actually be used in this case - output-pre-mux-client.conf will match everything
+    # before we get here
+    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
 else
     # check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
     if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
