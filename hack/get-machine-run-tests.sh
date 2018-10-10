@@ -278,10 +278,22 @@ ssh -n openshiftdevel "bash $runfile"
 #      title: "enable ansible 2.6 repo"
 cat > $runfile <<EOF
 set -euxo pipefail
+compare_versions() {
+    local aver="\$1"
+    local op="\$2"
+    local bver="\$3"
+    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
+    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
+    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
+    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
+    python -c 'import sys
+from pkg_resources import parse_version
+sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
+}
 pushd $OS_O_A_L_DIR > /dev/null
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd > /dev/null
-if [[ "\${curbranch}" == master ]] ; then
+if compare_versions "\${curbranch}" ">=" release-3.10 ; then
     sudo touch /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
     sudo chmod a+rw /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
 cat <<REPO >/etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
@@ -303,31 +315,47 @@ ssh -n openshiftdevel "bash $runfile"
 #      repository: "openshift-ansible"
 cat > $runfile <<EOF
 set -euxo pipefail
+compare_versions() {
+    local aver="\$1"
+    local op="\$2"
+    local bver="\$3"
+    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
+    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
+    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
+    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
+    python -c 'import sys
+from pkg_resources import parse_version
+sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
+}
 pushd $OS_O_A_L_DIR > /dev/null
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd > /dev/null
-if [[ "\${curbranch}" == release-3.7 || "\${curbranch}" == release-3.6 || "\${curbranch}" == release-3.5 ]] ; then
+if compare_versions "\${curbranch}" "<=" release-3.7 ; then
     sudo yum downgrade -y ansible-2.3\*
     oapkg=atomic-openshift-utils
 else
     oapkg=openshift-ansible
 fi
-#if [[ "\${curbranch}" == master ]] || [[ "\${curbranch}" == es5.x ]] ; then
+if compare_versions "\${curbranch}" ">=" release-3.10 ; then
     sudo yum-config-manager --disable origin-deps-rhel7\* || true
     sudo yum-config-manager --disable rhel-7-server-ose\* || true
-#fi
+fi
 cd $OS_O_A_DIR
 jobs_repo=$OS_A_C_J_DIR
-last_tag="\$( git describe --tags --abbrev=0 --exact-match HEAD )"
+last_tag="\$( git describe --tags --abbrev=0 --exact-match HEAD )" || :
 if [ -z "\${last_tag}" ] ; then
    # fatal: no tag exactly matches '89c405109d8ca5906d9beb03e7e2794267f5f357'
    last_tag="\$( git describe --tags --abbrev=0 )"
 fi
-last_commit="\$( git log -n 1 --pretty=%h )"
+last_commit="\$( git log -n 1 --no-merges --pretty=%h )"
 if sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7" ; then
    rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7"
 elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}" ; then
    rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}"
+elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7" ; then
+   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7"
+elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}" ; then
+   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}"
 else
    # for master, it looks like there is some sort of strange problem with git tags
    # tito will give the packages a N-V-R like this:
@@ -370,6 +398,18 @@ ssh -n openshiftdevel "bash $runfile"
 #      repository: "origin"
 cat > $runfile <<EOF
 set -euxo pipefail
+compare_versions() {
+    local aver="\$1"
+    local op="\$2"
+    local bver="\$3"
+    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
+    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
+    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
+    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
+    python -c 'import sys
+from pkg_resources import parse_version
+sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
+}
 # is logging using master or a release branch?
 pushd $OS_O_A_L_DIR
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
@@ -413,6 +453,13 @@ elif [[ "\${curbranch}" =~ ^release-* ]] ; then
             sudo yum-config-manager --disable \$repo > /dev/null ;;
         esac
     done
+    if sudo curl -s -f -o /etc/yum.repos.d/openshift-origin-v\${origin_release}.repo https://rpms.svc.ci.openshift.org/openshift-origin-v\${origin_release}.repo ; then
+        echo using https://rpms.svc.ci.openshift.org/openshift-origin-v\${origin_release}
+        foundrepover=true
+        sudo sed -i 's,^\(baseurl.*[^/]\)\$,\1/,' /etc/yum.repos.d/openshift-origin-v\${origin_release}.repo
+    else
+        sudo rm -f /etc/yum.repos.d/openshift-origin-v\${origin_release}.repo
+    fi
     if [[ "\${foundrepover:-false}" == false ]] ; then
         # see if there is a repo for this version that is available on the external
         # site but not yet configured as a local yum repo
@@ -466,15 +513,17 @@ EOF2
         cp \${jobs_repo}/ORIGIN_COMMIT \${jobs_repo}/ORIGIN_IMAGE_TAG
         popd > /dev/null
     fi
-    # build our release deps package
-    rpmbuild -ba $OS_O_A_L_DIR/hack/branch-deps.spec
-    # downgrade/erase troublesome packages
-    sudo yum -y downgrade docker-1.12\* docker-client-1.12\* docker-common-1.12\* docker-rhel-push-plugin-1.12\* skopeo-0.1.27\* skopeo-containers-0.1.27\*
-    sudo yum -y install \$HOME/rpmbuild/RPMS/noarch/branch-deps-*.noarch.rpm
-    # if [[ "\${curbranch}" == release-3.9 ]] ; then
-    #     # hack for the CA serial number problem
-    #     sudo sed -i -e '/- name: Create ca serial/,/^\$/{s/"00"/""/; /when/d}' /usr/share/ansible/openshift-ansible/roles/openshift_ca/tasks/main.yml
-    # fi
+    if compare_versions "\${curbranch}" "<" release-3.10 ; then
+        # build our release deps package
+        rpmbuild -ba $OS_O_A_L_DIR/hack/branch-deps.spec
+        # downgrade/erase troublesome packages
+        sudo yum -y downgrade docker-1.12\* docker-client-1.12\* docker-common-1.12\* docker-rhel-push-plugin-1.12\* skopeo-0.1.27\* skopeo-containers-0.1.27\*
+        sudo yum -y install \$HOME/rpmbuild/RPMS/noarch/branch-deps-*.noarch.rpm
+        # if [[ "\${curbranch}" == release-3.9 ]] ; then
+        #     # hack for the CA serial number problem
+        #     sudo sed -i -e '/- name: Create ca serial/,/^\$/{s/"00"/""/; /when/d}' /usr/share/ansible/openshift-ansible/roles/openshift_ca/tasks/main.yml
+        # fi
+    fi
 else
     echo Error: unknown base branch \$curbranch: please resubmit PR on master or a release-x.y branch
 fi
@@ -523,10 +572,22 @@ if [ "$USE_CRIO" = true ] ; then
     #      title: "enable repo with crio"
     cat > $runfile <<EOF
 set -euxo pipefail
+compare_versions() {
+    local aver="\$1"
+    local op="\$2"
+    local bver="\$3"
+    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
+    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
+    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
+    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
+    python -c 'import sys
+from pkg_resources import parse_version
+sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
+}
 pushd $OS_O_A_L_DIR > /dev/null
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd > /dev/null
-if [[ "\${curbranch}" == master ]] || [[ "\${curbranch}" == release-3.11 ]] ; then
+if compare_versions "\${curbranch}" ">=" release-3.11 ; then
     sudo touch /etc/yum.repos.d/crio.repo
     sudo chmod a+rw /etc/yum.repos.d/crio.repo
 cat <<REPO >/etc/yum.repos.d/crio.repo
@@ -671,6 +732,18 @@ fi
 if [ "${USE_LOGGING:-true}" = true ] ; then
     cat > $runfile <<EOF
 set -euxo pipefail
+compare_versions() {
+    local aver="\$1"
+    local op="\$2"
+    local bver="\$3"
+    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
+    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
+    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
+    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
+    python -c 'import sys
+from pkg_resources import parse_version
+sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
+}
 cd $OS_A_C_J_DIR
 playbook_base='/usr/share/ansible/openshift-ansible/playbooks/'
 if [[ -s "\${playbook_base}openshift-logging/config.yml" ]]; then
@@ -686,7 +759,7 @@ fi
 curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd
 logging_extras=""
-if [[ "\${curbranch}" == master ]]; then
+if compare_versions "\${curbranch}" ">=" release-3.11 ; then
     # force image version/tag to be latest, otherwise it will use openshift_tag_version
     # also use oauth-proxy 1.1.0 for 3.11 and later, and for kibana
     logging_extras="\${logging_extras} -e openshift_logging_image_version=latest \
