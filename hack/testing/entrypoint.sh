@@ -105,6 +105,10 @@ monitor_es_bulk_stats() {
         espod=$( get_es_pod es 2> /dev/null ) || :
     done
     es_ver=$( get_es_major_ver ) || :
+    while [ -z "${es_ver}" ] ; do
+        es_ver=$( get_es_major_ver ) || :
+        sleep 1
+    done
     bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
     while true ; do
         local essvc=$( get_es_svc es 2> /dev/null ) || :
