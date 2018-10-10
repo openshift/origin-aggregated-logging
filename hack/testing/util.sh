@@ -496,7 +496,10 @@ get_fluentd_pod_log() {
     local pod=${1:-$( get_running_pod fluentd )}
     local logfile=${2:-/var/log/fluentd/fluentd.log}
     oc logs $pod 2>&1
-    if sudo test -f $logfile ; then
+    if oc exec $pod -- logs 2>&1 ; then
+        : # done
+    elif sudo test -f $logfile ; then
+        # can't read from the pod directly - see if we can get the log file
         sudo cat $logfile
     fi
 }
@@ -506,4 +509,26 @@ get_mux_pod_log() {
     local logfile=${2:-/var/log/fluentd/fluentd.log}
     oc logs $pod 2>&1
     oc exec $pod -- cat $logfile 2> /dev/null || :
+}
+
+# writes all pod logs to the given outdir or $ARTIFACT_DIR in the form
+# pod_name.container_name.log
+# it will get both the oc logs output and any log files produced by
+# the pod
+get_all_logging_pod_logs() {
+  local outdir=${1:-$ARTIFACT_DIR}
+  local p
+  local container
+  for p in $(oc get pods -n ${LOGGING_NS} -o jsonpath='{.items[*].metadata.name}') ; do
+    for container in $(oc get po $p -o jsonpath='{.spec.containers[*].name}') ; do
+      case "$p" in
+        logging-fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
+        logging-mux-*) get_mux_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
+        logging-es-*) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1
+                      oc exec -c elasticsearch -n ${LOGGING_NS} $p -- logs >> $ARTIFACT_DIR/$p.$container.log 2>&1
+                      ;;
+	    *) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
+      esac
+	done
+  done
 }
