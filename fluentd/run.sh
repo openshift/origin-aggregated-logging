@@ -355,6 +355,9 @@ if [ "${ENABLE_PROMETHEUS_ENDPOINT}" != "true" ] ; then
   rm -f ${CFG_DIR}/openshift/input-pre-prometheus-metrics.conf
 fi
 
+# Create a directory for Fluentd log files
+mkdir -p /var/log/fluentd/
+
 issue_deprecation_warnings
 if [[ $DEBUG ]] ; then
     exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
