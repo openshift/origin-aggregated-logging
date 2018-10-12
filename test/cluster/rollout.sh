@@ -15,7 +15,8 @@
 #                  }: $IFS-delimited lists of
 #    OpenShift ojects that are expected to exist
 source "$(dirname "${BASH_SOURCE[0]}" )/../../hack/lib/init.sh"
-trap os::test::junit::reconcile_output EXIT
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
+os::test::junit::declare_suite_start "test/cluster/rollout.sh"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 FLUENTD_WAIT_TIME=$(( 2 * minute ))
@@ -24,8 +25,8 @@ cleanup() {
   local return_code="$?"
   set +e
   for r in dc ds cronjob ; do
-    for it in $( oc get -n ${LOGGING_NS} $r -o name ) ; do
-      oc describe -n ${LOGGING_NS} $it > $ARTIFACT_DIR/$it.describe 2>&1
+    for it in $( oc get -n ${LOGGING_NS} $r -o jsonpath='{.items[*].metadata.name}' ) ; do
+      oc describe -n ${LOGGING_NS} $r $it > $ARTIFACT_DIR/$r.$it.describe 2>&1
     done
   done
 
