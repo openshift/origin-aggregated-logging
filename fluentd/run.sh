@@ -58,7 +58,7 @@ docker_uses_journal() {
         if grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
             return 0
         fi
-    elif grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
+    elif grep -q "^OPTIONS='[^']*--log-driver[   =][     ]*journald" /etc/sysconfig/docker 2> /dev/null ; then
         return 0
     fi
     return 1
