@@ -127,14 +127,14 @@ restart_curator() {
         curpod=$( get_running_pod curator${ops:-} )
     fi
     # one job just finished, no need to run another
-    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' 2>&1 | tee artifact_out
+    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' 2>&1 | artifact_out
 }
 
 run_curator_till_completion() {
-    oc delete pod --now -l component=curator${ops:-} 2>&1 | tee artifact_out
-    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":false}}' 2>&1 | tee artifact_out
+    oc delete pod --now -l component=curator${ops:-} 2>&1 | artifact_out
+    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":false}}' 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=curator${ops:-} -o jsonpath='{.items[0].status.containerStatuses[?(@.name==\"curator\")].state.terminated.reason}'" "Completed"
-    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' 2>&1 | tee artifact_out
+    oc patch cronjob logging-curator${ops:-} -p '{"spec":{"suspend":true}}' 2>&1 | artifact_out
 }
 
 cleanup_failed_deployments() {
@@ -172,16 +172,16 @@ logging:
   blacklist: ['"'"'elasticsearch'"'"', '"'"'urllib3'"'"']'
 
     # use configmap
-    oc delete configmap logging-curator 2>&1 | tee artifact_out || :
+    oc delete configmap logging-curator 2>&1 | artifact_out || :
     sleep 1
     if grep -q ^apiVersion: $1 ; then
-        oc create -f $1 2>&1 | tee artifact_out || : # oc get yaml dump, not a curator config file
+        oc create -f $1 2>&1 | artifact_out || : # oc get yaml dump, not a curator config file
     else
-        oc create configmap logging-curator --from-file=config.yaml=$1 --from-literal=curator5.yaml="$config" 2>&1 | tee artifact_out
+        oc create configmap logging-curator --from-file=config.yaml=$1 --from-literal=curator5.yaml="$config" 2>&1 | artifact_out
     fi
     sleep 1
 
-    oc patch cronjob logging-curator${ops:-} -p "$( echo {\"spec\":{\"schedule\":\""$2"\"}} )" 2>&1 | tee artifact_out
+    oc patch cronjob logging-curator${ops:-} -p "$( echo {\"spec\":{\"schedule\":\""$2"\"}} )" 2>&1 | artifact_out
     restart_curator ${3:-}
 }
 
@@ -210,19 +210,19 @@ cleanup() {
         delete_indices $esopssvc
     fi
     if [ -n "${origschedule:-}" ] ; then
-        oc patch cronjob logging-curator -p "$( echo {\"spec\":{\"schedule\":\""${origschedule}"\"}} )" 2>&1 | tee artifact_out
+        oc patch cronjob logging-curator -p "$( echo {\"spec\":{\"schedule\":\""${origschedule}"\"}} )" 2>&1 | artifact_out
     fi
     if [ -n "${origscheduleops:-}" ] ; then
-        oc patch cronjob logging-curator-ops -p "$( echo {\"spec\":{\"schedule\":\""${origscheduleops}"\"}} )" 2>&1 | tee artifact_out
+        oc patch cronjob logging-curator-ops -p "$( echo {\"spec\":{\"schedule\":\""${origscheduleops}"\"}} )" 2>&1 | artifact_out
     fi
     if [ -n "${origconfig:-}" -a -f "$origconfig" ] ; then
-        oc replace --force -f "$origconfig" 2>&1 | tee artifact_out
+        oc replace --force -f "$origconfig" 2>&1 | artifact_out
         sleep 1
         rm -f "$origconfig"
     fi
-    oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | tee artifact_out
+    oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
     if [ -n "${esopspod:-}" ] ; then
-        oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | tee artifact_out
+        oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=INFO CURATOR_LOG_LEVEL=ERROR 2>&1 | artifact_out
     fi
     restart_curator
     if [ -n "${esopssvc:-}" ] ; then
@@ -247,10 +247,10 @@ if [ -n "$esopspod" ]; then
 fi
 
 # this will apply for the next run of the cronjob
-oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | tee artifact_out
+oc set env cronjob/logging-curator CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
 os::log::info Enabled debug for cronjob/logging-curator
 if [ -n "${esopspod:-}" ] ; then
-    oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | tee artifact_out
+    oc set env cronjob/logging-curator-ops CURATOR_SCRIPT_LOG_LEVEL=DEBUG CURATOR_LOG_LEVEL=DEBUG 2>&1 | artifact_out
     os::log::info Enabled debug for cronjob/logging-curator-ops
 fi
 fpod=$( oc get pods --selector component=fluentd  -o jsonpath='{ .items[*].metadata.name }' | head -1 )
