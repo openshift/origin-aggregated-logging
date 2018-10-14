@@ -174,7 +174,20 @@ def create_default_docker(input_conf_file, excluded, log, options={})
   keep_time_key true
   read_from_head "#{options[:read_from_head] || 'true'}"
   exclude_path #{excluded}
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
     CONF
   }
     log.debug "Created default docker input config file"

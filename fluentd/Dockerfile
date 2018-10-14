@@ -55,6 +55,7 @@ ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
+ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
 ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
