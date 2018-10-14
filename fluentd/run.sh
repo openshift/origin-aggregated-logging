@@ -321,7 +321,8 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     fi
 fi
 
-if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
+# Disable process_kubernetes_events if TRANSFORM_EVENTS is false or MUX client.
+if [ "${TRANSFORM_EVENTS:-}" != true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
     sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
 fi
 
