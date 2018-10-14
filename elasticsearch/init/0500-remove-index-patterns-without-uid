@@ -1,0 +1,126 @@
+#!/bin/bash
+#
+# Copyright 2018 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This script removes all kibana index patterns to resolve:
+#    https://bugzilla.redhat.com/show_bug.cgi?id=1622822
+# which removes all index patterns that are of the format:
+#    project.<projectname>.*
+#
+set -e
+
+if [ -n "${SDEBUG:-}" ] ; then
+  set -x
+fi
+
+source "logging"
+
+script=$(basename $0)
+size=100
+
+info "Starting init script: ${script}"
+
+function get_scroll_id(){
+  echo $1 | python -c  '
+import json
+import sys
+resp = json.load(sys.stdin)
+print resp["_scroll_id"]
+'
+}
+
+function get_errors(){
+  echo $1 | python -c  '
+import json
+import sys
+resp = json.load(sys.stdin)
+print resp["errors"]
+'
+}
+
+function get_hits(){
+  echo $1 | python -c  '
+import json
+import sys
+try:
+  resp = json.load(sys.stdin)
+  print resp["hits"]["total"]
+except:
+  print 0
+'
+}
+
+function get_delete_payload(){
+echo $1 | python -c  "
+import json
+import sys
+import re
+resp = json.load(sys.stdin)
+pattern = re.compile('^project\.([a-zA-Z0-9\-]*)\.\*$')
+out=0
+for r in resp['hits']['hits']:
+  if pattern.match(r['_id']):
+    print('{\"delete\":{\"_index\":\"' + r['_index'] + '\", \"_type\":\"index-pattern\", \"_id\":\"' + r['_id'] + '\"}}')
+    out = out + 1
+if out > 0:
+  print(' ')
+"
+}
+
+scroll_ids=()
+success=0
+failures=0
+counter=0
+
+response=$(es_util --query=".kibana.*/index-pattern/_search?scroll=1m&size=$size" -XGET -d '{"stored_fields": ["_id", "_index"]}' )
+debug "Initial response:  $response"
+
+tot_hits=$(get_hits "$response")
+info "Found ${tot_hits} index-patterns to evaluate for removal"
+if [ $tot_hits -eq 0 ] ; then
+  counter=1
+fi
+
+tot_fetches=$(( $tot_hits / $size + 1 ))
+while [ $counter -lt $tot_fetches ]; do
+  scroll_id=$(get_scroll_id "$response")
+  scroll_ids+=($scroll_id)
+  payload=$(get_delete_payload $response)
+
+  debug "Delete payload: $payload"
+  if [ -n "$payload" ] ; then
+    response=$(es_util --query=_bulk -XPOST -d "${payload}" -H"Content-Type: application/x-ndjson")
+    debug "Delete result:  $response"
+    if [ "False" != "$(get_errors $response)" ] ; then
+      let failures+=1
+      error "Error deleting index-patterns: $response"
+    else
+      let success+=1
+    fi
+  fi
+
+  let counter+=1
+  response=$(es_util --query="_search/scroll" -XPOST -d "{\"scroll\":\"1m\",\"scroll_id\":\"$scroll_id\"}")
+done
+
+# delete scroll ids
+debug "Deleting scroll ids"
+for sid in "${scroll_ids[@]}" ; do
+  response=$(es_util --query="_search/scroll" -XDELETE -d "{\"scroll_id\":\"$sid\"}" -H"content-type:application/json")
+  debug "Response deleting scroll_id: $response\n"
+done
+
+info "Completed init script: ${script} with ${success} successful and ${failures} failed bulk requests"
