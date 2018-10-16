@@ -13,14 +13,16 @@ ENV HOME=/opt/app-root/src \
     CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=5.2 \
+    CURATOR_VER=5.5.4 \
     CURATOR_TIMEOUT=300
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
   io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-RUN yum install -y epel-release
+ADD elasticsearch.repo /etc/yum.repos.d/
+RUN yum install -y epel-release && \
+    rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
 RUN yum install -y --setopt=tsflags=nodocs \
         python-pip && \
     pip install --no-cache-dir 'ruamel.yaml<=0.15' elasticsearch-curator==${CURATOR_VER} && \
