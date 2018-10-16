@@ -92,4 +92,11 @@ else
         os::cmd::try_until_success "logs_count_is_gt $prev_event_count" $FLUENTD_WAIT_TIME
     fi
 
+    # Check if there's no duplicates
+    fpod=$( get_running_pod fluentd )
+    qs='{"query":{ "bool": { "must": [ {"term":{"kubernetes.event.verb":"ADDED"}}, {"match":{"message":"'"${fpod}"'"}} ] } }, "_source": ["kubernetes.event.metadata.uid", "message"] }'
+    ids=$( curl_es $esopssvc /.operations.*/_search -X POST -d "$qs" | python -mjson.tool | egrep uid | awk '{print $2}' | sed -e "s/\"//g" )
+    for id in $ids; do
+      os::cmd::expect_success_and_text "curl_es $esopssvc /.operations.*/_count?q=kubernetes.event.metadata.uid:$id | get_count_from_json" "^1\$"
+    done
 fi
