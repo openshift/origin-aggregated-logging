@@ -284,7 +284,7 @@ function flush_fluentd_pos_files() {
 function wait_for_fluentd_to_catch_up() {
     local starttime=$( date +%s.%9N )
     local startsecs=$( date --date=@${starttime} +%s )
-    local tsprefix=$( date --date=@${startsecs} "+%Y%m%d%H%M%S" )
+    local startjournal="$( date +'%Y-%m-%d %H:%M:%S' --date=@$starttime )"
     os::log::debug START wait_for_fluentd_to_catch_up at $( date --date=@${starttime} -u --rfc-3339=ns )
     local es_svc=$( get_es_svc es )
     local es_ops_svc=$( get_es_svc es-ops )
@@ -300,20 +300,18 @@ function wait_for_fluentd_to_catch_up() {
 
     # look for the messages in the source
     local fullmsg="GET /${uuid_es} 404 "
-    local using_journal=0
     local checkpids
     if docker_uses_journal ; then
-        using_journal=1
         sudo journalctl -f -o export | \
-            awk -v es=$uuid_es -v es_ops=$uuid_es_ops \
+            awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
             -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
-                $0 ~ es {print > es_out; found += 1};
-                $0 ~ es_ops {print > es_ops_out; found += 1};
-                {if (found == 2) {exit 0}}' > /dev/null 2>&1 & checkpids=$!
+                $0 ~ es {print > es_out; app += 1; if (app && op) {exit 0}};
+                $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
+                ' 2>&1 | artifact_out & checkpids=$!
     else
         sudo journalctl -f -o export | \
-            awk -v es_ops=$uuid_es_ops -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+            awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
                 $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
         while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
@@ -351,15 +349,24 @@ function wait_for_fluentd_to_catch_up() {
         else
             os::log::error apps record for "$fullmsg" not found in source
         fi
-        if sudo test -f /var/log/es-containers.log.pos ; then
-            os::log::error here are the current container log positions
-            sudo cat /var/log/es-containers.log.pos
+        if docker_uses_journal ; then
+            os::log::error here is the current fluentd journal cursor
+            sudo cat /var/log/journal.pos
+            echo ""
+            os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
+            # first and last couple of records in the journal
+            sudo journalctl -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_first.txt
+            sudo journalctl -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
+        elif sudo test -f /var/log/es-containers.log.pos ; then
+            sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
         fi
-        os::log::error here is the current fluentd journal cursor
-        sudo cat /var/log/journal.pos
-        # records since start of function
-        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
-        curl_es ${es_svc} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs.json 2>&1 || :
+        # records since start of function in ascending @timestamp order - see what records were added around
+        # the time our record should have been added
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"asc"}}],"size":20}'
+        curl_es ${es_svc} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs_asc.json 2>&1 || :
+        # last records in descending @timestamp order - see what records have been added recently
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"desc"}}],"size":20}'
+        curl_es ${es_svc} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs_desc.json 2>&1 || :
         rc=1
     fi
 
@@ -372,7 +379,7 @@ function wait_for_fluentd_to_catch_up() {
         fi
     else
         os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
-        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/ops_search_output.raw 2>&1 || :
         os::log::error "Checking journal for $uuid_es_ops..."
         if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
@@ -381,9 +388,18 @@ function wait_for_fluentd_to_catch_up() {
         fi
         os::log::error here is the current fluentd journal cursor
         sudo cat /var/log/journal.pos
-        # records since start of function
-        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
-        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs.json 2>&1 || :
+        echo ""
+        os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
+        # first and last couple of records in the journal
+        sudo journalctl -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_first.txt
+        sudo journalctl -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_last.txt
+        # records since start of function in ascending @timestamp order - see what records were added around
+        # the time our record should have been added
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"asc"}}],"size":20}'
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_asc.json 2>&1 || :
+        # last records in descending @timestamp order - see what records have been added recently
+        errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"desc"}}],"size":20}'
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_desc.json 2>&1 || :
         rc=1
     fi
 
