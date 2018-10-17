@@ -64,8 +64,8 @@ ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-COPY utils/** ${HOME}/utils/
 ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
+COPY utils/** /usr/local/bin/
 ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \

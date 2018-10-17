@@ -75,7 +75,7 @@ RUN if [ ! -d /etc/fluent/plugin ] ; then \
 
 ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-COPY utils/** ${HOME}/utils/
+COPY utils/** /usr/local/bin/
 
 WORKDIR ${HOME}
 
