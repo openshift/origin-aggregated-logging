@@ -23,19 +23,18 @@ cleanup() {
   local return_code="$?"
   set +e
   for r in dc ds cronjob ; do
-    oc describe -n ${LOGGING_NS} $r > $ARTIFACT_DIR/$r.describe 2>&1
+    for it in $( oc get -n ${LOGGING_NS} $r -o name ) ; do
+      oc describe -n ${LOGGING_NS} $it > $ARTIFACT_DIR/$it.describe 2>&1
+    done
   done
 
-  for p in $(oc get pods -n ${LOGGING_NS} -l component=es -o jsonpath={.items[*].metadata.name}) ; do
-    oc logs -c elasticsearch -n ${LOGGING_NS} $p || :  > $ARTIFACT_DIR/$p.rollout.stdout.logs 2>&1
-    oc logs -c proxy -n ${LOGGING_NS} $p > $ARTIFACT_DIR/$p.proxy.stdout.logs 2>&1 || :
-    oc exec -c elasticsearch -n ${LOGGING_NS} $p -- logs || :  > $ARTIFACT_DIR/$p.rollout.file.logs 2>&1
-  done
-  for p in $(oc get pods -n ${LOGGING_NS} -l component!=es -o jsonpath={.items[*].metadata.name}) ; do
-    oc logs -n ${LOGGING_NS} $p || :  > $ARTIFACT_DIR/$p.stdout.logs 2>&1
-  done
+  get_all_logging_pod_logs
   oc get -n ${LOGGING_NS} --all 2>&1 | artifact_out
-  
+  sudo docker images|grep logging 2>&1 | artifact_out
+  sudo docker images|grep oauth 2>&1 | artifact_out
+  sudo docker images|grep eventrouter 2>&1 | artifact_out
+  oc get events > $ARTIFACT_DIR/events.txt 2>&1
+
   os::test::junit::reconcile_output
   exit $return_code
 }
