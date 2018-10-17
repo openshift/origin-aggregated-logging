@@ -28,10 +28,10 @@ cleanup() {
     set +e
     # dump the pods before we restart them
     if [ -n "${fpod:-}" ] ; then
-        oc logs $fpod > $ARTIFACT_DIR/$fpod.log 2>&1
+        get_fluentd_pod_log $fpod > $ARTIFACT_DIR/mux-client-mode-fluentd-pod.log
     fi
     if [ -n "${muxpod:-}" ] ; then
-        oc logs $muxpod > $ARTIFACT_DIR/$muxpod.log 2>&1
+        get_mux_pod_log $muxpod > $ARTIFACT_DIR/mux-client-mode-mux-pod.log 2>&1
     fi
     if [ -n "${saveds:-}" ] ; then
         if [ -f "${saveds:-}" ]; then
@@ -40,7 +40,8 @@ cleanup() {
         fi
     fi
     os::cmd::expect_success flush_fluentd_pos_files
-    os::log::debug "$( oc label node --all logging-infra-fluentd=true || : )"
+    sudo rm -f /var/log/fluentd/fluentd.log
+    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -66,7 +67,8 @@ os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
 reset_fluentd_daemonset
 os::cmd::expect_success flush_fluentd_pos_files
-os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
+sudo rm -f /var/log/fluentd/fluentd.log
+oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up
@@ -78,7 +80,8 @@ os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status
 os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal )"
 reset_fluentd_daemonset
 os::cmd::expect_success flush_fluentd_pos_files
-os::log::debug "$( oc label node --all logging-infra-fluentd=true )"
+sudo rm -f /var/log/fluentd/fluentd.log
+oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
 os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up

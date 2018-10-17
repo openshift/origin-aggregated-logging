@@ -300,3 +300,20 @@ artifact_out() {
         internal_artifact_log "${ts}" "$line"
     done
 }
+
+# fluentd may have pod logs and logs in the file
+get_fluentd_pod_log() {
+    local pod=${1:-$( get_running_pod fluentd )}
+    local logfile=${2:-/var/log/fluentd/fluentd.log}
+    oc logs $pod 2>&1
+    if sudo test -f $logfile ; then
+        sudo cat $logfile
+    fi
+}
+
+get_mux_pod_log() {
+    local pod=${1:-$( get_running_pod mux )}
+    local logfile=${2:-/var/log/fluentd/fluentd.log}
+    oc logs $pod 2>&1
+    oc exec $pod -- cat $logfile 2> /dev/null || :
+}
