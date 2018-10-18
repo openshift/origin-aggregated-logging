@@ -24,8 +24,8 @@ update_current_fluentd() {
     FLUENTD_FORWARD=()
     id=0
     while [ $id -lt $cnt ]; do
-      POD=$( oc get pods -l component=forward-fluentd${id} -o name )
-      FLUENTD_FORWARD[$id]=$( oc get $POD --template='{{.status.podIP}}' )
+      POD=$( get_running_pod forward-fluentd${id} )
+      FLUENTD_FORWARD[$id]=$( oc get pod $POD --template='{{.status.podIP}}' )
       artifact_log update_current_fluentd .status.podIP ${FLUENTD_FORWARD[$id]}
       id=$( expr $id + 1 ) || :
     done
@@ -181,7 +181,7 @@ create_forwarding_fluentd() {
 
     # wait for forward-fluentd to start
     os::cmd::try_until_text "oc get pods -l component=forward-fluentd${id}" "^logging-forward-fluentd${id}-.* Running "
-    POD=$( oc get pods -l component=forward-fluentd${id} -o name )
+    POD=$( get_running_pod forward-fluentd${id} )
     artifact_log create_forwarding_fluentd $cnt
     get_fluentd_pod_log $POD /var/log/fluentd/forward.$id.log > $ARTIFACT_DIR/fluentd-forward.$id.log
     id=$( expr $id + 1 )
@@ -212,7 +212,7 @@ cleanup() {
   oc get pods 2>&1 | artifact_out
   id=0
   while [ $id -lt $cnt ]; do
-    POD=$( oc get pods -l component=forward-fluentd${id} -o name ) || :
+    POD=$( get_running_pod forward-fluentd${id} ) || :
     artifact_log cleanup $cnt
     get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/$fpod.$id.cleanup.log
     id=$( expr $id + 1 )
