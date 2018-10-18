@@ -24,8 +24,8 @@ update_current_fluentd() {
     FLUENTD_FORWARD=()
     id=0
     while [ $id -lt $cnt ]; do
-      POD=$( oc get pods -l component=forward-fluentd${id} -o name )
-      FLUENTD_FORWARD[$id]=$( oc get $POD --template='{{.status.podIP}}' )
+      POD=$( get_running_pod forward-fluentd${id} )
+      FLUENTD_FORWARD[$id]=$( oc get pod $POD --template='{{.status.podIP}}' )
       artifact_log update_current_fluentd .status.podIP ${FLUENTD_FORWARD[$id]}
       id=$( expr $id + 1 ) || :
     done
@@ -145,8 +145,8 @@ create_forwarding_fluentd() {
        --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf 2>&1 | artifact_out
 
     # create a directory for file buffering so as not to conflict with fluentd
-    if [ ! -d /var/lib/fluentd/forward${id} ] ; then
-        sudo mkdir -p /var/lib/fluentd/forward${id}
+    if ! sudo test -d /var/lib/fluentd-forward${id} ; then
+        sudo mkdir -p /var/lib/fluentd-forward${id}
     fi
 
     # create forwarding daemonset
@@ -173,17 +173,17 @@ create_forwarding_fluentd() {
     # make it use a different hostpath than fluentd
     oc set volumes daemonset/logging-forward-fluentd${id} --add --overwrite \
        --name=filebufferstorage --type=hostPath \
-       --path=/var/lib/fluentd/forward${id} --mount-path=/var/lib/fluentd 2>&1 | artifact_out
+       --path=/var/lib/fluentd-forward${id} --mount-path=/var/lib/fluentd 2>&1 | artifact_out
     # make it use a different log file than fluentd
-    oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/fluentd.$id.log
+    oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/forward.$id.log
     os::cmd::expect_success flush_fluentd_pos_files
     oc label node --all logging-infra-forward-fluentd${id}=true  2>&1 | artifact_out
 
     # wait for forward-fluentd to start
     os::cmd::try_until_text "oc get pods -l component=forward-fluentd${id}" "^logging-forward-fluentd${id}-.* Running "
-    POD=$( oc get pods -l component=forward-fluentd${id} -o name )
+    POD=$( get_running_pod forward-fluentd${id} )
     artifact_log create_forwarding_fluentd $cnt
-    get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/fluentd-forward.$id.log
+    get_fluentd_pod_log $POD /var/log/fluentd/forward.$id.log > $ARTIFACT_DIR/fluentd-forward.$id.log
     id=$( expr $id + 1 )
   done
 }
@@ -212,7 +212,7 @@ cleanup() {
   oc get pods 2>&1 | artifact_out
   id=0
   while [ $id -lt $cnt ]; do
-    POD=$( oc get pods -l component=forward-fluentd${id} -o name ) || :
+    POD=$( get_running_pod forward-fluentd${id} ) || :
     artifact_log cleanup $cnt
     get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/$fpod.$id.cleanup.log
     id=$( expr $id + 1 )
@@ -237,6 +237,10 @@ cleanup() {
   done
   flush_fluentd_pos_files 2>&1 | artifact_out
   sudo rm -f /var/log/fluentd/fluentd.log
+  # remove buffers to solve this error in the fluentd log:
+  # 2018-10-17 15:26:44 +0000 [error]: Exception emitting record: No such file or directory - (/var/lib/fluentd/buffer-mux-client.journal.b5786e0f775c92183.log, /var/lib/fluentd/buffer-mux-client.journal.q5786e0f775c92183.log)
+  sudo rm -rf /var/lib/fluentd/*
+  sudo rm -rf /var/lib/fluentd-forward*
   oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
   if [ $cnt -gt 1 ]; then
     cat $extra_artifacts
