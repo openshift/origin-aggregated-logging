@@ -242,6 +242,7 @@ cleanup() {
   sudo rm -rf /var/lib/fluentd/*
   sudo rm -rf /var/lib/fluentd-forward*
   oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
+  os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
   if [ $cnt -gt 1 ]; then
     cat $extra_artifacts
     # this will call declare_test_end, suite_end, etc.
