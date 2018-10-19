@@ -63,6 +63,7 @@ ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
+ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
 ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 COPY utils/** /usr/local/bin/
