@@ -2,7 +2,7 @@ require 'fluent/test'
 require 'test/unit/rr'
 require 'json'
 
-require File.join(File.dirname(__FILE__), '..', 'lib/filter_elasticsearch_genid_ext') 
+require File.join(File.dirname(__FILE__), '..', 'lib/filter_elasticsearch_genid_ext')
 
 class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
   include Fluent
@@ -28,14 +28,14 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     d.run {
       d.emit_with_tag(tag, record, @time)
     }.filtered.instance_variable_get(:@record_array)[0]
-  end  
+  end
 
   sub_test_case 'configure' do
     test 'check setting all params to non-default values' do
       d = create_driver('
         hash_id_key viaq_msg_id
         alt_key kubernetes.event.metadata.uid
-        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container.kubernetes-event"
+        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"
       ')
       assert_equal('viaq_msg_id', d.instance.hash_id_key)
       assert_equal('kubernetes.event.metadata.uid', d.instance.alt_key)
@@ -63,7 +63,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
       rec = emit_with_tag('kubernetes.var.log.containers.logging-eventrouter-9876543210', record, '
         hash_id_key viaq_msg_id
         alt_key key.subkey
-        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container.kubernetes-event"
+        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"
       ')
       assert_not_equal('0123456789', rec["viaq_msg_id"])
     end
@@ -80,7 +80,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
       rec = emit_with_tag('kubernetes.var.log.containers.logging-eventrouter-9876543210', record, '
         hash_id_key viaq_msg_id
         alt_key key.subkey
-        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container.kubernetes-event"
+        alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"
       ')
       assert_equal('0123456789', rec["viaq_msg_id"])
     end
