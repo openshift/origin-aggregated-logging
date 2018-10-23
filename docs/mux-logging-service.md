@@ -12,7 +12,13 @@ lookup and other enrichment to a central service.  The Fluentd collectors on
 each node use the *secure_forward* protocol to send the raw logs to *mux* for
 Kubernetes metadata and other enrichment, and then for storage in
 Elasticsearch.  This offloads the processing from each node, and reduces the
-load on the Kubernetes API server.
+load on the Kubernetes API server.  **NOTE** as of Fluentd 1.x, there is no
+separate *secure_forward* plugin.  The regular *forward* plugin built-in to
+Fluentd 1.x supports the secure forwarding protocol and is backwards
+compatible with the old *secure_forward* protocol.  This document will use
+the term *secure_forward* to mean both the Fluentd 1.x built-in *forward*
+with the TLS and security parameters, and the old Fluentd 0.12.x separate
+*secure_forward* protocol.
 
 *mux* is short for multiplex, because it acts like a multiplexor or manifold,
 taking in connections from many collectors, and distributing them to a data
@@ -118,6 +124,24 @@ logging cluster like this:
       base64 -d > mux-shared-key
 
 The client side setup should look something like this:
+
+    <match **something**>
+      @type forward
+      <security>
+        self_hostname forwarding-${hostname}
+        shared_key "#{File.open('/path/to/mux-shared-key') do |f| f.readline end.rstrip}"
+      </security>
+      transport tls
+      tls_cert_path /path/to/mux-ca.crt
+      tls_verify_hostname true
+      <server>
+        host mux.logging.test
+        name mux.logging.test
+        port 24284
+      </server>
+    </match>
+
+Or if using the old *secure_forward*:
 
     <match **something**>
       @type secure_forward
@@ -305,14 +329,21 @@ However, since it does need to know the absolute time, it still needs to mount
 The records come into mux via the secure_forward listener:
 
     <source>
-      @type secure_forward
+      @type forward
+      @id mux-secure-forward
       @label @MUX
       port "#{ENV['FORWARD_LISTEN_PORT'] || '24284'}"
-      self_hostname "#{ENV['FORWARD_LISTEN_HOST'] || 'mux.example.com'}"
-      shared_key "#{File.open('/etc/fluent/muxkeys/shared_key') do |f| f.readline end.rstrip}"
-      secure yes
-      cert_path /etc/fluent/muxkeys/cert
-      private_key_path /etc/fluent/muxkeys/key
+      # bind 0.0.0.0 # default
+      @log_level "#{ENV['FORWARD_INPUT_LOG_LEVEL'] || ENV['LOG_LEVEL'] || 'warn'}"
+      <security>
+        self_hostname "#{ENV['FORWARD_LISTEN_HOST'] || 'mux.example.com'}"
+        shared_key    "#{File.open('/etc/fluent/muxkeys/shared_key') do |f| f.readline end.rstrip}"
+      </security>
+      <transport tls>
+        cert_path        /etc/fluent/muxkeys/cert
+        private_key_path /etc/fluent/muxkeys/key
+        private_key_passphrase not_used_key_is_unencrypted
+      </transport>
     </source>
 
 The `logging-mux` secret is mounted on `/etc/fluent/muxkeys` and holds the mux

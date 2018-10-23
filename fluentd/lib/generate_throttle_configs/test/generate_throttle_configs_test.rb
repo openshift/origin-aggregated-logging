@@ -28,11 +28,23 @@ describe 'generate_throttle_configs' do
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head "true"
   exclude_path []
   @label @CONCAT
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format \'%Y-%m-%dT%H:%M:%S.%N%Z\'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format \'%Y-%m-%dT%H:%M:%S.%N%:z\'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
@@ -40,6 +52,7 @@ describe 'generate_throttle_configs' do
     key log
     partial_key logtag
     partial_value P
+    separator \'\'
   </filter>
   <match kubernetes.**>
     @type relabel
@@ -65,11 +78,23 @@ describe 'generate_throttle_configs' do
   path "/tmp/foo/*.logs"
   pos_file "/tmp/foo/test.logs.pos"
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head "false"
   exclude_path []
   @label @CONCAT
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format \'%Y-%m-%dT%H:%M:%S.%N%Z\'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format \'%Y-%m-%dT%H:%M:%S.%N%:z\'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
@@ -77,6 +102,7 @@ describe 'generate_throttle_configs' do
     key log
     partial_key logtag
     partial_value P
+    separator \'\'
   </filter>
   <match kubernetes.**>
     @type relabel
@@ -131,11 +157,23 @@ secondproject:
   path \"/tmp/*.log\"
   pos_file \"#{@pos_file}\"
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head \"true\"
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
   @label @CONCAT
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format '%Y-%m-%dT%H:%M:%S.%N%Z'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
@@ -143,6 +181,7 @@ secondproject:
     key log
     partial_key logtag
     partial_value P
+    separator \'\'
   </filter>
   <match kubernetes.**>
     @type relabel
@@ -164,9 +203,21 @@ secondproject:
   pos_file #{pos_file}
   read_lines_limit #{limit}
   tag kubernetes.*
-  format json_or_crio
-  keep_time_key true
   read_from_head \"true\"
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_format '%Y-%m-%dT%H:%M:%S.%N%Z'
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key true
+    </pattern>
+  </parse>
 </source>
 "
         act =  File.read("#{ENV['CONT_POS_FILE_PREFIX']}firstproject.log.pos")

@@ -22,15 +22,29 @@ echo "If you want to print out the logs, use command:"
 echo "oc exec <pod_name> $HOME/utils/logs"
 echo "============================="
 
-fluentdargs="--no-supervisor"
+dirname=$( dirname $LOGGING_FILE_PATH )
+if [ ! -d $dirname ] ; then
+    mkdir -p $dirname
+fi
+fluentdargs="--no-supervisor -o $LOGGING_FILE_PATH --log-rotate-age $LOGGING_FILE_AGE --log-rotate-size $LOGGING_FILE_SIZE"
+# find the sniffer class file
+sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb )
+if [ -z "$sniffer" ] ; then
+    sniffer=$( rpm -ql rubygem-fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb )
+fi
+if [ -n "$sniffer" -a -f "$sniffer" ] ; then
+    fluentdargs="$fluentdargs -r $sniffer"
+fi
+
 if [[ $VERBOSE ]]; then
   set -ex
-  fluentdargs="$fluentdargs -vv"
+  fluentdargs="$fluentdargs -vv --log-event-verbose"
   echo ">>>>>> ENVIRONMENT VARS <<<<<"
   env | sort
   echo ">>>>>>>>>>>>><<<<<<<<<<<<<<<<"
 else
   set -e
+  fluentdargs="$fluentdargs -q --suppress-config-dump"
 fi
 
 issue_deprecation_warnings() {
@@ -192,6 +206,7 @@ else
         NUM_OUTPUTS=2
         # Enable "output-es-ops-config.conf in output-operations.conf"
         cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
+        cp $CFG_DIR/{openshift,dynamic}/output-es-ops-retry.conf
         rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
         if [ -n "$output_label" ]; then
             cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
@@ -346,8 +361,13 @@ if [ "${ENABLE_PROMETHEUS_ENDPOINT}" != "true" ] ; then
   rm -f ${CFG_DIR}/openshift/input-pre-prometheus-metrics.conf
 fi
 
-# Create a directory for Fluentd log files
-mkdir -p /var/log/fluentd/
+# convert journal.pos file to new format
+if [ -f /var/log/journal.pos -a ! -f /var/log/journal_pos.json ] ; then
+    echo Converting old fluent-plugin-systemd pos file format to new format
+    cursor=$( cat /var/log/journal.pos )
+    echo '{"journal":"'"$cursor"'"}' > /var/log/journal_pos.json
+    rm /var/log/journal.pos
+fi
 
 issue_deprecation_warnings
 
@@ -357,9 +377,4 @@ if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true 
     export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
     export LD_BIND_NOW=1 # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1544815
 fi
-
-if [[ $DEBUG ]] ; then
-    exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
-else
-    exec fluentd $fluentdargs
-fi
+exec fluentd $fluentdargs

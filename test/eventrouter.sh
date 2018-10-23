@@ -60,11 +60,9 @@ else
 
     # Make sure there's no MUX
     # undeploy fluentd
-    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     oc set env ds/logging-fluentd MUX_CLIENT_MODE- 2>&1 | artifact_out
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd false 2>&1 | artifact_out
 
     warn_nonformatted $essvc '/project.*'
     warn_nonformatted $esopssvc '/.operations.*'
@@ -74,21 +72,17 @@ else
 
     # utilize mux if mux pod exists
     if oc get dc/logging-mux > /dev/null 2>&1 ; then
-        # MUX_CLIENT_MODE: maximal
-        oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-        os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+        # MUX_CLIENT_MODE: maximal; oc set env restarts logging-fluentd
+        stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
         oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
-        oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-        os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
+        start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
         os::cmd::try_until_success "logs_count_is_gt $prev_event_count" $FLUENTD_WAIT_TIME
         prev_event_count=$( curl_es $esopssvc /.operations.*/_count?q=kubernetes.event.verb:* | get_count_from_json )
 
-        # MUX_CLIENT_MODE: minimal
-        oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-        os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+        # MUX_CLIENT_MODE: minimal; oc set env restarts logging-fluentd
+        stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
         oc set env ds/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
-        oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-        os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
+        start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
         os::cmd::try_until_success "logs_count_is_gt $prev_event_count" $FLUENTD_WAIT_TIME
     fi
 

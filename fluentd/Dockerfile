@@ -1,46 +1,28 @@
-FROM rhel7:7-released
-
+FROM rhscl/ruby-25-rhel7:latest as builder
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.43 \
-    FLUENTD_ES=1.13.0-1 \
-    FLUENTD_KUBE_METADATA=1.0.1-1 \
-    FLUENTD_REWRITE_TAG=1.5.6-1 \
-    FLUENTD_SECURE_FWD=0.4.5-2 \
-    FLUENTD_SYSTEMD=0.0.9-1 \
-    FLUENTD_VIAQ_DATA_MODEL=0.0.13 \
-    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
-    FLUENTD_RECORD_MODIFIER=0.6.1 \
-    GEM_HOME=/usr/share/gems \
+    FLUENTD_VERSION=1.2.6 \
     HOME=/opt/app-root/src \
-    PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
-    RUBY_VERSION=2.0 \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
     LOGGING_FILE_AGE=10 \
     LOGGING_FILE_SIZE=1024000 \
     container=oci
 
 ARG TEST_REPO
+#ADD test.repo /etc/yum.repos.d
 
-RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
-  INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
-                hostname \
+USER 0
+RUN yum-config-manager --enable rhel-7-server-ose-4.0-rpms && \
+  INSTALL_PKGS="hostname \
                 bc \
                 iproute \
-                rubygem-syslog_protocol \
-                rubygem-fluent-mixin-config-placeholders \
-                rubygem-fluent-plugin-elasticsearch \
-                rubygem-fluent-plugin-flatten-hash \
-                rubygem-fluent-plugin-kubernetes_metadata_filter \
-                rubygem-fluent-plugin-record-modifier \
-                rubygem-fluent-plugin-remote-syslog \
-                rubygem-fluent-plugin-rewrite-tag-filter \
-                rubygem-fluent-plugin-secure-forward \
-                rubygem-fluent-plugin-systemd \
-                rubygem-fluent-plugin-viaq_data_model \
-                rubygem-fluent-plugin-prometheus" && \
+                patch \
+                file \
+                gcc-c++ make autoconf automake libtool m4 \
+                redhat-rpm-config" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all
@@ -49,39 +31,71 @@ RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
 #ADD *.rpm /tmp/
 #RUN yum -y install /tmp/*.rpm
 
+COPY *.gem *.tar.bz2 /
+
+RUN cd ${HOME} && tar xfj /jemalloc-5.1.0.tar.bz2 && cd ${HOME}/jemalloc-5.1.0 && \
+    EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
+    make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
+    cd .. && rm -rf jemalloc-5.1.0 && rm -f /jemalloc-5.1.0.tar.bz2
+
+RUN mkdir -p ${HOME}/build
+ADD install-gems.sh *.patch.sh *.patch ${HOME}/build/
+RUN cd ${HOME}/build/ && ./install-gems.sh && cd .. && rm -rf ${HOME}/build
+
+FROM rhel7:7-released
+
+ENV DATA_VERSION=1.6.0 \
+    FLUENTD_VERSION=1.2.6 \
+    HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
+    LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
+    LOGGING_FILE_AGE=10 \
+    LOGGING_FILE_SIZE=1024000 \
+    container=oci
+
+#ADD test.repo /etc/yum.repos.d
+USER 0
+RUN yum-config-manager --enable rhel-7-server-ose-4.0-rpms \
+    --enable rhscl-3.2-rh-ruby25-rhel-7> /dev/null && \
+  INSTALL_PKGS="hostname \
+                bc \
+                iproute" && \
+  SCL_PKGS="rh-ruby25 rh-ruby25-runtime rh-ruby25-ruby rh-ruby25-rubygem-openssl \
+            rh-ruby25-rubygem-json rh-ruby25-ruby-libs rh-ruby25-rubygems \
+            rh-ruby25-ruby-irb" && \
+  yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS $SCL_PKGS && \
+  rpm -V $INSTALL_PKGS $SCL_PKGS && \
+  yum clean all
+
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/share/gems/gems/** /opt/rh/rh-ruby25/root/usr/local/share/gems/gems/
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/share/gems/specifications/** /opt/rh/rh-ruby25/root/usr/local/share/gems/specifications/
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/share/gems/extensions/** /opt/rh/rh-ruby25/root/usr/local/share/gems/extensions/
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/lib64/gems/ruby/** /opt/rh/rh-ruby25/root/usr/local/lib64/gems/ruby/
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/lib/** /opt/rh/rh-ruby25/root/usr/local/lib/
+COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/bin/** /opt/rh/rh-ruby25/root/usr/local/bin/
+COPY --from=builder /usr/local/lib/** /usr/local/lib/
+COPY --from=builder /usr/local/bin/** /usr/local/bin/
+
+RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
 ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
-ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
 ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
-ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
-ADD lib/parser_json_or_crio/lib/*.rb /etc/fluent/plugin/
+COPY utils/** /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
-# for some reason, this isn't able to be loaded from the gem
-RUN if [ ! -d /etc/fluent/plugin ] ; then \
-      mkdir -p /etc/fluent/plugin ; \
-    fi ; \
-    sniffer=$( rpm -ql rubygem-fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
-    if [ -z "$sniffer" -o ! -f "$sniffer" ] ; then \
-        echo Error: sniffer not found - possibly not using rubygem-fluent-plugin-elasticsearch 1.17.2 or later ; \
-    else \
-        cp $sniffer /etc/fluent/plugin/ ; \
-    fi
-
-ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-COPY utils/** /usr/local/bin/
+RUN . /opt/rh/rh-ruby25/enable ; \
+    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
+    cp $sniffer /etc/fluent/plugin/
 
 WORKDIR ${HOME}
-
-CMD ["sh", "run.sh"]
+CMD ["scl", "enable", "rh-ruby25", "--", "sh", "run.sh"]
 
 LABEL io.k8s.display-name=Fluentd
 
@@ -92,8 +106,7 @@ LABEL \
         name="openshift3/logging-fluentd" \
         License="GPLv2+" \
         io.k8s.display-name="Fluentd" \
-        version="v3.10.0" \
+        version="v4.0.0" \
         architecture="x86_64" \
-        release="0.56.0.0" \
+        release="0.0.0.0" \
         io.openshift.tags="logging,elk,fluentd"
-

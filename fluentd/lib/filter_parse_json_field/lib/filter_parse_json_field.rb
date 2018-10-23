@@ -21,8 +21,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-module Fluent
-  class ParseJSONFieldFilter < Fluent::Filter
+module Fluent::Plugin
+  class ParseJSONFieldFilter < Fluent::Plugin::Filter
 
     Fluent::Plugin.register_filter('parse_json_field', self)
 
@@ -41,7 +41,7 @@ module Fluent
     def filter_stream(tag, es)
       return es unless @merge_json_log
 
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
 
       es.each { |time, record|
         record = do_merge_json_log(record)

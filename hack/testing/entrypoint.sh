@@ -76,9 +76,10 @@ monitor_fluentd_top() {
 
 monitor_fluentd_pos() {
     while true ; do
-        if sudo test -s /var/log/journal.pos ; then
+        local cursor=$( get_journal_pos_cursor )
+        if [ -n "$cursor" ] ; then
             local startts=$( date +%s )
-            local count=$( sudo journalctl -c $( sudo cat /var/log/journal.pos ) | wc -l )
+            local count=$( sudo journalctl -c $cursor | wc -l )
             local endts=$( date +%s )
             echo $endts $( expr $endts - $startts ) $count
         else

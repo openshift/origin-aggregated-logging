@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # test the mux route and service
-# - can accept secure_forward from a "client" fluentd
+# - can accept forward from a "client" fluentd
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
@@ -47,8 +47,7 @@ update_current_fluentd() {
   local myoption=${1:-0}
 
   # undeploy fluentd
-  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-  os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
+  stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
   oc get pods |grep fluentd | artifact_out || :
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
@@ -73,15 +72,36 @@ update_current_fluentd() {
       <match kubernetes.var.log.containers.**kibana**>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE !.+ project.testproj.external\n\
-        rewriterule2 MESSAGE .+ project.testproj.external\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+          invert true\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
       </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
-        rewriterule2 MESSAGE .+ project.testproj.external\n\
-        rewriterule3 message .+ project.testproj.external\n\
+        <rule>\n\
+          key CONTAINER_NAME\n\
+          pattern ^k8s_[^_]+_[^_]+_default_\n\
+          tag kubernetes.journal.container._default_\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
+        <rule>\n\
+          key message\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
       </match>\n\
       <filter project.testproj.external>\n\
         @type record_transformer\n\
@@ -96,15 +116,36 @@ update_current_fluentd() {
       <match kubernetes.var.log.containers.**kibana**>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE !.+ project.testproj.external\n\
-        rewriterule2 MESSAGE .+ project.testproj.external\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+          invert true\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
       </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
-        rewriterule2 MESSAGE .+ project.testproj.external\n\
-        rewriterule3 message .+ project.testproj.external\n\
+        <rule>\n\
+          key CONTAINER_NAME\n\
+          pattern ^k8s_[^_]+_[^_]+_default_\n\
+          tag kubernetes.journal.container._default_\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
+        <rule>\n\
+          key message\n\
+          pattern .+\n\
+          tag project.testproj.external\n\
+        </rule>\n\
       </match>\n\
       <filter project.testproj.external>\n\
         @type record_transformer\n\
@@ -129,15 +170,36 @@ update_current_fluentd() {
       <match kubernetes.var.log.containers.**kibana**>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 MESSAGE !.+ project.bogus.external\n\
-        rewriterule2 MESSAGE .+ project.bogus.external\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.bogus.external\n\
+          invert true\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.bogus.external\n\
+        </rule>\n\
       </match>\n\
       <match journal>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
-        rewriterule1 CONTAINER_NAME ^k8s_[^_]+_[^_]+_default_ kubernetes.journal.container._default_\n\
-        rewriterule2 MESSAGE .+ project.bogus.external\n\
-        rewriterule3 message .+ project.bogus.external\n\
+        <rule>\n\
+          key CONTAINER_NAME\n\
+          pattern ^k8s_[^_]+_[^_]+_default_\n\
+          tag kubernetes.journal.container._default_\n\
+        </rule>\n\
+        <rule>\n\
+          key MESSAGE\n\
+          pattern .+\n\
+          tag project.bogus.external\n\
+        </rule>\n\
+        <rule>\n\
+          key message\n\
+          pattern .+\n\
+          tag project.bogus.external\n\
+        </rule>\n\
       </match>\n\
       <filter project.bogus.external>\n\
         @type record_transformer\n\
@@ -155,10 +217,7 @@ update_current_fluentd() {
 
   reset_fluentd_daemonset
 
-  os::cmd::expect_success flush_fluentd_pos_files
-  sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
-  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-  os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+  start_fluentd true 2>&1 | artifact_out
   fpod=$( get_running_pod fluentd )
 }
 
@@ -185,13 +244,13 @@ write_and_verify_logs() {
     oc get pods | grep fluentd | artifact_out
 
     add_test_message $uuid_es
-    local fcursor_before=$( sudo cat /var/log/journal.pos )
+    local fcursor_before=$( get_journal_pos_cursor )
     oc get pods | grep fluentd | artifact_out
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     # get the cursor of this record - compare to the fluentd journal cursor position
     local reccursor=$( sudo journalctl -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
     oc get pods | grep fluentd | artifact_out
-    local fcursor_after=$( sudo cat /var/log/journal.pos )
+    local fcursor_after=$( get_journal_pos_cursor )
     artifact_log Cursors:
     artifact_log "  " before $fcursor_before
     artifact_log "  " record $reccursor
@@ -319,8 +378,7 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         get_fluentd_pod_log $fpod > $ARTIFACT_DIR/mux.$fpod.log
     fi
-    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         oc replace --force -f $savecm 2>&1 | artifact_out
     fi
@@ -332,10 +390,7 @@ cleanup() {
     do
       curl_es $es_svc /project.$index* -XDELETE
     done
-    os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     oc delete project testproj 2>&1 | artifact_out
     os::cmd::try_until_failure "oc get project testproj" 2>&1 | artifact_out
     # this will call declare_test_end, suite_end, etc.

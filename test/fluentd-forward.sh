@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This is a test suite for the fluentd secure_forward feature
+# This is a test suite for the fluentd forward feature
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
@@ -18,8 +18,7 @@ update_current_fluentd() {
     # but instead forwards to the forwarding fluentd
 
     # undeploy fluentd
-    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
     FLUENTD_FORWARD=()
     id=0
@@ -33,22 +32,26 @@ update_current_fluentd() {
     # update configmap secure-forward#.conf
     if [ $cnt -eq 1 ]; then
       # edit so we don't send to ES
-      oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+      oc get configmap/logging-fluentd -o yaml | sed -e '/## matches/ a\
       <match **>\
         @type copy\
         @include configs.d/user/secure-forward0.conf\
-      </match>' | oc replace -f -
+      </match>' -e '/output-operations.conf/d' -e '/output-applications.conf/d' | oc replace -f -
         oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/secure-forward0.conf", "#": "generated config file secure-forward0.conf" }]' 2>&1
         oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward0.conf", "value": "\
   <store>\n\
-   @type secure_forward\n\
-   self_hostname forwarding-${HOSTNAME}\n\
-   shared_key aggregated_logging_ci_testing\n\
-   secure no\n\
-   buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
-   buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
-   buffer_type file\n\
-   buffer_path '/var/lib/fluentd/buffer-fluentd-forward0'\n\
+   @type forward\n\
+   @id fluentd-forward0\n\
+   <security>\n\
+     self_hostname forwarding-${HOSTNAME}\n\
+     shared_key aggregated_logging_ci_testing\n\
+   </security>\n\
+   <buffer>\n\
+     @type file\n\
+     path '/var/lib/fluentd/forward0'\n\
+     queued_chunks_limit_size \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
+     chunk_limit_size \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
+   </buffer>\n\
    <server>\n\
     host '${FLUENTD_FORWARD[0]}'\n\
     port 24284\n\
@@ -56,7 +59,7 @@ update_current_fluentd() {
   </store>\n"}]'
       else
     # edit so we don't send to ES
-    oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+    oc get configmap/logging-fluentd -o yaml | sed -e '/## matches/ a\
       <filter **>\
         @type record_transformer\
         remove_keys _id, viaq_msg_id\
@@ -64,32 +67,40 @@ update_current_fluentd() {
       <match **>\
         @type copy\
         @include configs.d/user/secure-forward1.conf\
-      </match>' | oc replace -f -
+      </match>' -e '/output-operations.conf/d' -e '/output-applications.conf/d' | oc replace -f -
         oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/secure-forward1.conf", "#": "generated config file secure-forward1.conf" }]' 2>&1
         oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/secure-forward1.conf", "value": "\
   <store>\n\
-   @type secure_forward\n\
-   self_hostname forwarding-${HOSTNAME}\n\
-   shared_key aggregated_logging_ci_testing\n\
-   secure no\n\
-   buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
-   buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
-   buffer_type file\n\
-   buffer_path '/var/lib/fluentd/buffer-fluentd-forward0'\n\
+   @type forward\n\
+   @id fluentd-forward0\n\
+   <security>\n\
+     self_hostname forwarding-${HOSTNAME}\n\
+     shared_key aggregated_logging_ci_testing\n\
+   </security>\n\
+   <buffer>\n\
+     @type file\n\
+     path '/var/lib/fluentd/forward0'\n\
+     queued_chunks_limit_size \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
+     chunk_limit_size \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
+   </buffer>\n\
    <server>\n\
     host '${FLUENTD_FORWARD[0]}'\n\
     port 24284\n\
    </server>\n\
   </store>\n\
   <store>\n\
-   @type secure_forward\n\
-   self_hostname forwarding-${HOSTNAME}\n\
-   shared_key aggregated_logging_ci_testing\n\
-   secure no\n\
-   buffer_queue_limit \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
-   buffer_chunk_limit \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
-   buffer_type file\n\
-   buffer_path '/var/lib/fluentd/buffer-fluentd-forward1'\n\
+   @type forward\n\
+   @id fluentd-forward1\n\
+   <security>\n\
+     self_hostname forwarding-${HOSTNAME}\n\
+     shared_key aggregated_logging_ci_testing\n\
+   </security>\n\
+   <buffer>\n\
+     @type file\n\
+     path '/var/lib/fluentd/forward1'\n\
+     queued_chunks_limit_size \"#{ENV['"'BUFFER_QUEUE_LIMIT'"']}\"\n\
+     chunk_limit_size \"#{ENV['"'BUFFER_SIZE_LIMIT'"']}\"\n\
+   </buffer>\n\
    <server>\n\
     host '${FLUENTD_FORWARD[1]}'\n\
     port 24284\n\
@@ -106,10 +117,7 @@ update_current_fluentd() {
 
     oc set env daemonset/logging-fluentd FILE_BUFFER_LIMIT=${MY_FILE_BUFFER_LIMIT} BUFFER_SIZE_LIMIT=${MY_BUFFER_SIZE_LIMIT} 2>&1 | artifact_out
     # redeploy fluentd
-    os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/log/fluentd/fluentd.log
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    CLEANBUFFERS=false start_fluentd true 2>&1 | artifact_out
     artifact_log update_current_fluentd $cnt
     fpod=$( get_running_pod fluentd ) || :
     artifact_log update_current_fluentd $cnt
@@ -141,7 +149,11 @@ create_forwarding_fluentd() {
   id=0
   while [ $id -lt $cnt ]; do
     # create forwarding configmap named "logging-forward-fluentd"
-    oc create configmap logging-forward-fluentd${id} \
+    if [ ${FORWARDCNT:-1} -eq 2 ] ; then
+      # add genid filter
+      genid="--from-file=filter-post-genid.conf=$OS_O_A_L_DIR/fluentd/configs.d/openshift/filter-post-genid.conf"
+    fi
+    oc create configmap logging-forward-fluentd${id} ${genid:-} \
        --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf 2>&1 | artifact_out
 
     # create a directory for file buffering so as not to conflict with fluentd
@@ -175,9 +187,9 @@ create_forwarding_fluentd() {
        --name=filebufferstorage --type=hostPath \
        --path=/var/lib/fluentd-forward${id} --mount-path=/var/lib/fluentd 2>&1 | artifact_out
     # make it use a different log file than fluentd
-    oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/forward.$id.log
-    os::cmd::expect_success flush_fluentd_pos_files
-    oc label node --all logging-infra-forward-fluentd${id}=true  2>&1 | artifact_out
+    oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/forward.$id.log 2>&1 | artifact_out
+    flush_fluentd_pos_files 2>&1 | artifact_out
+    oc label node --all logging-infra-forward-fluentd${id}=true 2>&1 | artifact_out
 
     # wait for forward-fluentd to start
     os::cmd::try_until_text "oc get pods -l component=forward-fluentd${id}" "^logging-forward-fluentd${id}-.* Running "
@@ -205,6 +217,11 @@ cleanup() {
     mycmd=os::log::error
   fi
   cnt=${FORWARDCNT:-0}
+  local do_exit=false
+  if [ $cnt -eq 2 -o $return_code -ne 0 ] ; then
+    do_exit=true
+    $mycmd fluentd-forward test finished at $( date )
+  fi
   # dump the pod before we restart it
   if [ -n "${fpod:-}" ] ; then
     get_fluentd_pod_log $fpod > $ARTIFACT_DIR/$fpod.cleanup.log
@@ -214,11 +231,12 @@ cleanup() {
   while [ $id -lt $cnt ]; do
     POD=$( get_running_pod forward-fluentd${id} ) || :
     artifact_log cleanup $cnt
-    get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/$fpod.$id.cleanup.log
+    if [ -n "$POD" ] ; then
+      get_fluentd_pod_log $POD /var/log/fluentd/fluentd.$id.log > $ARTIFACT_DIR/$fpod.$id.cleanup.log 2>&1
+    fi
     id=$( expr $id + 1 )
   done
-  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
-  os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+  stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out || :
   if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
     oc replace --force -f $savecm 2>&1 | artifact_out
   fi
@@ -227,28 +245,20 @@ cleanup() {
   fi
   id=0
   while [ $id -lt $cnt ]; do
-    $mycmd fluentd-forward${id} test finished at $( date )
-
+    os::log::info Cleaning up forward-fluentd${id}
     # Clean up only if it's still around
+    oc label node --all logging-infra-forward-fluentd${id}- 2>&1 | artifact_out
     oc delete daemonset/logging-forward-fluentd${id} 2>&1 | artifact_out
     oc delete configmap/logging-forward-fluentd${id} 2>&1 | artifact_out
-    oc label node --all logging-infra-forward-fluentd${id}- 2>&1 | artifact_out
     id=$( expr $id + 1 )
   done
-  flush_fluentd_pos_files 2>&1 | artifact_out
-  sudo rm -f /var/log/fluentd/fluentd.log
-  # remove buffers to solve this error in the fluentd log:
-  # 2018-10-17 15:26:44 +0000 [error]: Exception emitting record: No such file or directory - (/var/lib/fluentd/buffer-mux-client.journal.b5786e0f775c92183.log, /var/lib/fluentd/buffer-mux-client.journal.q5786e0f775c92183.log)
-  sudo rm -rf /var/lib/fluentd/*
-  sudo rm -rf /var/lib/fluentd-forward*
-  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-  os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-  if [ $cnt -gt 1 ]; then
-    cat $extra_artifacts
+  start_fluentd true 2>&1 | artifact_out
+  if [ $do_exit = true ]; then
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
+    exit $return_code
   fi
-  exit $return_code
+  set -e
 }
 trap "cleanup" EXIT
 

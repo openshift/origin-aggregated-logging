@@ -33,18 +33,14 @@ cleanup() {
     if [ -n "${muxpod:-}" ] ; then
         get_mux_pod_log $muxpod > $ARTIFACT_DIR/$muxpod.log 2>&1
     fi
-    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         os::log::debug "$( oc replace --force -f $savecm )"
     fi
     if [ -n "${saveds:-}" -a -f "${saveds:-}" ] ; then
         os::log::debug "$( oc replace --force -f $saveds )"
     fi
-    os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/log/fluentd/fluentd.log
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out || :
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true 2>&1 | artifact_out
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -75,8 +71,7 @@ es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
 fpod=$( get_running_pod fluentd )
-os::log::debug "$( oc label node --all logging-infra-fluentd- 2>&1 || : )"
-os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
 oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal
 
@@ -111,10 +106,7 @@ os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --name=viaq-te
                    -t hostPath -m /etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf \
                    --path $cfg 2>&1 )"
 
-os::cmd::expect_success flush_fluentd_pos_files
-sudo rm -f /var/log/fluentd/fluentd.log
-os::log::debug "$( oc label node --all logging-infra-fluentd=true 2>&1 || : )"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 
 get_logmessage() {

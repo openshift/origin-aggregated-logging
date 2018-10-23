@@ -6,4 +6,6 @@ _output/
 
 # python byte code
 *.pyc
-
+.venv
+venv
+vendor

@@ -275,7 +275,17 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    os::cmd::expect_success "sudo rm -f /var/log/journal.pos"
+    os::cmd::expect_success "sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
+}
+
+function get_journal_pos_cursor() {
+    if sudo test -s /var/log/journal.pos ; then
+        sudo cat /var/log/journal.pos
+    elif sudo test -s /var/log/journal_pos.json ; then
+        sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json
+    else
+        echo ""
+    fi
 }
 
 # $1 - command to call to pass the uuid_es
@@ -314,7 +324,7 @@ function wait_for_fluentd_to_catch_up() {
             awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
                 $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
-        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
+        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} + > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
             sleep 1
         done & checkpids="$checkpids $!"
     fi
@@ -435,7 +445,7 @@ docker_uses_journal() {
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
     # wait until fluentd is actively reading from the source (journal or files)
-    os::cmd::try_until_success "sudo test -f /var/log/journal.pos" $(( timeout * second ))
+    os::cmd::try_until_success "sudo test -s /var/log/journal.pos -o -s /var/log/journal_pos.json" $(( timeout * second ))
     if docker_uses_journal ; then
         : # done
     else
@@ -535,4 +545,33 @@ get_all_logging_pod_logs() {
       esac
 	done
   done
+}
+
+stop_fluentd() {
+    local fpod=${1:-$( get_running_pod fluentd )}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    oc label node --all logging-infra-fluentd-
+    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $wait_time
+    # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the fluentd pod hangs around
+    # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
+    # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
+    if [ -n "${fpod:-}" ] ; then
+        os::cmd::try_until_failure "oc get pod $fpod > /dev/null 2>&1" $wait_time
+    fi
+}
+
+start_fluentd() {
+    local cleanfirst=${1:-false}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    if [ "$cleanfirst" != false ] ; then
+        flush_fluentd_pos_files
+        sudo rm -rf /var/log/fluentd/fluentd.log
+        if [ "${CLEANBUFFERS:-true}" = true ] ; then
+            sudo rm -rf /var/lib/fluentd/*
+        fi
+    fi
+    oc label node --all logging-infra-fluentd=true
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $wait_time
 }
