@@ -32,3 +32,14 @@ matrix:
         cd fluentd/lib/filter_concat
       script:
         rake test
+    - name: fluentd - filter_elasticsearch_genid_ext test
+      env:
+        - FLUENTD_VERSION=0.12.0
+      language: ruby
+      rvm:
+      - 2.0
+      gemfile: fluentd/lib/filter_elasticsearch_genid_ext/Gemfile
+      before_script:
+        cd fluentd/lib/filter_elasticsearch_genid_ext
+      script:
+        rake test
