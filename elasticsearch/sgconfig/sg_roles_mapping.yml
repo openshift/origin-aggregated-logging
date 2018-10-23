@@ -6,6 +6,10 @@ sg_role_fluentd:
   users:
     - 'CN=system.logging.fluentd,OU=OpenShift,O=Logging'
 
+sg_role_rsyslog:
+  users:
+    - 'CN=system.logging.rsyslog,OU=OpenShift,O=Logging'
+
 sg_role_curator:
   users:
     - 'CN=system.logging.curator,OU=OpenShift,O=Logging'
