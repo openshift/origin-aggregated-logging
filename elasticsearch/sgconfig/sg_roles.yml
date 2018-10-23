@@ -22,6 +22,16 @@ sg_role_fluentd:
         - CRUD
         - CREATE_INDEX
 
+sg_role_rsyslog:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
 sg_role_curator:
   cluster:
     - CLUSTER_MONITOR
