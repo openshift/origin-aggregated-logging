@@ -61,6 +61,7 @@ ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
 ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
+ADD filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
 ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 COPY utils/** /usr/local/bin/
