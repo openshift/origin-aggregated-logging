@@ -6,7 +6,7 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::test::junit::declare_suite_start "test/eventrouter"
 
-FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 5 * minute ))}
+FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 3 * minute ))}
 
 muxmode=$( oc set env ds/logging-fluentd --list | grep \^MUX_CLIENT_MODE ) || :
 if [ -z "${muxmode:-}" ] ; then
@@ -69,11 +69,10 @@ else
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
 
     warn_nonformatted $essvc '/project.*'
-    warn_nonformatted $esopssvc '/.operations.*/'
+    warn_nonformatted $esopssvc '/.operations.*'
 
     qs='{"query":{"wildcard":{"kubernetes.event.verb":"*"}}}'
-    escapedqs='{\"query\":{\"wildcard\":{\"kubernetes.event.verb\":\"*\"}}}'
-    os::cmd::try_until_success "logs_count_is_gt 0 $escapedqs" $FLUENTD_WAIT_TIME
+    os::cmd::try_until_success "logs_count_is_gt 0 '$qs'" $FLUENTD_WAIT_TIME
     prev_event_count=$( curl_es $esopssvc /.operations.*/_count -X POST -d "$qs" | get_count_from_json )
     echo "prev_event_count: $prev_event_count $qs $prev_event_count" | artifact_out
     fpod=$( get_running_pod fluentd )
@@ -86,7 +85,7 @@ else
         oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
         oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
         os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
-        os::cmd::try_until_success "logs_count_is_gt $prev_event_count $escapedqs" $FLUENTD_WAIT_TIME
+        os::cmd::try_until_success "logs_count_is_gt $prev_event_count '$qs'" $FLUENTD_WAIT_TIME
         prev_event_count=$( curl_es $esopssvc /.operations.*/_count -X POST -d "$qs" | get_count_from_json )
 
         # MUX_CLIENT_MODE: minimal; oc set env restarts logging-fluentd
@@ -95,16 +94,14 @@ else
         oc set env ds/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
         oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
         os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
-        os::cmd::try_until_success "logs_count_is_gt $prev_event_count $escapedqs" $FLUENTD_WAIT_TIME
+        os::cmd::try_until_success "logs_count_is_gt $prev_event_count '$qs'" $FLUENTD_WAIT_TIME
     fi
 
     # Check if there's no duplicates
     qs='{"query":{"bool":{"must":[{"match_phrase":{"kubernetes.event.verb":"ADDED"}},{"match":{"message":"'"${fpod}"'"}}]}},"_source":["kubernetes.event.metadata.uid","message"]}'
-    escapedqs='{\"query\":{\"bool\":{\"must\":[{\"match_phrase\":{\"kubernetes.event.verb\":\"ADDED\"}}\,{\"match\":{\"message\":\"'\"${fpod}\"'\"}}]}}\,\"_source\":[\"kubernetes.event.metadata.uid\"\,\"message\"]}'
     echo "$fpod" | artifact_out
     echo "$qs" | artifact_out
-    echo "$escapedqs" | artifact_out
-    os::cmd::try_until_success "logs_count_is_gt 0 $escapedqs" $FLUENTD_WAIT_TIME
+    os::cmd::try_until_success "logs_count_is_gt 0 '$qs'" $FLUENTD_WAIT_TIME
     curl_es $esopssvc /.operations.*/_search -X POST -d "$qs" | python -mjson.tool | artifact_out
     ids=$( curl_es $esopssvc /.operations.*/_search -X POST -d "$qs" | python -mjson.tool | egrep uid | awk '{print $2}' | sed -e "s/\"//g" )
     for id in $ids; do
