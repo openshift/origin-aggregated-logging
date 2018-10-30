@@ -13,7 +13,7 @@ ENV HOME=/opt/app-root/src \
     CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=5.5.4 \
+    CURATOR_VER=5.2.0 \
     CURATOR_TIMEOUT=300 \
     container=oci
 
