@@ -19,8 +19,13 @@ done
 echo "============================="
 echo "Fluentd logs have been redirected to: $LOGGING_FILE_PATH"
 echo "If you want to print out the logs, use command:"
-echo "oc exec <pod_name> $HOME/utils/logs"
+echo "oc exec <pod_name> -- logs"
 echo "============================="
+
+if [ ! -d `dirname $LOGGING_FILE_PATH` ]; then
+  mkdir -p `dirname $LOGGING_FILE_PATH`
+fi
+touch $LOGGING_FILE_PATH; exec >> $LOGGING_FILE_PATH 2>&1
 
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
