@@ -15,7 +15,7 @@ spec:
       spec:
         containers:
         - name: fluentd-logstash
-          image: docker.io/logstash:latest
+          image: docker.io/logstash:5
           imagePullPolicy: IfNotPresent
           ports:
           - containerPort: 9400
