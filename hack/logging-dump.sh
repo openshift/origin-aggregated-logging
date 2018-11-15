@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright 2017 Red Hat, Inc. and/or its affiliates
 # and other contributors as indicated by the @author tags.
@@ -15,6 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+if (( ${BASH_VERSION%%.*} < 4 ));
+then
+  echo "You need bash version higher than 4 to run this script."
+  exit 1
+fi
+
 set -euo pipefail
 if [ -n "${DEBUG:-}" ] ; then
     set -x
