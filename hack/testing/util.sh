@@ -304,6 +304,8 @@ function wait_for_fluentd_to_catch_up() {
     if os::cmd::try_until_text "curl_es ${es_svc} /${logging_index}/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
         artifact_log good - $FUNCNAME: found $expected record $logging_index for \'$fullmsg\'
         if [ -n "${1:-}" ] ; then
+            curl_es ${es_svc} /${logging_index}/_count -X POST -d "$qs" 2>&1 | artifact_out
+            curl_es ${es_svc} /${logging_index}/_count -X POST -d "$qs" 2>&1 | get_count_from_json | artifact_out
             curl_es ${es_svc} "/${logging_index}/_search" -X POST -d "$qs" | jq . > $ARTIFACT_DIR/apps.json
             $1 $uuid_es $ARTIFACT_DIR/apps.json
         fi
