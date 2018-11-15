@@ -19,13 +19,14 @@ done
 echo "============================="
 echo "Fluentd logs have been redirected to: $LOGGING_FILE_PATH"
 echo "If you want to print out the logs, use command:"
-echo "oc exec <pod_name> $HOME/utils/logs"
+echo "oc exec <pod_name> -- logs"
 echo "============================="
 
 dirname=$( dirname $LOGGING_FILE_PATH )
 if [ ! -d $dirname ] ; then
     mkdir -p $dirname
 fi
+touch $LOGGING_FILE_PATH; exec >> $LOGGING_FILE_PATH 2>&1
 fluentdargs="--no-supervisor -o $LOGGING_FILE_PATH --log-rotate-age $LOGGING_FILE_AGE --log-rotate-size $LOGGING_FILE_SIZE"
 # find the sniffer class file
 sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb )
