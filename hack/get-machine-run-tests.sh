@@ -51,6 +51,26 @@ EXTRA_ENV - (default none) - extra environment variables to pass to the test
 EXTRA_ANSIBLE - (default none) - extra options to add to the ansible-playbook
   command line when running the logging playbook e.g.
   EXTRA_ANSIBLE="-e openshift_logging_use_ops=False -e other=True"
+USE_LOGGING - (default true) - if true, install logging after installing
+  OpenShift using openshift-ansible logging playbook
+TEST_LOGGING - (default true) - if true, run logging CI after installing
+  logging
+PROVIDER - (default aws) - `aws` uses oct and your aws credentials to
+  provision a machine, install OpenShift, and run tests in it
+  `libvirt` assumes you have already provisioned a local libvirt
+  machine running CentOS7 with the following:
+  - the machine has an fqdn, not just a local 192.168.122.x IP address e.g.
+    you have added an /etc/hosts entry for the machine - this is useful
+    when you don't want to or cannot use an external resolver like xip.io
+  - can ssh as root into the machine with no password, which usually
+    means the machine /root/.ssh/authorized_keys has your ssh pub key
+  - your host has NFS exported your $HOME (or source root) directory, and
+    has mapped root to your local uid/gid (default 1000) e.g.
+  /etc/exports.d/home.exports:
+  /home/myusername	192.168.0.0/255.255.0.0(rw,all_squash,anonuid=1000,anongid=1000)
+  - your machine has NFS mounted this export as `/share` inside the VM:
+  /etc/fstab:
+  192.168.122.1:/home/myusername    /share          nfs     nfsvers=3       0 0
 
 see the file $0 for other variables which can be set
 You can also pass these in as environment variables on the command line:
@@ -96,22 +116,29 @@ if echo "${EXTRA_ANSIBLE_OPENSHIFT:-}" | grep -q -i "use_crio=true" ; then
 else
     USE_CRIO=${USE_CRIO:-false}
 fi
-export REMOTE_GOPATH=${REMOTE_GOPATH:-/data}
+GOPATH=${GOPATH:-$HOME/go}
+PROVIDER=${PROVIDER:-aws} # or libvirt, or openstack, or gce, or ...
+if [ $PROVIDER = aws ] ; then
+    export REMOTE_GOPATH=${REMOTE_GOPATH:-/data}
+fi
+if [ $PROVIDER = libvirt ] ; then
+    export REMOTE_GOPATH=${REMOTE_GOPATH:-/share/go}
+fi
 OS=${OS:-rhel}
 TESTNAME=${TESTNAME:-logging}
 INSTANCE_TYPE=${INSTANCE_TYPE:-m4.xlarge}
-# on the remote machine
-OS_ROOT=${OS_ROOT:-$REMOTE_GOPATH/src/github.com/openshift/origin}
-RELDIR=${RELDIR:-$OS_ROOT/_output/local/releases}
 # for cloning origin-aggregated-logging from a specific repo and branch
 # you can override just the GITHUB_REPO=myusername or the entire GIT_URL
 # if it is hosted somewhere other than github
 GIT_REPO_BASE_DIR=${GIT_REPO_BASE_DIR:-$HOME}
 GITHUB_REPO=${GITHUB_REPO:-openshift}
 GIT_BRANCH=${GIT_BRANCH:-master}
+# i.e. the base branch that $GIT_BRANCH was branched from
+GIT_BASE_BRANCH=${GIT_BASE_BRANCH:-master}
 GIT_URL=${GIT_URL:-https://github.com/${GITHUB_REPO}/origin-aggregated-logging}
 ANSIBLE_REPO=${ANSIBLE_REPO:-openshift}
 ANSIBLE_BRANCH=${ANSIBLE_BRANCH:-master}
+ANSIBLE_BASE_BRANCH=${ANSIBLE_BASE_BRANCH:-master}
 ANSIBLE_URL=${ANSIBLE_URL:-https://github.com/${ANSIBLE_REPO}/openshift-ansible}
 OAL_LOCAL_PATH=`echo $GIT_URL | sed 's,https://,,'`
 OS_O_A_L_DIR=${OS_O_A_L_DIR:-$REMOTE_GOPATH/src/github.com/openshift/origin-aggregated-logging}
@@ -123,110 +150,146 @@ ROOT_VOLUME_SIZE=${ROOT_VOLUME_SIZE:-75}
 
 INSTNAME=${INSTNAME:-origin_$USER-$TESTNAME-$OS-1}
 
+# assumes origin version same as origin-aggregated-logging version same
+# as openshift-ansible version
+case $GIT_BASE_BRANCH in
+    master) oshift_ver=4.0 # master currently corresponds to 4.0
+            OPENSHIFT_IMAGE_TAG=${OPENSHIFT_IMAGE_TAG:-v$oshift_ver} ;;
+    release-*) oshift_ver=$( echo $GIT_BASE_BRANCH | sed 's/.*-\([0-9][0-9]*[.][0-9][0-9]*\)/\1/' )
+               OPENSHIFT_IMAGE_TAG=${OPENSHIFT_IMAGE_TAG:-v$oshift_ver} ;;
+    *) oshift_ver=master
+       OPENSHIFT_IMAGE_TAG=${OPENSHIFT_IMAGE_TAG:-latest} ;;
+esac
 
 pushd $GIT_REPO_BASE_DIR/origin-aggregated-logging
 
-# https://github.com/openshift/origin-ci-tool#installation
-NO_SKIP=${NO_SKIP:-0}
-if [ ! -d .venv ] ; then
-    virtualenv .venv --system-site-packages
-    NO_SKIP=1
-fi
-PS1=unused
-source .venv/bin/activate
-if [ "${NO_SKIP:-0}" = 1 ] ; then
-    if pip show origin-ci-tool > /dev/null ; then
-#        pip install --upgrade git+file://$HOME/origin-ci-tool --process-dependency-links
-        pip install --upgrade git+https://github.com/openshift/origin-ci-tool.git --process-dependency-links
-    else
-#        pip install git+file://$HOME/origin-ci-tool --process-dependency-links
-        pip install git+https://github.com/openshift/origin-ci-tool.git --process-dependency-links
+if [ $PROVIDER = aws ] ; then
+    # on the remote machine
+    OS_ROOT=${OS_ROOT:-$REMOTE_GOPATH/src/github.com/openshift/origin}
+    # https://github.com/openshift/origin-ci-tool#installation
+    NO_SKIP=${NO_SKIP:-0}
+    if [ ! -d .venv ] ; then
+        virtualenv .venv --system-site-packages
+        NO_SKIP=1
     fi
-    for pkg in boto boto3 ; do
-        if pip show $pkg > /dev/null ; then
-            pip install --upgrade $pkg
+    PS1=unused
+    source .venv/bin/activate
+    if [ "${NO_SKIP:-0}" = 1 ] ; then
+        if pip show origin-ci-tool > /dev/null ; then
+            #        pip install --upgrade git+file://$HOME/origin-ci-tool --process-dependency-links
+            pip install --upgrade git+https://github.com/openshift/origin-ci-tool.git --process-dependency-links
         else
-            pip install $pkg
+            #        pip install git+file://$HOME/origin-ci-tool --process-dependency-links
+            pip install git+https://github.com/openshift/origin-ci-tool.git --process-dependency-links
         fi
-    done
-    oct bootstrap self
-fi
-
-# set instance values
-oct configure aws-defaults master_security_group_ids $AWS_SECURITY_GROUPS || {
-    echo Adding configuration for master_security_group_ids
-    echo 'master_security_group_ids: !!python/unicode '"'$AWS_SECURITY_GROUPS'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
-}
-oct configure aws-defaults master_instance_type $INSTANCE_TYPE || {
-    echo Adding configuration for master_instance_type
-    echo 'master_instance_type: !!python/unicode '"'$INSTANCE_TYPE'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
-}
-oct configure aws-defaults master_root_volume_size ${ROOT_VOLUME_SIZE} || {
-    echo Adding configuration for master_root_volume_size
-    echo master_root_volume_size: $ROOT_VOLUME_SIZE >> $HOME/.config/origin-ci-tool/aws_variables.yml
-}
-
-if [ ! -f $HOME/.aws/credentials ] ; then
-    echo Error: no AWS credentials
-    echo see https://github.com/openshift/origin-ci-tool#aws-credentials-and-configuration
-    exit 1
-fi
-
-# make sure aws access is configured
-private_key_path=$( oct configure aws-client --view | awk '/private_key_path:/ {print $2}' )
-keypair_name=$( oct configure aws-client --view | awk '/keypair_name:/ {print $2}' )
-
-if [ "${private_key_path:-None}" = None ] ; then
-    if [ -z "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
-        echo Please set OCT_PRIVATE_KEY_PATH to the path and file of the public key you want to use
-        exit 1
+        for pkg in boto boto3 ; do
+            if pip show $pkg > /dev/null ; then
+                pip install --upgrade $pkg
+            else
+                pip install $pkg
+            fi
+        done
+        oct bootstrap self
     fi
-    if [ -f "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
-        oct configure aws-client private_key_path "${OCT_PRIVATE_KEY_PATH}" || {
-            echo Adding configuration for private_key_path
-            echo private_key_path: "${OCT_PRIVATE_KEY_PATH}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
-        }
-    else
-        echo No such file "${OCT_PRIVATE_KEY_PATH:-}"
-        exit 1
-    fi
-fi
-if [ "${keypair_name:-None}" = None ] ; then
-    if [ -z "${OCT_KEYPAIR_NAME:-}" ] ; then
-        echo Please set OCT_KEYPAIR_NAME to the name of the keypair you want to use
-        exit 1
-    fi
-    oct configure aws-client keypair_name "${OCT_KEYPAIR_NAME}" || {
-        echo Adding configuration for keypair_name
-        echo keypair_name: "${OCT_KEYPAIR_NAME}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
+
+    # set instance values
+    oct configure aws-defaults master_security_group_ids $AWS_SECURITY_GROUPS || {
+        echo Adding configuration for master_security_group_ids
+        echo 'master_security_group_ids: !!python/unicode '"'$AWS_SECURITY_GROUPS'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
     }
+    oct configure aws-defaults master_instance_type $INSTANCE_TYPE || {
+        echo Adding configuration for master_instance_type
+        echo 'master_instance_type: !!python/unicode '"'$INSTANCE_TYPE'" >> $HOME/.config/origin-ci-tool/aws_variables.yml
+    }
+    oct configure aws-defaults master_root_volume_size ${ROOT_VOLUME_SIZE} || {
+        echo Adding configuration for master_root_volume_size
+        echo master_root_volume_size: $ROOT_VOLUME_SIZE >> $HOME/.config/origin-ci-tool/aws_variables.yml
+    }
+
+    if [ ! -f $HOME/.aws/credentials ] ; then
+        echo Error: no AWS credentials
+        echo see https://github.com/openshift/origin-ci-tool#aws-credentials-and-configuration
+        exit 1
+    fi
+
+    # make sure aws access is configured
+    private_key_path=$( oct configure aws-client --view | awk '/private_key_path:/ {print $2}' )
+    keypair_name=$( oct configure aws-client --view | awk '/keypair_name:/ {print $2}' )
+
+    if [ "${private_key_path:-None}" = None ] ; then
+        if [ -z "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
+            echo Please set OCT_PRIVATE_KEY_PATH to the path and file of the public key you want to use
+            exit 1
+        fi
+        if [ -f "${OCT_PRIVATE_KEY_PATH:-}" ] ; then
+            oct configure aws-client private_key_path "${OCT_PRIVATE_KEY_PATH}" || {
+                echo Adding configuration for private_key_path
+                echo private_key_path: "${OCT_PRIVATE_KEY_PATH}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
+            }
+        else
+            echo No such file "${OCT_PRIVATE_KEY_PATH:-}"
+            exit 1
+        fi
+    fi
+    if [ "${keypair_name:-None}" = None ] ; then
+        if [ -z "${OCT_KEYPAIR_NAME:-}" ] ; then
+            echo Please set OCT_KEYPAIR_NAME to the name of the keypair you want to use
+            exit 1
+        fi
+        oct configure aws-client keypair_name "${OCT_KEYPAIR_NAME}" || {
+            echo Adding configuration for keypair_name
+            echo keypair_name: "${OCT_KEYPAIR_NAME}" >> $HOME/.config/origin-ci-tool/aws_client_configuration.yml
+        }
+    fi
+
+    oct provision remote all-in-one --os $OS --provider aws --stage build --name $INSTNAME
+
+    # based on
+    # https://github.com/openshift/aos-cd-jobs/blob/master/sjb/config/test_cases/test_branch_openshift_ansible_logging.yml
+    #  sync_repos:
+    #    - name: "origin-aggregated-logging"
+    #    - name: "openshift-ansible"
+    oct sync local origin-aggregated-logging --branch $GIT_BRANCH --merge-into $GIT_BASE_BRANCH --src $GIT_REPO_BASE_DIR/origin-aggregated-logging
+    # seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
+    ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git checkout $GIT_BASE_BRANCH"
+    # also doesn't handle submodules very well
+    ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git submodule sync; git submodule update --init --recursive --remote"
+    #oct sync remote openshift-ansible --branch master
+    oct sync local openshift-ansible --branch $ANSIBLE_BRANCH --merge-into $ANSIBLE_BASE_BRANCH --src $GIT_REPO_BASE_DIR/openshift-ansible
+    # seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
+    ssh -n openshiftdevel "cd $OS_O_A_DIR; git checkout $ANSIBLE_BASE_BRANCH"
+    # also needs aos_cd_jobs
+    oct sync remote aos-cd-jobs --branch master
+    ip=`getremoteip`
+    fqdn=`getremotefqdn $ip`
+    SSH_HOST=openshiftdevel
+    kibana_host=kibana.$fqdn
+    kibana_ops_host=kibana-ops.$fqdn
+    update_etc_hosts $ip $fqdn $kibana_host $kibana_ops_host
+fi
+if [ $PROVIDER = libvirt ] ; then
+    # assumes you have NFS mounted your /home/$USER directory from the host
+    # to /share in the VM, with root, and with root in the VM mapped to
+    # your local UID (default 1000) e.g. something like this on the host
+    # /etc/exports.d/home.exports:
+    # /home/myusername	192.168.0.0/255.255.0.0(rw,all_squash,anonuid=1000,anongid=1000)
+    # and inside the VM - /etc/fstab:
+    # 192.168.122.1:/home/myusername    /share      nfs nfsvers=3   0 0
+    # assumes you have set up the VM so that you can use your user SSH identity
+    # to login to the VM as root with no password e.g. ssh root@the.local.vm "ls"
+    # should not prompt for a password
+    TESTHOST=${TESTHOST:-$1}
+    SSH_HOST=root@$TESTHOST
+    OS_O_A_L_DIR=${OS_O_A_L_DIR:-/share/origin-aggregated-logging}
+    OS_O_A_DIR=${OS_O_A_DIR:-/share/openshift-ansible}
+    OS_A_C_J_DIR=${OS_A_C_J_DIR:-/share/aos-cd-jobs}
+    ip=$( getent hosts $TESTHOST | awk '{print $1}' )
+    fqdn=$( getremotefqdn $ip )
+    ANSIBLE_SSH_USER=root
+    kibana_host=kibana.$fqdn
+    kibana_ops_host=kibana-ops.$fqdn
 fi
 
-oct provision remote all-in-one --os $OS --provider aws --stage build --name $INSTNAME
-
-ip=`getremoteip`
-fqdn=`getremotefqdn $ip`
-
-kibana_host=kibana.$fqdn
-kibana_ops_host=kibana-ops.$fqdn
-update_etc_hosts $ip $fqdn $kibana_host $kibana_ops_host
-
-# based on
-# https://github.com/openshift/aos-cd-jobs/blob/master/sjb/config/test_cases/test_branch_openshift_ansible_logging.yml
-#  sync_repos:
-#    - name: "origin-aggregated-logging"
-#    - name: "openshift-ansible"
-oct sync local origin-aggregated-logging --branch $GIT_BRANCH --merge-into ${GIT_BASE_BRANCH:-master} --src $GIT_REPO_BASE_DIR/origin-aggregated-logging
-# seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
-ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git checkout ${GIT_BASE_BRANCH:-master}"
-# also doesn't handle submodules very well
-ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git submodule sync; git submodule update --init --recursive --remote"
-#oct sync remote openshift-ansible --branch master
-oct sync local openshift-ansible --branch $ANSIBLE_BRANCH --merge-into ${ANSIBLE_BASE_BRANCH:-master} --src $GIT_REPO_BASE_DIR/openshift-ansible
-# seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
-ssh -n openshiftdevel "cd $OS_O_A_DIR; git checkout ${ANSIBLE_BASE_BRANCH:-master}"
-# also needs aos_cd_jobs
-oct sync remote aos-cd-jobs --branch master
 
 # HACK HACK HACK
 # there is a problem with the enterprise-3.3 repo:
@@ -239,45 +302,13 @@ oct sync remote aos-cd-jobs --branch master
 #      repository: "origin-aggregated-logging"
 #      script: |-
 #        hack/build-images.sh
-if [ "${USE_LOGGING:-true}" = true -a "${BUILD_IMAGES:-true}" = true ] ; then
-    ssh -n openshiftdevel "cd $OS_O_A_L_DIR; hack/build-images.sh"
+if [ "${BUILD_IMAGES:-true}" = true ] ; then
+    ssh -n $SSH_HOST "cd $OS_O_A_L_DIR; OS_RELEASE_COMMIT=${OPENSHIFT_IMAGE_TAG:-} hack/build-images.sh"
 fi
 
-#      title: "build an openshift-ansible release"
-#      repository: "openshift-ansible"
 runfile=`mktemp`
-trap "rm -f $runfile" ERR EXIT INT TERM
-cat > $runfile <<EOF
-set -euxo pipefail
-cd $OS_O_A_DIR
-tito_tmp_dir="tito"
-rm -rf "\${tito_tmp_dir}"
-mkdir -p "\${tito_tmp_dir}"
-titotagtmp=\$( mktemp )
-if tito tag --debug --offline --accept-auto-changelog > \$titotagtmp 2>&1 ; then
-    cat \$titotagtmp
-elif grep -q "Tag openshift-ansible.* already exists" \$titotagtmp ; then
-    cat \$titotagtmp
-else
-    cat \$titotagtmp
-    rm -f \$titotagtmp
-    exit 1
-fi
-rm -f \$titotagtmp
-tito build --output="\${tito_tmp_dir}" --rpm --test --offline --quiet
-createrepo "\${tito_tmp_dir}/noarch"
-cat << EOR > ./openshift-ansible-local-release.repo
-[openshift-ansible-local-release]
-baseurl = file://\$( pwd )/\${tito_tmp_dir}/noarch
-gpgcheck = 0
-name = OpenShift Ansible Release from Local Source
-EOR
-sudo cp ./openshift-ansible-local-release.repo /etc/yum.repos.d
-EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
-
-#      title: "enable ansible 2.6 repo"
+trap "rm -f $runfile" EXIT
+#      title: "enable ansible 2.6 repo and install ansible"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -292,13 +323,13 @@ compare_versions() {
 from pkg_resources import parse_version
 sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
 }
-pushd $OS_O_A_L_DIR > /dev/null
-curbranch=\$( git rev-parse --abbrev-ref HEAD )
-popd > /dev/null
-if compare_versions "\${curbranch}" ">=" release-3.10 ; then
-    sudo touch /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
-    sudo chmod a+rw /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
-cat <<REPO >/etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+if compare_versions $oshift_ver ">=" 3.10 ; then
+    if sudo yum -y install centos-release-ansible26 ; then
+        echo centos - configured ansible26 repo
+    else
+        sudo touch /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+        sudo chmod a+rw /etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
+        cat <<REPO >/etc/yum.repos.d/rhel-7-server-ansible-2.6-rpms.repo
 [rhel-7-server-ansible-2.6-rpms]
 name=rhel-7-server-ansible-2.6-rpms
 baseurl=https://mirror.openshift.com/enterprise/rhel/rhel-7-server-ansible-2.6-rpms/
@@ -307,79 +338,17 @@ sslclientcert=/var/lib/yum/client-cert.pem
 sslclientkey=/var/lib/yum/client-key.pem
 sslverify=0
 REPO
-    sudo yum repolist
+    fi
 fi
+sudo yum -y install ansible
 EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
+scp $runfile $SSH_HOST:/tmp
+ssh -n $SSH_HOST "bash $runfile"
 
-#      title: "install the openshift-ansible release"
-#      repository: "openshift-ansible"
-cat > $runfile <<EOF
-set -euxo pipefail
-compare_versions() {
-    local aver="\$1"
-    local op="\$2"
-    local bver="\$3"
-    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
-    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
-    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
-    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
-    python -c 'import sys
-from pkg_resources import parse_version
-sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
-}
-pushd $OS_O_A_L_DIR > /dev/null
-curbranch=\$( git rev-parse --abbrev-ref HEAD )
-popd > /dev/null
-if compare_versions "\${curbranch}" "<=" release-3.7 ; then
-    sudo yum downgrade -y ansible-2.3\*
-    oapkg=atomic-openshift-utils
-else
-    oapkg=openshift-ansible
-fi
-if compare_versions "\${curbranch}" ">=" release-3.10 ; then
-    sudo yum-config-manager --disable origin-deps-rhel7\* || true
-    sudo yum-config-manager --disable rhel-7-server-ose\* || true
-fi
-cd $OS_O_A_DIR
-jobs_repo=$OS_A_C_J_DIR
-last_tag="\$( git describe --tags --abbrev=0 --exact-match HEAD )" || :
-if [ -z "\${last_tag}" ] ; then
-   # fatal: no tag exactly matches '89c405109d8ca5906d9beb03e7e2794267f5f357'
-   last_tag="\$( git describe --tags --abbrev=0 )"
-fi
-last_commit="\$( git log -n 1 --no-merges --pretty=%h )"
-if sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}"
-else
-   # for master, it looks like there is some sort of strange problem with git tags
-   # tito will give the packages a N-V-R like this:
-   # atomic-openshift-utils-3.7.0-0.134.0.git.20.186ded5.el7
-   # git describe --tags --abbrev=0 looks like this
-   # openshift-ansible-3.7.0-0.134.0
-   # git describe --tags looks like this
-   # openshift-ansible-3.7.0-0.134.0-20-g186ded5
-   # there doesn't appear to be a git describe command which will give
-   # the same result, so munge it
-   verrel=\$( git describe --tags | \
-              sed -e 's/^openshift-ansible-//' -e 's/-\([0-9][0-9]*\)-g\(..*\)\$/.git.\1.\2/' )
-   sudo yum install -y "\${oapkg}-\${verrel}.el7"
-   rpm -V "\${oapkg}-\${verrel}.el7"
-fi
-EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
-
+if [ $PROVIDER = aws ] ; then
 #      title: "install Ansible plugins"
 #      repository: "origin"
-cat > $runfile <<EOF
+    cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_ROOT
 sudo yum install -y python-pip
@@ -393,12 +362,14 @@ for plugin in 'default_with_output_lists' 'generate_junit'; do
 done
 sudo sed -r -i -e 's/^#?stdout_callback.*/stdout_callback = default_with_output_lists/' -e 's/^#?callback_whitelist.*/callback_whitelist = generate_junit/' /etc/ansible/ansible.cfg
 EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
+    scp $runfile $SSH_HOST:/tmp
+    ssh -n $SSH_HOST "bash $runfile"
+fi
 
 #      title: "determine the release commit for origin images and version for rpms"
 #      repository: "origin"
-cat > $runfile <<EOF
+if [ $PROVIDER = aws ] ; then
+    cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
     local aver="\$1"
@@ -530,8 +501,18 @@ else
     echo Error: unknown base branch \$curbranch: please resubmit PR on master or a release-x.y branch
 fi
 EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
+fi
+if [ $PROVIDER = libvirt ] ; then
+    cat > $runfile <<EOF
+set -euxo pipefail
+repo=openshift-origin-v${oshift_ver}.repo
+curl -s https://rpms.svc.ci.openshift.org/\$repo | \
+     sed '/^baseurl.*[^/]\$/s,\$,/,' | \
+     sudo tee /etc/yum.repos.d/origin-ci.repo
+EOF
+fi
+scp $runfile $SSH_HOST:/tmp
+ssh -n $SSH_HOST "bash $runfile"
 
 # make etcd use a ramdisk
 cat <<SCRIPT > $runfile
@@ -548,27 +529,8 @@ restorecon -R /tmp
 echo "ETCD_DATA_DIR=/tmp/etcd" >> /etc/environment
 SUDO
 SCRIPT
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
-
-# pull and tag service catalog image with build tag
-cat <<SCRIPT > $runfile
-set -euxo pipefail
-pushd $OS_A_C_J_DIR > /dev/null
-# richm 20180531 - openshift/origin-service-catalog:a861408 not found
-# for some reason, the service-catalog image is not available
-# docker images|grep service-catalog is empty
-# so, pull the latest and tag it with ${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}
-scname=\$( docker images | awk '/service-catalog/ {print \$1}' )
-if [ -z "\${scname:-}" ] ; then
-    docker pull openshift/origin-service-catalog
-fi
-imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
-docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
-popd > /dev/null
-SCRIPT
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
+scp $runfile $SSH_HOST:/tmp
+ssh -n $SSH_HOST "bash $runfile"
 
 if [ "$USE_CRIO" = true ] ; then
     #      title: "enable repo with crio"
@@ -586,10 +548,7 @@ compare_versions() {
 from pkg_resources import parse_version
 sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
 }
-pushd $OS_O_A_L_DIR > /dev/null
-curbranch=\$( git rev-parse --abbrev-ref HEAD )
-popd > /dev/null
-if compare_versions "\${curbranch}" ">=" release-3.11 ; then
+if compare_versions $oshift_ver ">=" 3.11 ; then
     sudo touch /etc/yum.repos.d/crio.repo
     sudo chmod a+rw /etc/yum.repos.d/crio.repo
 cat <<REPO >/etc/yum.repos.d/crio.repo
@@ -607,10 +566,8 @@ REPO
     done
 fi
 EOF
-    scp $runfile openshiftdevel:/tmp
-    ssh -n openshiftdevel "bash $runfile"
-
-
+    scp $runfile $SSH_HOST:/tmp
+    ssh -n $SSH_HOST "bash $runfile"
 fi
 
 #      title: "install origin"
@@ -620,25 +577,36 @@ set -euxo pipefail
 cd $OS_A_C_J_DIR
 EXTRA_ANSIBLE_OPENSHIFT="${EXTRA_ANSIBLE_OPENSHIFT:-}"
 
-if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; then
+if [ "$PROVIDER" = libvirt ] ; then
+    o_pkg_ver=""
+    o_release=$oshift_ver
+    o_img_tag=$OPENSHIFT_IMAGE_TAG
+else
+    o_pkg_ver="-e openshift_pkg_version=\$( cat ./ORIGIN_PKG_VERSION )"
+    o_release="\$( cat ./ORIGIN_RELEASE )"
+    o_img_tag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
+fi
+
+if [ -f $OS_O_A_DIR/playbooks/prerequisites.yml ] ; then
     ANSIBLE_LOG_PATH=/tmp/ansible-prereq.log ansible-playbook -vvv --become               \
                         --become-user root         \
                         --connection local         \
                         --inventory sjb/inventory/ \
+                        ${ANSIBLE_SSH_USER:+-e ansible_ssh_user=$ANSIBLE_SSH_USER} \
                         -e deployment_type=origin -e debug_level=2 \
                         -e @sjb/inventory/base.cfg -e skip_sanity_checks=true \
                         -e 'openshift_disable_check=*' -e openshift_install_examples=false \
                         -e openshift_docker_log_driver=${LOG_DRIVER:-json-file} \
                         -e openshift_docker_options="--log-driver=${LOG_DRIVER:-json-file}" \
-                        -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
-                        -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
-                        -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
-                        -e openshift_console_install=False \
+                        \$o_pkg_ver \
+                        -e openshift_release="\$o_release" \
+                        -e oreg_url='openshift/origin-\${component}:'"\$o_img_tag" \
+                        -e openshift_console_install=${USE_CLUSTER_CONSOLE:-True} \
                         \${EXTRA_ANSIBLE_OPENSHIFT:-} \
-                        /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
+                        $OS_O_A_DIR/playbooks/prerequisites.yml
 fi
 
-playbook_base='/usr/share/ansible/openshift-ansible/playbooks/'
+playbook_base=$OS_O_A_DIR/playbooks/
 if [[ -s "\${playbook_base}/openshift-node/network_manager.yml" ]]; then
     playbook="\${playbook_base}openshift-node/network_manager.yml"
 else
@@ -648,15 +616,16 @@ ANSIBLE_LOG_PATH=/tmp/ansible-network.log ansible-playbook -vvv --become        
   --become-user root         \
   --connection local         \
   --inventory sjb/inventory/ \
+  ${ANSIBLE_SSH_USER:+-e ansible_ssh_user=$ANSIBLE_SSH_USER} \
   -e deployment_type=origin  \
   -e skip_sanity_checks=true -e debug_level=2 \
   -e 'openshift_disable_check=*' -e openshift_install_examples=false \
   -e openshift_docker_log_driver=${LOG_DRIVER:-json-file} \
   -e openshift_docker_options="--log-driver=${LOG_DRIVER:-json-file}" \
-  -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
-  -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
-  -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
-  -e openshift_console_install=False \
+  \$o_pkg_ver \
+  -e openshift_release="\$o_release" \
+  -e oreg_url='openshift/origin-\${component}:'"\$o_img_tag" \
+  -e openshift_console_install=${USE_CLUSTER_CONSOLE:-True} \
   \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
 
@@ -670,6 +639,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   --become-user root         \
   --connection local         \
   --inventory sjb/inventory/ \
+  ${ANSIBLE_SSH_USER:+-e ansible_ssh_user=$ANSIBLE_SSH_USER} \
   -e deployment_type=origin -e debug_level=2 \
   -e openshift_deployment_type=origin  \
   -e etcd_data_dir="\${ETCD_DATA_DIR}" \
@@ -677,9 +647,9 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e openshift_logging_install_metrics=False \
   -e openshift_docker_log_driver=${LOG_DRIVER:-json-file} \
   -e openshift_docker_options="--log-driver=${LOG_DRIVER:-json-file}" \
-  -e openshift_pkg_version="\$( cat ./ORIGIN_PKG_VERSION )"               \
-  -e openshift_release="\$( cat ./ORIGIN_RELEASE )"                       \
-  -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+  \$o_pkg_ver \
+  -e openshift_release="\$o_release" \
+  -e oreg_url='openshift/origin-\${component}:'"\$o_img_tag" \
   -e openshift_node_port_range=30000-32000 \
   -e 'osm_controller_args={"enable-hostpath-provisioner":["true"]}' -e @sjb/inventory/base.cfg \
   -e openshift_install_examples=false \
@@ -688,13 +658,13 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e openshift_logging_master_public_url="https://$fqdn:8443" \
   -e openshift_master_logging_public_url="https://$kibana_host" \
   -e openshift_master_cluster_public_hostname=$fqdn \
-  -e openshift_console_install=False \
-  -e openshift_cli_image="openshift/origin-node:${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
+  -e openshift_console_install=${USE_CLUSTER_CONSOLE:-True} \
+  -e openshift_cli_image="openshift/origin-node:\$o_img_tag" \
   \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
 EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash -x $runfile"
+scp $runfile $SSH_HOST:/tmp
+ssh -n $SSH_HOST "bash -x $runfile"
 
 #  title: "expose the kubeconfig"
 cat > $runfile <<EOF
@@ -706,8 +676,8 @@ if [ ! -d ~/.kube ] ; then
 fi
 cp /etc/origin/master/admin.kubeconfig ~/.kube/config
 EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
+scp $runfile $SSH_HOST:/tmp
+ssh -n $SSH_HOST "bash $runfile"
 
 if [ "${USE_LOGGING:-true}" = true ] ; then
     # HACK - create mux pvc
@@ -725,8 +695,8 @@ accessModes:
 hostPath:
     path: ${FILE_BUFFER_PATH:-/var/lib/fluentd}
 EOF
-        scp $runfile openshiftdevel:/tmp
-        ssh -n openshiftdevel "oc create --config=/etc/origin/master/admin.kubeconfig -f $runfile"
+        scp $runfile $SSH_HOST:/tmp
+        ssh -n $SSH_HOST "oc create --config=/etc/origin/master/admin.kubeconfig -f $runfile"
     fi
 fi
 
@@ -748,7 +718,7 @@ from pkg_resources import parse_version
 sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
 }
 cd $OS_A_C_J_DIR
-playbook_base='/usr/share/ansible/openshift-ansible/playbooks/'
+playbook_base=$OS_O_A_DIR/playbooks/
 if [[ -s "\${playbook_base}openshift-logging/config.yml" ]]; then
     playbook="\${playbook_base}openshift-logging/config.yml"
 else
@@ -759,10 +729,9 @@ release_commit=${OPENSHIFT_IMAGE_TAG:-}
 if [ -z "\${release_commit:-}" ] ; then
     release_commit=\$( git log -1 --pretty=%h )
 fi
-curbranch=\$( git rev-parse --abbrev-ref HEAD )
 popd
 logging_extras=""
-if compare_versions "\${curbranch}" ">=" release-3.11 ; then
+if compare_versions $oshift_ver ">=" 3.11 ; then
     # force image version/tag to be latest, otherwise it will use openshift_tag_version
     # also use oauth-proxy 1.1.0 for 3.11 and later, and for kibana
     logging_extras="\${logging_extras} -e openshift_logging_image_version=latest \
@@ -775,6 +744,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   --become-user root \
   --connection local \
   --inventory sjb/inventory/ \
+  ${ANSIBLE_SSH_USER:+-e ansible_ssh_user=$ANSIBLE_SSH_USER} \
   -e deployment_type=origin \
   -e openshift_logging_install_logging=True \
   -e openshift_logging_image_prefix="openshift/origin-" \
@@ -799,15 +769,17 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
 EOF
 #  -e openshift_logging_install_eventrouter=True \
     cat $runfile
-    scp $runfile openshiftdevel:/tmp
-    ssh -n openshiftdevel "bash $runfile"
+    scp $runfile $SSH_HOST:/tmp
+    ssh -n $SSH_HOST "bash $runfile"
 fi
 
-if [ -n "${PRESERVE:-}" ] ; then
-    id=$( aws ec2 --profile rh-dev describe-instances --output text --filters "Name=tag:Name,Values=$INSTNAME" --query 'Reservations[].Instances[].[InstanceId]' )
-    aws ec2 --profile rh-dev create-tags --resources $id \
-        --tags Key=Name,Value=${INSTNAME}-preserve
-    sed -i -e "s/${INSTNAME}/${INSTNAME}-preserve/" $HOME/.config/origin-ci-tool/inventory/ec2.ini
+if [ $PROVIDER = aws ] ; then
+    if [ -n "${PRESERVE:-}" ] ; then
+        id=$( aws ec2 --profile rh-dev describe-instances --output text --filters "Name=tag:Name,Values=$INSTNAME" --query 'Reservations[].Instances[].[InstanceId]' )
+        aws ec2 --profile rh-dev create-tags --resources $id \
+            --tags Key=Name,Value=${INSTNAME}-preserve
+        sed -i -e "s/${INSTNAME}/${INSTNAME}-preserve/" $HOME/.config/origin-ci-tool/inventory/ec2.ini
+    fi
 fi
 
 #      title: "install origin-monitoring"
@@ -821,27 +793,29 @@ ANSIBLE_LOG_PATH=/tmp/ansible-monitoring.log ansible-playbook -vvv --become \
   --become-user root \
   --connection local \
   --inventory sjb/inventory/ \
+  ${ANSIBLE_SSH_USER:+-e ansible_ssh_user=$ANSIBLE_SSH_USER} \
   -e openshift_deployment_type=origin  \
   -e openshift_cluster_monitoring_operator_install=True \
   $OS_O_A_DIR/playbooks/openshift-monitoring/config.yml
 EOF
     cat $runfile
-    scp $runfile openshiftdevel:/tmp
-    ssh -n openshiftdevel "bash $runfile"
+    scp $runfile $SSH_HOST:/tmp
+    ssh -n $SSH_HOST "bash $runfile"
 fi
 
 #      title: "run logging tests"
 #      repository: "origin-aggregated-logging"
-if [ "${USE_LOGGING:-true}" = true ] ; then
+if [ "${TEST_LOGGING:-true}" = true ] ; then
     cat > $runfile <<EOF
+sudo yum -y install jq
 sudo wget -O /usr/local/bin/stern https://github.com/wercker/stern/releases/download/1.5.1/stern_linux_amd64 && sudo chmod +x /usr/local/bin/stern
 cd $OS_O_A_L_DIR
 ${EXTRA_ENV:-}
 KUBECONFIG=/etc/origin/master/admin.kubeconfig TEST_ONLY=${TEST_ONLY:-true} \
   SKIP_TEARDOWN=true JUNIT_REPORT=true make test
 EOF
-    scp $runfile openshiftdevel:/tmp
-    ssh -n openshiftdevel "bash $runfile"
+    scp $runfile $SSH_HOST:/tmp
+    ssh -n $SSH_HOST "bash $runfile"
 fi
 
 echo use \"oct deprovision\" when you are done

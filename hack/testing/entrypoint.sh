@@ -25,6 +25,9 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
+# clear cert cache
+rm -rf ${OS_O_A_L_DIR}/temp/es_certs
+
 LOGGING_NS=openshift-logging
 if oc get project logging -o name > /dev/null && [ $(oc get dc -n logging -o name | wc -l) -gt 0 ]  ; then
     LOGGING_NS=logging

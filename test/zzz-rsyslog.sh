@@ -97,9 +97,7 @@ mv $tmpvars $ARTIFACT_DIR/vars_file
 
 popd > /dev/null
 
-pushd /etc
-sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
-popd > /dev/null
+sudo tar -C /etc -cf $ARTIFACT_DIR/rsyslog-after-ansible.tar rsyslog.conf rsyslog.d
 
 get_logmessage() {
     logmessage="$1"
