@@ -1,4 +1,4 @@
-FROM elasticsearch:5.6.12
+FROM elasticsearch:5.6.13
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
