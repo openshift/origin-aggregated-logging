@@ -219,6 +219,8 @@ update_etc_hosts $ip $fqdn $kibana_host $kibana_ops_host
 oct sync local origin-aggregated-logging --branch $GIT_BRANCH --merge-into ${GIT_BASE_BRANCH:-master} --src $GIT_REPO_BASE_DIR/origin-aggregated-logging
 # seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
 ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git checkout ${GIT_BASE_BRANCH:-master}"
+# also doesn't handle submodules very well
+ssh -n openshiftdevel "cd $OS_O_A_L_DIR; git submodule sync; git submodule update --init --recursive --remote"
 #oct sync remote openshift-ansible --branch master
 oct sync local openshift-ansible --branch $ANSIBLE_BRANCH --merge-into ${ANSIBLE_BASE_BRANCH:-master} --src $GIT_REPO_BASE_DIR/openshift-ansible
 # seems to be a bug currently - doesn't checkout branch other than master - so force it to make sure
@@ -687,6 +689,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   -e openshift_master_logging_public_url="https://$kibana_host" \
   -e openshift_master_cluster_public_hostname=$fqdn \
   -e openshift_console_install=False \
+  -e openshift_cli_image="openshift/origin-node:${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
   \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
 EOF
