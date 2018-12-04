@@ -52,11 +52,15 @@ os::cmd::expect_success "oc project ${LOGGING_NS}"
 
 result=$(oc get sa prometheus-scraper -n ${LOGGING_NS} ||:)
 if [ "$result" == "" ] ; then
-  oc create sa prometheus-scraper -n ${LOGGING_NS}
+  os::cmd::expect_success "oc create sa prometheus-scraper -n ${LOGGING_NS}"
 fi
-result=$(oc get rolebinding prometheus-scraper -n ${LOGGING_NS} prometheus-scraper ||:)
+result=$(oc get clusterrole prometheus-k8s ||:)
 if [ "$result" == "" ] ; then
-  oc create rolebinding prometheus-scraper --serviceaccount=${LOGGING_NS}:prometheus-scraper --role=prometheus-metrics-viewer
+  os::cmd::expect_success "echo '{\"apiVersion\":\"rbac.authorization.k8s.io/v1\", \"kind\":\"ClusterRole\",\"metadata\":{\"name\":\"prometheus-k8s\"},\"rules\":[{\"nonResourceURLs\":[\"/metrics\"],\"verbs\":[\"get\"]}]}' | oc create -f -"
+fi
+result=$(oc get clusterrolebinding prometheus-k8s ||:)
+if [ "$result" == "" ] ; then
+  os::cmd::expect_success "oc adm policy add-cluster-role-to-user prometheus-k8s -z prometheus-scraper"
 fi
 SATOKEN=$(oc -n ${LOGGING_NS} serviceaccounts get-token prometheus-scraper)
 
@@ -145,7 +149,7 @@ for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARC
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
     es_pod_ip=$(oc get pod ${elasticsearch_pod} -o jsonpath={.status.podIP})
 
-	if os::cmd::expect_success_and_text "curl_es_with_token '${es_pod_ip}' '/_prometheus/metrics' '${SATOKEN}' --output /dev/null --write-out '%{response_code}' -v" '200'; then
+	if os::cmd::expect_success_and_text "curl_es_with_token '${es_pod_ip}' '/_prometheus/metrics' '${SATOKEN}' --output /dev/null --write-out '%{response_code}' -v" "200"; then
 		os::log::info "Received data from metrics endpoint"
 	else
 		artifact_log unable to connect to prometheus end point:
