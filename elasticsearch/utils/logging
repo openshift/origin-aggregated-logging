@@ -18,8 +18,8 @@ esac
 secret_dir=/etc/elasticsearch/secret
 provided_secret_dir=/etc/openshift/elasticsearch/secret
 
-if [ -f /usr/share/java/elasticsearch/config/primary_shards ]; then
-    source /usr/share/java/elasticsearch/config/primary_shards
+if [ -f /usr/share/java/elasticsearch/config/index_settings ]; then
+    source /usr/share/java/elasticsearch/config/index_settings
 fi
 PRIMARY_SHARDS=${PRIMARY_SHARDS:-1}
 REPLICA_SHARDS=${REPLICA_SHARDS:-0}
