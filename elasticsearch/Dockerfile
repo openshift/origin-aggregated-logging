@@ -13,7 +13,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.13.1-redhat-1 \
+    OSE_ES_VER=5.6.13.2-redhat-1 \
     PROMETHEUS_EXPORTER_VER=5.6.13.1-redhat-1 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
@@ -22,7 +22,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RELEASE_STREAM=prod \
     container=oci
 
-ARG OSE_ES_VER=5.6.13.1-redhat-1
+ARG OSE_ES_VER=5.6.13.2-redhat-1
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_VER=5.6.13.1-redhat-1
 ARG PROMETHEUS_EXPORTER_URL
