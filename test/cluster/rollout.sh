@@ -23,7 +23,7 @@ FLUENTD_WAIT_TIME=$(( 2 * minute ))
 cleanup() {
   local return_code="$?"
   set +e
-  for r in dc ds cronjob ; do
+  for r in dc ds cronjob deployment ; do
     for it in $( oc get -n ${LOGGING_NS} $r -o jsonpath='{.items[*].metadata.name}' ) ; do
       oc describe -n ${LOGGING_NS} $r $it > $ARTIFACT_DIR/$r.$it.describe 2>&1
     done
@@ -31,9 +31,11 @@ cleanup() {
 
   get_all_logging_pod_logs
   oc get -n ${LOGGING_NS} --all 2>&1 | artifact_out
-  sudo docker images|grep logging 2>&1 | artifact_out
-  sudo docker images|grep oauth 2>&1 | artifact_out
-  sudo docker images|grep eventrouter 2>&1 | artifact_out
+  if type -p docker > /dev/null 2>&1 ; then
+    sudo docker images|grep logging 2>&1 | artifact_out
+    sudo docker images|grep oauth 2>&1 | artifact_out
+    sudo docker images|grep eventrouter 2>&1 | artifact_out
+  fi
   oc get events > $ARTIFACT_DIR/events.txt 2>&1
 
   os::test::junit::reconcile_output
@@ -56,6 +58,12 @@ for deploymentconfig in ${OAL_EXPECTED_DEPLOYMENTCONFIGS}; do
 		os::cmd::expect_success "oc rollout latest deploymentconfig/${deploymentconfig}"
 		os::cmd::expect_success "oc rollout status deploymentconfig/${deploymentconfig}"
 	fi
+done
+
+os::log::info "Checking for Deployments..."
+for deployment in ${OAL_EXPECTED_DEPLOYMENTS}; do
+	os::cmd::expect_success "oc get deployment ${deployment}"
+  os::cmd::try_until_text "oc rollout status deployment/${deployment}" "successfully rolled out"
 done
 
 os::log::info "Checking for CronJobs..."

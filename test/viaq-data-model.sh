@@ -47,37 +47,26 @@ cleanup() {
 }
 trap "cleanup" EXIT
 
-# Make sure all the pods are running at the beginning of the test suite.
-os::cmd::try_until_text "oc get pods -l component=es" "^logging-es.* Running "
-os::cmd::try_until_text "oc get pods -l component=kibana" "^logging-kibana-.* Running "
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-if oc get dc/logging-mux > /dev/null 2>&1 ; then
-    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
-fi
-os::log::debug "$( oc get pods )"
-
 # save current fluentd daemonset
 saveds=$( mktemp )
-oc get daemonset logging-fluentd -o yaml > $saveds
+oc get $fluentd_ds -o yaml > $saveds
 
 # save current fluentd configmap
 savecm=$( mktemp )
-oc get configmap logging-fluentd -o yaml > $savecm
+oc get $fluentd_cm -o yaml > $savecm
 
 os::log::info Starting viaq-data-model test at $( date )
-
-es_pod=$( get_es_pod es )
-es_ops_pod=$( get_es_pod es-ops )
-es_ops_pod=${es_ops_pod:-$es_pod}
 
 fpod=$( get_running_pod fluentd )
 stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal
+if oc get dc/logging-mux > /dev/null 2>&1 ; then
+    oc set env $fluentd_ds MUX_CLIENT_MODE=maximal
+fi
 
 # make sure we are not using the test volume
-if oc set volumes daemonset/logging-fluentd | grep -q 'as viaq-test' ; then
-    os::log::debug "$( oc set volumes daemonset/logging-fluentd --remove --name=viaq-test 2>&1 )"
+if oc set volumes $fluentd_ds | grep -q 'as viaq-test' ; then
+    oc set volumes $fluentd_ds --remove --name=viaq-test 2>&1 | artifact_out
 fi
 
 # create test filter file
@@ -102,11 +91,11 @@ cat > $cfg <<EOF
 EOF
 
 # add our test filter to the fluentd pipeline via a volume mount
-os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --name=viaq-test \
-                   -t hostPath -m /etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf \
-                   --path $cfg 2>&1 )"
+oc set volumes $fluentd_ds --add --name=viaq-test \
+    -t hostPath -m /etc/fluent/configs.d/openshift/filter-pre-cdm-test.conf \
+    --path $cfg 2>&1 | artifact_out
 
-start_fluentd true 2>&1 | artifact_out
+start_fluentd true $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 
 get_logmessage() {
@@ -134,9 +123,9 @@ keep_fields="method,statusCode,type,@timestamp,req,res,CONTAINER_NAME,CONTAINER_
 
 # TEST 2
 # cdm - undefined fields are stored in 'undefined' field
-os::log::debug "$( oc set env daemonset/logging-fluentd CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=$keep_fields )"
-os::cmd::try_until_failure "oc get pod $fpod"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=$keep_fields 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
@@ -146,9 +135,9 @@ os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
 
 # TEST 3
 # user specifies extra fields to keep
-os::log::debug "$( oc set env daemonset/logging-fluentd CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields )"
-os::cmd::try_until_failure "oc get pod $fpod"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
@@ -158,9 +147,9 @@ os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
 
 # TEST 4
 # user specifies alternate undefined name to use
-os::log::debug "$( oc set env daemonset/logging-fluentd CDM_UNDEFINED_NAME=myname )"
-os::cmd::try_until_failure "oc get pod $fpod"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds CDM_UNDEFINED_NAME=myname 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
@@ -170,11 +159,11 @@ os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
 
 # TEST 5
 # preserve specified empty field as empty
-os::log::debug "$( oc set env daemonset/logging-fluentd CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 )"
-os::cmd::try_until_failure "oc get pod $fpod"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 # if using MUX_CLIENT_MODE=maximal, also have to tell mux to keep the empty fields
-is_maximal=$( oc set env daemonset/logging-fluentd --list | grep ^MUX_CLIENT_MODE=maximal ) || :
+is_maximal=$( oc set env $fluentd_ds --list | grep ^MUX_CLIENT_MODE=maximal ) || :
 if [ -n "$is_maximal" ] ; then
     muxpod=$( get_running_pod mux )
     oc set env dc/logging-mux CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3
@@ -195,4 +184,3 @@ if [ -n "$is_maximal" ] ; then
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
     muxpod=$( get_running_pod mux )
 fi
-

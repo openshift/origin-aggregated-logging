@@ -3,24 +3,10 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
-oal_expected_deploymentconfigs=( "logging-kibana" )
-oal_expected_cronjobs=( "logging-curator" )
-oal_expected_routes=( "logging-kibana" )
-oal_expected_services=( "logging-es" "logging-es-cluster" "logging-kibana" )
-oal_expected_oauthclients=( "kibana-proxy" )
-oal_expected_daemonsets=( "logging-fluentd" )
-oal_elasticseach_components=( "es" )
-oal_kibana_components=( "kibana" )
-
-if [ "$1" = "true" ]; then
-	# There is an ops cluster set up, so we
-	# need to expect to see more objects.
-	oal_expected_deploymentconfigs+=( "logging-kibana-ops" )
-	oal_expected_cronjobs+=( "logging-curator-ops" )
-	oal_expected_routes+=( "logging-kibana-ops" )
-	oal_expected_services+=( "logging-es-ops" "logging-es-ops-cluster" "logging-kibana-ops" )
-	oal_elasticseach_components+=( "es-ops" )
-	oal_kibana_components+=( "kibana-ops" )
+if oc get clusterlogging > /dev/null 2>&1 ; then
+	USE_OPERATOR=${USE_OPERATOR:-true}
+else
+	USE_OPERATOR=${USE_OPERATOR:-false}
 fi
 
 function get_es_dc() {
@@ -32,28 +18,82 @@ function get_es_dc() {
   fi
 }
 
-# Currently one DeploymentConfig per Elasticsearch
-# replica is created, and is therefore given a long
-# unique name that we do not know beforehand. We
-# only know that there should be DCs with the
-# logging-es- prefix, so we cheat now to look it up
-# and keep the cluster rollout test clean.
-# TODO: This will not be necessary when StatefulSets
-# are used to deploy the cluster instead.
-es_dcs="$( get_es_dc es )"
-if [[ "$( wc -w <<<"${es_dcs}" )" -ne 1 ]]; then
-	os::log::fatal "Expected to find one Elasticsearch DeploymentConfig, got: '${es_dcs:-"<none>"}'"
-fi
+function get_es_deployments() {
+    oc -n $LOGGING_NS get deployment -l cluster-name=$1 -o jsonpath='{.items[0].metadata.name}' 2> /dev/null
+}
 
-oal_expected_deploymentconfigs+=( ${es_dcs} )
-if [ "$1" = "true" ]; then
-	es_ops_dcs="$( get_es_dc es-ops )"
-	if [[ "$( wc -w <<<"${es_ops_dcs}" )" -ne 1 ]]; then
-		os::log::fatal "Expected to find one OPS Elasticsearch DeploymentConfig, got: '${es_ops_dcs:-"<none>"}'"
+if [ "$USE_OPERATOR" = true ] ; then
+	oal_expected_deploymentconfigs=( "" )
+	oal_expected_daemonsets=( "fluentd" )
+	oal_expected_oauthclients=( "kibana-proxy" )
+	if [ "$1" = "true" ]; then
+		oal_expected_deployments=( "kibana-app" "kibana-infra" )
+		oal_expected_cronjobs=( "curator-app" "curator-infra" )
+		oal_expected_routes=( "kibana-app" "kibana-infra" )
+		oal_expected_services=( kibana-app kibana-infra cluster-logging-operator elasticsearch-app \
+			elasticsearch-app-cluster elasticsearch-infra elasticsearch-infra-cluster elasticsearch-operator )
+		esdeploy=$( get_es_deployments elasticsearch-app )
+		if [ -z "$esdeploy" ] ; then
+			os::log::fatal "No Elasticsearch Deployment elasticsearch-app"
+		fi
+		oal_expected_deployments+=( $esdeploy )
+		esdeploy=$( get_es_deployments elasticsearch-infra )
+		if [ -z "$esdeploy" ] ; then
+			os::log::fatal "No Elasticsearch Deployment elasticsearch-infra"
+		fi
+		oal_expected_deployments+=( $esdeploy )
+	else
+		oal_expected_deployments=( "kibana" )
+		oal_expected_cronjobs=( "curator" )
+		oal_expected_routes=( "kibana" )
+		oal_expected_services=( kibana cluster-logging-operator elasticsearch elasticsearch-cluster elasticsearch-operator )
+		esdeploy=$( get_es_deployments elasticsearch )
+		if [ -z "$esdeploy" ] ; then
+			os::log::fatal "No Elasticsearch Deployment elasticsearch"
+		fi
+		oal_expected_deployments+=( $esdeploy )
 	fi
-	oal_expected_deploymentconfigs+=( ${es_ops_dcs} )
+else
+	oal_expected_deployments=( "" )
+	oal_expected_deploymentconfigs=( "logging-kibana" )
+	oal_expected_cronjobs=( "logging-curator" )
+	oal_expected_routes=( "logging-kibana" )
+	oal_expected_services=( "logging-es" "logging-es-cluster" "logging-kibana" )
+	oal_expected_oauthclients=( "kibana-proxy" )
+	oal_expected_daemonsets=( "logging-fluentd" )
+	if [ "$1" = "true" ]; then
+		# There is an ops cluster set up, so we
+		# need to expect to see more objects.
+		oal_expected_deploymentconfigs+=( "logging-kibana-ops" )
+		oal_expected_cronjobs+=( "logging-curator-ops" )
+		oal_expected_routes+=( "logging-kibana-ops" )
+		oal_expected_services+=( "logging-es-ops" "logging-es-ops-cluster" "logging-kibana-ops" )
+	fi
+
+	# Currently one DeploymentConfig per Elasticsearch
+	# replica is created, and is therefore given a long
+	# unique name that we do not know beforehand. We
+	# only know that there should be DCs with the
+	# logging-es- prefix, so we cheat now to look it up
+	# and keep the cluster rollout test clean.
+	# TODO: This will not be necessary when StatefulSets
+	# are used to deploy the cluster instead.
+	es_dcs="$( get_es_dc es )"
+	if [[ "$( wc -w <<<"${es_dcs}" )" -ne 1 ]]; then
+		os::log::fatal "Expected to find one Elasticsearch DeploymentConfig, got: '${es_dcs:-"<none>"}'"
+	fi
+
+	oal_expected_deploymentconfigs+=( ${es_dcs} )
+	if [ "$1" = "true" ]; then
+		es_ops_dcs="$( get_es_dc es-ops )"
+		if [[ "$( wc -w <<<"${es_ops_dcs}" )" -ne 1 ]]; then
+			os::log::fatal "Expected to find one OPS Elasticsearch DeploymentConfig, got: '${es_ops_dcs:-"<none>"}'"
+		fi
+		oal_expected_deploymentconfigs+=( ${es_ops_dcs} )
+	fi
 fi
 
+OAL_EXPECTED_DEPLOYMENTS="${oal_expected_deployments[*]}"             \
 OAL_EXPECTED_DEPLOYMENTCONFIGS="${oal_expected_deploymentconfigs[*]}" \
 OAL_EXPECTED_ROUTES="${oal_expected_routes[*]}"                       \
 OAL_EXPECTED_SERVICES="${oal_expected_services[*]}"                   \

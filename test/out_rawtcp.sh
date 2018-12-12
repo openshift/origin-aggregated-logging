@@ -14,15 +14,15 @@ update_current_fluentd() {
     # undeploy fluentd
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    # update configmap logging-fluentd
+    # update $fluentd_cm
     # edit so we don't send to ES
-    oc get configmap/logging-fluentd -o yaml | sed '/## matches/ a\
+    oc get $fluentd_cm -o yaml | sed '/## matches/ a\
     <match **>\
       @type copy\
       @include configs.d/user/raw-tcp.conf\
     </match>' | oc replace -f -
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/raw-tcp.conf", "#": "generated config file raw-tcp.conf" }]' 2>&1
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/raw-tcp.conf", "value": "\
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "add", "path": "/data/raw-tcp.conf", "#": "generated config file raw-tcp.conf" }]' 2>&1
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "replace", "path": "/data/raw-tcp.conf", "value": "\
   <store>\n\
    @type rawtcp\n\
    flush_interval 1\n\
@@ -52,11 +52,11 @@ create_forwarding_logstash() {
 
 # save current fluentd daemonset
 saveds=$( mktemp )
-oc get daemonset logging-fluentd -o yaml > $saveds
+oc get $fluentd_ds -o yaml > $saveds
 
 # save current fluentd configmap
 savecm=$( mktemp )
-oc get configmap logging-fluentd -o yaml > $savecm
+oc get $fluentd_cm -o yaml > $savecm
 
 cleanup() {
   local return_code="$?"
@@ -98,7 +98,7 @@ trap "cleanup" EXIT
 os::log::info Starting raw-tcp test at $( date )
 
 # make sure fluentd is working normally
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up
 

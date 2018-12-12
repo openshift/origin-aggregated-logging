@@ -102,8 +102,8 @@ function test_user_has_proper_access() {
     local negverb=can
     local nrecs=0
     local kpod=$( get_running_pod kibana )
-    eshost=logging-es
-    esopshost=logging-es-ops
+    local eshost=$( get_es_svc es )
+    local esopshost=$( get_es_svc es-ops )
     if [ "$espod" = "$esopspod" ] ; then
         esopshost=$eshost
     fi
@@ -125,10 +125,10 @@ function test_user_has_proper_access() {
             exit 1
         fi
         os::log::info Checking access from Kibana pod...
-        nrecs=$( curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $test_token | get_count_from_json )
+        nrecs=$( curl_es_from_kibana "$kpod" $eshost "/project.$proj.*/_count" $test_token | get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = $expected" ; then
             os::log::error $user $verb access project.$proj.* indices from kibana
-            curl_es_from_kibana "$kpod" logging-es "/project.$proj.*/_count" $test_token | python -mjson.tool
+            curl_es_from_kibana "$kpod" $eshost "/project.$proj.*/_count" $test_token | python -mjson.tool
             exit 1
         fi
 
@@ -152,9 +152,9 @@ function test_user_has_proper_access() {
         curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | python -mjson.tool
         exit 1
     fi
-    esopshost=logging-es-ops
+    esopshost=$( get_es_svc es-ops )
     if [ "$espod" = "$esopspod" ] ; then
-        esopshost=logging-es
+        esopshost=$( get_es_svc es )
     fi
     nrecs=$( curl_es_from_kibana "$kpod" "$esopshost" "/.operations.*/_count" $test_token | get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then

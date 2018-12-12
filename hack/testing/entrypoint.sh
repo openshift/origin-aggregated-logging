@@ -25,11 +25,65 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
+# we have to declare a suite start in order to use the os::cmd functions
+os::test::junit::declare_suite_start "entrypoint"
+
 LOGGING_NS=openshift-logging
-if oc get project logging -o name > /dev/null && [ $(oc get dc -n logging -o name | wc -l) -gt 0 ]  ; then
+if oc get project logging -o name > /dev/null 2>&1 && [ $(oc get dc -n logging -o name 2> /dev/null | wc -l) -gt 0 ]  ; then
     LOGGING_NS=logging
 fi
 export LOGGING_NS
+
+# if using operators, turn off the managed state
+if oc get clusterlogging example > /dev/null 2>&1 ; then
+    oc patch -n ${LOGGING_NS} clusterlogging example --type=json --patch '[
+          {"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]'
+fi
+
+fluentd_ds=$( get_fluentd_ds_name )
+oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
+
+# patch fluentd and the node to make it easier to test in new environment
+if oc get clusterlogging example > /dev/null 2>&1 ; then
+    tolerations="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.tolerations}' )"
+    if [ -n "$tolerations" ] ; then
+        oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
+            {"op":"remove","path":"/spec/template/spec/tolerations"}]'
+    fi
+    nodesel="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.nodeSelector}' )"
+    if [ -z "$nodesel" ] ; then
+        oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
+            {"op":"add","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
+    fi
+    kibnode=$( oc get -n ${LOGGING_NS} pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
+    oc label node $kibnode --overwrite logging-infra-fluentd=true
+    # wait until there is only 1 fluentd running on the kibana node
+    os::cmd::try_until_text "oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{ .status.numberReady }'" '^1$' $(( 2 * minute ))
+    os::cmd::try_until_text "oc get -n ${LOGGING_NS} pods -l component=fluentd -o jsonpath='{.items[0].spec.nodeName}'" "$kibnode" $(( 2 * minute ))
+    # richm 20190117
+    # these tests need ability to create user with token
+    # check-logs test-access-control test-kibana-dashboards test-multi-tenancy
+    # these tests use systemctl or other apps not available in container
+    # test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries test-zzz-rsyslog
+    # fails because there are no logs from apps in the default namespace
+    # test-read-throttling
+    # fails - not sure why - maybe have to run the load generators as separate pods
+    # test-zzzz-bulk-rejection
+    # cannot mount file inside pod into another pod - rewrite to use a configmap or secret
+    # test-viaq-data-model
+    expected_failures=(
+        check-logs test-access-control test-kibana-dashboards test-multi-tenancy
+        test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries test-zzz-rsyslog
+        test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
+
+    )
+else
+    expected_failures=(
+        NONE
+    )
+fi
+
+stop_fluentd
 
 # HACK HACK HACK
 #
@@ -39,22 +93,24 @@ export LOGGING_NS
 # journal, and the default/logging pods, and the os, are spewing too much for
 # fluentd to keep up with when it has 100m cpu (default), on a aws m4.xlarge
 # system for now, remove the limits on fluentd to unblock the tests
-oc get -n ${LOGGING_NS} daemonset/logging-fluentd -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
-if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get -n ${LOGGING_NS} ds logging-fluentd -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
-    oc patch -n ${LOGGING_NS} daemonset/logging-fluentd --type=json --patch '[
+if [[ -z "${USE_DEFAULT_FLUENTD_CPU_LIMIT:-}" && -n "$(oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath={.spec.template.spec.containers[0].resources.limits.cpu})" ]] ; then
+    oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
           {"op":"remove","path":"/spec/template/spec/containers/0/resources/limits/cpu"}]'
 fi
 
 # Make CI run with enabled debug logs for journald (BZ 1505602)
-oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
+oc set -n ${LOGGING_NS} env $fluentd_ds COLLECT_JOURNAL_DEBUG_LOGS=true
 
 # Make CI run with MUX_CLIENT_MODE off by default - individual tests will set
 # MUX_CLIENT_MODE=maximal or minimal
-oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
+oc set -n ${LOGGING_NS} env $fluentd_ds MUX_CLIENT_MODE-
 
 # Starting in 3.10, we can no longer mount /var/lib/docker/containers
-oc volumes -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
+oc volumes -n ${LOGGING_NS} $fluentd_ds --overwrite --add -t hostPath \
     --name=varlibdockercontainers -m /var/lib/docker --path=/var/lib/docker || :
+
+# we're finished hacking fluentd - start it
+start_fluentd
 
 # start a fluentd performance monitor
 monitor_fluentd_top() {
@@ -79,7 +135,7 @@ monitor_fluentd_pos() {
         local cursor=$( get_journal_pos_cursor )
         if [ -n "$cursor" ] ; then
             local startts=$( date +%s )
-            local count=$( sudo journalctl -c $cursor | wc -l )
+            local count=$( sudo journalctl -m -c $cursor | wc -l )
             local endts=$( date +%s )
             echo $endts $( expr $endts - $startts ) $count
         else
@@ -92,7 +148,7 @@ monitor_fluentd_pos() {
 monitor_journal_lograte() {
     local interval=60
     while true ; do
-        count=$( sudo journalctl -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
+        count=$( sudo journalctl -m -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
         echo $( date +%s ) $count
         sleep $interval
     done  > $ARTIFACT_DIR/monitor_journal_lograte.log 2>&1
@@ -150,11 +206,6 @@ elif [[ -z "${KUBECONFIG:-}" ]]; then
 	os::log::fatal "A \$KUBECONFIG must be specified with \$TEST_ONLY."
 fi
 
-# if there is a script that is expected to fail, add it here
-expected_failures=(
-    NONE
-)
-
 function run_suite() {
 	local test="$1"
 	suite_name="$( basename "${test}" '.sh' )"
@@ -179,6 +230,9 @@ function run_suite() {
 		fi
 	fi
 }
+
+# done with entrypoint/boostrapping - begin main tests
+os::test::junit::declare_suite_end
 
 EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
 for suite_selector in ${SUITE:-".*"} ; do

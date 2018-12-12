@@ -30,18 +30,44 @@ if [ -z "${USE_JOURNAL:-}" ] ; then
     fi
 fi
 
-USE_JOURNAL="${USE_JOURNAL}"    \
-OAL_ELASTICSEARCH_COMPONENT="es" \
-OAL_KIBANA_COMPONENT="kibana"   \
-OAL_ELASTICSEARCH_SERVICE="logging-es" \
-"${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+USE_OPERATOR=${USE_OPERATOR:-false}
+if oc get clusterlogging > /dev/null 2>&1 ; then
+	USE_OPERATOR=${USE_OPERATOR:-true}
+fi
 
-if [ "$1" = "true" ]; then
-  # There is an ops cluster set up, so we
-  # need to verify it's functionality as well.
-  USE_JOURNAL="${USE_JOURNAL}"        \
-  OAL_ELASTICSEARCH_COMPONENT="es-ops" \
-  OAL_KIBANA_COMPONENT="kibana-ops"   \
-  OAL_ELASTICSEARCH_SERVICE="logging-es-ops" \
-  "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+if [ "$USE_OPERATOR" = true ] ; then
+    if [ "$1" = "true" ]; then
+        USE_JOURNAL="${USE_JOURNAL}"    \
+        OAL_ELASTICSEARCH_COMPONENT="es" \
+        OAL_KIBANA_COMPONENT="kibana-app"   \
+        OAL_ELASTICSEARCH_SERVICE="elasticsearch-app" \
+        "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+        USE_JOURNAL="${USE_JOURNAL}"    \
+        OAL_ELASTICSEARCH_COMPONENT="es-ops" \
+        OAL_KIBANA_COMPONENT="kibana-infra"   \
+        OAL_ELASTICSEARCH_SERVICE="elasticsearch-infra" \
+        "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+    else
+        USE_JOURNAL="${USE_JOURNAL}"    \
+        OAL_ELASTICSEARCH_COMPONENT="es" \
+        OAL_KIBANA_COMPONENT="kibana"   \
+        OAL_ELASTICSEARCH_SERVICE="elasticsearch" \
+        "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+    fi
+else
+    USE_JOURNAL="${USE_JOURNAL}"    \
+    OAL_ELASTICSEARCH_COMPONENT="es" \
+    OAL_KIBANA_COMPONENT="kibana"   \
+    OAL_ELASTICSEARCH_SERVICE="es" \
+    "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+
+    if [ "$1" = "true" ]; then
+        # There is an ops cluster set up, so we
+        # need to verify it's functionality as well.
+        USE_JOURNAL="${USE_JOURNAL}"        \
+        OAL_ELASTICSEARCH_COMPONENT="es-ops" \
+        OAL_KIBANA_COMPONENT="kibana-ops"   \
+        OAL_ELASTICSEARCH_SERVICE="es-ops" \
+        "${OS_O_A_L_DIR}/test/cluster/functionality.sh"
+    fi
 fi

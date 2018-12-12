@@ -29,7 +29,9 @@ function cleanup() {
     if [ -n "${bulktestjson:-}" -a -f "${bulktestjson:-}" ] ; then
         rm -f $bulktestjson
     fi
-    curl_es $esopssvc /bulkindextest -XDELETE | jq . | artifact_out
+    if [ -n "${esopssvc:-}" ] ; then
+        curl_es $esopssvc /bulkindextest -XDELETE | jq . | artifact_out
+    fi
     fpod=$( get_running_pod fluentd )
     if sudo test -f /var/log/fluentd/fluentd.log ; then
         sudo cat /var/log/fluentd/fluentd.log > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
@@ -54,7 +56,7 @@ function cleanup() {
     fi
     os::cmd::try_until_failure "oc get pod $fpod"
     sleep 1
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     if [ -n "${bulkdonefile:-}" -a -f "${bulkdonefile:-}" ] ; then
         rm -f $bulkdonefile
     fi
@@ -67,35 +69,51 @@ trap cleanup EXIT
 
 # save current es settings
 es_cm=$( mktemp )
-oc get cm/logging-elasticsearch -o yaml > $es_cm
+if oc get cm/elasticsearch > /dev/null 2>&1 ; then
+    es_cm_name=cm/elasticsearch
+else
+    es_cm_name=cm/logging-elasticsearch
+fi
+oc get $es_cm_name -o yaml > $es_cm
 
 # thanks es5 - https://www.elastic.co/guide/en/elasticsearch/reference/5.1/breaking_50_settings_changes.html#_threadpool_settings
 # change queue size and pool size to make it easy to hit limit
-oc get cm/logging-elasticsearch -o yaml | \
+oc get $es_cm_name -o yaml | \
     sed '/^  elasticsearch.yml/a\
     '$keyname':\
       bulk:\
         queue_size: 1\
         size: 1' | oc replace --force -f - 2>&1 | artifact_out
 
-oc rollout latest $esopsdc 2>&1 | artifact_out
-oc rollout status -w $esopsdc 2>&1 | artifact_out
+if [ -n "${esopsdc:-}" ] ; then
+    oc rollout latest $esopsdc 2>&1 | artifact_out
+    oc rollout status -w $esopsdc 2>&1 | artifact_out
+else
+    esopspod=$( get_es_pod es-ops )
+    if [ -n "${esopspod:-}" ] ; then
+        esopspod=$( get_es_pod es )
+    fi
+    oc delete pod $esopspod
+    os::cmd::try_until_failure "oc get pod $esopspod > /dev/null 2>&1"
+    os::cmd::try_until_success "oc get pods | grep -q 'elasticsearch.*Running'"
+fi
 essvc=$( get_es_svc es )
 esopssvc=$( get_es_svc es-ops )
 esopssvc=${esopssvc:-$essvc}
 
 # check settings
 bulk_url=$( get_bulk_thread_pool_url $es_ver "v" c r a q s qs )
+os::cmd::try_until_success "curl_es $esopssvc '${bulk_url}' > /dev/null 2>&1"
 curl_es $esopssvc "${bulk_url}" 2>&1 | artifact_out
 # save current fluentd settings
 f_cm=$( mktemp )
 f_ds=$( mktemp )
 
-oc get cm/logging-fluentd -o yaml > $f_cm
-oc get ds/logging-fluentd -o yaml > $f_ds
+oc get $fluentd_cm -o yaml > $f_cm
+oc get $fluentd_ds -o yaml > $f_ds
 
 # stop fluentd to make sure the logs are clear
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
 fpod=$( get_running_pod fluentd )
 stop_fluentd "$fpod" 2>&1 | artifact_out
 
@@ -105,7 +123,7 @@ cat $f_cm | \
       @log_level debug\
     </system>,' | oc replace --force -f -
 
-oc set env ds/logging-fluentd DEBUG=true
+oc set env $fluentd_ds DEBUG=true
 
 start_fluentd true 2>&1 | artifact_out
 wait_for_fluentd_ready
@@ -190,6 +208,19 @@ if ! os::cmd::expect_success "test ${start_bulk_rejections} -lt ${end_bulk_rejec
 fi
 
 # check the logs to see if there are bulk index rejection errors between starttime and endtime
+fluentdlogfile=/var/log/fluentd/fluentd.log
+if sudo test -f $fluentdlogfile ; then
+    if [ ! -f $fluentdlogfile ] ; then
+        sudo chmod o+rx /var/log/fluentd
+        sudo chmod o+r $fluentdlogfile
+    fi
+else
+    fluentdlogfile=/var/log/fluentd.log
+    if [ ! -f $fluentdlogfile ] ; then
+        sudo chmod o+r $fluentdlogfile
+    fi
+fi
+
 found=
 founderr=0
 foundsuc=0
@@ -215,7 +246,7 @@ while read datestr timestr tz logline ; do
             lastsuc=$dt
         fi
     fi
-done < /var/log/fluentd.log
+done < $fluentdlogfile
 
 os::log::info There were $founderr bulk index errors and $foundsuc successful retries recorded by fluentd during the test run between $( date --date=@$starttime ) and $( date --date=@$endtime )
 
@@ -235,9 +266,9 @@ else
     os::log::error not found $countops record project .operations for $uuid_es_ops after timeout
     os::log::debug "$( curl_es ${esopssvc} /.operations.*/_search -X POST -d "$qsops" )"
     os::log::error "Checking journal for $uuid_es_ops..."
-    if sudo journalctl | grep -q $uuid_es_ops ; then
+    if sudo journalctl -m | grep -q $uuid_es_ops ; then
         os::log::error "Found $uuid_es_ops in journal"
-        os::log::debug "$( sudo journalctl | grep $uuid_es_ops )"
+        os::log::debug "$( sudo journalctl -m | grep $uuid_es_ops )"
     else
         os::log::error "Unable to find $uuid_es_ops in journal"
     fi

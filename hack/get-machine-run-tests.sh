@@ -51,6 +51,12 @@ EXTRA_ENV - (default none) - extra environment variables to pass to the test
 EXTRA_ANSIBLE - (default none) - extra options to add to the ansible-playbook
   command line when running the logging playbook e.g.
   EXTRA_ANSIBLE="-e openshift_logging_use_ops=False -e other=True"
+USE_LOGGING - (default true) - if true, install logging after installing
+  OpenShift using openshift-ansible logging playbook
+USE_OPERATORS - (default false) - if true, install logging after installing
+  OpenShift using operators
+TEST_LOGGING - (default true) - if true, run logging CI after installing
+  logging
 
 see the file $0 for other variables which can be set
 You can also pass these in as environment variables on the command line:
@@ -96,6 +102,7 @@ if echo "${EXTRA_ANSIBLE_OPENSHIFT:-}" | grep -q -i "use_crio=true" ; then
 else
     USE_CRIO=${USE_CRIO:-false}
 fi
+GOPATH=${GOPATH:-$HOME/go}
 export REMOTE_GOPATH=${REMOTE_GOPATH:-/data}
 OS=${OS:-rhel}
 TESTNAME=${TESTNAME:-logging}
@@ -120,6 +127,7 @@ OS_A_C_J_DIR=${OS_A_C_J_DIR:-$REMOTE_GOPATH/src/github.com/openshift/aos-cd-jobs
 #USE_AMI=${USE_AMI:-fork_ami_openshift3_logging-1.4-backports}
 export AWS_SECURITY_GROUPS=${AWS_SECURITY_GROUPS:-sg-e1760186}
 ROOT_VOLUME_SIZE=${ROOT_VOLUME_SIZE:-75}
+USE_OPERATORS=${USE_OPERATORS:-false}
 
 INSTNAME=${INSTNAME:-origin_$USER-$TESTNAME-$OS-1}
 
@@ -228,6 +236,32 @@ ssh -n openshiftdevel "cd $OS_O_A_DIR; git checkout ${ANSIBLE_BASE_BRANCH:-maste
 # also needs aos_cd_jobs
 oct sync remote aos-cd-jobs --branch master
 
+runfile=`mktemp`
+if [ $USE_OPERATORS = true ] ; then
+    cat > $runfile <<EOF
+set -euxo pipefail
+cd $REMOTE_GOPATH/src/github.com/openshift
+if [ ! -d elasticsearch-operator ] ; then
+    git clone https://github.com/openshift/elasticsearch-operator -b ${ES_OP_BASE_BRANCH:-master}
+fi
+if [ ! -d cluster-logging-operator ] ; then
+    git clone https://github.com/openshift/cluster-logging-operator -b ${CL_OP_BASE_BRANCH:-master}
+fi
+EOF
+    scp $runfile openshiftdevel:/tmp
+    ssh -n openshiftdevel "bash $runfile"
+    if [ -d $GOPATH/src/github.com/openshift/elasticsearch-operator ] ; then
+        oct sync local elasticsearch-operator --branch ${ES_OP_BRANCH:-master} --merge-into ${ES_OP_BASE_BRANCH:-master} --src $GOPATH/src/github.com/openshift/elasticsearch-operator
+    else
+        oct sync remote elasticsearch-operator --branch ${ES_OP_BRANCH:-master} --merge-into ${ES_OP_BASE_BRANCH:-master}
+    fi
+    if [ -d $GOPATH/src/github.com/openshift/cluster-logging-operator ] ; then
+        oct sync local cluster-logging-operator --branch ${CL_OP_BRANCH:-master} --merge-into ${CL_OP_BASE_BRANCH:-master} --src $GOPATH/src/github.com/openshift/cluster-logging-operator
+    else
+        oct sync remote cluster-logging-operator --branch ${CL_OP_BRANCH:-master} --merge-into ${CL_OP_BASE_BRANCH:-master}
+    fi
+fi
+
 # HACK HACK HACK
 # there is a problem with the enterprise-3.3 repo:
 #https://use-mirror2.ops.rhcloud.com/enterprise/enterprise-3.3/latest/RH7-RHAOS-3.3/x86_64/os/repodata/repomd.xml: [Errno 14] HTTPS Error 404 - Not Found
@@ -239,43 +273,9 @@ oct sync remote aos-cd-jobs --branch master
 #      repository: "origin-aggregated-logging"
 #      script: |-
 #        hack/build-images.sh
-if [ "${USE_LOGGING:-true}" = true -a "${BUILD_IMAGES:-true}" = true ] ; then
+if [ "${BUILD_IMAGES:-true}" = true ] ; then
     ssh -n openshiftdevel "cd $OS_O_A_L_DIR; hack/build-images.sh"
 fi
-
-#      title: "build an openshift-ansible release"
-#      repository: "openshift-ansible"
-runfile=`mktemp`
-trap "rm -f $runfile" ERR EXIT INT TERM
-cat > $runfile <<EOF
-set -euxo pipefail
-cd $OS_O_A_DIR
-tito_tmp_dir="tito"
-rm -rf "\${tito_tmp_dir}"
-mkdir -p "\${tito_tmp_dir}"
-titotagtmp=\$( mktemp )
-if tito tag --debug --offline --accept-auto-changelog > \$titotagtmp 2>&1 ; then
-    cat \$titotagtmp
-elif grep -q "Tag openshift-ansible.* already exists" \$titotagtmp ; then
-    cat \$titotagtmp
-else
-    cat \$titotagtmp
-    rm -f \$titotagtmp
-    exit 1
-fi
-rm -f \$titotagtmp
-tito build --output="\${tito_tmp_dir}" --rpm --test --offline --quiet
-createrepo "\${tito_tmp_dir}/noarch"
-cat << EOR > ./openshift-ansible-local-release.repo
-[openshift-ansible-local-release]
-baseurl = file://\$( pwd )/\${tito_tmp_dir}/noarch
-gpgcheck = 0
-name = OpenShift Ansible Release from Local Source
-EOR
-sudo cp ./openshift-ansible-local-release.repo /etc/yum.repos.d
-EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
 
 #      title: "enable ansible 2.6 repo"
 cat > $runfile <<EOF
@@ -308,74 +308,12 @@ sslclientkey=/var/lib/yum/client-key.pem
 sslverify=0
 REPO
     sudo yum repolist
+    sudo yum -y install ansible
 fi
 EOF
 scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
-#      title: "install the openshift-ansible release"
-#      repository: "openshift-ansible"
-cat > $runfile <<EOF
-set -euxo pipefail
-compare_versions() {
-    local aver="\$1"
-    local op="\$2"
-    local bver="\$3"
-    if [ "\$aver" = master ] ; then aver=release-9999 ; fi
-    if [ "\$bver" = master ] ; then bver=release-9999 ; fi
-    if [ "\$aver" = es5.x ] ; then aver=release-3.10 ; fi
-    if [ "\$bver" = es5.x ] ; then bver=release-3.10 ; fi
-    python -c 'import sys
-from pkg_resources import parse_version
-sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
-}
-pushd $OS_O_A_L_DIR > /dev/null
-curbranch=\$( git rev-parse --abbrev-ref HEAD )
-popd > /dev/null
-if compare_versions "\${curbranch}" "<=" release-3.7 ; then
-    sudo yum downgrade -y ansible-2.3\*
-    oapkg=atomic-openshift-utils
-else
-    oapkg=openshift-ansible
-fi
-if compare_versions "\${curbranch}" ">=" release-3.10 ; then
-    sudo yum-config-manager --disable origin-deps-rhel7\* || true
-    sudo yum-config-manager --disable rhel-7-server-ose\* || true
-fi
-cd $OS_O_A_DIR
-jobs_repo=$OS_A_C_J_DIR
-last_tag="\$( git describe --tags --abbrev=0 --exact-match HEAD )" || :
-if [ -z "\${last_tag}" ] ; then
-   # fatal: no tag exactly matches '89c405109d8ca5906d9beb03e7e2794267f5f357'
-   last_tag="\$( git describe --tags --abbrev=0 )"
-fi
-last_commit="\$( git log -n 1 --no-merges --pretty=%h )"
-if sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}.el7"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.0.\${last_commit}"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}.el7"
-elif sudo yum install -y "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}" ; then
-   rpm -V "\${oapkg}\${last_tag/openshift-ansible/}.git.1.\${last_commit}"
-else
-   # for master, it looks like there is some sort of strange problem with git tags
-   # tito will give the packages a N-V-R like this:
-   # atomic-openshift-utils-3.7.0-0.134.0.git.20.186ded5.el7
-   # git describe --tags --abbrev=0 looks like this
-   # openshift-ansible-3.7.0-0.134.0
-   # git describe --tags looks like this
-   # openshift-ansible-3.7.0-0.134.0-20-g186ded5
-   # there doesn't appear to be a git describe command which will give
-   # the same result, so munge it
-   verrel=\$( git describe --tags | \
-              sed -e 's/^openshift-ansible-//' -e 's/-\([0-9][0-9]*\)-g\(..*\)\$/.git.\1.\2/' )
-   sudo yum install -y "\${oapkg}-\${verrel}.el7"
-   rpm -V "\${oapkg}-\${verrel}.el7"
-fi
-EOF
-scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash $runfile"
 
 #      title: "install Ansible plugins"
 #      repository: "origin"
@@ -523,7 +461,7 @@ EOF2
         sudo yum -y install \$HOME/rpmbuild/RPMS/noarch/branch-deps-*.noarch.rpm
         # if [[ "\${curbranch}" == release-3.9 ]] ; then
         #     # hack for the CA serial number problem
-        #     sudo sed -i -e '/- name: Create ca serial/,/^\$/{s/"00"/""/; /when/d}' /usr/share/ansible/openshift-ansible/roles/openshift_ca/tasks/main.yml
+        #     sudo sed -i -e '/- name: Create ca serial/,/^\$/{s/"00"/""/; /when/d}' $OS_O_A_DIR/roles/openshift_ca/tasks/main.yml
         # fi
     fi
 else
@@ -620,7 +558,7 @@ set -euxo pipefail
 cd $OS_A_C_J_DIR
 EXTRA_ANSIBLE_OPENSHIFT="${EXTRA_ANSIBLE_OPENSHIFT:-}"
 
-if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; then
+if [ -f $OS_O_A_DIR/playbooks/prerequisites.yml ] ; then
     ANSIBLE_LOG_PATH=/tmp/ansible-prereq.log ansible-playbook -vvv --become               \
                         --become-user root         \
                         --connection local         \
@@ -635,10 +573,10 @@ if [ -f /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml ] ; the
                         -e oreg_url='openshift/origin-\${component}:'"${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}" \
                         -e openshift_console_install=False \
                         \${EXTRA_ANSIBLE_OPENSHIFT:-} \
-                        /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
+                        $OS_O_A_DIR/playbooks/prerequisites.yml
 fi
 
-playbook_base='/usr/share/ansible/openshift-ansible/playbooks/'
+playbook_base=$OS_O_A_DIR/playbooks/
 if [[ -s "\${playbook_base}/openshift-node/network_manager.yml" ]]; then
     playbook="\${playbook_base}openshift-node/network_manager.yml"
 else
@@ -659,6 +597,13 @@ ANSIBLE_LOG_PATH=/tmp/ansible-network.log ansible-playbook -vvv --become        
   -e openshift_console_install=False \
   \${EXTRA_ANSIBLE_OPENSHIFT:-} \
   \${playbook}
+
+if [ $USE_OPERATORS = true ] ; then
+    EXTRA_ANSIBLE_OPENSHIFT="\${EXTRA_ANSIBLE_OPENSHIFT:-} -e openshift_enable_olm=True"
+    if [ "${PROVIDER:-aws}" = libvirt ] ; then
+        EXTRA_ANSIBLE_OPENSHIFT="\${EXTRA_ANSIBLE_OPENSHIFT:-} -e olm_operator_image=quay.io/coreos/olm:0.8.0 -e olm_catalog_operator_image=quay.io/coreos/catalog:0.7.1"
+    fi
+fi
 
 if [[ -s "\${playbook_base}deploy_cluster.yml" ]]; then
     playbook="\${playbook_base}deploy_cluster.yml"
@@ -748,7 +693,7 @@ from pkg_resources import parse_version
 sys.exit(not parse_version(sys.argv[1])'"\${op}"'parse_version(sys.argv[2]))' "\$aver" "\$bver"
 }
 cd $OS_A_C_J_DIR
-playbook_base='/usr/share/ansible/openshift-ansible/playbooks/'
+playbook_base=$OS_O_A_DIR/playbooks/
 if [[ -s "\${playbook_base}openshift-logging/config.yml" ]]; then
     playbook="\${playbook_base}openshift-logging/config.yml"
 else
@@ -802,6 +747,39 @@ EOF
     scp $runfile openshiftdevel:/tmp
     ssh -n openshiftdevel "bash $runfile"
 fi
+if [ $USE_OPERATORS = true ] ; then
+    cat > $runfile <<EOF
+set -euxo pipefail
+
+if ! type -p imagebuilder ; then
+    export PATH=\$GOPATH/bin:\$PATH
+    echo "export PATH=\$PATH" >> \$HOME/.bashrc
+fi
+
+NAMESPACE=openshift-logging make -C $REMOTE_GOPATH/src/github.com/openshift/cluster-logging-operator deploy-example
+# wait until running
+ii=120
+while [ \$ii -gt 0 ] ; do
+    if oc -n openshift-logging get pods 2> /dev/null | grep -q 'kibana.*Running' && \
+       oc -n openshift-logging get pods 2> /dev/null | grep -q 'elasticsearch.*Running' && \
+       oc -n openshift-logging get pods 2> /dev/null | grep -q 'fluentd.*Running' ; then
+        break
+    fi
+    ii=\$(expr \$ii - 1) || :
+    sleep 1
+done
+if [ \$ii = 0 ] ; then
+    echo ERROR: operator did not start pods after 5 minutes
+    oc -n openshift-logging get deploy || :
+    oc -n openshift-logging get pods || :
+    oc -n openshift-logging get elasticsearch || :
+    oc -n openshift-logging get clusterlogging || :
+    exit 1
+fi
+EOF
+    scp $runfile openshiftdevel:/tmp
+    ssh -n openshiftdevel "bash $runfile"
+fi
 
 if [ -n "${PRESERVE:-}" ] ; then
     id=$( aws ec2 --profile rh-dev describe-instances --output text --filters "Name=tag:Name,Values=$INSTNAME" --query 'Reservations[].Instances[].[InstanceId]' )
@@ -832,7 +810,7 @@ fi
 
 #      title: "run logging tests"
 #      repository: "origin-aggregated-logging"
-if [ "${USE_LOGGING:-true}" = true ] ; then
+if [ "${TEST_LOGGING:-true}" = true ] ; then
     cat > $runfile <<EOF
 sudo wget -O /usr/local/bin/stern https://github.com/wercker/stern/releases/download/1.5.1/stern_linux_amd64 && sudo chmod +x /usr/local/bin/stern
 cd $OS_O_A_L_DIR

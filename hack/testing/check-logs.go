@@ -100,7 +100,7 @@ func main() {
 			message = strings.Replace(message, `"`, `\"`, -1)
 			message = strings.Replace(message, "`", `\`+"`", -1)
 			message = strings.Replace(message, `$`, `\$`, -1)
-			searchCmd = `journalctl MESSAGE="` + message + `"`
+			searchCmd = `journalctl -m MESSAGE="` + message + `"`
 		} else {
 			// escape certain characters that were being interpreted by grep -e "" or bash
 			message = strings.Replace(message, `\`, `\\\\`, -1)

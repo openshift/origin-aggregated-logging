@@ -10,7 +10,7 @@ os::util::environment::use_sudo
 if oc get dc/logging-mux > /dev/null 2>&1 ; then
     oc get dc/logging-mux 2>&1 | artifact_out
 else
-    oc get dc/logging-mux 2>&1 | artifact_out
+    oc get dc/logging-mux 2>&1 | artifact_out || :
     os::log::info dc/logging-mux is not present - skipping test
     exit 0
 fi
@@ -21,7 +21,7 @@ os::test::junit::declare_suite_start "test/mux-client-mode"
 
 # save daemonset
 saveds=$( mktemp )
-oc get daemonset logging-fluentd -o yaml > $saveds
+oc get $fluentd_ds -o yaml > $saveds
 
 cleanup() {
     local return_code="$?"
@@ -46,10 +46,10 @@ cleanup() {
 trap "cleanup" EXIT
 
 reset_fluentd_daemonset() {
-  muxcerts=$( oc get daemonset logging-fluentd -o yaml | egrep muxcerts ) || :
+  muxcerts=$( oc get $fluentd_ds -o yaml | egrep muxcerts ) || :
 
   if [ "$muxcerts" = "" ]; then
-      oc set volumes daemonset/logging-fluentd --add --overwrite \
+      oc set volumes $fluentd_ds --add --overwrite \
                --name=muxcerts --default-mode=0400 -t secret -m /etc/fluent/muxkeys --secret-name logging-mux 2>&1 | artifact_out
   fi
 }
@@ -59,7 +59,7 @@ muxpod=$( get_running_pod mux )
 
 os::log::info configure fluentd to use MUX_CLIENT_MODE=minimal - verify logs get through
 stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
+oc set env $fluentd_ds MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
 reset_fluentd_daemonset
 start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
@@ -68,7 +68,7 @@ wait_for_fluentd_to_catch_up
 # configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 os::log::info configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
+oc set env $fluentd_ds MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
 reset_fluentd_daemonset
 start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
