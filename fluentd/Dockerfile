@@ -3,7 +3,7 @@ FROM rhscl/ruby-25-rhel7:latest as builder
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.2.6 \
+    FLUENTD_VERSION=1.3.2 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -45,7 +45,7 @@ RUN cd ${HOME}/build/ && ./install-gems.sh && cd .. && rm -rf ${HOME}/build
 FROM rhel7:7-released
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.2.6 \
+    FLUENTD_VERSION=1.3.2 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \

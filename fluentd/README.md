@@ -12,6 +12,7 @@ Following are the environment variables that can be modified to adjust the confi
 | `LOGGING_FILE_PATH` | The log file absolute path where Fluentd is writting its logs. If you want Fluentd to output its logs as Fluentd does by default (`STDOUT`) set this variable to `console` value. Default value is `/var/log/fluentd/fluentd.log`. | `LOGGING_FILE_PATH=console` |
 | `LOGGING_FILE_AGE` | Number of log files that Fluentd keeps before deleting the oldest file. Default value is `10`. | `LOGGING_FILE_AGE=30` |
 | `LOGGING_FILE_SIZE` | Maximum size of a Fluentd log file in bytes. If the size of the log file is bigger, the log file gets rotated. Default is 1MB | `LOGGING_FILE_PATH=1024000`
+| `SSL_PARTIAL_CHAIN` | Allow use of intermediate CA cert without root CA cert with Kubernetes API server (Default: true)| `SSL_PARTIAL_CHAIN=true`
 
 ## Cri-o Formatted Container Logs
 In order to enable cri-o logs parsing, it is necessary to mount
