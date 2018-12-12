@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Copyright 2018 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# init script to cleanup old searchguard indices
+# https://bugzilla.redhat.com/show_bug.cgi?id=1658632
+set -e
+
+if [ -n "${DEBUG:-}" ] ; then
+  set -x
+fi
+
+source "logging"
+source "$(dirname $0)/common"
+
+script=$(basename $0)
+
+info "Starting init script: ${script}"
+
+acknowledged(){
+  echo $1 | python -c "import json,sys;r=json.load(sys.stdin);print 'true' if 'acknowledged' in r and r['acknowledged'] else 'false'"
+}
+
+response=$(es_util --query='.searchguard.*' -XDELETE )
+if [ "true" != "$(es_acknowledged $response)" ] ; then
+  error "Error deleting .searchguard.* indices: ${response}"
+fi
+
+settings=$(es_util --query='.searchguard/_settings')
+allocation="$(es_routing_allocation $settings)"
+if [ "$allocation" != "null" ] || [ "$allocation" != "" ] ; then
+  warn "Found .searchguard setting 'index.routing.allocation.include._name' to be $allocation"
+  info "Updating .searchguard setting 'index.routing.allocation.include._name' to be null"
+  resp=$(es_util --query=".searchguard/_settings" -XPUT -d '{"index.routing.allocation.include._name": null}')
+  if [ "true" != "$(acknowledged $resp)" ] ; then
+    error "Error nullifying .searchguard routing allocation: ${resp}"
+  fi
+fi
+
+info "Completed init script: ${script}"

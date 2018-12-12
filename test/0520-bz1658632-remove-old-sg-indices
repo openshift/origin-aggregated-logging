@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# test init script tests cleanup of old SG indices
+# https://bugzilla.redhat.com/show_bug.cgi?id=1658632
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
+if [ -n "${DEBUG:-}" ] ; then
+    set -x
+fi
+
+source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
+source "${OS_O_A_L_DIR}/elasticsearch/init/common"
+
+os::util::environment::use_sudo
+
+test_name=$(basename $0)
+init_script="0520-bz1658632-remove-old-sg-indices"
+os::test::junit::declare_suite_start ${test_name}
+
+cleanup() {
+    local return_code="$?"
+    set +e
+    if [ $return_code = 0 ] ; then
+        mycmd=os::log::info
+    else
+        mycmd=os::log::error
+    fi
+    $mycmd ${test_name} test finished at $( date )
+    # this will call declare_test_end, suite_end, etc.
+    os::test::junit::reconcile_output
+    exit $return_code
+}
+trap "cleanup" EXIT
+
+seed_data(){
+  local pod=$1
+  os::log::info Seeding 3 searchguard indices
+  names=(abc123 xyz123 zzz123)
+  for n in "${names[@]}"
+  do
+    doc=".searchguard.$n/0/0"
+    result=$(oc -n ${LOGGING_NS} exec -c elasticsearch $pod -- es_util --query=$doc -XPOST -d '{"key":"value"}')
+    if [ $? -ne 0 ] ; then
+      os::log::error Error seeding indices
+      exit 1
+    fi
+  done
+}
+
+os::log::info Starting ${test_name} test at $( date )
+
+espod=$( get_es_pod es )
+cmd="oc exec -c elasticsearch -n ${LOGGING_NS} $espod"
+
+# remove existing indices
+os::cmd::expect_success "$cmd -- es_util --query=.searchguard.* -XDELETE"
+sleep 1
+
+# verify no old indices is a no-op and script succeeds
+os::log::info 'Verify init script with no searchguard indices'
+os::cmd::expect_success "$cmd -- /usr/share/elasticsearch/init/$init_script"
+
+# verify indices are removed
+os::log::info "Verify init script with some searchguard indices"
+seed_data $espod
+os::cmd::expect_success "$cmd -- es_util --query='.searchguard/_settings' -XPUT -d '{\"index.routing.allocation.include._name\": \"foobar\"}'"
+sleep 3
+os::cmd::expect_success "$cmd -- /usr/share/elasticsearch/init/$init_script"
+sleep 3
+
+#verify indices deleted
+remaining=$($cmd -- es_util --query='.searchguard.*/_count' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["count"]')
+if [ $remaining -ne 0 ] ; then
+    os::log::error Found $remaining .searchguard.* indices after running init script
+    $cmd -- es_util --query='.searchguard.*/_search?pretty&_source=false' 2>&1 | artifact_out
+    exit 1
+fi
+
+#verify .searchguard routing
+settings=$($cmd -- es_util --query='.searchguard/_settings') \
+allocation=$(es_routing_allocation $settings)
+if [ "$allocation" != "null" ] && [ "$allocation" != "" ] ; then
+    os::log::error "The .searchguard index is allocated to node '$allocation' and should not be"
+    echo $settings | artifact_out
+    exit 1
+fi
