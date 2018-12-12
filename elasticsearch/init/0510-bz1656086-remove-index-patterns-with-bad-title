@@ -20,7 +20,7 @@
 # https://bugzilla.redhat.com/show_bug.cgi?id=1656086
 set -e
 
-if [ -n "${SDEBUG:-}" ] ; then
+if [ -n "${DEBUG:-}" ] ; then
   set -x
 fi
 
@@ -54,14 +54,14 @@ except:
 '
 }
 
-response=$(es_util --query='.kibana*/index-pattern/_search?_count?q=title:$TITLE$' )
+response=$(es_util --query='.kibana*/index-pattern/_count?q=title:$TITLE$')
 debug "Initial response:  $response"
 
 tot_docs=$(get_count "$response")
 info "Found ${tot_docs} index-patterns to remove"
 
 response=$(es_util --query='.kibana*/index-pattern/_delete_by_query' -d '{"query":{"match":{"title":"$TITLE$"}}}')
-if [ $(get_deleted $respose) -ne ${tot_docs} ] ; then
+if [ $(get_deleted $response) -ne ${tot_docs} ] ; then
   error "Error deleting index-patterns: $response"
 fi
 
