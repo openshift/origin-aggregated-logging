@@ -86,7 +86,7 @@ sleep 5
 remaining=$($cmd -- es_util --query='.kibana*/index-pattern/_count?q=title:$TITLE$' | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["count"]')
 
 if [ $remaining -ne 0 ] ; then
-    os::log::error Found index-patterns in response that had 'title' equal to '$TITLE$'
-    os::log::error "$($cmd -- es_util --query='.kibana*/index-pattern/_search?pretty&_source=false&q=title:$TITLE$')"
+    os::log::error Found $remaining index-patterns in response that had 'title' equal to '$TITLE$'
+    $cmd -- es_util --query='.kibana*/index-pattern/_search?pretty&_source=false&q=title:$TITLE$' 2>&1 | artifact_out
     exit 1
 fi
