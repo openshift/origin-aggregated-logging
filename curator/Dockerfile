@@ -22,11 +22,9 @@ RUN if [ -n "${LOCAL_REPO}" ] ; then \
      curl -s -o /etc/yum.repos.d/local.repo ${LOCAL_REPO} ; \
     fi
 
-RUN INSTALL_PKGS="elastic-curator-${CURATOR_VER} \
-                  python2-ruamel-yaml" && \
-    yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-    rpm -V ${INSTALL_PKGS} && \
-    yum clean all
+RUN yum install -y --setopt=skip_missing_names_on_install=False --setopt=tsflags=nodocs \
+        elastic-curator-${CURATOR_VER} python2-ruamel-yaml "python-elasticsearch < 5.5" \
+ && yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
 
