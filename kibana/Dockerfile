@@ -27,6 +27,7 @@ ENV ES_HOST=localhost \
 USER 0
 
 RUN yum repolist > /dev/null && \
+    yum remove -y python-setuptools && \
     yum-config-manager --enable rhel-7-server-ose-3.9-rpms && \
     yum-config-manager --disable epel >/dev/null || : && \
     INSTALLED_PKGS="kibana-${KIBANA_VER}" && \
