@@ -28,6 +28,8 @@ method, you MUST add `-v /var/log:/var/log` to the `docker` command line.
 OpenShift must have access to the container logs in order for Fluentd to read
 and process them.
 
+Please check the [release notes](docs/release_notes.md) for deprecated features or breaking changes .
+
 ## Components
 
 The logging subsystem consists of multiple components commonly abbreviated
