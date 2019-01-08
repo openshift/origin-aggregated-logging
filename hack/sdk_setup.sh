@@ -25,6 +25,9 @@ pushd $GOPATH/src/github.com/operator-framework
 git clone https://github.com/operator-framework/operator-sdk
 popd
 
+go get -u github.com/openshift/imagebuilder/cmd/imagebuilder
+cp /root/go/bin/imagebuilder /usr/bin/
+
 pushd $GOPATH/src/github.com/operator-framework/operator-sdk
 git checkout master
 make dep
