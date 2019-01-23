@@ -15,45 +15,69 @@ function get_curator_dcs() {
 }
 
 function get_es_pod() {
+    local clustertype="$1"
     # $1 - cluster name postfix
-    if [ -z $(oc -n $LOGGING_NS get dc -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '{print $1}') ] ; then
-      oc -n $LOGGING_NS get pods -l component=${1} --no-headers | awk '$3 == "Running" {print $1}'
+    # for allinone there is just "elasticsearch"
+    # for split apps/infra there will be separate elasticsearch-app and elasticsearch-infra
+    if [ -n "$( oc -n $LOGGING_NS get deployment -l cluster-name=elasticsearch,es-node-master=true -o name 2> /dev/null )" ] ; then
+        oc -n $LOGGING_NS get pod -l cluster-name=elasticsearch,es-node-master=true --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
+    elif [ $clustertype = es-ops ] && \
+         [ -n "$( oc -n $LOGGING_NS get deployment -l cluster-name=elasticsearch-infra,es-node-master=true -o name 2> /dev/null )" ] ; then
+        oc -n $LOGGING_NS get pod -l cluster-name=elasticsearch-infra,es-node-master=true --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
+    elif [ $clustertype = es ] && \
+         [ -n "$( oc -n $LOGGING_NS get deployment -l cluster-name=elasticsearch-app,es-node-master=true -o name 2> /dev/null )" ] ; then
+        oc -n $LOGGING_NS get pod -l cluster-name=elasticsearch-app,es-node-master=true --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
+    elif [ -z "$(oc -n $LOGGING_NS get dc -l cluster-name=logging-${clustertype},es-node-role=clientdata --no-headers 2> /dev/null | awk '{print $1}')" ] ; then
+      oc -n $LOGGING_NS get pods -l component=${clustertype} --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
     else
-      oc -n $LOGGING_NS get pods -l cluster-name=logging-${1},es-node-role=clientdata --no-headers | awk '$3 == "Running" {print $1}'
+      oc -n $LOGGING_NS get pods -l cluster-name=logging-${clustertype},es-node-role=clientdata --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
     fi
 }
 
 function get_es_svc() {
+    local clustertype="$1"
     # $1 - cluster name postfix
-    oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}' 2> /dev/null || {
-        if [ "$1" != "es-ops" ] ; then
-            # ignore missing es-ops - probably not deployed with ops cluster - otherwise, report it
-            oc -n $LOGGING_NS get svc logging-${1} -o jsonpath='{.metadata.name}' 2>&1 | artifact_out || :
-        fi
-    }
+    if oc -n $LOGGING_NS get svc elasticsearch -o jsonpath='{.metadata.name}' 2> /dev/null ; then
+        return 0
+    elif [ $clustertype = es-ops ] && oc -n $LOGGING_NS get svc elasticsearch-infra -o jsonpath='{.metadata.name}' 2> /dev/null ; then
+        return 0
+    elif [ $clustertype = es ] && oc -n $LOGGING_NS get svc elasticsearch-app -o jsonpath='{.metadata.name}' 2> /dev/null ; then
+        return 0
+    else
+        oc -n $LOGGING_NS get svc logging-$clustertype -o jsonpath='{.metadata.name}' 2> /dev/null || {
+            if [ "$clustertype" != "es-ops" ] ; then
+                # ignore missing es-ops - probably not deployed with ops cluster - otherwise, report it
+                oc -n $LOGGING_NS get svc logging-$clustertype -o jsonpath='{.metadata.name}' 2>&1 | artifact_out || :
+            fi
+        }
+    fi
 }
 
 function get_running_pod() {
     # $1 is component for selector
-    oc get pods -l component=$1 --no-headers | awk '$3 == "Running" {print $1}'
+    oc get pods -l component=$1 --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
 }
 
 
 function get_completed_pod() {
     # $1 is component for selector
-    oc get pods -l component=$1 --no-headers | awk '$3 == "Completed" {print $1}'
+    oc get pods -l component=$1 --no-headers 2> /dev/null | awk '$3 == "Completed" {print $1}'
 }
 
 function get_error_pod() {
     # $1 is component for selector
-    oc get pods -l component=$1 --no-headers | awk '$3 == "Error" {print $1}'
+    oc get pods -l component=$1 --no-headers 2> /dev/null | awk '$3 == "Error" {print $1}'
 }
 
 function get_es_cert_path() {
 
   if [ ! -d "${OS_O_A_L_DIR}/temp/es_certs" ]; then
     mkdir -p ${OS_O_A_L_DIR}/temp/es_certs
-    oc extract -n $LOGGING_NS secret/logging-elasticsearch --to=${OS_O_A_L_DIR}/temp/es_certs
+    if oc get secret/elasticsearch > /dev/null 2>&1 ; then
+        oc extract -n $LOGGING_NS secret/elasticsearch --to=${OS_O_A_L_DIR}/temp/es_certs
+    else
+        oc extract -n $LOGGING_NS secret/logging-elasticsearch --to=${OS_O_A_L_DIR}/temp/es_certs
+    fi
   fi
 
   echo ${OS_O_A_L_DIR}/temp/es_certs
@@ -71,7 +95,7 @@ function get_test_user_token() {
 }
 
 # $1 - kibana pod name
-# $2 - es hostname (e.g. logging-es or logging-es-ops)
+# $2 - es hostname (e.g. logging-es or logging-es-ops) - should be output of get_es_svc es or es-ops
 # $3 - endpoint (e.g. /projects.*/_search)
 # $4 - token
 # stdout is the JSON output from Elasticsearch
@@ -232,32 +256,6 @@ function query_es_from_es() {
     curl_es_pod "$1" "/${2}*/${3}?q=${4}:${5}" --connect-timeout 1
 }
 
-# $1 is es svc
-# $2 is timeout
-function wait_for_es_ready() {
-    # test for ES to be up first and that our SG index has been created
-    echo "Checking if Elasticsearch $1 is ready"
-    secret_dir="$(get_es_cert_path)/"
-    local ii=$2
-    local path=${3:-.searchguard.$1}
-    while ! response_code=$(curl -s \
-        --request HEAD --head --output /dev/null \
-        --cacert $secret_dir/admin-ca \
-        --cert $secret_dir/admin-cert \
-        --key  $secret_dir/admin-key \
-        --connect-timeout 1 \
-        -w '%{response_code}' \
-        "https://${1}.${LOGGING_NS}:9200/$path") || test "${response_code:-}" != 200
-    do
-        sleep 1
-        ii=`expr $ii - 1` || :
-        if [ $ii -eq 0 ] ; then
-            return 1
-        fi
-    done
-    return 0
-}
-
 function get_count_from_json() {
     python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
 }
@@ -312,7 +310,7 @@ function wait_for_fluentd_to_catch_up() {
     local fullmsg="GET /${uuid_es} 404 "
     local checkpids
     if docker_uses_journal ; then
-        sudo journalctl -f -o export | \
+        sudo journalctl -m -f -o export | \
             awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
             -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
@@ -320,7 +318,7 @@ function wait_for_fluentd_to_catch_up() {
                 $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
                 ' 2>&1 | artifact_out & checkpids=$!
     else
-        sudo journalctl -f -o export | \
+        sudo journalctl -m -f -o export | \
             awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
                 $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
@@ -361,12 +359,13 @@ function wait_for_fluentd_to_catch_up() {
         fi
         if docker_uses_journal ; then
             os::log::error here is the current fluentd journal cursor
-            sudo cat /var/log/journal.pos
+            sudo cat /var/log/journal.pos || :
+            sudo cat /var/log/journal_pos.json || :
             echo ""
             os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
             # first and last couple of records in the journal
-            sudo journalctl -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_first.txt
-            sudo journalctl -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
+            sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_first.txt
+            sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
         elif sudo test -f /var/log/es-containers.log.pos ; then
             sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
         fi
@@ -397,12 +396,13 @@ function wait_for_fluentd_to_catch_up() {
             os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
         os::log::error here is the current fluentd journal cursor
-        sudo cat /var/log/journal.pos
+        sudo cat /var/log/journal.pos || :
+        sudo cat /var/log/journal_pos.json || :
         echo ""
         os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
         # first and last couple of records in the journal
-        sudo journalctl -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_first.txt
-        sudo journalctl -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_last.txt
+        sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_first.txt
+        sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_last.txt
         # records since start of function in ascending @timestamp order - see what records were added around
         # the time our record should have been added
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"asc"}}],"size":20}'
@@ -536,9 +536,9 @@ get_all_logging_pod_logs() {
   for p in $(oc get pods -n ${LOGGING_NS} -o jsonpath='{.items[*].metadata.name}') ; do
     for container in $(oc get po $p -o jsonpath='{.spec.containers[*].name}') ; do
       case "$p" in
-        logging-fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
+        logging-fluentd-*|fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
         logging-mux-*) get_mux_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
-        logging-es-*) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1
+        logging-es-*|elasticsearch-*) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1
                       oc exec -c elasticsearch -n ${LOGGING_NS} $p -- logs >> $ARTIFACT_DIR/$p.$container.log 2>&1
                       ;;
 	    *) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
@@ -551,8 +551,8 @@ stop_fluentd() {
     local fpod=${1:-$( get_running_pod fluentd )}
     local wait_time=${2:-$(( 2 * minute ))}
 
-    oc label node --all logging-infra-fluentd-
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $wait_time
+    oc label node -l logging-infra-fluentd=true --overwrite logging-infra-fluentd=false
+    os::cmd::try_until_text "oc get $fluentd_ds -o jsonpath='{ .status.numberReady }'" "0" $wait_time
     # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the fluentd pod hangs around
     # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
     # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
@@ -572,6 +572,26 @@ start_fluentd() {
             sudo rm -rf /var/lib/fluentd/*
         fi
     fi
-    oc label node --all logging-infra-fluentd=true
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $wait_time
+    oc label node -l logging-infra-fluentd=false --overwrite logging-infra-fluentd=true
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^(logging-)*fluentd-.* Running " $wait_time
 }
+
+get_fluentd_ds_name() {
+    if oc -n ${LOGGING_NS} get daemonset fluentd -o name > /dev/null 2>&1 ; then
+        echo daemonset/fluentd
+    else
+        echo daemonset/logging-fluentd
+    fi
+}
+
+fluentd_ds=${fluentd_ds:-$(get_fluentd_ds_name)}
+
+get_fluentd_cm_name() {
+    if oc -n ${LOGGING_NS} get configmap fluentd -o name > /dev/null 2>&1 ; then
+        echo configmap/fluentd
+    else
+        echo configmap/logging-fluentd
+    fi
+}
+
+fluentd_cm=${fluentd_cm:-$(get_fluentd_cm_name)}

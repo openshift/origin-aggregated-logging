@@ -13,15 +13,21 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
-if [ "${USE_RSYSLOG_RPMS:-false}" = true ] ; then
+if oc get clusterlogging > /dev/null 2>&1 ; then
+    deployfunc=deploy_using_operators
+    sudo systemctl stop rsyslog
+    sudo bash -c 'rm -f /var/lib/rsyslog/*'
+elif [ "${USE_RSYSLOG_RPMS:-false}" = true ] ; then
     rsyslog_service=rsyslog
     extra_ansible_evars=""
+    deployfunc=deploy_using_ansible
+    rsyslog__config_dir="/etc/rsyslog.d"
 else
     rsyslog_service=rsyslog-container
     extra_ansible_evars="-e use_rsyslog_image=True"
+    deployfunc=deploy_using_ansible
+    rsyslog__config_dir="/etc/rsyslog.d"
 fi
-
-rsyslog__config_dir="/etc/rsyslog.d"
 
 # clear the journal
 sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
@@ -30,15 +36,25 @@ sudo systemctl restart systemd-journald 2>&1 | artifact_out
 cleanup() {
     local return_code="$?"
     set +e
-    if [ -n "${tmpinv:-}" -a -f "${tmpinv:-}" ] ; then
-        rm -f $tmpinv
-    fi
-    sudo journalctl -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
-    if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
-        sudo rm -rf ${rsyslog__config_dir}/*
-        sudo cp -p ${rsyslog_save}/* ${rsyslog__config_dir} || :
-        rm -rf ${rsyslog_save}
-        sudo systemctl restart $rsyslog_service
+    if [ "deploy_using_ansible" = "$deployfunc" ] ; then
+        if [ -n "${tmpinv:-}" -a -f "${tmpinv:-}" ] ; then
+            rm -f $tmpinv
+        fi
+        sudo journalctl -m -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
+        if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
+            sudo rm -rf ${rsyslog__config_dir}/*
+            sudo cp -p ${rsyslog_save}/* ${rsyslog__config_dir} || :
+            rm -rf ${rsyslog_save}
+            sudo systemctl restart $rsyslog_service
+        fi
+    else
+        rpod=$( get_running_pod rsyslog )
+        oc logs $rpod > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
+        oc patch clusterlogging example --type=json \
+            --patch '[{"op":"replace","path":"/spec/collection/logCollection/type","value":"fluentd"}]' 2>&1 | artifact_out
+        oc label node --all logging-infra-rsyslog-
+        os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
+        sudo systemctl start rsyslog
     fi
     # cleanup fluentd pos file and restart
     start_fluentd true 2>&1 | artifact_out
@@ -49,19 +65,12 @@ cleanup() {
 }
 trap "cleanup" EXIT
 
-# turn off fluentd
-stop_fluentd "" $((second * 120)) 2>&1 | artifact_out
-
-if [ $es_pod = $es_ops_pod ] ; then
-    use_es_ops=False
-else
-    use_es_ops=True
-fi
-rsyslog_save=$( mktemp -d )
-sudo cp -p ${rsyslog__config_dir}/* ${rsyslog_save} || :
-pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
-tmpinv=$( mktemp )
-cat > $tmpinv <<EOF
+deploy_using_ansible() {
+    rsyslog_save=$( mktemp -d )
+    sudo cp -p ${rsyslog__config_dir}/* ${rsyslog_save} || :
+    pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
+    tmpinv=$( mktemp )
+    cat > $tmpinv <<EOF
 [masters]
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
 
@@ -69,8 +78,8 @@ localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_loggi
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
 EOF
 
-tmpvars=$( mktemp )
-cat > $tmpvars <<EOF
+    tmpvars=$( mktemp )
+    cat > $tmpvars <<EOF
 rsyslog__enabled: true
 # install viaq packages & config files
 rsyslog__viaq: true
@@ -90,16 +99,41 @@ logging_elasticsearch_cert: "{{rsyslog__viaq_config_dir}}/es-cert.pem"
 logging_elasticsearch_key: "{{rsyslog__viaq_config_dir}}/es-key.pem"
 EOF
 
-os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
-    $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
-mv $tmpinv $ARTIFACT_DIR/inventory_file
-mv $tmpvars $ARTIFACT_DIR/vars_file
+    os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
+        $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
+    mv $tmpinv $ARTIFACT_DIR/inventory_file
+    mv $tmpvars $ARTIFACT_DIR/vars_file
 
-popd > /dev/null
+    popd > /dev/null
 
-pushd /etc
-sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
-popd > /dev/null
+    pushd /etc
+    sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
+    popd > /dev/null
+    sudo systemctl stop $rsyslog_service
+    # make test run faster by resetting journal cursor to "now"
+    sudo journalctl -m -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
+    sudo systemctl start $rsyslog_service
+}
+
+deploy_using_operators() {
+    # edit the operator - change logcollector type to rsyslog
+    oc patch clusterlogging example --type=json \
+        --patch '[{"op":"replace","path":"/spec/collection/logCollection/type","value":"rsyslog"}]' 2>&1 | artifact_out
+    # pushd $OS_O_A_L_DIR > /dev/null
+    # cd ../cluster-logging-operator
+    # REPO_PREFIX=openshift/ IMAGE_PREFIX=origin- OPERATOR_NAME=cluster-logging-operator \
+    # WATCH_NAMESPACE=openshift-logging KUBERNETES_CONFIG=/etc/origin/master/admin.kubeconfig \
+    # go run cmd/cluster-logging-operator/main.go > $ARTIFACT_DIR/rsyslog-deploy.log 2>&1 & pid=$!
+    # popd > /dev/null
+    os::cmd::try_until_success "oc get cm rsyslog 2> /dev/null"
+    # enable annotation_match
+    oc get cm rsyslog -o yaml | \
+      sed -e 's/action(type="mmkubernetes"/action(type="mmkubernetes" annotation_match=["."]/' | \
+      oc replace --force -f - 2>&1 | artifact_out
+    oc label node --all logging-infra-rsyslog=true 2>&1 | artifact_out
+    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    #kill $pid || :
+}
 
 get_logmessage() {
     logmessage="$1"
@@ -109,10 +143,18 @@ get_logmessage2() {
     logmessage2="$1"
     cp $2 $ARTIFACT_DIR/zzz-rsyslog-record-ops.json
 }
-sudo systemctl stop $rsyslog_service
-# make test run faster by resetting journal cursor to "now"
-sudo journalctl -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
-sudo systemctl start $rsyslog_service
+
+# turn off fluentd
+stop_fluentd "" $((second * 120)) 2>&1 | artifact_out
+
+if [ $es_pod = $es_ops_pod ] ; then
+    use_es_ops=False
+else
+    use_es_ops=True
+fi
+
+$deployfunc
+
 sleep 10
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 proj=$ARTIFACT_DIR/zzz-rsyslog-record.json

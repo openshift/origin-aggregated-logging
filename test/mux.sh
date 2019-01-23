@@ -31,8 +31,8 @@ fi
 
 reset_fluentd_daemonset() {
   # this test only works with MUX_CLIENT_MODE=minimal for now
-  os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
-  os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --overwrite \
+  os::log::debug "$( oc set env $fluentd_ds MUX_CLIENT_MODE=minimal )"
+  os::log::debug "$( oc set volumes $fluentd_ds --add --overwrite \
         --name=muxcerts -t secret -m /etc/fluent/muxkeys --secret-name logging-mux 2>&1 )"
 }
 
@@ -50,17 +50,17 @@ update_current_fluentd() {
   stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
   oc get pods |grep fluentd | artifact_out || :
   # edit so we don't filter or send to ES
-  oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
+  oc get $fluentd_cm -o yaml | sed '/## filters/ a\
       @include configs.d/user/filter-pre-mux-a-test-client.conf' | oc replace -f - 2>&1 | artifact_out
 
   # if configmap filter-pre-mux-a-test-client.conf isn't present, add one so replace will work
-  local exists=$( oc get configmap/logging-fluentd --template='{{index .data "filter-pre-mux-a-test-client.conf" }}' )
+  local exists=$( oc get $fluentd_cm --template='{{index .data "filter-pre-mux-a-test-client.conf" }}' )
   if [ "$exists" = '<no value>' ] ; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "add", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "empty" }]' 2>&1 | artifact_out
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "add", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "empty" }]' 2>&1 | artifact_out
   fi
   # update configmap filter-pre-mux-a-test-client.conf
   if [ $myoption -eq $NO_CONTAINER_VALS ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
         @type record_transformer\n\
         enable_ruby\n\
@@ -112,7 +112,7 @@ update_current_fluentd() {
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $SET_CONTAINER_VALS ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <match kubernetes.var.log.containers.**kibana**>\n\
         @type rewrite_tag_filter\n\
         @label @INGRESS\n\
@@ -158,7 +158,7 @@ update_current_fluentd() {
         </record>\n\
       </filter>"}]' 2>&1 | artifact_out
   elif [ $myoption -eq $MISMATCH_NAMESPACE_TAG ]; then
-      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
+      oc patch $fluentd_cm --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-a-test-client.conf", "value": "\
       <filter kubernetes.var.log.containers.**kibana**>\n\
         @type record_transformer\n\
         enable_ruby\n\
@@ -248,7 +248,7 @@ write_and_verify_logs() {
     oc get pods | grep fluentd | artifact_out
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     # get the cursor of this record - compare to the fluentd journal cursor position
-    local reccursor=$( sudo journalctl -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
+    local reccursor=$( sudo journalctl -m -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
     oc get pods | grep fluentd | artifact_out
     local fcursor_after=$( get_journal_pos_cursor )
     artifact_log Cursors:
@@ -297,9 +297,9 @@ write_and_verify_logs() {
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         if docker_uses_journal ; then
             artifact_log First matching record:
-            sudo journalctl | grep -m 1 "${mymessage}" | artifact_out || :
+            sudo journalctl -m | grep -m 1 "${mymessage}" | artifact_out || :
             artifact_log Last matching record:
-            sudo journalctl -r | grep -m 1 "${mymessage}" | artifact_out || :
+            sudo journalctl -m -r | grep -m 1 "${mymessage}" | artifact_out || :
         else
             artifact_log matching records:
             sudo find /var/log/containers -name \*.log -exec grep "${mymessage}" {} /dev/null \; | artifact_out || :
@@ -328,7 +328,7 @@ write_and_verify_logs() {
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         # find the record in the journal
-        sudo journalctl -o export -t $uuid_es_ops | artifact_out || :
+        sudo journalctl -m -o export -t $uuid_es_ops | artifact_out || :
         exit 1
     fi
     os::cmd::expect_success_and_not_text "curl_es $es_svc /_cat/indices" "project\.default"
@@ -358,7 +358,7 @@ cleanup() {
         oc projects 2>&1 | artifact_out
         oc get pods 2>&1 | artifact_out
         if [ -n "$fpod" ]; then
-            oc get configmap/logging-fluentd -o yaml > $ARTIFACT_DIR/mux.fluentd.configmap.yaml
+            oc get $fluentd_cm -o yaml > $ARTIFACT_DIR/mux.fluentd.configmap.yaml
             oc exec $fpod -- ls -alrtF /etc/fluent/configs.d/openshift 2>&1 | artifact_out
             oc exec $fpod -- ls -alrtF /etc/fluent/configs.d/user 2>&1 | artifact_out
         fi
@@ -401,11 +401,11 @@ trap "cleanup" EXIT
 
 # save current fluentd daemonset
 saveds=$( mktemp )
-oc get daemonset logging-fluentd -o yaml > $saveds
+oc get $fluentd_ds -o yaml > $saveds
 
 # save current fluentd configmap
 savecm=$( mktemp )
-oc get configmap logging-fluentd -o yaml > $savecm
+oc get $fluentd_cm -o yaml > $savecm
 
 os::log::info Starting mux test at $( date )
 

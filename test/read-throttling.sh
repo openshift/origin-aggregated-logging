@@ -19,11 +19,11 @@ os::test::junit::declare_suite_start "test/read-throttling"
 
 # save current fluentd daemonset
 saveds=$( mktemp )
-oc get daemonset logging-fluentd -o yaml > $saveds
+oc get $fluentd_ds -o yaml > $saveds
 
 # save current fluentd configmap
 savecm=$( mktemp )
-oc get configmap logging-fluentd -o yaml > $savecm
+oc get $fluentd_cm -o yaml > $savecm
 
 check_fluentd_pod_for_files() {
   local files=$@
@@ -70,7 +70,7 @@ fpod=$( get_running_pod fluentd )
 
 # generate throttle config with invalid YAML
 stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc patch configmap/logging-fluentd --type=json \
+oc patch $fluentd_cm --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj: read_lines_limit: bogus-value"}]' 2>&1 | artifact_out
 start_fluentd true $FLUENTD_WAIT_TIME 2>&1 | artifact_out
@@ -80,7 +80,7 @@ os::cmd::expect_success_and_text "get_fluentd_pod_log $fpod" "Could not parse YA
 
 # generate a throttle config that properly generates different pos files
 stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc patch configmap/logging-fluentd --type=json \
+oc patch $fluentd_cm --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj:\n  read_lines_limit: 5\n.operations:\n  read_lines_limit: 5"}]' 2>&1 | artifact_out
 start_fluentd true $FLUENTD_WAIT_TIME 2>&1 | artifact_out
@@ -89,7 +89,7 @@ check_fluentd_pod_file_content_for '/var/log/es-container-openshift-operations.l
 
 # generate throttle config with a bogus key - verify the correct error
 stop_fluentd "$fpod" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc patch configmap/logging-fluentd --type=json \
+oc patch $fluentd_cm --type=json \
    --patch '[{ "op": "replace", "path": "/data/throttle-config.yaml", "value": "\
     test-proj:\n  read_lines_limit: bogus-value\nbogus-project:\n  bogus-key: bogus-value"}]' 2>&1 | artifact_out
 start_fluentd true $FLUENTD_WAIT_TIME 2>&1 | artifact_out

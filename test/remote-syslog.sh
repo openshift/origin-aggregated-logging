@@ -16,7 +16,7 @@ os::test::junit::declare_suite_start "Remote Syslog Configuration Tests"
 
 # save daemonset
 saveds=$( mktemp )
-oc get --export ds/logging-fluentd -o yaml > $saveds
+oc get --export $fluentd_ds -o yaml > $saveds
 
 # switch pods type depending on the mux configuration
 fluentdtype="fluentd"
@@ -28,7 +28,7 @@ if [ -n "${mpod:-}" ]; then
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     artifact_log at this point there should be 0 fluentd running
     oc get pods 2>&1 | artifact_out
-    oc set env ds/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
+    oc set env $fluentd_ds MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
     fluentdtype="mux"
     # save mux config
@@ -56,15 +56,15 @@ cleanup() {
             get_mux_pod_log $mpod > $ARTIFACT_DIR/remote-syslog-$mpod.log 2>&1
         fi
         oc get events > $ARTIFACT_DIR/remote-syslog-events.txt 2>&1
-        sudo journalctl | grep fluentd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-fluentd.log 2>&1
+        sudo journalctl -m | grep fluentd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-fluentd.log 2>&1
         sudo grep rsyslog /var/log/audit/audit.log > $ARTIFACT_DIR/remote-syslog-audit-rsyslog.log 2>&1
         artifact_log "/var/log/messages files"
         sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out
         sudo tail -n 200 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
         if [ -n "${teststart-:}" ] ; then
-            sudo journalctl -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
-            sudo journalctl -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
-            sudo journalctl -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
+            sudo journalctl -m -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
+            sudo journalctl -m -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
+            sudo journalctl -m -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
         fi
     fi
 
@@ -100,7 +100,7 @@ cleanup() {
 trap "cleanup" EXIT
 
 if [ "$fluentdtype" = "fluentd" ] ; then
-    my_remote_syslog_host=$( oc set env ds/logging-fluentd --list | awk -F'=' '/^REMOTE_SYSLOG_HOST=/ {print $2}' || : )
+    my_remote_syslog_host=$( oc set env $fluentd_ds --list | awk -F'=' '/^REMOTE_SYSLOG_HOST=/ {print $2}' || : )
 else
     my_remote_syslog_host=$( oc set env dc/logging-mux --list | awk -F'=' '/^REMOTE_SYSLOG_HOST=/ {print $2}' || : )
 fi
@@ -111,7 +111,7 @@ if [ -n "$my_remote_syslog_host" ]; then
 
     if [ "$fluentdtype" = "fluentd" ] ; then
         stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-        oc set env ds/logging-fluentd USE_REMOTE_SYSLOG=true 2>&1 | artifact_out
+        oc set env $fluentd_ds USE_REMOTE_SYSLOG=true 2>&1 | artifact_out
         start_fluentd true 2>&1 | artifact_out
         mypod=$( get_running_pod fluentd )
     else
@@ -141,11 +141,11 @@ os::log::info $title
 
 if [ "$fluentdtype" = "fluentd" ] ; then
     # make sure fluentd is running after previous test
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
     # choosing an unrealistic REMOTE_SYSLOG_HOST
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=111.222.111.222 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=111.222.111.222 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
@@ -177,7 +177,7 @@ os::log::info $title
 if [ "$fluentdtype" = "fluentd" ] ; then
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST- 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
@@ -201,7 +201,7 @@ os::log::info $title
 if [ "$fluentdtype" = "fluentd" ] ; then
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_HOST2=127.0.0.1 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
@@ -225,7 +225,7 @@ os::log::info $title
 if [ "$fluentdtype" = "fluentd" ] ; then
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2- 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=message REMOTE_SYSLOG_HOST2- 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
@@ -254,7 +254,7 @@ os::log::info $title
 if [ "$fluentdtype" = "fluentd" ] ; then
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=127.0.0.1 REMOTE_SYSLOG_TAG_KEY=bogus 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
@@ -322,16 +322,17 @@ myhost=$( hostname )
 
 if [ "$fluentdtype" = "fluentd" ] ; then
     # make sure fluentd is running after previous test
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} \
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} \
         REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info \
         REMOTE_SYSLOG_TAG_KEY='ident,systemd.u.SYSLOG_IDENTIFIER,local1.err' 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
     mycmd=get_fluentd_pod_log
+    fpod=$mypod
 else
     # make sure mux is running after previous test
     os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux.* Running "
@@ -346,9 +347,9 @@ else
     mycmd="oc logs"
 
     # make sure fluentd is running after previous test
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-    oc set env daemonset/logging-fluentd FORWARD_INPUT_LOG_LEVEL=info 2>&1 | artifact_out
+    oc set env $fluentd_ds FORWARD_INPUT_LOG_LEVEL=info 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
     fpod=$( get_running_pod fluentd )
 fi
@@ -402,19 +403,19 @@ myhost=$( hostname )
 
 if [ "$fluentdtype" = "fluentd" ] ; then
     # make sure fluentd is running after previous test
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
-    oc set env daemonset/logging-fluentd USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- 2>&1 | artifact_out
+    oc set env $fluentd_ds USE_REMOTE_SYSLOG=true REMOTE_SYSLOG_HOST=$myhost REMOTE_SYSLOG_PORT=${ALTPORT} REMOTE_SYSLOG_USE_RECORD=true REMOTE_SYSLOG_SEVERITY=info REMOTE_SYSLOG_TAG_KEY- 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     mypod=$( get_running_pod fluentd )
     mycmd=get_fluentd_pod_log
 else
     # make sure fluentd is running after previous test
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    os::cmd::try_until_text "get_running_pod fluentd" "fluentd"
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-    oc set env daemonset/logging-fluentd FORWARD_INPUT_LOG_LEVEL=info 2>&1 | artifact_out
+    oc set env $fluentd_ds FORWARD_INPUT_LOG_LEVEL=info 2>&1 | artifact_out
     start_fluentd true 2>&1 | artifact_out
 
     # make sure mux is running after previous test

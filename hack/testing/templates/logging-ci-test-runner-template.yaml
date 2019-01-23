@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: logging-ci-test-runner-template
+  annotations:
+    description: "For creating the logging-ci-test-runner pod"
+objects:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: ${TEST_POD_NAME}
+    namespace: ${TEST_NAMESPACE_NAME}
+  spec:
+    terminationGracePeriodSeconds: 0
+    containers:
+    - name: test
+      image: ${TEST_IMAGE}
+      imagePullPolicy: Always
+      securityContext:
+        privileged: true
+      command:
+      - bash
+      - -c
+      - |-
+        set -euxo pipefail
+        if [ -d /logging-test -a -f /logging-test/Makefile -a -d /logging-test/test ] ; then
+          # user is hostmounting origin-aggregated-logging
+          cd /logging-test
+        else
+          # image was built with source already on it
+          cd "${TEST_ROOT}"
+        fi
+        cp /tmp/secret/admin.kubeconfig.orig /tmp/admin.kubeconfig
+        export KUBECONFIG=/tmp/admin.kubeconfig
+        set +u
+        # the below is a template parameter evaluation, not a shell
+        # variable evaluation
+        export ARTIFACT_DIR=${ARTIFACT_DIR}
+        set -u
+        . openshift/ci-operator/build-image/launch-e2e-test.sh
+
+      volumeMounts:
+      - name: runlogjournal
+        mountPath: /run/log/journal
+      - name: varlog
+        mountPath: /var/log
+      - name: varlibdockercontainers
+        mountPath: /var/lib/docker
+        readOnly: true
+      - name: dockerhostname
+        mountPath: /etc/docker-hostname
+        readOnly: true
+      - name: localtime
+        mountPath: /etc/localtime
+        readOnly: true
+      - name: dockercfg
+        mountPath: /etc/sysconfig/docker
+        readOnly: true
+      - name: dockerdaemoncfg
+        mountPath: /etc/docker
+        readOnly: true
+      - name: fluentdbuffers
+        mountPath: /var/lib/fluentd
+      - name: rsyslogfiles
+        mountPath: /var/lib/rsyslog.pod
+      - name: testroothost
+        mountPath: /logging-test
+      - name: kubeconfig
+        mountPath: /tmp/secret
+        readOnly: true
+      - name: devlog
+        mountPath: /dev/log
+    volumes:
+    - name: runlogjournal
+      hostPath:
+        path: /run/log/journal
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker
+    - name: dockerhostname
+      hostPath:
+        path: /etc/hostname
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+    - name: dockercfg
+      hostPath:
+        path: /etc/sysconfig/docker
+    - name: dockerdaemoncfg
+      hostPath:
+        path: /etc/docker
+    - name: fluentdbuffers
+      hostPath:
+        path: "/var/lib/fluentd"
+    - name: rsyslogfiles
+      hostPath:
+        path: "/var/lib/rsyslog.pod"
+    - name: testroothost
+      hostPath:
+        path: "${TEST_ROOT_HOST}"
+    - name: kubeconfig
+      secret:
+        secretName: logging-ci-test-kubeconfig
+    - name: devlog
+      hostPath:
+        path: /dev/log
+parameters:
+- description: Namespace name to create pod in
+  value: openshift-logging
+  name: TEST_NAMESPACE_NAME
+- description: name of test pod to create
+  value: logging-ci-test-runner
+  name: TEST_POD_NAME
+- description: full path inside the pod to the /origin-aggregated-logging source directory
+  value: "/logging-test"
+  name: TEST_ROOT
+- description: full path on the host to the /origin-aggregated-logging directory to hostmount
+  value: "/tmp"
+  name: TEST_ROOT_HOST
+- description: image containing tests and everything to run them
+  value: openshift/origin-release:golang-1.10
+  name: TEST_IMAGE
+- description: the directory where to write the test artifacts
+  value: ''
+  name: ARTIFACT_DIR
+labels:
+  test: "true"

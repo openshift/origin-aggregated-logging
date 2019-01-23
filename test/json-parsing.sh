@@ -27,6 +27,10 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         get_fluentd_pod_log > $ARTIFACT_DIR/json-parsing-fluentd-pod.log
     fi
+    # disable merge json log
+    stop_fluentd
+    oc set env $fluentd_ds MERGE_JSON_LOG=false
+    start_fluentd
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -34,6 +38,11 @@ cleanup() {
 trap "cleanup" EXIT
 
 os::log::info Starting json-parsing test at $( date )
+
+# enable merge json log
+stop_fluentd
+oc set env $fluentd_ds MERGE_JSON_LOG=true
+start_fluentd
 
 # generate a log message in the Kibana logs - Kibana log messages are in JSON format:
 # {"type":"response","@timestamp":"2017-04-07T02:03:37Z","tags":[],"pid":1,"method":"get","statusCode":404,"req":{"url":"/ca30cead-d470-4db8-a2a2-bb71439987e2","method":"get","headers":{"user-agent":"curl/7.29.0","host":"localhost:5601","accept":"*/*"},"remoteAddress":"127.0.0.1","userAgent":"127.0.0.1"},"res":{"statusCode":404,"responseTime":3,"contentLength":9},"message":"GET /ca30cead-d470-4db8-a2a2-bb71439987e2 404 3ms - 9.0B"}

@@ -58,7 +58,7 @@ function print_logs() {
 }
 
 function is_audit_enabled() {
-    oc set env ds/logging-fluentd --list | grep -q \^AUDIT_CONTAINER_ENGINE=true
+    oc set env $fluentd_ds --list | grep -q \^AUDIT_CONTAINER_ENGINE=true
 }
 
 if ! is_audit_enabled ; then

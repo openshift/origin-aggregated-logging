@@ -14,8 +14,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-elasticsearch
-    name: logging-elasticsearch
+      build: logging-elasticsearch5
+    name: logging-elasticsearch5
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -28,34 +28,41 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-kibana
-    name: logging-kibana
+      build: logging-kibana5
+    name: logging-kibana5
   spec: {}
 - apiVersion: v1
   kind: ImageStream
   metadata:
     labels:
-      build: logging-curator
-    name: logging-curator
+      build: logging-curator5
+    name: logging-curator5
   spec: {}
 - apiVersion: v1
   kind: ImageStream
   metadata:
     labels:
-      build: logging-auth-proxy
-    name: logging-auth-proxy
+      build: logging-eventrouter
+    name: logging-eventrouter
+  spec: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: logging-ci-test-runner
+    name: logging-ci-test-runner
   spec: {}
 - apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
-      app: logging-elasticsearch
-    name: logging-elasticsearch
+      app: logging-elasticsearch5
+    name: logging-elasticsearch5
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-elasticsearch:latest
+        name: logging-elasticsearch5:latest
     resources: {}
     source:
       contextDir: elasticsearch
@@ -66,9 +73,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
-        from:
-          kind: DockerImage
-          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
@@ -94,9 +98,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
-        from:
-          kind: DockerImage
-          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
@@ -105,13 +106,13 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      build: logging-kibana
-    name: logging-kibana
+      build: logging-kibana5
+    name: logging-kibana5
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-kibana:latest
+        name: logging-kibana5:latest
     resources: {}
     source:
       contextDir: kibana
@@ -122,9 +123,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
-        from:
-          kind: DockerImage
-          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
@@ -132,13 +130,13 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      build: logging-curator
-    name: logging-curator
+      build: logging-curator5
+    name: logging-curator5
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-curator:latest
+        name: logging-curator5:latest
     resources: {}
     source:
       contextDir: curator
@@ -149,9 +147,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
-        from:
-          kind: DockerImage
-          name: openshift/base-centos7
       type: Docker
     triggers:
     - type: ConfigChange
@@ -159,26 +154,49 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      build: logging-auth-proxy
-    name: logging-auth-proxy
+      build: logging-eventrouter
+    name: logging-eventrouter
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-auth-proxy:latest
+        name: logging-eventrouter:latest
     resources: {}
     source:
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}
-      contextDir: kibana-proxy
+      contextDir: eventrouter
       type: Git
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
         from:
           kind: DockerImage
-          name: library/node:0.10.36
+          name: openshift/origin-release:golang-1.10
+      type: Docker
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: logging-ci-test-runner
+    name: logging-ci-test-runner
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: logging-ci-test-runner:latest
+    resources: {}
+    source:
+      git:
+        uri: ${LOGGING_FORK_URL}
+        ref: ${LOGGING_FORK_BRANCH}
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: openshift/ci-operator/build-image/Dockerfile.full
       type: Docker
     triggers:
     - type: ConfigChange

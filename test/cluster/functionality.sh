@@ -65,7 +65,8 @@ fi
 SATOKEN=$(oc -n ${LOGGING_NS} serviceaccounts get-token prometheus-scraper)
 
 # We can reach the Elasticsearch service at serviceName:apiPort
-elasticsearch_api="$( oc get svc "${OAL_ELASTICSEARCH_SERVICE}" -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
+es_svc=$( get_es_svc "${OAL_ELASTICSEARCH_SERVICE}" )
+elasticsearch_api="$( oc get svc $es_svc -o jsonpath='{ .metadata.name }:{ .spec.ports[?(@.targetPort=="restapi")].port }' )"
 
 for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 	os::log::info "Testing Kibana pod ${kibana_pod} for a successful start..."
@@ -74,7 +75,7 @@ for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}" 
 	os::cmd::try_until_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
 done
 
-for elasticsearch_pod in $( oc get pods --selector component="${OAL_ELASTICSEARCH_COMPONENT}" -o jsonpath='{ .items[*].metadata.name }' ); do
+for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "curl_es_pod '${elasticsearch_pod}' '/' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::try_until_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
