@@ -559,12 +559,18 @@ pushd $OS_A_C_J_DIR > /dev/null
 # for some reason, the service-catalog image is not available
 # docker images|grep service-catalog is empty
 # so, pull the latest and tag it with ${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}
+# Note: latest image in 3.x env could hang ansible at "openshift_service_catalog install -
+#       Wait for API Server rollout success"
+#       Try the imgtag version first.
 scname=\$( docker images | awk '/service-catalog/ {print \$1}' )
-if [ -z "\${scname:-}" ] ; then
-    docker pull openshift/origin-service-catalog
-fi
 imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
-docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+if [ -z "\${scname:-}" ] ; then
+    docker pull openshift/origin-service-catalog:\$imgtag
+    if [ $? -ne 0 ]; then
+        docker pull openshift/origin-service-catalog
+        docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+    fi
+fi
 popd > /dev/null
 SCRIPT
 scp $runfile openshiftdevel:/tmp
@@ -785,6 +791,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   -e openshift_logging_es_allow_external=${ES_ALLOW_EXTERNAL:-True} \
   -e openshift_logging_es_ops_allow_external=${ES_OPS_ALLOW_EXTERNAL:-True} \
   -e oreg_url='openshift/origin-\${component}:'"\${release_commit}" \
+  -e skip_sanity_checks=true \
   ${EXTRA_ANSIBLE:-} \${logging_extras} \
   \${playbook} \
   --skip-tags=update_master_config
