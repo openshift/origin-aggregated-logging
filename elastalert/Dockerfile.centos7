@@ -1,0 +1,32 @@
+FROM centos:7
+
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
+
+ARG elastalert_version=0.1.36
+ARG elasticsearch_version=>=5.0.0
+
+USER root
+
+RUN yum install -y epel-release && \
+    yum install -y python2-pip python-devel \
+                   python-blist redhat-rpm-config \
+                   rsync && \
+    yum clean all
+
+RUN pip install --upgrade pip
+RUN pip install elasticsearch$elasticsearch_version
+RUN pip install elastalert==$elastalert_version
+
+RUN mkdir -p /etc/elastalert/rules/
+RUN mkdir -p /home/elastalert
+COPY modules/ /home/elastalert/modules/
+
+RUN useradd -ms /bin/bash elastalert
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+RUN chown -R elastalert /home/elastalert/
+RUN chmod -R 775 /home/elastalert/
+
+ENTRYPOINT "/entrypoint.sh"

@@ -1,0 +1,49 @@
+# Template to create ElastAlert environment in OpenShift
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: elastalert-template
+objects:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: elastalert
+    labels:
+      app: elastalert
+  spec:
+    volumes:
+      - name: elastalert-secrets
+        secret:
+          secretName: elastalert-secrets
+      - name: elastalert-rules-rules
+        configMap:
+          name: elastalert-rules-rules
+      - name: elastalert-rules-imports
+        configMap:
+          name: elastalert-rules-imports
+      - name: elastalert-config
+        configMap:
+          name: elastalert-config
+    containers:
+    - env:
+      - name: ELASTALERT_CONFIG
+        value: "/etc/elastalert/config/openshift-logging.yaml"
+      - name: ELASTALERT_RULES
+        value: "/etc/elastalert/rules/rules"
+      name: elastalert
+      image: "image-registry.openshift-image-registry.svc:5000/openshift/elastalert:latest"
+      imagePullPolicy: Always
+      volumeMounts:
+        - name: elastalert-secrets
+          mountPath: /etc/elastalert/secrets
+          readOnly: true
+        - name: elastalert-rules-rules
+          mountPath: /etc/elastalert/rules/rules
+          readOnly: true
+        - name: elastalert-rules-imports
+          mountPath: /etc/elastalert/rules/imports
+          readOnly: true
+        - name: elastalert-config
+          mountPath: /etc/elastalert/config
+          readOnly: true

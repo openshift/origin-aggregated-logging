@@ -1,0 +1,16 @@
+---
+name: "Example alert"
+
+type: any
+
+index: .operations.*
+
+filter:
+- term:
+    systemd.u.SYSLOG_IDENTIFIER: myuniqueid
+
+# just log the alert contents
+alert:
+  - command
+command: ["/usr/bin/cat"]
+pipe_match_json: true

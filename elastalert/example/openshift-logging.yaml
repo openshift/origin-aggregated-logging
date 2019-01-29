@@ -1,0 +1,37 @@
+# ElastAlert configuration for openshift-logging
+---
+
+# run all .yaml rules from the directory
+rules_folder: /etc/elastalert/rules/rules
+# so . . . when you mount a configmap, it creates all of these levels
+# of symlinks . . . by default elastalert will do a recursive descent
+# of the subdirectories of the folder - the problem is then that
+# elastalert will load duplicate rules - so restrict elastalert to
+# only the rules_folder and do not recurse subdirs
+scan_subdirectories: false
+
+# retrieval of logs interval
+# (lower value to suite all projects)
+run_every:
+  minutes: 1
+
+# buffer time is required
+# (it is maximum time interval requested from ElastiSearch)
+buffer_time:
+  minutes: 15
+
+# ElasticSearch configuration
+es_host: elasticsearch
+es_port: 9200
+use_ssl: true
+verify_certs: true
+client_cert: /etc/elastalert/secrets/client.crt
+client_key: /etc/elastalert/secrets/client.key
+ca_certs: /etc/elastalert/secrets/ca.crt
+
+# ElastAlert index (where to store processed _ids)
+writeback_index: .elastalert
+
+# repeat alert attempts (in case of failure)
+alert_time_limit:
+  days: 3
