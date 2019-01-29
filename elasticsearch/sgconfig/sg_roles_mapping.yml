@@ -20,3 +20,7 @@ sg_role_admin:
 sg_role_prometheus:
   backendroles:
     - 'prometheus'
+
+sg_role_jaeger:
+  backendroles:
+    - 'jaeger'

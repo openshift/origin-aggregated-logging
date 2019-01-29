@@ -20,6 +20,11 @@ searchguard:
                prometheus:
                  verb: get
                  resource: /metrics
+               jaeger:
+                 verb: get
+                 resource: jaeger
+                 namespace: set-in-run-script
+                 resourceAPIGroup: elasticsearch.jaegertracing.io
       authentication_domain_basic_internal:
         enabled: true
         order: 1
