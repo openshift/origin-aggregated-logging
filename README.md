@@ -80,3 +80,13 @@ include as many [details](docs/issues.md) as possible in order to assist us in r
 
 ## Troubleshooting CI
 [Troubleshooting CI](docs/troubleshooting-ci.md)
+
+
+## Fluentd S3
+oc create secret generic s3creds  --from-file=shared_credentials=/home/ewolinetz/.aws/credentials -n openshift-logging
+oc volume --secret-name=s3creds --mount-path=/etc/fluent/s3 --type=secret --name=s3creds --add ds/fluentd
+
+Update cm/fluentd to be:
+<label @OUTPUT>
+  @include configs.d/openshift/output-s3.conf
+</label>

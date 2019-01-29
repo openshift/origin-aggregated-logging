@@ -44,7 +44,8 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
         fluent-plugin-systemd \
         fluent-plugin-viaq_data_model \
         fluent-plugin-remote-syslog \
-        fluent-plugin-prometheus
+        fluent-plugin-prometheus \
+        fluent-plugin-s3:0.8 --no-document
 
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
