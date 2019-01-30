@@ -12,6 +12,8 @@ objects:
     namespace: ${TEST_NAMESPACE_NAME}
   spec:
     terminationGracePeriodSeconds: 0
+    nodeSelector:
+      logging-ci-test: "true"
     containers:
     - name: test
       image: centos:7

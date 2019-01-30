@@ -81,6 +81,9 @@ else
     expected_failures=(
         NONE
     )
+    # some tests expect the node to be labeled as in the ci environment
+    kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
+    oc label node $kibnode --overwrite logging-ci-test=true
 fi
 
 stop_fluentd

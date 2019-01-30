@@ -30,8 +30,8 @@ if [ "$USE_OPERATOR" = true ] ; then
 		oal_expected_deployments=( "kibana-app" "kibana-infra" )
 		oal_expected_cronjobs=( "curator-app" "curator-infra" )
 		oal_expected_routes=( "kibana-app" "kibana-infra" )
-		oal_expected_services=( kibana-app kibana-infra cluster-logging-operator elasticsearch-app \
-			elasticsearch-app-cluster elasticsearch-infra elasticsearch-infra-cluster elasticsearch-operator )
+		oal_expected_services=( kibana-app kibana-infra elasticsearch-app \
+			elasticsearch-app-cluster elasticsearch-infra elasticsearch-infra-cluster )
 		esdeploy=$( get_es_deployments elasticsearch-app )
 		if [ -z "$esdeploy" ] ; then
 			os::log::fatal "No Elasticsearch Deployment elasticsearch-app"
@@ -46,7 +46,7 @@ if [ "$USE_OPERATOR" = true ] ; then
 		oal_expected_deployments=( "kibana" )
 		oal_expected_cronjobs=( "curator" )
 		oal_expected_routes=( "kibana" )
-		oal_expected_services=( kibana cluster-logging-operator elasticsearch elasticsearch-cluster elasticsearch-operator )
+		oal_expected_services=( kibana elasticsearch elasticsearch-cluster )
 		esdeploy=$( get_es_deployments elasticsearch )
 		if [ -z "$esdeploy" ] ; then
 			os::log::fatal "No Elasticsearch Deployment elasticsearch"

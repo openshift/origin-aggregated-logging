@@ -44,8 +44,10 @@ fi
 # caller will now get artifacts - wait until that is complete
 if [ -n "${SAVE_ARTIFACT_DIR:-}" ] ; then
     timeout=600
+    set +x
     for ii in $( seq 1 $timeout ) ; do
         if [ -f $SAVE_ARTIFACT_DIR/artifacts-done ] ; then
+            set -x
             break
         fi
         sleep 1
@@ -53,7 +55,7 @@ if [ -n "${SAVE_ARTIFACT_DIR:-}" ] ; then
     if [ $ii = $timeout ] ; then
         echo ERROR: caller did not write $SAVE_ARTIFACT_DIR/artifacts-done and collect artifacts after $timeout seconds
         ls -alrtF $SAVE_ARTIFACT_DIR
-        exit 1
     fi
+    set -x
 fi
 exit $rc
