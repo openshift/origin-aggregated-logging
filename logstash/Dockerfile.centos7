@@ -1,0 +1,12 @@
+FROM logstash:5.6
+
+MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
+
+RUN mkdir -p /var/lib/logstash && \
+    chmod -R og+w /var/lib/logstash && \
+    mkdir -p /opt/app-root/src && \
+    chmod -R og+r /opt/app-root/
+
+ADD logstash-s3.conf /opt/app-root/src/logstash-s3.conf
+
+ENTRYPOINT ["/usr/share/logstash/bin/logstash", "-f", "/opt/app-root/src/logstash-s3.conf"]

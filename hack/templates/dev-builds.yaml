@@ -53,6 +53,13 @@ objects:
     name: logging-ci-test-runner
   spec: {}
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: logging-logstash
+    name: logging-logstash
+  spec: {}
+- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
@@ -91,6 +98,31 @@ objects:
     resources: {}
     source:
       contextDir: fluentd
+      git:
+        uri: ${LOGGING_FORK_URL}
+        ref: ${LOGGING_FORK_BRANCH}
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile.centos7
+      type: Docker
+    triggers:
+    - type: ConfigChange
+    - type: ImageChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: logging-logstash
+    name: logging-logstash
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: logging-logstash:latest
+    resources: {}
+    source:
+      contextDir: logstash
       git:
         uri: ${LOGGING_FORK_URL}
         ref: ${LOGGING_FORK_BRANCH}

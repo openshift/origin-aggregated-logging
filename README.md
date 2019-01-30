@@ -90,3 +90,13 @@ Update cm/fluentd to be:
 <label @OUTPUT>
   @include configs.d/openshift/output-s3.conf
 </label>
+
+# Logstash S3
+oc get secret/fluentd -o jsonpath='{.data.app-ca}' | base64 --decode > ca.crt
+oc get secret/fluentd -o jsonpath='{.data.app-key}' | base64 --decode > key.pem
+oc get secret/fluentd -o jsonpath='{.data.app-cert}' | base64 --decode > cert.pem
+openssl pkcs12 -export -in ./cert.pem -inkey ./key.pem -out ./keystore.p12 -passout pass:password
+
+oc create secret generic logstash --from-file=ca.crt=ca.crt --from-file=keystore.p12=keystore.p12 --from-file=shared_credentials=shared_conf.config -n openshift-logging
+oc run logstash --image=image-registry.openshift-image-registry.svc:5000/openshift/logging-logstash:latest
+oc set volume --secret-name=logstash --mount-path=/etc/logstash/s3 --type=secret dc/logstash --name=logstash --add

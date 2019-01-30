@@ -1,0 +1,33 @@
+input {
+  s3 {
+    bucket => "ewolinet-hackfest"
+    region => "us-east-2"
+    aws_credentials_file => "/etc/logstash/s3/shared_credentials"
+    codec => "json"
+    prefix => "logs/apps/"
+    sincedb_path => "/tmp/last-s3-file-s3-access-logs-apps"
+    interval => 120
+  }
+}
+output {
+  stdout {
+    codec => json
+  }
+}
+
+input {
+  s3 {
+    bucket => "ewolinet-hackfest"
+    region => "us-east-2"
+    aws_credentials_file => "/etc/logstash/s3/shared_credentials"
+    codec => "json"
+    prefix => "logs/infra/"
+    sincedb_path => "/tmp/last-s3-file-s3-access-logs-infra"
+    interval => 120
+  }
+}
+output {
+  stdout {
+    codec => json
+  }
+}
