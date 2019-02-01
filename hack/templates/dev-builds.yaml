@@ -53,6 +53,13 @@ objects:
     name: logging-ci-test-runner
   spec: {}
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      build: logging-rsyslog
+    name: logging-rsyslog
+  spec: {}
+- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
@@ -197,6 +204,30 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: openshift/ci-operator/build-image/Dockerfile.full
+      type: Docker
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: logging-rsyslog
+    name: logging-rsyslog
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: logging-rsyslog:latest
+    resources: {}
+    source:
+      git:
+        uri: ${LOGGING_FORK_URL}
+        ref: ${LOGGING_FORK_BRANCH}
+      contextDir: rsyslog
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile.fedora
       type: Docker
     triggers:
     - type: ConfigChange

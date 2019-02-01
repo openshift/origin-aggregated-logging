@@ -11,10 +11,13 @@ trap "cleanup" EXIT
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
 docker_suffix='.centos7'
+rsyslog_docker_suffix='.fedora'
 if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
   docker_suffix=''
+  rsyslog_docker_suffix=''
 fi
 dockerfile="Dockerfile${docker_suffix}"
+rsyslog_dockerfile="Dockerfile${rsyslog_docker_suffix}"
 
 name_suf="5"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
@@ -26,7 +29,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
-    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter"
+    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter rsyslog"
     for ii in $(seq 1 10) ; do
         notfound=
         for obj in $names ; do
@@ -59,6 +62,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
   OS_BUILD_IMAGE_ARGS="-f kibana/${dockerfile}" os::build::image "${tag_prefix}logging-kibana${name_suf:-}"               kibana
   OS_BUILD_IMAGE_ARGS="-f curator/${dockerfile}" os::build::image "${tag_prefix}logging-curator${name_suf:-}"             curator
   OS_BUILD_IMAGE_ARGS="-f eventrouter/${dockerfile}" os::build::image "${tag_prefix}logging-eventrouter"     eventrouter
+  OS_BUILD_IMAGE_ARGS="-f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog"     rsyslog
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
@@ -106,7 +110,7 @@ docker login 127.0.0.1:${LOCAL_PORT} -u ${ADMIN_USER:-kubeadmin} -p $(oc whoami 
 
 for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch${name_suf:-}" \
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
-  "${tag_prefix}logging-eventrouter" ; do
+  "${tag_prefix}logging-eventrouter ${tag_prefix}logging-rsyslog" ; do
   remote_image="127.0.0.1:${registry_port}/$image"
   docker tag ${image} ${remote_image}
   echo "Pushing image ${remote_image}..."
