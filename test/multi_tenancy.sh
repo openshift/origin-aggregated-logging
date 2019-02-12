@@ -60,7 +60,7 @@ function create_user_and_assign_to_projects() {
         os::log::info Using existing user $user
     else
         os::log::info Creating user $user with password $pw
-        oc login --username=$user --password=$pw 2>&1 | artifact_out
+        create_users $user $pw false 2>&1 | artifact_out
         delete_users="$delete_users $user"
     fi
     os::log::debug "$( oc login --username=system:admin 2>&1 )"
@@ -90,7 +90,7 @@ function test_user_has_proper_access() {
     # rest - indices to which access should be granted
     for proj in "$@" ; do
         os::log::info See if user $user can read /project.$proj.*
-        get_test_user_token $user $pw
+        get_test_user_token $user $pw false
         nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_token | \
                      get_count_from_json )
         if ! os::cmd::expect_success "test $nrecs = 1" ; then
@@ -108,7 +108,7 @@ function test_user_has_proper_access() {
 
     # test user has access for msearch for multiple indices
     os::log::info See if user $user can _msearch "$indices"
-    get_test_user_token $user $pw
+    get_test_user_token $user $pw false
     nrecs=$( { echo '{"index":'"${indices}"'}'; echo '{"size":0,"query":{"match_all":{}}}'; } | \
                      curl_es_pod_with_token_and_input $espod "/_msearch" $test_token -XPOST --data-binary @- | \
                      get_count_from_json_from_search )
@@ -124,7 +124,7 @@ function test_user_has_proper_access() {
 
     # verify normal user has no access to default indices
     os::log::info See if user $user is denied /project.default.*
-    get_test_user_token $user $pw
+    get_test_user_token $user $pw false
     nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_token | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
@@ -135,7 +135,7 @@ function test_user_has_proper_access() {
 
     # verify normal user has no access to .operations
     os::log::info See if user $user is denied /.operations.*
-    get_test_user_token $user $pw
+    get_test_user_token $user $pw false
     nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
@@ -165,6 +165,7 @@ LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser1-$RANDOM}
 LOG_USER2=${LOG_USER2:-loguser2-$RANDOM}
 LOG_PW2=${LOG_PW2:-loguser2-$RANDOM}
 
+create_users $LOG_NORMAL_USER $LOG_NORMAL_PW false $LOG_USER2 $LOG_PW2 false 2>&1 | artifact_out
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
 

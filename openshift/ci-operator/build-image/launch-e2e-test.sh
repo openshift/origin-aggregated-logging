@@ -16,6 +16,15 @@ fi
 if ! type -p sudo > /dev/null 2>&1 ; then
     pkgs="$pkgs sudo"
 fi
+if ! type -p htpasswd > /dev/null 2>&1 ; then
+    pkgs="$pkgs httpd-tools"
+fi
+if ! type -p watch > /dev/null 2>&1 ; then
+    pkgs="$pkgs procps-ng"
+fi
+if ! type -p base64 > /dev/null 2>&1 ; then
+    pkgs="$pkgs coreutils"
+fi
 if [ -n "$pkgs" ] ; then
     yum -y install $pkgs
 fi

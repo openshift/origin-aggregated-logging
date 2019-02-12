@@ -75,10 +75,8 @@ if oc get clusterlogging example > /dev/null 2>&1 ; then
     # cannot mount file inside pod into another pod - rewrite to use a configmap or secret
     # test-viaq-data-model
     expected_failures=(
-        check-logs test-access-control test-kibana-dashboards test-multi-tenancy
         test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries
         test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
-
     )
 else
     expected_failures=(
@@ -205,6 +203,8 @@ function cleanup() {
   exit "${return_code}"
 }
 trap "cleanup" EXIT
+
+rm -f ${OS_O_A_L_DIR}/temp/htpw.file
 
 if [[ -z "${TEST_ONLY:-}" ]]; then
 	"${OS_O_A_L_DIR}/hack/testing/setup.sh"
