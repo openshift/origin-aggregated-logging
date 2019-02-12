@@ -20,14 +20,40 @@ if [ ! -d $gopath/src/github.com/openshift/cluster-logging-operator ] ; then
     --branch ${CLO_OPERATOR_BRANCH:-master} \
     $gopath/src/github.com/openshift/cluster-logging-operator
 fi
+testroot=$( pwd )
 pushd $gopath/src/github.com/openshift/cluster-logging-operator > /dev/null
-# edit the deployments - for the logging images, use pipeline
-# for example, change this:
-# docker.io/openshift/origin-logging-elasticsearch5:latest
-# to this:
-# pipeline:logging-elasticsearch5
-sed -i -e '/docker.io\/openshift\/origin-logging-/ {s,:latest,,; s,docker.io/openshift/origin-,registry.svc.ci.openshift.org/'${OPENSHIFT_BUILD_NAMESPACE}'/pipeline:,}' manifests/05-deployment.yaml
-make undeploy || :
+if [ -z "${ARTIFACT_DIR:-}" ] ; then
+    ARTIFACT_DIR=/tmp/artifacts
+    if [ ! -d $ARTIFACT_DIR ] ; then
+        mkdir -p $ARTIFACT_DIR
+    fi
+fi
+if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
+    # we are running in the CI environment
+    # OPENSHIFT_BUILD_NAMESPACE=ci-op-xxx
+    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # edit the deployments - for the logging images, use pipeline
+    # for example, change this:
+    # docker.io/openshift/origin-logging-elasticsearch5:latest
+    # to this:
+    # $imageprefix/pipeline:logging-elasticsearch5
+    imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
+    sed -e 's,docker.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' \
+        -e 's,quay.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' \
+        -i manifests/05-deployment.yaml
+    testimage=${imageprefix}pipeline:src
+else
+    # running in a dev env
+    OPENSHIFT_BUILD_NAMESPACE=openshift
+    registry=$( oc -n $OPENSHIFT_BUILD_NAMESPACE get is -l logging-infra=development -o jsonpath='{.items[0].status.dockerImageRepository}' | \
+        sed 's,/[^/]*$,/,' )
+    sed -e '/docker.io\/openshift\/origin-logging-/ {s,docker.io/openshift/origin-,'"$registry"',}' \
+        -e '/quay.io\/openshift\/origin-logging-/ {s,quay.io/openshift/origin-,'"$registry"',}' \
+        -i manifests/05-deployment.yaml
+    testimage=${registry}logging-ci-test-runner:latest
+    testroot=/go/src/github.com/openshift/origin-aggregated-logging
+fi
+make undeploy > /dev/null 2>&1 || :
 REMOTE_CLUSTER=true make deploy-example-no-build
 popd > /dev/null
 oc project openshift-logging
@@ -39,7 +65,7 @@ for ii in $( seq 1 $timeout ) ; do
         break
     fi
     sleep 1
-done
+done > ${ARTIFACT_DIR}/test_output 2>&1
 if [ $ii = $timeout ] ; then
     echo ERROR: operator did not start pods after $timeout seconds
     oc get deploy || :
@@ -54,8 +80,13 @@ if [ $ii = $timeout ] ; then
         done
     done
     oc get events || :
+    cat ${ARTIFACT_DIR}/test_output
     exit 1
 fi
+
+# the ci test pod, kibana pod, and fluentd pod, all have to run on the same node
+kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
+oc label node $kibnode --overwrite logging-ci-test=true
 
 # create secret for test and add $KUBECONFIG contents
 oc create secret generic logging-ci-test-kubeconfig \
@@ -66,9 +97,9 @@ oc create secret generic logging-ci-test-kubeconfig \
 if [ -n "${ARTIFACT_DIR:-}" ] ; then
     artifact_dir_arg="-p ARTIFACT_DIR=$ARTIFACT_DIR"
 fi
-oc process -p TEST_ROOT=$( pwd ) \
+oc process -p TEST_ROOT=$testroot \
     -p TEST_NAMESPACE_NAME=$( oc project -q ) \
-    -p TEST_IMAGE=registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/pipeline:src \
+    -p TEST_IMAGE=$testimage \
     ${artifact_dir_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 timeout=600
@@ -77,14 +108,16 @@ for ii in $( seq 1 $timeout ) ; do
         break
     fi
     sleep 1
-done
+done > ${ARTIFACT_DIR}/test_output 2>&1
 if [ $ii = $timeout ] ; then
     echo ERROR: failed to start logging-ci-test-runner
     oc describe pod logging-ci-test-runner || :
     oc get events || :
+    cat ${ARTIFACT_DIR}/test_output
     exit 1
 fi
-oc logs -f logging-ci-test-runner 2>&1 | tee $ARTIFACT_DIR/logging-test-output &
+# this will exit with error when the pod exits - ignore that error
+oc logs -f logging-ci-test-runner 2>&1 | tee $ARTIFACT_DIR/logging-test-output || : &
 # wait for the file $ARTIFACT_DIR/logging-test-result to exist - the contents
 # will be PASS or FAIL
 timeout=240
@@ -94,19 +127,24 @@ for ii in $( seq 1 $timeout ) ; do
         break
     fi
     sleep 30
-done
+done > ${ARTIFACT_DIR}/test_output 2>&1
 if [ $ii = $timeout ] ; then
     echo ERROR: logging tests did not complete after $(( timeout * 30 )) seconds
     oc describe pod logging-ci-test-runner || :
     oc get events || :
+    cat ${ARTIFACT_DIR}/test_output
     exit 1
 fi
 
 # copy the artifacts out of the test runner pod
-oc rsync --strategy=tar --progress=true logging-ci-test-runner:$ARTIFACT_DIR/ $ARTIFACT_DIR
+oc rsync --strategy=tar logging-ci-test-runner:$ARTIFACT_DIR/ $ARTIFACT_DIR > ${ARTIFACT_DIR}/syncout 2>&1
 
 # tell the logging test pod we are done copying artifacts
-oc exec logging-ci-test-runner -- "touch $ARTIFACT_DIR/artifacts-done"
+if oc exec logging-ci-test-runner -- "touch $ARTIFACT_DIR/artifacts-done" ; then
+    echo notified logging-ci-test-runner - done with artifacts
+else
+    echo error notifying logging-ci-test-runner - $? - ignoring
+fi
 
 if [ "$result" = PASS ] ; then
     exit 0
