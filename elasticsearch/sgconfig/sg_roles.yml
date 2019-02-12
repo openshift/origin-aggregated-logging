@@ -49,6 +49,41 @@ sg_role_admin:
   cluster:
     - CLUSTER_ALL
 
+sg_role_jaeger:
+  cluster:
+    - indices:data/write/bulk
+    - SEARCH
+    - CLUSTER_MONITOR
+  indices:
+    '*jaeger-span-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-service-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+
 sg_project_operations:
   indices:
     '?operations?*':
