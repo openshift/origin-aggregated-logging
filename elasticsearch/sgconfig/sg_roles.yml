@@ -35,6 +35,7 @@ sg_role_rsyslog:
 sg_role_curator:
   cluster:
     - CLUSTER_MONITOR
+    - MANAGE
   indices:
     '*':
       '*':
