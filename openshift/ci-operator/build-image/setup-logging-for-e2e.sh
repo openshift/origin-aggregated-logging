@@ -54,6 +54,13 @@ else
     testroot=/go/src/github.com/openshift/origin-aggregated-logging
 fi
 make undeploy > /dev/null 2>&1 || :
+# use less es memory and cpu
+cp hack/cr.yaml hack/cr.yaml.save
+python -c 'import sys,yaml
+hsh = yaml.load(open(sys.argv[1]))
+hsh["spec"]["logStore"]["elasticsearch"]["resources"] = {"limits":{"cpu":"500m","memory":"4Gi"}}
+yaml.dump(hsh,open(sys.argv[1], "w"))
+' hack/cr.yaml
 REMOTE_CLUSTER=true make deploy-example-no-build
 popd > /dev/null
 oc project openshift-logging
