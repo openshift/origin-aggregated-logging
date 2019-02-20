@@ -1,0 +1,11 @@
+<label <%= @label_name %>>
+    <match **>
+        @type copy
+<%- @targets.each do | t | -%>
+        <store>
+            @type relabel
+            @label <%= relabel(t) %>
+        </store>
+<%- end -%>
+    </match>
+</label>

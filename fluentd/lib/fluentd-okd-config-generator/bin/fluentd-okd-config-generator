@@ -1,0 +1,136 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+# require 'fluentd-okd-config-generator'
+require File.join(File.dirname(__FILE__), '..', 'lib/fluentd-okd-config-generator') 
+include FluentdOKDConfigGenerator::PipelineInputLoader
+
+usage = %{
+    Usage: #{File.basename(__FILE__)} -i INPUTFILE -t TARGETFILE
+    
+    This utility generates fluentd configuration for the OKD
+    pipeline feature.  It is capable of creating configurations to
+    target the following endpoint types:
+
+      * Elasticsearch
+    
+    The generator produces fluent configurations base on an YAML input file like:
+
+        ---
+        logs.app:
+          targets:
+          - type: 'elasticsearch'
+            endpoint: 'es.svc.messaging.cluster.local:9654'
+            tls_cert: '/var/run/ocp-collector/secrets/my-es-secret/cert'
+            tls_cacert: '/var/run/ocp-collector/secrets/my-es-secret/cacert'
+            tls_key: '/var/run/ocp-collector/secrets/my-es-secret/key'
+
+    The output conf is something like:
+
+       <label @OUTPUT>
+         <match **>
+           @type relabel
+           @label @LOGS_APP
+         </match>
+       </label>
+       <label @LOGS_APP>
+         <match **>
+          ...Elasticsearch output config...
+         </match>
+       </label>
+
+    Note: The '-o' option will write the '@OUTPUT' match stanzas to a file to be included statically
+          by a configuration without the label stanza.  The output will otherwise be added to TARGETFILE
+          with the label stanza
+
+    Note: 'logs.app' is the 'catch all' for messages.  It will be last in the @OUTPUT matchers
+
+}
+options = {
+    target_file: FluentdOKDConfigGenerator::InputValidator::STDOUT,
+    output_file: FluentdOKDConfigGenerator::InputValidator::STDOUT,
+    tags: {
+      'logs.app' => '**',
+      'logs.infra' => 'journal.** system.var.log** audit.log** default openshift **_openshift-*_** **_kube-*_**'
+    }
+}
+parser = OptionParser.new do |opts|
+  opts.banner = usage
+
+  opts.on('-i'  , '--input-file=INPUTFILE', 'The full path to the input file') do |file|
+    options[:input_file] = file
+  end
+  opts.on('-o', '--output-file=OUTPUTFILE', 'The full path for a file that contains match statements only to route tags to labels (e.g. kubernetes.contains.** -> @LOGS_APPS') do |file|
+    options[:output_file] = file
+  end
+  opts.on('-t', '--targets-file=TARGETFILE', 'The full path for a file that contains output configurations from a given source to dest (e.g. @LOGS_APPS->elasticsearch') do |file|
+    options[:target_file] = file
+  end
+  opts.on('-m', '--max-targets-per-source=MAX_TARGETS', Integer, 'The maximum number of targets per source') do |max_targets|
+    options[:max_targets] = max_targets
+  end
+  opts.on('--tags TAGS', 'Space separated string for the list of fluent tags of a given source (e.g. --tags logs.infra="default **_openshift-*_**"') do |arg|
+    tags = options[:tags]||{}
+    pair = arg.split('=')
+    tags[pair[0]] = pair[1]
+  end
+  opts.on('-v', '--verbose', 'Verbose (DEBUG) log level') do
+    options[:verbose] = true
+  end
+  opts.on('-h', '--help') do |file|
+    puts opts
+    exit
+  end
+end
+begin
+  parser.parse!
+rescue=>e
+  puts e.backtrace.join("\n")
+  puts usage
+  exit 1
+end
+
+logger =  Logger.new(STDOUT)
+logger.level = options[:verbose] ? Logger::DEBUG : Logger::WARN
+
+begin
+    if options[:input_file].nil?
+        puts parser 
+        return
+    end
+    FluentdOKDConfigGenerator::InputValidator.new(logger).validate!(options)
+rescue=>e
+    logger.error(e.message)
+    return
+end
+
+@logger = logger
+
+input = load_pipeline_input(options[:input_file])
+sanitize_input!(input, options[:max_targets]) if options[:max_targets]
+
+generator = FluentdOKDConfigGenerator::Generator.new(logger)
+output_label_matchers = generator.gen_output_label_match_confs(input.keys(), options[:tags])
+endpoint_confs = generator.generate(input)
+logger.debug("@OUTPUT label matches: #{output_label_matchers}")
+logger.debug("Endpoint Configuration: #{endpoint_confs}")
+
+if options[:output_file] == FluentdOKDConfigGenerator::InputValidator::STDOUT
+  logger.debug("Writing matches->target labels...")
+  puts output_label_matchers.join("")
+else
+  File.open(options[:output_file], 'w') do |f|
+    logger.debug("Writing matches->target labels to #{options[:output_file]}")
+    f.write(output_label_matchers.join(""))
+  end
+end
+if options[:target_file] == FluentdOKDConfigGenerator::InputValidator::STDOUT
+    logger.debug("Writing output targets ...")
+    puts endpoint_confs
+else
+    File.open(options[:target_file], 'w') do |f|
+        logger.debug("Writing output targets to #{options[:target_file]}")
+        f.write(endpoint_confs)
+    end
+end
+

@@ -1,0 +1,10 @@
+source 'https://rubygems.org'
+
+group :test do
+  gem 'codeclimate-test-reporter', :require => nil
+  gem 'robocop', require: false
+  gem 'minitest'
+  gem 'rake', "~> 11.0"
+end
+
+gemspec

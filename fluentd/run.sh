@@ -3,6 +3,7 @@
 export MERGE_JSON_LOG=${MERGE_JSON_LOG:-true}
 CFG_DIR=/etc/fluent/configs.d
 ENABLE_PROMETHEUS_ENDPOINT=${ENABLE_PROMETHEUS_ENDPOINT:-"true"}
+ENABLE_PIPELINES=${ENABLE_PIPELINES:-"true"}
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift- kube-"}
 LOGGING_FILE_PATH=${LOGGING_FILE_PATH:-"/var/log/fluentd/fluentd.log"}
 OCP_FLUENTD_TAGS=""
@@ -97,11 +98,7 @@ export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 
-# Check the existing main fluent.conf has the @OUTPUT label
-# If it exists, we could use the label and take advantage.
-# If not, give up one output tag per plugin for now.
-output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
-
+# Generate throttle configs and outputs
 ruby generate_throttle_configs.rb
 # have output plugins handle back pressure
 # if you want the old behavior to be forced anyway, set env
@@ -113,35 +110,42 @@ export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
 K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
 export K8S_FILTER_REMOVE_KEYS ENABLE_ES_INDEX_NAME
 
-if [ -z $ES_HOST ]; then
-    echo "ERROR: Environment variable ES_HOST for Elasticsearch host name is not set."
-    exit 1
-fi
-if [ -z $ES_PORT ]; then
-    echo "ERROR: Environment variable ES_PORT for Elasticsearch port number is not set."
-    exit 1
-fi
+if [ "${ENABLE_PIPELINES}" = "true" ] ; then
+    # pipeline-output-labels.conf is the 'matches' included in @OUTPUT label
+    # pipeline-output-endpoints.conf is the individual conf for each source->destination
+    if [ ! -f /var/run/ocp-collector/pipelines ]; then
+        mkdir -p '/var/run/ocp-collector'
+        cat > /var/run/ocp-collector/pipelines <<- EOF 
+logs.app:
+  targets:
+  - type: elasticsearch
+    endpoint: '$ES_HOST:$ES_PORT'
+    tls_key: '$ES_CLIENT_KEY'
+    tls_cert: '$ES_CLIENT_CERT'
+    tls_cacert: '$ES_CA'
+logs.infra:
+  targets:
+  - type: elasticsearch
+    endpoint: '$ES_HOST:$ES_PORT'
+    tls_key: '$ES_CLIENT_KEY'
+    tls_cert: '$ES_CLIENT_CERT'
+    tls_cacert: '$ES_CA'
+EOF
+    fi
 
-# How many outputs?
-# check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
-if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
-    # There is one output Elasticsearch
-    NUM_OUTPUTS=1
-    # Disable "output-operations.conf"
-    rm -f $CFG_DIR/openshift/output-operations.conf
-    touch $CFG_DIR/openshift/output-operations.conf
-    if [ -n "$output_label"  ]; then
-        cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
-    fi
+    #use built-in fluent.conf
+    ln -sf $HOME/fluent-pipeline.conf /etc/fluent/fluent.conf
+
+    #generate pipeline configs
+    fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines --tags logs.infra="$OCP_FLUENTD_TAGS" -o $CFG_DIR/openshift/pipeline-output-labels.conf -t $CFG_DIR/openshift/pipeline-output-endpoints.conf
+
+    # calculate the number of buffers - which should be 2 * OUTPUTS because we have retrys
+    NUM_OUTPUTS=$(fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines |  grep '<buffer>' | wc -l)
+
 else
+    #There is only one allowed destination for initial release of 4.2
     NUM_OUTPUTS=2
-    # Enable "output-es-ops-config.conf in output-operations.conf"
-    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
-    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-retry.conf
-    if [ -n "$output_label" ]; then
-        cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
-    fi
-fi
+fi 
 
 # If FILE_BUFFER_PATH exists and it is not a directory, mkdir fails with the error.
 FILE_BUFFER_PATH=/var/lib/fluentd
@@ -160,17 +164,6 @@ if [ $TOTAL_LIMIT -le 0 ]; then
     echo "ERROR: Invalid file buffer limit ($FILE_BUFFER_LIMIT) is given.  Failed to convert to bytes."
     exit 1
 fi
-
-# If forward and secure-forward outputs are configured, add them to NUM_OUTPUTS.
-forward_files=$( grep -l "@type .*forward" ${CFG_DIR}/*/* 2> /dev/null || : )
-for afile in ${forward_files} ; do
-    file=$( basename $afile )
-    grep "@type .*forward" $afile | while read -r line; do
-        if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
-            NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
-        fi
-    done
-done
 
 TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $NUM_OUTPUTS) || :
 if [ $DF_LIMIT -lt $TOTAL_LIMIT ]; then

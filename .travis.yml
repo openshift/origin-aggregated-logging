@@ -33,3 +33,14 @@ matrix:
         cd fluentd/lib/filter_elasticsearch_genid_ext
       script:
         rake test
+    - name: fluentd - filter-okd-config-generator test
+      env:
+        - FLUENTD_VERSION=1.0
+      language: ruby
+      rvm:
+      - 2.5
+      gemfile: fluentd/lib/fluentd-okd-config-generator/Gemfile
+      before_script:
+        cd fluentd/lib/fluentd-okd-config-generator
+      script:
+        rake test

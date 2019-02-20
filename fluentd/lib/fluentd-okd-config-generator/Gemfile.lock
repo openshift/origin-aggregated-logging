@@ -1,0 +1,35 @@
+PATH
+  remote: .
+  specs:
+    fluentd-okd-config-generator (0.0.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    codeclimate-test-reporter (1.0.9)
+      simplecov (<= 0.13)
+    docile (1.1.5)
+    json (2.2.0)
+    minitest (5.11.3)
+    rack (2.0.7)
+    rake (11.3.0)
+    robocop (0.1.1)
+      rack
+    simplecov (0.13.0)
+      docile (~> 1.1.0)
+      json (>= 1.8, < 3)
+      simplecov-html (~> 0.10.0)
+    simplecov-html (0.10.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  codeclimate-test-reporter
+  fluentd-okd-config-generator!
+  minitest
+  rake (~> 11.0)
+  robocop
+
+BUNDLED WITH
+   2.0.1

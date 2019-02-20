@@ -1,0 +1,10 @@
+<label <%= @label_name %>>
+    <match <%= @retry_tag %>>
+        @type copy
+        <%= include_file(@target, tabs: 2, context: :prefix_as_retry) -%>
+    </match>
+    <match **>
+        @type copy
+        <%= include_file(@target, tabs: 2, context: :include_retry_tag) -%>
+    </match>
+</label>

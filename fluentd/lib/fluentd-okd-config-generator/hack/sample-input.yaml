@@ -1,0 +1,15 @@
+---
+logs.app:
+  targets:
+  - type: 'elasticsearch'
+    endpoint: 'es.svc.messaging.cluster.local:9654'
+    tls_cert: '/var/run/ocp-collector/secrets/my-es-secret/cert'
+    tls_cacert: '/var/run/ocp-collector/secrets/my-es-secret/cacert'
+    tls_key: '/var/run/ocp-collector/secrets/my-es-secret/key'
+logs.infra:
+  targets:
+  - type: 'elasticsearch'
+    endpoint: 'es-infra.svc.messaging.cluster.local:9654'
+    tls_cert: '/var/run/ocp-collector/secrets/my-es-secret/cert'
+    tls_cacert: '/var/run/ocp-collector/secrets/my-es-secret/cacert'
+    tls_key: '/var/run/ocp-collector/secrets/my-es-secret/key'

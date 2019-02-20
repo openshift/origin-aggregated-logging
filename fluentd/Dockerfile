@@ -36,6 +36,11 @@ ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
 ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
 
 RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
+RUN mkdir -p /tmp/gems
+ADD lib/fluentd-okd-config-generator /tmp/gems/fluentd-okd-config-generator/
+RUN cd /tmp/gems/fluentd-okd-config-generator && \
+    gem build fluentd-okd-config-generator.gemspec && \
+    gem install fluentd-okd-config-generator-0.0.1.gem
 
 FROM rhel7:7-released
 
@@ -73,6 +78,7 @@ COPY --from=builder /usr/local/bin/** /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
+ADD configs.d/user/fluent.conf $HOME/fluent-pipeline.conf
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
 ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
