@@ -25,7 +25,7 @@ bdd193ca85d7f8a830f17b44f3108fec  fluent-plugin-multi-format-parser-1.0.0.gem
 cdeee8fb190fbb12c45884772b86805b  fluent-plugin-rewrite-tag-filter-2.1.1.gem
 560babd50995235aa1dae58907ce1e46  fluent-plugin-secure-forward-0.4.5.gem
 023342ce5b63a92ed4302fab5cef26f7  fluent-plugin-systemd-1.0.1.gem
-e6b6849ab4b670ee7919e66cd0a99f79  fluent-plugin-viaq_data_model-0.0.17.gem
+6c44e480a71981aeaa60b11f9ac48f7e  fluent-plugin-viaq_data_model-0.0.18.gem
 169ba0ba46e2c1d8f2d5d83d1e1afcc0  http-0.9.8.gem
 6a5ebc9f1b1f3628794c71b30ce7e5ec  http-cookie-1.0.3.gem
 9ec054a6c741694f5239fafd9cc931cb  http-form_data-1.0.3.gem
