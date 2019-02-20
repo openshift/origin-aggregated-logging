@@ -6,7 +6,7 @@ This implementation is insecure, and should only be used in environments where y
 
 
 ## Configuration
-The plugin can be configured by setting environment variables in `ds/logging-fluentd` or `dc/logging-mux`, or by configuring your own custom `fluent.conf` in the `logging-fluentd` or `logging-mux` ConfigMap.  
+The plugin can be configured by setting environment variables in `ds/logging-fluentd` or by configuring your own custom `fluent.conf` in the `logging-fluentd` ConfigMap.  
 When using environment variables, the `REMOTE_SYSLOG_HOST` is the only required field.
 
 If multiple syslog destinations are needed, create a copy of the environment variables and append a suffix to the names.
