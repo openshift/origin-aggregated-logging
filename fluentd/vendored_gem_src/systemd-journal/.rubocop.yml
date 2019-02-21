@@ -1,0 +1,31 @@
+SignalException:
+  Enabled: false
+
+RaiseArgs:
+  Enabled: true
+
+SpaceInsideBlockBraces:
+  Enabled: true
+SpaceBeforeBlockBraces:
+  Enabled: true
+
+Lambda:
+  Enabled: false
+
+Documentation:
+  Enabled: false
+
+MethodLength:
+  Max: 20
+
+ClassLength:
+  Max: 150
+
+Style/FileName:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false

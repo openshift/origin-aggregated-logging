@@ -9,3 +9,5 @@ _output/
 .venv
 venv
 vendor
+!fluentd/vendored_gem_src/http_parser.rb/ext/ruby_http_parser/vendor
+!fluentd/vendored_gem_src/multi_json/lib/multi_json/vendor

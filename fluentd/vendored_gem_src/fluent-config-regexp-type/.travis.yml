@@ -1,0 +1,12 @@
+sudo: false
+language: ruby
+gemfile:
+  - Gemfile
+  - gemfiles/fluentd_v1.1.gemfile
+rvm:
+  - 2.2
+  - 2.3
+  - 2.4.4
+  - 2.5.1
+before_install: gem install bundler -v 1.16.1
+
