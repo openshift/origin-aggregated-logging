@@ -47,7 +47,7 @@ allows a given set of permissions to the `project.foo.bar.*` indices.
 **Note:** Index permissions that do not begin with 'project' are for legacy support.  Current releases of the Openshift logging
 stack rely upon the [common data model](https://github.com/ViaQ/fluent-plugin-viaq_data_model) (CDM) and adds the 'project' prefix.
 
-Each role defines permissions for cluster and index related actions.  Within each index definition, the actions allowed for a given
+Each role defines permissions for cluster and index related actions. The list of possible permissions are described by the [Elasticsearch Shield documentation](https://www.elastic.co/guide/en/shield/2.2/privileges-list.html#ref-actions-list). Within each index definition, the actions allowed for a given
 index are further declared based on the document type.  Additionally, each declaration uses an action group (e.g. `INDEX_OPERATIONS`)
 to abstract the allowed set of defined permissions.  Action groups are defined in a
 [separate document](../elasticsearch/sgconfig/sg_action_groups.yml) similar to:

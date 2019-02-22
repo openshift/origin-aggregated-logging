@@ -4,8 +4,8 @@
 * Test Pull Request - master/journald - [![Test Pull Request - master/journald](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test_pull_request_openshift_ansible_logging)](https://ci.openshift.redhat.com/jenkins/view/All/job/test_pull_request_openshift_ansible_logging/)
 * Test Pull Request - master/json-file - [![Test Pull Request - master/json-file](https://ci.openshift.redhat.com/jenkins/buildStatus/icon?job=test_pull_request_origin_aggregated_logging_json_file)](https://ci.openshift.redhat.com/jenkins/view/All/job/test_pull_request_origin_aggregated_logging_json_file/)
 
-This repo contains the image definitions for the components of the logging
-stack as well as tools for building and deploying them.  The logging subsystem
+This repo contains the image definitions for the components of the cluster logging
+stack as well as tools for building and deploying them.  The cluster logging subsystem
 consists of multiple [components](#components) abbreviated as the "EFK"
 stack: Elasticsearch, Fluentd, Kibana.
 
@@ -15,24 +15,14 @@ The primary features this integration provides:
 * Historical log discovery and visualization
 * Log aggregation of pod and node logs
 
-Information to build the images from github source using an OpenShift
-Origin deployment is found [here](HACKING.md).  To deploy the components from built or supplied images, see the
-[openshift_logging role](https://github.com/openshift/openshift-ansible/tree/master/roles/openshift_logging)
-in the OpenShift Ansible project.  You will need to be familiar with [Ansible](https://github.com/ansible/ansible)
-principles and create an inventory file to modify the [default variables](https://github.com/openshift/openshift-ansible/blob/master/roles/openshift_logging/defaults/main.yml)
-for your OpenShift logging cluster.  For the impatient, see the [quickstart](docs/quickstart.md) guide.
-
-**NOTE:** If you are running OpenShift Origin using the
-[All-In-One docker container](https://docs.openshift.org/latest/getting_started/administrators.html#running-in-a-docker-container)
-method, you MUST add `-v /var/log:/var/log` to the `docker` command line.
-OpenShift must have access to the container logs in order for Fluentd to read
-and process them.
+Information to build the images from github source using an OKD
+deployment is found [here](HACKING.md).  See the [quickstart](https://github.com/openshift/cluster-logging-operator#quick-start) guide to deploy cluster logging.
 
 Please check the [release notes](docs/release_notes.md) for deprecated features or breaking changes .
 
 ## Components
 
-The logging subsystem consists of multiple components commonly abbreviated
+The cluster logging subsystem consists of multiple components commonly abbreviated
 as the "ELK" stack (though modified here to be the "EFK" stack).
 
 ### Elasticsearch
@@ -61,13 +51,13 @@ proxy is required that runs in front of Kibana.
 Curator allows the admin to remove old indices from Elasticsearch on a per-project
 basis.
 
-### OpenShift Ansible Logging Role (***openshift_logging***)
+### Cluster Logging Operator
 
-The [**openshift-ansible**](https://github.com/openshift/openshift-ansible) ```openshift_logging``` role orchestrates the deployment
-of the logging stack including: resource definitions, key/cert generation, component
+The [**cluster-logging-operator**](https://github.com/openshift/cluster-logging-operator) orchestrates the deployment
+of the cluster logging stack including: resource definitions, key/cert generation, component
 start and stop order.
 
-## EFK Health
+## Cluster Logging Health
 
 Determining the health of an EFK deployment and if it is running can be assessed
 by running the `check-EFK-running.sh` and `check-logs.sh` [e2e tests](hack/testing/).

@@ -113,7 +113,7 @@ A test may also write test specific pod logs to the `$ARTIFACT_DIR`, especially
 if the test restarts pods and wants to capture the log output.  It is quite
 common to see code like this in the test `cleanup` function:
 
-    oc logs $fluentd_pod > $ARTIFACT_DIR/mux-client-mode-fluentd-pod.log 2>&1
+    oc logs $fluentd_pod > $ARTIFACT_DIR/fluentd-pod.log 2>&1
     restart fluentd
 
 If you are debugging a test, it is probably a good idea to add `artifact_out`
@@ -138,7 +138,7 @@ some of the container runtime components (e.g. `journalctl -u docker`).  The
 function will also use `journalctl` to look for the ops logs (and apps logs if
 using log-driver=journald).  If the record is found in the source, this means
 that fluentd was unable to send the log to Elasticsearch.  The next place to
-look then is the fluentd logs (and mux logs if the test uses mux).  You might
+look then is the fluentd logs.  You might
 see error messages or exceptions in the fluentd logs.  If the test does not
 preserve the fluentd log from the test run, you might need to add a fluentd log
 dump to an `$ARTIFACT_LOG/test-fluentd-pod.log` file.
