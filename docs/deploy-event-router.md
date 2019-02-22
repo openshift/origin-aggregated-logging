@@ -1,7 +1,7 @@
 # Deploying Event Router
 As of 4.0, the EventRouter is not deployable by the `cluster-logging-operator`. Creating a deployment using the following template
 will enable event collection equivalent to the same capability from 3.11 releases or earlier.
-Currently, all events are logged to `STDOUT`, collected by the logging collector and indexed to the `.operations` index when 
+Currently, all events are logged to `STDOUT`, collected by the cluster logging collector and indexed to the `.operations` index when 
 the `EventRouter` is deployed into an operations namespace (e.g. `openshift-*`). Elevated permissions are required to create the cluster level roles and bindings referenced in the following template:
 
 ```
@@ -16,8 +16,8 @@ objects:
   - kind: ServiceAccount
     apiVersion: v1
     metadata:
-      name: cluster-logging-eventrouter
-      namespace: ${NAMESPACE}
+      name: eventrouter
+      namespace: openshift-logging
   - kind: ClusterRole
     apiVersion: v1
     metadata:
@@ -32,16 +32,16 @@ objects:
       name: event-reader-binding
     subjects:
     - kind: ServiceAccount
-      name: cluster-logging-eventrouter
-      namespace: ${NAMESPACE}
+      name: eventrouter
+      namespace: openshift-logging
     roleRef:
       kind: ClusterRole
       name: event-reader
   - kind: ConfigMap
     apiVersion: v1
     metadata:
-      name: cluster-logging-eventrouter
-      namespace: ${NAMESPACE}
+      name: eventrouter
+      namespace: openshift-logging
     data:
       config.json: |-
         {
@@ -50,8 +50,8 @@ objects:
   - kind: Deployment
     apiVersion: apps/v1
     metadata:
-      name: cluster-logging-eventrouter
-      namespace: ${NAMESPACE}
+      name: eventrouter
+      namespace: eventrouter
       labels:
         component: eventrouter
         logging-infra: eventrouter
@@ -69,16 +69,14 @@ objects:
             component: eventrouter
             logging-infra: eventrouter
             provider: openshift
-          name: cluster-logging-eventrouter
+          name: eventrouter
         spec:
-          serviceAccount: cluster-logging-eventrouter
+          serviceAccount: eventrouter
           containers:
             - name: kube-eventrouter
               image: ${IMAGE}
               imagePullPolicy: IfNotPresent
               resources:
-                limits:
-                  memory: ${MEMORY}
                 requests:
                   cpu: ${CPU}
                   memory: ${MEMORY}
@@ -88,7 +86,7 @@ objects:
           volumes:
             - name: config-volume
               configMap:
-                name: cluster-logging-eventrouter
+                name: eventrouter
 parameters:
   - name: IMAGE
     displayName: Image
@@ -99,9 +97,6 @@ parameters:
   - name: CPU
     displayName: CPU
     value: "100m"
-  - name: NAMESPACE
-    displayName: Namespace
-    value: "openshift-logging"
 
 ```
 Process and apply this above template like:
