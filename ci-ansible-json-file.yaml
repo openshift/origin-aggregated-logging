@@ -1,0 +1,2 @@
+openshift_docker_options: "--log-driver=json-file"
+openshift_docker_log_driver: json-file
