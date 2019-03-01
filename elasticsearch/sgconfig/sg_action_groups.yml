@@ -84,10 +84,11 @@ INDEX_OPERATIONS:
   - INDEX_ANY_ADMIN
 INDEX_ANY_OPERATIONS:
   - INDEX_ANY_ADMIN
+  - INDICES_MONITOR
 INDEX_PROJECT:
   - INDEX_ANY_ADMIN
   - INDEX_ALL
-  
+
 METRICS:
   - cluster:monitor/prometheus/metrics
   - cluster:monitor/nodes/stats
