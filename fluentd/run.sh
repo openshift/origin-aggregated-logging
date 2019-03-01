@@ -83,7 +83,6 @@ if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
     else
         export USE_JOURNAL=false
     fi
-    unset MUX_FILE_BUFFER_STORAGE_TYPE
 else
     # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
     # for CONTAINER_NAME instead of the kubernetes.var.log.containers.* tag
@@ -220,10 +219,13 @@ FILE_BUFFER_PATH=/var/lib/fluentd
 mkdir -p $FILE_BUFFER_PATH
 
 # Get the available disk size.
-DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
+DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH --output=avail | tail -1)
 DF_LIMIT=${DF_LIMIT:-0}
-if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "hostmount" ]; then
-    # Use 1/4 of the disk space for hostmount.
+# Check how many mount points share the same filesystem (in case hostmount)
+MCNT=$( mount | grep $( mount | grep "$FILE_BUFFER_PATH" | awk '{print $1}' ) | wc -l )
+if [ $MCNT -gt 1 ]; then
+    # Use 1/4 of the disk space for the file buffer
+    # in case user specified FILE_BUFFER_LIMIT is too large.
     DF_LIMIT=$(expr $DF_LIMIT / 4) || :
 fi
 if [ $DF_LIMIT -eq 0 ]; then
