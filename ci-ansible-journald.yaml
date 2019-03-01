@@ -1,0 +1,2 @@
+openshift_docker_options: "--log-driver=journald"
+openshift_docker_log_driver: journald
