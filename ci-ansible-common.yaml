@@ -1,0 +1,9 @@
+skip_sanity_checks: true
+openshift_disable_check: "*"
+openshift_install_examples: false
+debug_level: 2
+openshift_node_labels:
+  region: infra
+  node-role.kubernetes.io/infra: "true"
+openshift_logging_elasticsearch_proxy_image: "docker.io/openshift/oauth-proxy:v1.0.0"
+openshift_logging_elasticsearch_proxy_image_version: "v1.0.0"
