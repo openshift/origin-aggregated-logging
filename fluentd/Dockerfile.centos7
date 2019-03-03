@@ -63,8 +63,7 @@ ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
-ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
+ADD patch/logger/log.rb patch/logger/supervisor.rb ${HOME}/
 ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
 COPY utils/** /usr/local/bin/
 ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
@@ -77,7 +76,11 @@ RUN if [ ! -d /etc/fluent/plugin ] ; then \
       mkdir -p /etc/fluent/plugin ; \
     fi ; \
     sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
-    cp $sniffer /etc/fluent/plugin/
+    cp $sniffer /etc/fluent/plugin/ ; \
+    logrbpath=$( gem contents fluentd | grep lib/fluent/log.rb\$ ) ; \
+    suprbpath=$( gem contents fluentd | grep lib/fluent/supervisor.rb\$ ) ; \
+    cp ${HOME}/log.rb $logrbpath ; \
+    cp ${HOME}/supervisor.rb $suprbpath
 
 WORKDIR ${HOME}
 USER 0
