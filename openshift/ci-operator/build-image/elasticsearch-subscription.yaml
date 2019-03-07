@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  generateName: elasticsearch-
+  namespace: openshift-operators
+spec:
+  source: elasticsearch
+  sourceNamespace: openshift-operators
+  name: elasticsearch-operator
+  startingCSV: elasticsearch-operator.v0.0.1
+  channel: preview
