@@ -27,6 +27,9 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         get_fluentd_pod_log > $ARTIFACT_DIR/json-parsing-fluentd-pod.log
     fi
+    sudo ls -alrtF /var/lib/fluentd 2>&1 | artifact_out
+    sudo docker info | grep -i log 2>&1 | artifact_out
+    sudo ls -alrtF /var/log/containers 2>&1 | artifact_out
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code

@@ -52,6 +52,9 @@ oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 # MUX_CLIENT_MODE=maximal or minimal
 oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 
+# keep 100 fluentd logs
+oc set -n ${LOGGING_NS} env ds/logging-fluentd LOGGING_FILE_AGE=100
+
 # start a fluentd performance monitor
 monitor_fluentd_top() {
     # assumes running in a subshell
