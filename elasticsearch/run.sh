@@ -92,4 +92,7 @@ es5x_java_opts="-Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false ${es5x_java_opts:-}"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
+DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
+
 exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF

@@ -20,6 +20,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     RECOVER_EXPECTED_NODES=1 \
     RECOVER_AFTER_TIME=5m \
     RELEASE_STREAM=prod \
+    DHE_TMP_KEY_SIZE=2048 \
     container=oci
 
 ARG OSE_ES_VER=5.6.13.2-redhat-1
