@@ -75,11 +75,12 @@ oc get -n openshift-logging subscriptions | grep logging || :
 # openshift-logging namespace
 oc project openshift-logging
 
+DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 wait_func() {
     oc -n openshift-operators get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
     oc get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: one of or both of elasticsearch-operator and cluster-logging-operator pod not running
     logging_err_exit
 fi
@@ -93,7 +94,7 @@ oc -n openshift-operator-lifecycle-manager scale --replicas=0 deploy/olm-operato
 wait_func() {
     oc -n openshift-operator-lifecycle-manager get pod $olmpod > /dev/null 2>&1
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: could not stop olm pod $olmpod
     logging_err_exit
 fi
@@ -102,7 +103,7 @@ fi
 wait_func() {
     oc get pods | grep -q '^cluster-logging-operator-.* Running'
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: could not get cluster-logging-operator pod
     logging_err_exit
 fi
@@ -143,7 +144,7 @@ wait_func() {
     # wait until the old clo pod is not running and a new one is
     ! oc get pods $clopod > /dev/null 2>&1 && oc get pods | grep -q '^cluster-logging-operator-.* Running'
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: cluster-logging-operator pod was not restarted
     logging_err_exit
 fi
@@ -156,7 +157,7 @@ wait_func() {
     oc get pods 2> /dev/null | grep -v 'elasticsearch-operator' | grep -q 'elasticsearch.*Running' && \
     oc get pods 2> /dev/null | grep -q 'fluentd.*Running'
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: operator did not start pods after 300 seconds
     logging_err_exit
 fi
@@ -175,7 +176,7 @@ oc -n openshift-operators scale --replicas=0 deploy/elasticsearch-operator
 wait_func() {
     oc -n openshift-operators get pod $esopod > /dev/null 2>&1
 }
-if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: could not stop elasticsearch-operator pod $esopod
     logging_err_exit
 fi
@@ -190,7 +191,7 @@ for dp in $( oc get deploy -l component=elasticsearch -o name ) ; do
     wait_func() {
         oc rollout status --watch=false $dp | grep -q "successfully rolled out"
     }
-    if ! wait_for_condition wait_func 300 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
         echo ERROR: elasticsearch deployment $dp not reporting success
         logging_err_exit
     fi
@@ -218,8 +219,8 @@ oc process -p TEST_ROOT=$testroot \
 wait_func() {
     oc logs logging-ci-test-runner > /dev/null 2>&1
 }
-if ! wait_for_condition wait_func 600 > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-    echo ERROR: failed to start logging-ci-test-runner after 600 seconds
+if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+    echo ERROR: failed to start logging-ci-test-runner after $DEFAULT_TIMEOUT seconds
     logging_err_exit
 fi
 
