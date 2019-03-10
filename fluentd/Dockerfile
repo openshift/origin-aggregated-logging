@@ -63,6 +63,7 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
+ADD patch/logger/log.rb patch/logger/supervisor.rb ${HOME}/
 # for some reason, this isn't able to be loaded from the gem
 RUN if [ ! -d /etc/fluent/plugin ] ; then \
       mkdir -p /etc/fluent/plugin ; \
@@ -72,10 +73,12 @@ RUN if [ ! -d /etc/fluent/plugin ] ; then \
         echo Error: sniffer not found - possibly not using rubygem-fluent-plugin-elasticsearch 1.17.2 or later ; \
     else \
         cp $sniffer /etc/fluent/plugin/ ; \
-    fi
+    fi ; \
+    logrbpath=$( gem contents fluentd | grep lib/fluent/log.rb\$ ) ; \
+    suprbpath=$( gem contents fluentd | grep lib/fluent/supervisor.rb\$ ) ; \
+    cp ${HOME}/log.rb $logrbpath ; \
+    cp ${HOME}/supervisor.rb $suprbpath
 
-ADD patch/logger/log.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
-ADD patch/logger/supervisor.rb ${GEM_HOME}/gems/fluentd-0.12.43/lib/fluent/
 COPY utils/** /usr/local/bin/
 
 WORKDIR ${HOME}
