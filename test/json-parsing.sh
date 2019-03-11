@@ -27,10 +27,17 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         get_fluentd_pod_log > $ARTIFACT_DIR/json-parsing-fluentd-pod.log
     fi
-    # disable merge json log
-    stop_fluentd
-    oc set env $fluentd_ds MERGE_JSON_LOG=false
-    start_fluentd
+    if [ "${orig_MERGE_JSON_LOG:-}" = unset ] ; then
+        orig_MERGE_JSON_LOG="MERGE_JSON_LOG-"
+    fi
+    if [ "${orig_CDM_UNDEFINED_TO_STRING:-}" = unset ] ; then
+        orig_CDM_UNDEFINED_TO_STRING="CDM_UNDEFINED_TO_STRING-"
+    fi
+    if [ -n "${orig_MERGE_JSON_LOG:-}" -o -n "${orig_CDM_UNDEFINED_TO_STRING:-}" ] ; then
+        stop_fluentd
+        oc set env $fluentd_ds ${orig_MERGE_JSON_LOG:-} ${orig_CDM_UNDEFINED_TO_STRING:-}
+        start_fluentd
+    fi
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -40,6 +47,14 @@ trap "cleanup" EXIT
 os::log::info Starting json-parsing test at $( date )
 
 # enable merge json log
+orig_MERGE_JSON_LOG=$( oc set env $fluentd_ds --list | grep \^MERGE_JSON_LOG= ) || :
+if [ -z "$orig_MERGE_JSON_LOG" ] ; then
+    orig_MERGE_JSON_LOG=unset
+fi
+orig_CDM_UNDEFINED_TO_STRING=$( oc set env $fluentd_ds --list | grep \^CDM_UNDEFINED_TO_STRING= ) || :
+if [ -z "$orig_CDM_UNDEFINED_TO_STRING" ] ; then
+    orig_CDM_UNDEFINED_TO_STRING=unset
+fi
 stop_fluentd
 oc set env $fluentd_ds MERGE_JSON_LOG=true CDM_UNDEFINED_TO_STRING=false
 start_fluentd
