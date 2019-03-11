@@ -210,7 +210,8 @@ initialize_cluster() {
 initialize_cluster &
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
+DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
-export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION"
+export JAVA_OPTS="${JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
 
 exec ${ES_HOME}/bin/elasticsearch --path.conf=${HOME}/config --security.manager.enabled false
