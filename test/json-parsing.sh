@@ -41,7 +41,7 @@ os::log::info Starting json-parsing test at $( date )
 
 # enable merge json log
 stop_fluentd
-oc set env $fluentd_ds MERGE_JSON_LOG=true
+oc set env $fluentd_ds MERGE_JSON_LOG=true CDM_UNDEFINED_TO_STRING=false
 start_fluentd
 
 # generate a log message in the Kibana logs - Kibana log messages are in JSON format:
