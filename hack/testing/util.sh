@@ -325,7 +325,7 @@ function wait_for_fluentd_to_catch_up() {
         sudo cat /var/log/journal.pos
         # records since start of function
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
-        curl_es ${es_pod} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs.json 2>&1 || :
+        curl_es ${es_svc} /${logging_index}/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/apps_err_recs.json 2>&1 || :
         rc=1
     fi
 
@@ -338,7 +338,7 @@ function wait_for_fluentd_to_catch_up() {
         fi
     else
         os::log::error $FUNCNAME: not found $expected record .operations for $uuid_es_ops after $timeout seconds
-        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/apps_search_output.raw 2>&1 || :
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$qs" > $ARTIFACT_DIR/ops_search_output.raw 2>&1 || :
         os::log::error "Checking journal for $uuid_es_ops..."
         if [ -s $ARTIFACT_DIR/es_ops_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_ops_out.txt )"
@@ -349,7 +349,7 @@ function wait_for_fluentd_to_catch_up() {
         sudo cat /var/log/journal.pos
         # records since start of function
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}}}'
-        curl_es ${es_ops_pod} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs.json 2>&1 || :
+        curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs.json 2>&1 || :
         rc=1
     fi
 
