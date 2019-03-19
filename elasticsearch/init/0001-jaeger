@@ -22,7 +22,6 @@ info "Starting init script: ${script}"
 
 if [ -n "${NAMESPACE:-}" ] ; then
  sed -i -e 's/namespace:.*/namespace: '"$NAMESPACE"'/' ${HOME}/sgconfig/sg_config.yml
- sed -i -e 's/user.jaeger/user.'"$NAMESPACE"'.jaeger/' ${HOME}/sgconfig/sg_roles_mapping.yml
 else
   error "NAMESPACE variable is not set. Failed to substitute it in Jaeger SearchGuard config"
 fi
