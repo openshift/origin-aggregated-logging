@@ -13,10 +13,14 @@ es_pod=$( get_es_pod es )
 es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
+clear_and_restart_journal() {
+    sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+    sudo systemctl restart systemd-journald 2>&1 | artifact_out
+}
+
 if oc get clusterlogging > /dev/null 2>&1 ; then
     deployfunc=deploy_using_operators
-    sudo systemctl stop rsyslog
-    sudo bash -c 'rm -f /var/lib/rsyslog/*'
+    clear_and_restart_journal() { : ; }
 elif [ "${USE_RSYSLOG_RPMS:-false}" = true ] ; then
     rsyslog_service=rsyslog
     extra_ansible_evars=""
@@ -30,8 +34,7 @@ else
 fi
 
 # clear the journal
-sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
-sudo systemctl restart systemd-journald 2>&1 | artifact_out
+clear_and_restart_journal
 
 cleanup() {
     local return_code="$?"
@@ -47,17 +50,21 @@ cleanup() {
             rm -rf ${rsyslog_save}
             sudo systemctl restart $rsyslog_service
         fi
+        # cleanup fluentd pos file and restart
+        start_fluentd true 2>&1 | artifact_out
     else
         rpod=$( get_running_pod rsyslog )
         oc logs $rpod > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
         oc patch clusterlogging example --type=json \
-            --patch '[{"op":"replace","path":"/spec/collection/logCollection/type","value":"fluentd"}]' 2>&1 | artifact_out
+            --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"},
+                      {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
         oc label node --all logging-infra-rsyslog-
         os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
-        sudo systemctl start rsyslog
+        start_fluentd true 2>&1 | artifact_out
+        oc patch clusterlogging example --type=json \
+            --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
+        sleep 10
     fi
-    # cleanup fluentd pos file and restart
-    start_fluentd true 2>&1 | artifact_out
 
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
@@ -117,22 +124,23 @@ EOF
 
 deploy_using_operators() {
     # edit the operator - change logcollector type to rsyslog
+    oc label node -l logging-ci-test=true --overwrite logging-infra-rsyslog=true 2>&1 | artifact_out
     oc patch clusterlogging example --type=json \
-        --patch '[{"op":"replace","path":"/spec/collection/logCollection/type","value":"rsyslog"}]' 2>&1 | artifact_out
-    # pushd $OS_O_A_L_DIR > /dev/null
-    # cd ../cluster-logging-operator
-    # REPO_PREFIX=openshift/ IMAGE_PREFIX=origin- OPERATOR_NAME=cluster-logging-operator \
-    # WATCH_NAMESPACE=openshift-logging KUBERNETES_CONFIG=/etc/origin/master/admin.kubeconfig \
-    # go run cmd/cluster-logging-operator/main.go > $ARTIFACT_DIR/rsyslog-deploy.log 2>&1 & pid=$!
-    # popd > /dev/null
+        --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"rsyslog"},
+                  {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
+    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    rpod=$( get_running_pod rsyslog )
+    oc patch clusterlogging example --type=json \
+        --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
+    sleep 10
     os::cmd::try_until_success "oc get cm rsyslog 2> /dev/null"
     # enable annotation_match
     oc get cm rsyslog -o yaml | \
       sed -e 's/action(type="mmkubernetes"/action(type="mmkubernetes" annotation_match=["."]/' | \
       oc replace --force -f - 2>&1 | artifact_out
-    oc label node --all logging-infra-rsyslog=true 2>&1 | artifact_out
+    oc delete --force pod $rpod
+    os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
     os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
-    #kill $pid || :
 }
 
 get_logmessage() {
@@ -159,6 +167,10 @@ sleep 10
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 proj=$ARTIFACT_DIR/zzz-rsyslog-record.json
 ops=$ARTIFACT_DIR/zzz-rsyslog-record-ops.json
+
+# make sure record is coming from rsyslog
+actual_pipeline=$( cat $proj | jq -r .hits.hits[0]._source.pipeline_metadata.collector.name )
+os::cmd::expect_success "test $actual_pipeline = rsyslog"
 
 # see if the kubernetes metadata matches
 actual_pod_name=$( cat $proj | jq -r .hits.hits[0]._source.kubernetes.pod_name )
@@ -198,6 +210,10 @@ else
 fi
 
 # see if ops fields are present
+# make sure record is coming from rsyslog
+actual_pipeline=$( cat $ops | jq -r .hits.hits[0]._source.pipeline_metadata.collector.name )
+os::cmd::expect_success "test $actual_pipeline = rsyslog"
+
 os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.t.TRANSPORT" "^null$"
 os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.t.SELINUX_CONTEXT" "^null$"
 os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.systemd.u.SYSLOG_FACILITY" "^null$"
