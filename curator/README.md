@@ -99,9 +99,6 @@ months from that date.
 If you want to be exact with curator, it is best to use `days` e.g. `delete: days: 31`
 [Curator issue](https://github.com/elastic/curator/issues/569)
 
-### Compatibility with OpenShift 3.7
-In earlier releases admins could control the timezone and time when curator runs from the curator config. This configuration has been moved to openshift-ansible. The [timezone is not currently configurable](https://github.com/kubernetes/kubernetes/issues/47202), instead the timezone of OpenShift master node is used.
-
 ### Using actions file
 OpenShift custom config file format ensures that important internal indices don't get deleted by mistake. In order to use the actions file add an [exclude](https://www.elastic.co/guide/en/elasticsearch/client/curator/5.2/fe_exclude.html) rule to your configuration to retain these indices. You also need to manually add all the other patterns, see action 3 in the below example:
 ```
@@ -208,4 +205,15 @@ oc patch cronjob logging-curator -p '{"spec":{"schedule":"0 0 * * *"}}'
 # with oc client v3.10 and newer it's possible to manually create jobs from a cronjob
 # this
 oc create job --from=cronjob/logging-curator <job_name>
+```
+
+#### Hacking on oalconverter
+Create virtual environment
+```
+virtualenv dev
+source dev/bin/activate
+```
+Edit `.py` files and run tests
+```
+python setup.py test
 ```
