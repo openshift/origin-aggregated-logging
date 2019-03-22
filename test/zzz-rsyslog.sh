@@ -55,13 +55,13 @@ cleanup() {
     else
         rpod=$( get_running_pod rsyslog )
         oc logs $rpod > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
-        oc patch clusterlogging example --type=json \
+        oc patch clusterlogging instance --type=json \
             --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"},
                       {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
         oc label node --all logging-infra-rsyslog-
         os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
         start_fluentd true 2>&1 | artifact_out
-        oc patch clusterlogging example --type=json \
+        oc patch clusterlogging instance --type=json \
             --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
         sleep 10
     fi
@@ -125,12 +125,12 @@ EOF
 deploy_using_operators() {
     # edit the operator - change logcollector type to rsyslog
     oc label node -l logging-ci-test=true --overwrite logging-infra-rsyslog=true 2>&1 | artifact_out
-    oc patch clusterlogging example --type=json \
+    oc patch clusterlogging instance --type=json \
         --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"rsyslog"},
                   {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
     os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
     rpod=$( get_running_pod rsyslog )
-    oc patch clusterlogging example --type=json \
+    oc patch clusterlogging instance --type=json \
         --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
     sleep 10
     os::cmd::try_until_success "oc get cm rsyslog 2> /dev/null"
