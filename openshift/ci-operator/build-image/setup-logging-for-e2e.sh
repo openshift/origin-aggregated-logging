@@ -197,7 +197,7 @@ for dp in $( oc get deploy -l component=elasticsearch -o name ) ; do
     fi
 done
 
-# the ci test pod, kibana pod, and fluentd pod, all have to run on the same node
+# the ci test pod, kibana pod, and fluentd/rsyslog pod, all have to run on the same node
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
 

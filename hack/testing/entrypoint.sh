@@ -54,6 +54,9 @@ if oc get clusterlogging example > /dev/null 2>&1 ; then
     if [ -z "$nodesel" ] ; then
         oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
             {"op":"add","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
+        oc patch -n ${LOGGING_NS} clusterlogging example --type=json --patch '[
+            {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-infra-fluentd":"true"}},
+            {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}}]'
     fi
     kibnode=$( oc get -n ${LOGGING_NS} pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
     oc label node $kibnode --overwrite logging-infra-fluentd=true
@@ -73,7 +76,7 @@ if oc get clusterlogging example > /dev/null 2>&1 ; then
     # test-viaq-data-model
     expected_failures=(
         check-logs test-access-control test-kibana-dashboards test-multi-tenancy
-        test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries test-zzz-rsyslog
+        test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries
         test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
 
     )

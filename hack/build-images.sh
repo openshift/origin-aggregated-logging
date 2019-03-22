@@ -46,7 +46,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         sleep 1
     done
     if [ $ii = 10 ] ; then
-        echo ERROR: timeout waiting for elasticsearch-operator buildconfig and imagestream to be available
+        echo ERROR: timeout waiting for logging buildconfigs and imagestreams to be available
         exit 1
     fi
     # build and wait
