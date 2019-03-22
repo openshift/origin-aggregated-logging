@@ -30,12 +30,8 @@ if oc get users "$LOG_ADMIN_USER" > /dev/null 2>&1 ; then
     os::log::debug Using existing user $LOG_ADMIN_USER
 else
     os::log::info Creating cluster-admin user $LOG_ADMIN_USER
-    current_project="$( oc project -q )"
-    os::log::debug "$( oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW )"
-    os::log::debug "$( oc login --username=system:admin )"
-    os::log::debug "$( oc project $current_project )"
+    create_users $LOG_ADMIN_USER $LOG_ADMIN_PW true 2>&1 | artifact_out
 fi
-os::log::debug "$( oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER )"
 
 function cleanup() {
     set +e
@@ -53,7 +49,7 @@ done
 
 # use admin user created in logging framework
 # make sure admin kibana index exists - log in to ES as admin user
-get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
+get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW true
 for pod in $espod $esopspod ; do
     curl_es_pod_with_token $pod "/" "$test_token" | curl_output
     # add the ui objects

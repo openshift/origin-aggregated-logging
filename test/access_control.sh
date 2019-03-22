@@ -9,12 +9,16 @@ os::util::environment::use_sudo
 os::test::junit::declare_suite_start "test/access_control"
 
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
 espod=$( get_es_pod es )
 esopspod=$( get_es_pod es-ops )
 esopspod=${esopspod:-$espod}
 es_svc=$( get_es_svc es )
 es_ops_svc=$( get_es_svc es-ops )
 es_ops_svc=${es_ops_svc:-$es_svc}
+
+# enable debug logging for searchguard and o-e-plugin
+#curl_es $es_svc /_cluster/settings -XPUT -d '{"transient":{"logger.com.floragunn.searchguard":"TRACE","logger.io.fabric8.elasticsearch":"TRACE"}}'
 
 delete_users=""
 REUSE=${REUSE:-false}
@@ -28,6 +32,11 @@ function cleanup() {
         done
     fi
     if [ -n "${espod:-}" ] ; then
+        oc exec -c elasticsearch $espod -- es_acl get --doc=roles > $ARTIFACT_DIR/roles
+        oc exec -c elasticsearch $espod -- es_acl get --doc=rolesmapping > $ARTIFACT_DIR/rolesmapping
+        oc exec -c elasticsearch $espod -- es_acl get --doc=actiongroups > $ARTIFACT_DIR/actiongroups
+        oc logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
+        oc exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
         curl_es_pod $espod /project.access-control-* -XDELETE > /dev/null
     fi
     for proj in access-control-1 access-control-2 access-control-3 ; do
@@ -49,10 +58,9 @@ function create_user_and_assign_to_projects() {
         os::log::info Using existing user $user
     else
         os::log::info Creating user $user with password $pw
-        oc login --username=$user --password=$pw 2>&1 | artifact_out
+        create_users "$user" "$pw" false 2>&1 | artifact_out
         delete_users="$delete_users $user"
     fi
-    oc login --username=system:admin 2>&1 | artifact_out
     os::log::info Assigning user to projects "$@"
     while [ -n "${1:-}" ] ; do
         oc project $1 2>&1 | artifact_out
@@ -107,7 +115,7 @@ function test_user_has_proper_access() {
     if [ "$espod" = "$esopspod" ] ; then
         esopshost=$eshost
     fi
-    get_test_user_token $user $pw
+    get_test_user_token $user $pw false
     for proj in "$@" ; do
         if [ "$proj" = "--" ] ; then
             expected=0
@@ -136,12 +144,28 @@ function test_user_has_proper_access() {
             # make sure no access with incorrect auth
             # bogus token
             os::log::info Checking access providing bogus token
-            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '401$'
-            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '.*403$'
+            if ! os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '401$'; then
+                os::log::error invalid access from es with BOGUS token
+                curl_es_pod_with_token $espod "/project.$proj.*/_count" BOGUS -v || :
+                exit 1
+            fi
+            if ! os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '.*403$'; then
+                os::log::error invalid access from kibana with BOGUS token
+                curl_es_from_kibana $kpod $eshost "/project.$proj.*/_count" BOGUS -v || :
+                exit 1
+            fi
             # no token
             os::log::info Checking access providing no username or token
-            os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '' -w '%{response_code}\n'" '401$'
-            os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' -w '%{response_code}\n' -o /dev/null" '403$'
+            if ! os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '' -w '%{response_code}\n'" '401$'; then
+                os::log::error invalid access from es with empty token
+                curl_es_pod_with_token $espod "/project.$proj.*/_count" "" -v || :
+                exit 1
+            fi
+            if ! os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' -w '%{response_code}\n' -o /dev/null" '403$'; then
+                os::log::error invalid access from kibana with empty token
+                curl_es_from_kibana $kpod $eshost "/project.$proj.*/_count" "" -v || :
+                exit 1
+            fi
         fi
     done
 
@@ -186,21 +210,6 @@ done
 LOG_ADMIN_USER=${LOG_ADMIN_USER:-admin}
 LOG_ADMIN_PW=${LOG_ADMIN_PW:-admin}
 
-if oc get users "$LOG_ADMIN_USER" > /dev/null 2>&1 ; then
-    echo Using existing admin user $LOG_ADMIN_USER 2>&1 | artifact_out
-else
-    os::log::info Creating cluster-admin user $LOG_ADMIN_USER
-    current_project="$( oc project -q )"
-    oc login --username=$LOG_ADMIN_USER --password=$LOG_ADMIN_PW 2>&1 | artifact_out
-    oc login --username=system:admin 2>&1 | artifact_out
-    oc project $current_project 2>&1 | artifact_out
-fi
-oc adm policy add-cluster-role-to-user cluster-admin $LOG_ADMIN_USER 2>&1 | artifact_out
-os::log::info workaround access_control admin failures - sleep 60 seconds to allow system to process cluster role setting
-sleep 60
-oc policy can-i '*' '*' --user=$LOG_ADMIN_USER 2>&1 | artifact_out
-oc get users 2>&1 | artifact_out
-
 # if you ever want to run this test again on the same machine, you'll need to
 # use different usernames, otherwise you'll get this odd error:
 # # oc login --username=loguser --password=loguser
@@ -211,6 +220,13 @@ LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguserac-$RANDOM}
 
 LOG_USER2=${LOG_USER2:-loguser2ac-$RANDOM}
 LOG_PW2=${LOG_PW2:-loguser2ac-$RANDOM}
+
+create_users $LOG_NORMAL_USER $LOG_NORMAL_PW false $LOG_USER2 $LOG_PW2 false $LOG_ADMIN_USER $LOG_ADMIN_PW true 2>&1 | artifact_out
+
+os::log::info workaround access_control admin failures - sleep 60 seconds to allow system to process cluster role setting
+sleep 60
+oc auth can-i '*' '*' --user=$LOG_ADMIN_USER 2>&1 | artifact_out
+oc get users 2>&1 | artifact_out
 
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW access-control-1 access-control-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 access-control-2 access-control-3
@@ -227,7 +243,7 @@ if [ ${LOGGING_NS} = "logging" ] ; then
 fi
 
 os::log::info now auth using admin + token
-get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW
+get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW true
 if [ ${LOGGING_NS} = "logging" ] && [ $espod != $esopspod] ; then
   nrecs=$( curl_es_pod_with_token $espod "/${logging_index}/_count" $test_token | get_count_from_json )
   os::cmd::expect_success "test $nrecs -gt 1"

@@ -43,6 +43,7 @@ os::test::junit::declare_suite_start "test/cluster/functionality"
 # We need to use a name and token for logging checks later,
 # so we have to provision a user with a token for this.
 # TODO: Why is this necessary?
+create_users ${LOG_ADMIN_USER:-admin} ${LOG_ADMIN_PW:-admin} true
 os::cmd::expect_success "oc login --username=${LOG_ADMIN_USER:-admin} --password=${LOG_ADMIN_PW:-admin}"
 test_user="$( oc whoami )"
 test_token="$( oc whoami -t )"
@@ -118,7 +119,7 @@ for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
 		for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 			os::log::info "Checking for index ${index} with Kibana pod ${kibana_pod}..."
 			# As we're checking system log files, we need to use `sudo`
-			os::cmd::expect_success "sudo -E VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
+			os::cmd::expect_success "sudo -E env PATH=$PATH VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
 		done
 	done
 

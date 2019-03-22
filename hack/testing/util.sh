@@ -83,9 +83,120 @@ function get_es_cert_path() {
   echo ${OS_O_A_L_DIR}/temp/es_certs
 }
 
+function create_users() {
+    # args are username password true|false (isadmin)
+    local addeduser=""
+    local username=""
+    local pwd=""
+    local isadmin=""
+    local existingusers=""
+    for item in "$@" ; do
+        if [ -z "$username" ] ; then username="$item" ; continue ; fi
+        if [ -z "$pwd" ] ; then pwd="$item" ; continue ; fi
+        if [ -z "$isadmin" ] ; then isadmin="$item" ; fi
+        if oc get user $username > /dev/null 2>&1 ; then
+            existingusers="$existingusers $username"
+        else
+            echo create_users: new user $username
+            oc get users
+            if [ ! -d ${OS_O_A_L_DIR}/temp ] ; then
+                mkdir -p ${OS_O_A_L_DIR}/temp
+            fi
+            local htpwargs="-b"
+            if [ ! -f ${OS_O_A_L_DIR}/temp/htpw.file ] ; then
+                htpwargs="$htpwargs -c"
+            fi
+            htpasswd $htpwargs ${OS_O_A_L_DIR}/temp/htpw.file "$username" "$pwd"
+            addeduser=true
+        fi
+        username=""
+        pwd=""
+        isadmin=""
+    done
+    if [ "${addeduser:-false}" = true ] ; then
+        # set management state to managed for auth operator
+        local mgmtstate=$( oc get authentication.operator cluster -o jsonpath='{.spec.managementState}' )
+        if [ "$mgmtstate" != Managed ] ; then
+            oc patch authentication.operator cluster --type=merge -p "{\"spec\":{\"managementState\": \"Managed\"}}"
+        fi
+        # kick the console pods because they cache oauth metadata (temporary, should not be required)
+        oc delete pods -n openshift-console --all --force --grace-period=0
+
+        # kick the monitoring pods because they cache oauth metadata (temporary, should not be required)
+        oc delete pods -n openshift-monitoring --all --force --grace-period=0
+
+        # see if there is already an htpass-secret - if so, delete it and recreate it
+        if oc -n openshift-config get secret htpass-secret > /dev/null 2>&1 ; then
+            oc -n openshift-config delete secret htpass-secret
+            os::cmd::try_until_failure "oc -n openshift-config get secret htpass-secret > /dev/null 2>&1"
+        fi
+        oc -n openshift-config create secret generic htpass-secret --from-file=htpasswd=${OS_O_A_L_DIR}/temp/htpw.file
+        os::cmd::try_until_success "oc -n openshift-config get secret htpass-secret > /dev/null 2>&1"
+        # configure HTPasswd IDP if not already configured
+        if ! oc get oauth -o jsonpath='{.items[*].spec.identityProviders[*].type}' | grep -q -i '^htpasswd$' ; then
+            oc apply -f - <<EOF
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: htpassidp
+    challenge: true
+    login: true
+    mappingMethod: claim
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: htpass-secret
+EOF
+        fi
+        # fix ca cert in kubeconfig - should not be necessary much longer
+        if [ ! -d ${OS_O_A_L_DIR}/temp ] ; then
+            mkdir -p ${OS_O_A_L_DIR}/temp
+        fi
+        if [ ! -f ${OS_O_A_L_DIR}/temp/tls.crt ] ; then
+            oc -n openshift-ingress-operator extract secret/router-ca --to=${OS_O_A_L_DIR}/temp --keys=tls.crt
+            oc config view --minify -o go-template='{{index .clusters 0 "cluster" "certificate-authority-data" }}' --raw=true | base64 -d > ${OS_O_A_L_DIR}/temp/current-ca.crt
+            cat ${OS_O_A_L_DIR}/temp/tls.crt >> ${OS_O_A_L_DIR}/temp/current-ca.crt
+            for cluster in $( oc config get-clusters | grep -v NAME ) ; do
+                oc config set-cluster "$cluster" --certificate-authority=${OS_O_A_L_DIR}/temp/current-ca.crt --embed-certs=true
+            done
+        fi
+        # iterate over the users again, doing the oc login to ensure they exist
+        while [ -n "${1:-}" ] ; do
+            username="$1" ; shift
+            pwd="$1" ; shift
+            isadmin="$1"; shift
+            local existinguser=""
+            local skip=""
+            if [ -n "$existingusers" ] ; then
+                for existinguser in $existingusers ; do
+                    if [ "$existinguser" = "$username" ] ; then
+                        skip=true
+                    fi
+                done
+            fi
+            if [ "${skip:-false}" = true ] ; then
+                continue
+            fi
+            # wait until oc login succeeds
+            os::cmd::try_until_success "oc login -u '$username' -p '$pwd'" $((3 * minute)) 3
+            oc login -u system:admin
+            if [ $isadmin = true ] ; then
+                echo adding cluster-admin role to user "$username"
+                oc adm policy add-cluster-role-to-user cluster-admin "$username"
+            else
+                echo user "$username" is not an admin user
+            fi
+        done
+    fi
+}
+
 # set the test_token, test_name, and test_ip for token auth
 function get_test_user_token() {
     local current_project; current_project="$( oc project -q )"
+    create_users ${1:-${LOG_ADMIN_USER:-admin}} ${2:-${LOG_ADMIN_PW:-admin}} ${3:-true}
     oc login --username=${1:-${LOG_ADMIN_USER:-admin}} --password=${2:-${LOG_ADMIN_PW:-admin}} > /dev/null
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
