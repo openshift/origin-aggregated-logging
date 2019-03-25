@@ -1,0 +1,189 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>num2ipv4() / ipv42num() &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="ltrim() / rtrim()" href="rs-trim.html" />
+    <link rel="prev" title="Built-in Functions" href="idx_built-in_functions.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="rs-trim.html" title="ltrim() / rtrim()"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="idx_built-in_functions.html" title="Built-in Functions"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index.html" >RainerScript</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" >Functions</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="idx_built-in_functions.html" accesskey="U">Built-in Functions</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="num2ipv4-ipv42num">
+<h1>num2ipv4() / ipv42num()<a class="headerlink" href="#num2ipv4-ipv42num" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="num2ipv4">
+<h3>num2ipv4<a class="headerlink" href="#num2ipv4" title="Permalink to this headline">¶</a></h3>
+<p>num2ipv4(int)</p>
+<p>Converts an integer into an IPv4-address and returns the address as string.
+Input is an integer with a value between 0 and 4294967295. The output format
+is ‘&gt;decimal&lt;.&gt;decimal&lt;.&gt;decimal&lt;.&gt;decimal&lt;’ and ‘-1’ if the integer input is
+invalid or if the function encounters a problem.</p>
+</div>
+<div class="section" id="ipv42num">
+<h3>ipv42num<a class="headerlink" href="#ipv42num" title="Permalink to this headline">¶</a></h3>
+<p>ipv42num(str)</p>
+<p>Converts an IPv4-address into an integer and returns the integer. Input is
+a string; the expected address format may include spaces in the beginning
+and end, but must not contain any other characters in between (except dots).
+If the format does include these, the function results in an error and returns -1.</p>
+</div>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>num2ipv4<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>This example shows an integer being converted to an ipv4 address.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>num2ipv4(123456)
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h3>ipv42num<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>This example shows the parameter fromhost-ip being converted to an integer.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>ipv42num($fromhost-ip)
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">num2ipv4() / ipv42num()</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a><ul>
+<li><a class="reference internal" href="#num2ipv4">num2ipv4</a></li>
+<li><a class="reference internal" href="#ipv42num">ipv42num</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example">Example</a><ul>
+<li><a class="reference internal" href="#id1">num2ipv4</a></li>
+<li><a class="reference internal" href="#id2">ipv42num</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="idx_built-in_functions.html"
+                        title="previous chapter">Built-in Functions</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="rs-trim.html"
+                        title="next chapter">ltrim() / rtrim()</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/rainerscript/functions/rs-ipv4convert.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/rainerscript/functions/rs-ipv4convert.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="rs-trim.html" title="ltrim() / rtrim()"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="idx_built-in_functions.html" title="Built-in Functions"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index.html" >RainerScript</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" >Functions</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="idx_built-in_functions.html" >Built-in Functions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

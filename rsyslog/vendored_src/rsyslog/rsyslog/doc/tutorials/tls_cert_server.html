@@ -1,0 +1,237 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Setting up the Central Server &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Setting up a client" href="tls_cert_client.html" />
+    <link rel="prev" title="Generating the machine certificate" href="tls_cert_machine.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="tls_cert_client.html" title="Setting up a client"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tls_cert_machine.html" title="Generating the machine certificate"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="tls_cert_summary.html" accesskey="U">Encrypting Syslog Traffic with TLS (SSL)</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="setting-up-the-central-server">
+<h1>Setting up the Central Server<a class="headerlink" href="#setting-up-the-central-server" title="Permalink to this headline">¶</a></h1>
+<p>In this step, we configure the central server. We assume it accepts
+messages only via TLS protected plain tcp based syslog from those peers
+that are explicitly permitted to send to it. The picture below show our
+configuration. This step configures the server central.example.net.</p>
+<div class="figure align-center">
+<img alt="" src="../_images/tls_cert_100.jpg" />
+</div>
+<p><strong>Important:</strong> <em>Keep in mind that the order of configuration directives
+is very important in rsyslog. As such, the samples given below do only
+work if the given order is preserved. Re-ordering the directives can
+break configurations and has broken them in practice. If you intend to
+re-order them, please be sure that you fully understand how the
+configuration language works and, most importantly, which statements
+form a block together. Please also note that we understand the the
+current configuration file format is ugly. However, there has been more
+important work in the way of enhancing it. If you would like to
+contribute some time to improve the config file language, please let us
+know. Any help is appreciated (be it doc or coding work!).</em></p>
+<p>Steps to do:</p>
+<ul class="simple">
+<li>make sure you have a functional CA (<a class="reference external" href="tls_cert_ca.html">Setting up the
+CA</a>)</li>
+<li>generate a machine certificate for central.example.net (follow
+instructions in <a class="reference external" href="tls_cert_machine.html">Generating Machine
+Certificates</a>)</li>
+<li>make sure you copy over ca.pem, machine-key.pem ad machine-cert.pem
+to the central server. Ensure that no user except root can access
+them (<strong>even read permissions are really bad</strong>).</li>
+<li>configure the server so that it accepts messages from all machines in
+the example.net domain that have certificates from your CA.
+Alternatively, you may also precisely define from which machine names
+messages are accepted. See sample rsyslog.conf below.</li>
+</ul>
+<p>In this setup, we use wildcards to ease adding new systems. We permit
+the server to accept messages from systems whose names match
+*.example.net.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$InputTCPServerStreamDriverPermittedPeer *.example.net
+</pre></div>
+</div>
+<p>This will match zuse.example.net and turing.example.net, but NOT
+pascal.otherdepartment.example.net. If the later would be desired, you
+can (and need) to include additional permitted peer config statements:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$InputTCPServerStreamDriverPermittedPeer *.example.net
+$InputTCPServerStreamDriverPermittedPeer *.otherdepartment.example.net
+$InputTCPServerStreamDriverPermittedPeer *.example.com
+</pre></div>
+</div>
+<p>As can be seen with example.com, the different permitted peers need NOT
+to be in a single domain tree. Also, individual machines can be
+configured. For example, if only zuse, turing and ada should be able to
+talk to the server, you can achieve this by:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$InputTCPServerStreamDriverPermittedPeer zuse.example.net
+$InputTCPServerStreamDriverPermittedPeer turing.example.net
+$InputTCPServerStreamDriverPermittedPeer ada.example.net
+</pre></div>
+</div>
+<p>As an extension to the (upcoming) IETF syslog/tls standard, you can
+specify some text together with a domain component wildcard. So
+“*server.example.net”, “server*.example.net” are valid permitted
+peers. However “server*Fix.example.net” is NOT a valid wildcard. The
+IETF standard permits no text along the wildcards.</p>
+<p>The reason we use wildcards in the default setup is that it makes it
+easy to add systems without the need to change the central server’s
+configuration. It is important to understand that the central server
+will accept names <strong>only</strong> (no exception) if the client certificate was
+signed by the CA we set up. So if someone tries to create a malicious
+certificate with a name “zuse.example.net”, the server will <strong>not</strong>
+accept it. So a wildcard is safe as long as you ensure CA security is
+not breached. Actually, you authorize a client by issuing the
+certificate to it.</p>
+<p><strong>At this point, please be reminded once again that your security needs
+may be quite different from what we assume in this tutorial. Evaluate
+your options based on your security needs.</strong></p>
+<div class="section" id="sample-syslog-conf">
+<h2>Sample syslog.conf<a class="headerlink" href="#sample-syslog-conf" title="Permalink to this headline">¶</a></h2>
+<p>Keep in mind that this rsyslog.conf accepts messages via TCP, only. The
+only other source accepted is messages from the server itself.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad imuxsock # local messages
+$ModLoad imtcp # TCP listener
+
+# make gtls driver the default
+$DefaultNetstreamDriver gtls
+
+# certificate files
+$DefaultNetstreamDriverCAFile /rsyslog/protected/ca.pem
+$DefaultNetstreamDriverCertFile /rsyslog/protected/machine-cert.pem
+$DefaultNetstreamDriverKeyFile /rsyslog/protected/machine-key.pem
+
+$InputTCPServerStreamDriverAuthMode x509/name
+$InputTCPServerStreamDriverPermittedPeer *.example.net
+$InputTCPServerStreamDriverMode 1 # run driver in TLS-only mode
+$InputTCPServerRun 10514 # start up listener at port 10514
+</pre></div>
+</div>
+<p><strong>Be sure to safeguard at least the private key (machine-key.pem)!</strong> If
+some third party obtains it, you security is broken!</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Setting up the Central Server</a><ul>
+<li><a class="reference internal" href="#sample-syslog-conf">Sample syslog.conf</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tls_cert_machine.html"
+                        title="previous chapter">Generating the machine certificate</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="tls_cert_client.html"
+                        title="next chapter">Setting up a client</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/tls_cert_server.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/tls_cert_server.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="tls_cert_client.html" title="Setting up a client"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tls_cert_machine.html" title="Generating the machine certificate"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="tls_cert_summary.html" >Encrypting Syslog Traffic with TLS (SSL)</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

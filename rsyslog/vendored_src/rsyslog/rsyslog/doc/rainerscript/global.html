@@ -1,0 +1,477 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>global() configuration object &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The rsyslog include() object" href="include.html" />
+    <link rel="prev" title="The rsyslog “call_indirect” statement" href="rainerscript_call_indirect.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="include.html" title="The rsyslog include() object"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="rainerscript_call_indirect.html" title="The rsyslog “call_indirect” statement"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" accesskey="U">RainerScript</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="global-configuration-object">
+<h1>global() configuration object<a class="headerlink" href="#global-configuration-object" title="Permalink to this headline">¶</a></h1>
+<p>The global configuration object permits to set global parameters. Note
+that each parameter can only be set once and cannot be re-set
+thereafter. If a parameter is set multiple times, the behaviour is
+unpredictable. As with other configuration objects, parameters for this
+object are case-insensitive.</p>
+<p>The following parameters can be set:</p>
+<ul>
+<li><p class="first"><strong>action.reportSuspension</strong> - binary, default “on”, v7.5.8+</p>
+<p>If enabled (“on”) action will log message under <em>syslog.*</em> when an
+action suspends or resumes itself. This usually happens when there are
+problems connecting to backend systems. If disabled (“off”), these
+messages are not generated. These messages can be useful in detecting
+problems with backend systems. Most importantly, frequent suspension
+and resumption points to a problem area.</p>
+</li>
+<li><p class="first"><strong>action.reportSuspensionContinuation</strong> - binary, default “off”, v7.6.1+, v8.2.0+</p>
+<p>If enabled (“on”) the action will not only report the first suspension but
+each time the suspension is prolonged. Otherwise, the follow-up messages
+are not logged. If this setting is set to “on”, action.reportSuspension is
+also automaticaly turned “on”.</p>
+</li>
+<li><p class="first"><strong>workDirectory</strong></p>
+</li>
+<li><p class="first"><strong>dropMsgsWithMaliciousDNSPtrRecords</strong></p>
+</li>
+<li><p class="first"><strong>localHostname</strong></p>
+</li>
+<li><p class="first"><strong>preserveFQDN</strong></p>
+</li>
+<li><p class="first"><strong>defaultNetstreamDriverCAFile</strong></p>
+<p>For <a class="reference external" href="http://www.rsyslog.com/doc/rsyslog_secure_tls.html">TLS syslog</a>,
+the CA certificate that can verify the machine keys and certs (see below)</p>
+</li>
+<li><p class="first"><strong>defaultNetstreamDriverKeyFile</strong></p>
+<p>Machine private key</p>
+</li>
+<li><p class="first"><strong>defaultNetstreamDriverCertFile</strong></p>
+<p>Machine public key (certificate)</p>
+</li>
+<li><p class="first"><strong>debug.gnutls</strong> (0-10; default:0)</p>
+<p>Any other parameter than 0 enables the debug messages of GnuTLS. the
+amount of messages given depends on the height of the parameter, 0
+being nothing and 10 being very much. Caution! higher parameters may
+give out way more information than needed. We advise you to first use
+small parameters to prevent that from happening.
+<strong>This parameter only has an effect if general debugging is enabled.</strong></p>
+</li>
+<li><p class="first"><strong>processInternalMessages</strong> binary (on/off)</p>
+<p>This tells rsyslog if it shall process internal messages itself. The
+default mode of operations (“off”) makes rsyslog send messages to the
+system log sink (and if it is the only instance, receive them back from there).
+This also works with systemd journal and will make rsyslog messages show up in the
+systemd status control information.</p>
+<p>If this (instance) of rsyslog is not the main instance and there is another
+main logging system, rsyslog internal messages will be inserted into
+the main instance’s syslog stream. In this case, setting to (“on”) will
+let you receive the internal messages in the instance they originate from.</p>
+<p>Note that earlier versions of rsyslog worked the opposite way. More
+information about the change can be found in <a class="reference external" href="http://www.rsyslog.com/rsyslog-error-reporting-improved">rsyslog-error-reporting-improved</a>.</p>
+</li>
+<li><p class="first"><strong>stdlog.channelspec</strong></p>
+<p>Permits to set the liblogging-stdlog channel specifier string. This
+in turn permits to send rsyslog log messages to a destination different
+from the system default. Note that this parameter has only effect if
+<em>processInternalMessages</em> is set to “off”. Otherwise it is silently
+ignored.</p>
+</li>
+<li><p class="first"><strong>shutdown.enable.ctlc</strong></p>
+<p>If set to “on”, rsyslogd can be terminated by pressing ctl-c. This is
+most useful for containers. If set to “off” (the default), this is not
+possible.</p>
+</li>
+<li><p class="first"><strong>defaultNetstreamDriver</strong></p>
+<p>Set it to “ossl” or “gtls” to enable TLS.
+This <a class="reference external" href="http://www.rsyslog.com/doc/rsyslog_secure_tls.html">guide</a>
+showes how to use TLS.</p>
+</li>
+<li><p class="first"><strong>maxMessageSize</strong></p>
+<p>Configures the maximum message size allowed for all inputs. Default is 8K.
+Anything above the maximum size will be truncated.</p>
+<p>Note: some modules provide separate parameters that allow overriding this
+setting (e.g., <a class="reference internal" href="../configuration/modules/imrelp.html"><span class="doc">imrelp’s MaxDataSize parameter</span></a>).</p>
+</li>
+</ul>
+<ul id="global-janitorinterval">
+<li><p class="first"><strong>janitor.interval</strong> [minutes], available since 8.3.3</p>
+<p>Sets the interval at which the
+<a class="reference internal" href="../concepts/janitor.html"><span class="doc">janitor process</span></a>
+runs.</p>
+</li>
+<li><p class="first"><strong>debug.onShutdown</strong> available in 7.5.8+</p>
+<p>If enabled (“on”), rsyslog will log debug messages when a system
+shutdown is requested. This can be used to track issues that happen
+only during shutdown. During normal operations, system performance is
+NOT affected.
+Note that for this option to be useful, the debug.logFile parameter
+must also be set (or the respective environment variable).</p>
+</li>
+<li><p class="first"><strong>debug.logFile</strong> available in 7.5.8+</p>
+<p>This is used to specify the debug log file name. It is used for all
+debug output. Please note that the RSYSLOG_DEBUGLOG environment
+variable always <strong>overrides</strong> the value of debug.logFile.</p>
+</li>
+<li><p class="first"><strong>net.ipprotocol</strong> available in 8.6.0+</p>
+<p>This permits to instruct rsyslog to use IPv4 or IPv6 only. Possible
+values are “unspecified”, in which case both protocols are used,
+“ipv4-only”, and “ipv6-only”, which restrict usage to the specified
+protocol. The default is “unspecified”.</p>
+<p>Note: this replaces the former <em>-4</em> and <em>-6</em> rsyslogd command line
+options.</p>
+</li>
+<li><p class="first"><strong>net.aclAddHostnameOnFail</strong> available in 8.6.0+</p>
+<p>If “on”, during ACL processing, hostnames are resolved to IP addresses for
+performance reasons. If DNS fails during that process, the hostname
+is added as wildcard text, which results in proper, but somewhat
+slower operation once DNS is up again.</p>
+<p>The default is “off”.</p>
+</li>
+<li><p class="first"><strong>net.aclResolveHostname</strong> available in 8.6.0+</p>
+<p>If “off”, do not resolve hostnames to IP addresses during ACL processing.</p>
+<p>The default is “on”.</p>
+</li>
+<li><p class="first"><strong>net.enableDNS</strong> [on/off] available in 8.6.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>Can be used to turn DNS name resolution on or off.</p>
+</li>
+<li><p class="first"><strong>net.permitACLWarning</strong> [on/off] available in 8.6.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>If “off”, suppress warnings issued when messages are received
+from non-authorized machines (those, that are in no AllowedSender list).</p>
+</li>
+<li><p class="first"><strong>parser.parseHostnameAndTag</strong> [on/off] available in 8.6.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>This controls wheter the parsers try to parse HOSTNAME and TAG fields
+from messages. The default is “on”, in which case parsing occurs. If
+set to “off”, the fields are not parsed. Note that this usually is
+<strong>not</strong> what you want to have.</p>
+<p>It is highly suggested to change this setting to “off” only if you
+know exactly why you are doing this.</p>
+</li>
+<li><p class="first"><strong>parser.permitSlashInProgramName</strong> [on/off] available in 8.25.0+</p>
+<p><strong>Default:</strong> off</p>
+<p>This controls whether slashes in the “programname” property
+(the static part of the tag) are permitted or not. By default
+this is not permitted, but some Linux tools (including most
+importantly the journal) store slashes as part of the program
+name inside the syslogtag. In those cases, the <code class="docutils literal"><span class="pre">programname</span></code>
+is truncated at the first slash.</p>
+<p>In other words, if the setting is off, a value of <code class="docutils literal"><span class="pre">app/foo[1234]</span></code>
+in the tag will result in a programname of <code class="docutils literal"><span class="pre">app</span></code>, and if an
+application stores an absolute path name like <code class="docutils literal"><span class="pre">/app/foo[1234]</span></code>,
+the <code class="docutils literal"><span class="pre">programname</span></code> property will be empty (“”).
+If set to <code class="docutils literal"><span class="pre">on</span></code>, a syslogtag of <code class="docutils literal"><span class="pre">/app/foo[1234]</span></code> will result
+in a <code class="docutils literal"><span class="pre">programname</span></code> value of <code class="docutils literal"><span class="pre">/app/foo</span></code> and a syslogtag of
+<code class="docutils literal"><span class="pre">app/foo[1234]</span></code> will result in a <code class="docutils literal"><span class="pre">programname</span></code> value of
+<code class="docutils literal"><span class="pre">app/foo</span></code>.</p>
+</li>
+<li><p class="first"><strong>senders.keepTrack</strong> [on/off] available 8.17.0+</p>
+<p><strong>Default:</strong> off</p>
+<p>If turned on, rsyslog keeps track of known senders and also reports
+statistical data for them via the impstats mechanism.</p>
+<p>A list of active senders is kept. When a new sender is detected, an
+informational message is emitted. Senders are purged from the list
+only after a timeout (see <em>senders.timoutAfter</em> parameter). Note
+that we do not intentionally remove a sender when a connection is
+closed. The whole point of this sender-tracking is to have the ability
+to provide longer-duration data. As such, we would not like to drop
+information just because the sender has disconnected for a short period
+of time (e.g. for a reboot).</p>
+<p>Senders are tracked by their hostname (taken at connection establishment).</p>
+<p>Note: currently only imptcp and imtcp support sender tracking.</p>
+</li>
+<li><p class="first"><strong>senders.timeoutAfter</strong> [seconds] available 8.17.0+</p>
+<p><strong>Default:</strong> 12 hours (12*60*60 seconds)</p>
+<p>Specifies after which period a sender is considered to “have gone
+away”. For each sender, rsyslog keeps track of the time it least
+received messages from it. When it has not received a message during
+that interval, rsyslog considers the sender to be no longer present.
+It will then a) emit a warning message (if configured) and b) purge
+it from the active senders list. As such, the sender will no longer
+be reported in impstats data once it has timed out.</p>
+</li>
+<li><p class="first"><strong>senders.reportGoneAway</strong> [on/off] available 8.17.0+</p>
+<p><strong>Default:</strong> off</p>
+<p>Emit a warning message when now data has been received from a sender
+within the <em>senders.timeoutAfter</em> interval.</p>
+</li>
+<li><p class="first"><strong>senders.reportNew</strong> [on/off] available 8.17.0+</p>
+<p><strong>Default:</strong> off</p>
+<p>If sender tracking is active, report a sender that is not yet inside
+the cache. Note that this means that senders which have been timed out
+due to prolonged inactivity are also reported once they connect again.</p>
+</li>
+<li><p class="first"><strong>debug.unloadModules</strong> [on/off] available 8.17.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>This is primarily a debug setting. If set to “off”, rsyslog will never
+unload any modules (including plugins). This usually causes no operational
+problems, but may in extreme cases. The core benefit of this setting is
+that it makes valgrind stack traces readable. In previous versions, the
+same functionality was only available via a special build option.</p>
+</li>
+<li><p class="first"><strong>debug.files</strong> [ARRAY of filenames] available 8.29.0+</p>
+<p><strong>Default:</strong> none</p>
+<p>This can be used to configure rsyslog to only show debug-output generated in
+certain files. If the option is set, but no filename is given, the
+debug-output will behave as if the option is turned off.</p>
+<p>Do note however that due to the way the configuration works, this might not
+effect the first few debug-outputs, while rsyslog is reading in the configuration.
+For optimal results we recommend to put this parameter at the very start of
+your configuration to minmize unwanted output.</p>
+<p>See debug.whitelist for more information.</p>
+</li>
+<li><p class="first"><strong>debug.whitelist</strong> [on/off] available 8.29.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>This parameter is an assisting parameter of  debug.files. If debug.files
+is used in the configuration, debug.whitelist is a switch for the files named
+to be either white- or blacklisted from displaying debug-output. If it is set to
+on, the listed files will generate debug-output, but no other files will.
+The reverse principle applies if the parameter is set to off.</p>
+<p>See debug.files for more information.</p>
+</li>
+<li><p class="first"><strong>environment</strong> [ARRAY of environment variable=value strings] available 8.23.0+</p>
+<p><strong>Default:</strong> none</p>
+<p>This permits to set environment variables via rsyslog.conf. The prime
+motivation for having this is that for many libraries, defaults can be
+set via environment variables, <strong>but</strong> setting them via operating system
+service startup files is cumbersome and different on different platforms.
+So the <em>environment</em> parameter provides a handy way to set those
+variables.</p>
+<p>A common example is to set the <em>http_proxy</em> variable, e.g. for use with
+KSI signing or ElasticSearch. This can be done as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">global</span><span class="p">(</span><span class="n">environment</span><span class="o">=</span><span class="s2">&quot;http_proxy=http://myproxy.example.net&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that an environment variable set this way must contain an equal sign,
+and the variable name must not be longer than 127 characters.</p>
+<p>It is possible to set multiple environment variables in a single
+global statement. This is done in regular array syntax as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">global</span><span class="p">(</span><span class="n">environment</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;http_proxy=http://myproxy.example.net&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;another_one=this string is=ok!&quot;</span>
+      <span class="p">)</span>
+</pre></div>
+</div>
+<p>As usual, whitespace is irrelevant in regard to parameter placing. So
+the above sample could also have been written on a single line.</p>
+</li>
+<li><p class="first"><strong>internalmsg.ratelimit.interval</strong> [positive integer] available 8.29.0+</p>
+<p><strong>Default:</strong> 5</p>
+<blockquote>
+<div><p>Specifies the interval in seconds onto which rate-limiting is to be
+applied to internal messgaes generated by rsyslog(i.e. error messages).
+If more than internalmsg.ratelimit.burst messages are read during
+that interval, further messages up to the end of the interval are
+discarded.</p>
+</div></blockquote>
+</li>
+<li><p class="first"><strong>internalmsg.ratelimit.burst</strong> [positive integer] available 8.29.0+</p>
+<p><strong>Default:</strong> 500</p>
+<blockquote>
+<div><p>Specifies the maximum number of internal messages that can be emitted within
+the ratelimit.interval interval. For futher information, see
+description there.</p>
+</div></blockquote>
+<p><strong>Caution:</strong> Environment variables are set immediately when the
+corresponding statement is encountered. Likewise, modules are loaded when
+the module load statement is encountered. This may create <strong>sequence
+dependencies</strong> inside rsyslog.conf. To avoid this, it is highly suggested
+that environment variables are set <strong>right at the top of rsyslog.conf</strong>.
+Also, rsyslog-related environment variables may not apply even when set
+right at the top. It is safest to still set them in operating system
+start files. Note that rsyslog environment variables are usually intended
+only for developers so there should hardly be a need to set them for a
+regular user. Also, many settings (e.g. debug) are also available as
+configuration objects.</p>
+</li>
+<li><p class="first"><strong>errorMessagesToStderr.maxNumber</strong> [positive integer] available 8.30.0+</p>
+<p><strong>Default:</strong> unlimited</p>
+<p>This permits to put a hard limit on the number of messages that can
+go to stderr. If for nothing else, this capability is helpful for the
+testbench. It permits to reduce spamming the test log while still
+providing the ability to see initial error messages. Might also be
+useful for some practical deployments.</p>
+</li>
+<li><p class="first"><strong>variables.caseSensitve</strong> [boolean (on/off)] available 8.30.0+</p>
+<p><strong>Default:</strong> off</p>
+<p>This permits to make variables case-sensitive, what might be required
+for some exotic input data where case is the only difference in
+field names. Note that in rsyslog versions prior to 8.30, the default was
+“on”, which very often led to user confusion. There normally should be no
+need to switch it back to “on”, except for the case to be mentioned.
+This is also the reason why we switched the default.</p>
+</li>
+<li><p class="first"><strong>dynafile.donotsuspend</strong> [boolean (on/off)] available 8.32.0+</p>
+<p><strong>Default:</strong> on</p>
+<p>This permits SUSPENDing dynafile actions. Traditionally, SUSPEND mode was
+never entered for dynafiles as it would have blocked overall processing
+flow. Default is not to suspend (and thus block).</p>
+</li>
+<li><p class="first"><strong>internal.developeronly.options</strong></p>
+<p>This is NOT to be used by end users. It provides rsyslog developers the
+ability to do some (possibly strange) things inside rsyslog, e.g. for
+testing. This parameter should never be set, except if instructed by
+a developer. If it is set, rsyslog may misbehave, segfault, or cause
+other strange things. Note that option values are not guaranteed to
+stay the same between releases, so do not be “smart” and apply settings
+that you found via a web search.</p>
+<p>Once again: <strong>users must NOT set this parameter!</strong></p>
+</li>
+<li><p class="first"><strong>oversizemsg.errorfile</strong> [file name] available 8.35.0+</p>
+<p>This parameter is used to specify the name of the oversize message log file.
+Here messages that are longer than maxMessageSize will be gathered.</p>
+</li>
+<li><p class="first"><strong>oversizemsg.input.mode</strong> [mode] available 8.35.0+</p>
+<p>With this parameter the behavior for oversized messages can be specified.
+Available modes are:</p>
+<ul class="simple">
+<li>truncate: Oversized messages will be truncated.</li>
+<li>split: Oversized messages will be split and the rest of the message will
+be send in another message.</li>
+<li>accept: Oversized messages will still be accepted.</li>
+</ul>
+</li>
+<li><p class="first"><strong>oversizemsg.report</strong> [boolean (on/off)] available 8.35.0+</p>
+<p>This parameter specifies if an error shall be reported when an oversized
+message is seen. The default is “on”.</p>
+</li>
+<li><p class="first"><strong>abortOnUncleanConfig</strong> [boolean (on/of)] available 8.37.0+</p>
+<p>This parameter permits to prevent rsyslog from running when the
+configuration file is not clean. “Not Clean” means there are errors or
+some other annoyances that rsyslgod reports on startup. This is a
+user-requested feature to have a strict startup mode. Note that with the
+current code base it is not always possible to differentiate between an
+real error and a warning-like condition. As such, the startup will also
+prevented if warnings are present. I consider this a good thing in being
+“strict”, but I admit there also currently is no other way of doing it.</p>
+</li>
+<li><p class="first"><strong>inputs.timeout.shutdown</strong> [numeric, ms] available 8.37.0+</p>
+<p>This parameter specifies how long input modules are given time to terminate
+when rsyslog is shutdown. The default is 1000ms (1 second). If the input
+requires longer to terminate, it will be cancelled. This is necessary if
+the input is inside a lengthy operation, but should generally be tried to
+avoid. On busy systems it may make sense to increase that timeout. This
+especially seems to be the case with containers.</p>
+</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="rainerscript_call_indirect.html"
+                        title="previous chapter">The rsyslog “call_indirect” statement</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="include.html"
+                        title="next chapter">The rsyslog include() object</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/rainerscript/global.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/rainerscript/global.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="include.html" title="The rsyslog include() object"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="rainerscript_call_indirect.html" title="The rsyslog “call_indirect” statement"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >RainerScript</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

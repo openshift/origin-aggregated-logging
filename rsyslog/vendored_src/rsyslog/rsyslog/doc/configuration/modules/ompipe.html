@@ -1,0 +1,164 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ompipe: Pipe Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omprog: Program integration Output module" href="omprog.html" />
+    <link rel="prev" title="PostgreSQL Database Output Module (ompgsql)" href="ompgsql.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omprog.html" title="omprog: Program integration Output module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ompgsql.html" title="PostgreSQL Database Output Module (ompgsql)"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="ompipe-pipe-output-module">
+<h1>ompipe: Pipe Output Module<a class="headerlink" href="#ompipe-pipe-output-module" title="Permalink to this headline">¶</a></h1>
+<p><strong>Module Name:&nbsp;&nbsp;&nbsp; ompipe</strong></p>
+<p><strong>Author:</strong>Rainer Gerhards &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</p>
+<p><strong>Description</strong>:</p>
+<p>The ompipe plug-in provides the core functionality for logging output to named pipes (fifos). It is a built-in module that does not need to be loaded.</p>
+<p><strong>Global Configuration Parameters:</strong></p>
+<p>Note: parameter names are case-insensitive.</p>
+<ul class="simple">
+<li>Template: [templateName] sets a new default template for file actions.</li>
+</ul>
+<p><strong>Action specific Configuration Parameters:</strong></p>
+<p>Note: parameter names are case-insensitive.</p>
+<ul class="simple">
+<li>Pipe: string a fifo or named pipe can be used as a destination for log messages.</li>
+</ul>
+<p><strong>Caveats/Known Bugs:</strong>
+None</p>
+<p><strong>Sample:</strong>
+The following command sends all syslog messages to a pipe named “NameofPipe”.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Module</span> <span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;builtin:ompipe&quot;</span><span class="p">)</span>
+<span class="o">*.*</span> <span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;ompipe&quot;</span> <span class="n">Pipe</span><span class="o">=</span><span class="s2">&quot;NameofPipe&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Legacy Configuration Parameters:</strong></p>
+<p>rsyslog has support for logging output to named pipes (fifos). A fifo or named pipe can be used as a destination for log messages by prepending a pipe symbol (“|”) to the name of the file. This is handy for debugging. Note that the fifo must be created with the mkfifo(1) command before rsyslogd is started.</p>
+<p><strong>Legacy Sample:</strong></p>
+<p>The following command sends all syslog messages to a pipe named /var/log/pipe.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad ompipe
+*.* |/var/log/pipe
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="ompgsql.html"
+                        title="previous chapter">PostgreSQL Database Output Module (ompgsql)</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omprog.html"
+                        title="next chapter">omprog: Program integration Output module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/ompipe.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/ompipe.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omprog.html" title="omprog: Program integration Output module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ompgsql.html" title="PostgreSQL Database Output Module (ompgsql)"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

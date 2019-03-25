@@ -1,0 +1,215 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>GuardTime Log Signature Provider (gt) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Keyless Signature Infrastructure Provider (ksi)" href="sigprov_ksi.html" />
+    <link rel="prev" title="omuxsock: Unix sockets Output Module" href="omuxsock.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="sigprov_ksi.html" title="Keyless Signature Infrastructure Provider (ksi)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omuxsock.html" title="omuxsock: Unix sockets Output Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="guardtime-log-signature-provider-gt">
+<h1>GuardTime Log Signature Provider (gt)<a class="headerlink" href="#guardtime-log-signature-provider-gt" title="Permalink to this headline">¶</a></h1>
+<p><strong>Signature Provider Name: gt</strong></p>
+<p><strong>Author:</strong> Rainer Gerhards &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</p>
+<p><strong>Supported:</strong> from 7.3.9 to 8.26.0</p>
+<p><strong>Description</strong>:</p>
+<p>Provides the ability to sign syslog messages via the GuardTime signature
+services.</p>
+<p><strong>Configuration Parameters</strong>:</p>
+<p>Note: parameter names are case-insensitive.</p>
+<p>Signature providers are loaded by omfile, when the provider is selected
+in its “sig.providerName” parameter. Parameters for the provider are
+given in the omfile action instance line.</p>
+<p>This provider creates a signature file with the same base name but the
+extension “.gtsig” for each log file (both for fixed-name files as well
+as dynafiles). Both files together form a set. So you need to archive
+both in order to prove integrity.</p>
+<ul>
+<li><p class="first"><strong>sig.hashFunction</strong> &lt;Hash Algorithm&gt;
+The following hash algorithms are currently supported:</p>
+<ul class="simple">
+<li>SHA1</li>
+<li>RIPEMD-160</li>
+<li>SHA2-224</li>
+<li>SHA2-256</li>
+<li>SHA2-384</li>
+<li>SHA2-512</li>
+</ul>
+</li>
+<li><p class="first"><strong>sig.timestampService</strong> &lt;timestamper URL&gt;
+This provides the URL of the timestamper service. If not selected, a
+default server is selected. This may not necessarily be a good one
+for your region.</p>
+<p><em>Note:</em> If you need to supply user credentials, you can add them to
+the timestamper URL. If, for example, you have a user “user” with
+password “pass”, you can do so as follows:</p>
+<blockquote>
+<div><p><a class="reference external" href="http://user:pass&#64;timestamper.example.net">http://user:pass&#64;timestamper.example.net</a></p>
+</div></blockquote>
+</li>
+<li><p class="first"><strong>sig.block.sizeLimit</strong> &lt;nbr-records&gt;
+The maximum number of records inside a single signature block. By
+default, there is no size limit, so the signature is only written on
+file closure. Note that a signature request typically takes between
+one and two seconds. So signing to frequently is probably not a good
+idea.</p>
+</li>
+<li><p class="first"><strong>sig.keepRecordHashes</strong> &lt;on/<strong>off</strong>&gt;
+Controls if record hashes are written to the .gtsig file. This
+enhances the ability to spot the location of a signature breach, but
+costs considerable disk space (65 bytes for each log record for
+SHA2-512 hashes, for example).</p>
+</li>
+<li><p class="first"><strong>sig.keepTreeHashes</strong> &lt;on/<strong>off</strong>&gt;
+Controls if tree (intermediate) hashes are written to the .gtsig
+file. This enhances the ability to spot the location of a signature
+breach, but costs considerable disk space (a bit mire than the amount
+sig.keepRecordHashes requries). Note that both Tree and Record hashes
+can be kept inside the signature file.</p>
+</li>
+</ul>
+<p><strong>See Also</strong></p>
+<ul class="simple">
+<li><a class="reference external" href="http://www.rsyslog.com/how-to-sign-log-messages-through-signature-provider-guardtime/">How to sign log messages through signature provider
+Guardtime</a></li>
+</ul>
+<p><strong>Caveats/Known Bugs:</strong></p>
+<ul class="simple">
+<li>currently none known</li>
+</ul>
+<p><strong>Samples:</strong></p>
+<p>This writes a log file with it’s associated signature file. Default
+parameters are used.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/var/log/somelog&quot;</span> <span class="n">sig</span><span class="o">.</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;gt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In the next sample, we use the more secure SHA2-512 hash function, sign
+every 10,000 records and Tree and Record hashes are kept.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/var/log/somelog&quot;</span> <span class="n">sig</span><span class="o">.</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;gt&quot;</span>
+<span class="n">sig</span><span class="o">.</span><span class="n">hashfunction</span><span class="o">=</span><span class="s2">&quot;SHA2-512&quot;</span> <span class="n">sig</span><span class="o">.</span><span class="n">block</span><span class="o">.</span><span class="n">sizelimit</span><span class="o">=</span><span class="s2">&quot;10000&quot;</span>
+<span class="n">sig</span><span class="o">.</span><span class="n">keepTreeHashes</span><span class="o">=</span><span class="s2">&quot;on&quot;</span> <span class="n">sig</span><span class="o">.</span><span class="n">keepRecordHashes</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omuxsock.html"
+                        title="previous chapter">omuxsock: Unix sockets Output Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="sigprov_ksi.html"
+                        title="next chapter">Keyless Signature Infrastructure Provider (ksi)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/sigprov_gt.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/sigprov_gt.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="sigprov_ksi.html" title="Keyless Signature Infrastructure Provider (ksi)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omuxsock.html" title="omuxsock: Unix sockets Output Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+diff -up ./src/tcp.c.fix ./src/tcp.c
+--- ./src/tcp.c.fix	2018-03-26 13:44:07.627189911 +0200
++++ ./src/tcp.c	2018-03-26 13:44:51.051915920 +0200
+@@ -556,23 +556,8 @@ static relpRetVal
+ relpTcpTLSSetPrio(relpTcp_t *const pThis)
+ {
+ 	int r;
+-	char pristringBuf[4096];
+-	char *pristring;
+ 	ENTER_RELPFUNC;
+-	/* Compute priority string (in simple cases where the user does not care...) */
+-	if(pThis->pristring == NULL) {
+-		if(pThis->bEnableTLSZip) {
+-			strncpy(pristringBuf, "NORMAL:+ANON-DH:+COMP-ALL", sizeof(pristringBuf));
+-		} else {
+-			strncpy(pristringBuf, "NORMAL:+ANON-DH:+COMP-NULL", sizeof(pristringBuf));
+-		}
+-		pristringBuf[sizeof(pristringBuf)-1] = '\0';
+-		pristring = pristringBuf;
+-	} else {
+-		pristring = pThis->pristring;
+-	}
+-
+-	r = gnutls_priority_set_direct(pThis->session, pristring, NULL);
++	r = gnutls_set_default_priority(pThis->session);
+ 	if(r == GNUTLS_E_INVALID_REQUEST) {
+ 		ABORT_FINALIZE(RELP_RET_INVLD_TLS_PRIO);
+ 	} else if(r != GNUTLS_E_SUCCESS) {

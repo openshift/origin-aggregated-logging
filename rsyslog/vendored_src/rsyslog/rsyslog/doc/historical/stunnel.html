@@ -1,0 +1,390 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>SSL Encrypting Syslog with Stunnel &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Developing rsyslog modules (outdated)" href="module_devel.html" />
+    <link rel="prev" title="Using php-syslog-ng with rsyslog" href="php_syslog_ng.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="module_devel.html" title="Developing rsyslog modules (outdated)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="php_syslog_ng.html" title="Using php-syslog-ng with rsyslog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="ssl-encrypting-syslog-with-stunnel">
+<h1>SSL Encrypting Syslog with Stunnel<a class="headerlink" href="#ssl-encrypting-syslog-with-stunnel" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by</em> <a class="reference external" href="https://rainer.gerhards.net">Rainer Gerhards</a> <em>(2005-07-22)</em></p>
+<p><strong>HISTORICAL DOCUMENT</strong></p>
+<p><strong>Note: this is an outdated HISTORICAL document.</strong> A much better description on
+<a class="reference external" href="http://www.rsyslog.com/doc/master/tutorials/tls_cert_summary.html">securing syslog with TLS</a>
+is available.</p>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p><strong>In this paper, I describe how to encrypt</strong>
+<a class="reference external" href="http://www.monitorware.com/en/topics/syslog/">syslog</a> <strong>messages on the
+network.</strong> Encryption is vital to keep the confidiental content of
+syslog messages secure. I describe the overall approach and provide an
+HOWTO do it with the help of <a class="reference external" href="http://www.rsyslog.com">rsyslogd</a> and
+<a class="reference external" href="http://www.stunnel.org">stunnel</a>.*</p>
+<p>Please note that starting with rsyslog 3.19.0, <a class="reference external" href="rsyslog_tls.html">rsyslog provides native
+TLS/SSL encryption</a> without the need of stunnel. I
+strongly recomend to use that feature instead of stunnel. The stunnel
+documentation here is mostly provided for backwards compatibility. New
+deployments are advised to use native TLS mode.**</p>
+</div>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p><strong>Syslog is a clear-text protocol. That means anyone with a sniffer can
+have a peek at your data.</strong> In some environments, this is no problem at
+all. In others, it is a huge setback, probably even preventing
+deployment of syslog solutions. Thankfully, there is an easy way to
+encrypt syslog communication. I will describe one approach in this
+paper.</p>
+<p>The most straightforward solution would be that the syslogd itself
+encrypts messages. Unfortuantely, encryption is only standardized in
+<a class="reference external" href="http://www.monitorware.com/Common/en/glossary/rfc3195.php">RFC 3195</a>.
+But there is currently no syslogd that implements RFC 3195’s encryption
+features, so this route leads to nothing. Another approach would be to
+use vendor- or project-specific syslog extensions. There are a few
+around, but the problem here is that they have compatibility issues.
+However, there is one surprisingly easy and interoperable solution:
+though not standardized, many vendors and projects implement plain tcp
+syslog. In a nutshell, plain tcp syslog is a mode where standard syslog
+messages are transmitted via tcp and records are separated by newline
+characters. This mode is supported by all major syslogd’s (both on
+Linux/Unix and Windows) as well as log sources (for example,
+<a class="reference external" href="http://www.eventreporter.com/en/">EventReporter</a> for Windows Event
+Log forwarding). Plain tcp syslog offers reliability, but it does not
+offer encryption in itself. However, since it operates on a tcp stream,
+it is now easy to add encryption. There are various ways to do that. In
+this paper, I will describe how it is done with stunnel (an other
+alternative would be <a class="reference external" href="http://en.wikipedia.org/wiki/IPSec">IPSec</a>, for
+example).</p>
+<p>Stunnel is open source and it is available both for Unix/Linux and
+Windows. It provides a way to use ssl communication for any non-ssl
+aware client and server - in this case, our syslogd.</p>
+<p>Stunnel works much like a wrapper. Both on the client and on the server
+machine, tunnel portals are created. The non-ssl aware client and server
+software is configured to not directly talk to the remote partner, but
+to the local (s)tunnel portal instead. Stunnel, in turn, takes the data
+received from the client, encrypts it via ssl, sends it to the remote
+tunnel portal and that remote portal sends it to the recipient process
+on the remote machine. The transfer to the portals is done via
+unencrypted communication. As such, it is vital that the portal and the
+respective program that is talking to it are on the same machine,
+otherwise data would travel partly unencrypted. Tunneling, as done by
+stunnel, requires connection oriented communication. This is why you
+need to use tcp-based syslog. As a side-note, you can also encrypt a
+plain-text RFC 3195 session via stunnel, though this definitely is not
+what the protocol designers had on their mind ;)</p>
+<p>In the rest of this document, I assume that you use rsyslog on both the
+client and the server. For the samples, I use
+<a class="reference external" href="http://www.debian.org/">Debian</a>. Interestingly, there are some
+annoying differences between stunnel implementations. For example, on
+Debian a comment line starts with a semicolon (‘;’). On <a class="reference external" href="http://www.redhat.com">Red
+Hat</a>, it starts with a hash sign (‘#’). So you
+need to watch out for subtle issues when setting up your system.</p>
+</div>
+<div class="section" id="overall-system-setup">
+<h2>Overall System Setup<a class="headerlink" href="#overall-system-setup" title="Permalink to this headline">¶</a></h2>
+<p>In ths paper, I assume two machines, one named “client” and the other
+named “server”. It is obvious that, in practice, you will probably have
+multiple clients but only one server. Syslog traffic shall be
+transmitted via stunnel over the network. Port 60514 is to be used for
+that purpose. The machines are set up as follows:</p>
+<p><strong>Client</strong></p>
+<ul class="simple">
+<li>rsyslog forwards&nbsp; message to stunnel local portal at port 61514</li>
+<li>local stunnel forwards data via the network to port 60514 to its
+remote peer</li>
+</ul>
+<p><strong>Server</strong></p>
+<ul class="simple">
+<li>stunnel listens on port 60514 to connections from its client peers</li>
+<li>all connections are forwarded to the locally-running rsyslog
+listening at port 61514</li>
+</ul>
+</div>
+<div class="section" id="setting-up-the-system">
+<h2>Setting up the system<a class="headerlink" href="#setting-up-the-system" title="Permalink to this headline">¶</a></h2>
+<p>For Debian, you need the “stunnel4” package. The “stunnel” package is
+the older 3.x release, which will not support the configuration I
+describe below. Other distributions might have other names. For example,
+on Red Hat it is just “stunnel”. Make sure that you install the
+appropriate package on both the client and the server. It is also a good
+idea to check if there are updates for either stunnel or openssl (which
+stunnel uses) - there are often security fixes available and often the
+latest fixes are not included in the default package.</p>
+<p>In my sample setup, I use only the bare minimum of options. For example,
+I do not make the server check client cerficiates. Also, I do not talk
+much about certificates at all. If you intend to really secure your
+system, you should probably learn about certificates and how to manage
+and deploy them. This is beyond the scope of this paper. For additional
+information,
+<a class="reference external" href="http://www.stunnel.org/faq/certs.html">http://www.stunnel.org/faq/certs.html</a>
+is a good starting point.</p>
+<p>You also need to install rsyslogd on both machines. Do this before
+starting with the configuration. You should also familarize yourself
+with its configuration file syntax, so that you know which actions you
+can trigger with it. Rsyslogd can work as a drop-in replacement for
+stock <a class="reference external" href="http://www.infodrom.org/projects/sysklogd/">sysklogd</a>. So if
+you know the standard syslog.conf syntax, you do not need to learn any
+more to follow this paper.</p>
+<div class="section" id="server-setup">
+<h3>Server Setup<a class="headerlink" href="#server-setup" title="Permalink to this headline">¶</a></h3>
+<p>At the server, you need to have a digital certificate. That certificate
+enables SSL operation, as it provides the necessary crypto keys being
+used to secure the connection. Many versions of stunnel come with a
+default certificate, often found in /etc/stunnel/stunnel.pem. If you
+have it, it is good for testing only. If you use it in production, it is
+very easy to break into your secure channel as everybody is able to get
+hold of your private key. I didn’t find an stunnel.pem on my Debian
+machine. I guess the Debian folks removed it because of its insecurity.</p>
+<p>You can create your own certificate with a simple openssl tool - you
+need to do it if you have none and I highly recommend to create one in
+any case. To create it, cd to /etc/stunnel and type:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">openssl</span> <span class="pre">req</span> <span class="pre">-new</span> <span class="pre">-x509</span> <span class="pre">-days</span> <span class="pre">3650</span> <span class="pre">-nodes</span> <span class="pre">-out</span>&#160; <span class="pre">stunnel.pem</span> <span class="pre">-keyout</span> <span class="pre">stunnel.pem</span></code></div></blockquote>
+<p>That command will ask you a number of questions. Provide some answer for
+them. If you are unsure, read
+<a class="reference external" href="http://www.stunnel.org/faq/certs.html">http://www.stunnel.org/faq/certs.html</a>.
+After the command has finished, you should have a usable stunnel.pem in
+your working directory.</p>
+<p>Next is to create a configuration file for stunnel. It will direct
+stunnel what to do. You can use the following basic file:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">;</span> <span class="n">Certificate</span><span class="o">/</span><span class="n">key</span> <span class="ow">is</span> <span class="n">needed</span> <span class="ow">in</span> <span class="n">server</span> <span class="n">modecert</span> <span class="o">=</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">stunnel</span><span class="o">/</span><span class="n">stunnel</span><span class="o">.</span><span class="n">pem</span><span class="p">;</span> <span class="n">Some</span> <span class="n">debugging</span> <span class="n">stuff</span> <span class="n">useful</span> <span class="k">for</span> <span class="n">troubleshootingdebug</span> <span class="o">=</span> <span class="mi">7</span><span class="n">foreground</span><span class="o">=</span><span class="n">yes</span>
+</pre></div>
+</div>
+<blockquote>
+<div>[ssyslog]
+accept  = 60514
+connect = 61514</div></blockquote>
+<p>Save this file to e.g. /etc/stunnel/syslog-server.conf. Please note that
+the settings in <em>italics</em> are for debugging only. They run stunnel with
+a lot of debug information in the foreground. This is very valuable
+while you setup the system - and very useless once everything works
+well. So be sure to remove these lines when going to production.</p>
+<p>Finally, you need to start the stunnel daemon. Under Debian, this is
+done via “stunnel /etc/stunnel/syslog.server.conf”. If you have enabled
+the debug settings, you will immediately see a lot of nice messages.</p>
+<p>Now you have stunnel running, but it obviously unable to talk to rsyslog
+- because it is not yet running. If not already done, configure it so
+that it does everything you want. If in doubt, you can simply copy
+/etc/syslog.conf to /etc/rsyslog.conf and you probably have what you
+want. The really important thing in rsyslogd configuration is that you
+must make it listen to tcp port 61514 (remember: this is where stunnel
+send the messages to). Thankfully, this is easy to achive: just add “-t
+61514” to the rsyslogd startup options in your system startup script.
+After done so, start (or restart) rsyslogd.</p>
+<p>The server should now be fully operational.</p>
+</div>
+<div class="section" id="client-setup">
+<h3>Client Setup<a class="headerlink" href="#client-setup" title="Permalink to this headline">¶</a></h3>
+<p>The client setup is simpler. Most importantly, you do not need a
+certificate (of course, you can use one if you would like to
+authenticate the client, but this is beyond the scope of this paper). So
+the basic thing you need to do is create the stunnel configuration file.</p>
+<blockquote>
+<div><div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">;</span> <span class="n">Some</span> <span class="n">debugging</span> <span class="n">stuff</span> <span class="n">useful</span> <span class="k">for</span> <span class="n">troubleshootingdebug</span> <span class="o">=</span> <span class="mi">7</span><span class="n">foreground</span><span class="o">=</span><span class="n">yes</span>
+
+<span class="n">client</span><span class="o">=</span><span class="n">yes</span>
+
+<span class="p">[</span><span class="n">ssyslog</span><span class="p">]</span>
+<span class="n">accept</span>  <span class="o">=</span> <span class="mf">127.0</span><span class="o">.</span><span class="mf">0.1</span><span class="p">:</span><span class="mi">61514</span>
+<span class="n">connect</span> <span class="o">=</span> <span class="mf">192.0</span><span class="o">.</span><span class="mf">2.1</span><span class="p">:</span><span class="mi">60514</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Again, the text in <em>italics</em> is for debugging purposes only. I suggest
+you leave it in during your initial testing and then remove it. The most
+important difference to the server configuration outlined above is the
+“client=yes” directive. It is what makes this stunnel behave like a
+client. The accept directive binds stunnel only to the local host, so
+that it is protected from receiving messages from the network (somebody
+might fake to be the local sender). The address “192.0.2.1” is the
+address of the server machine. You must change it to match your
+configuration. Save this file to /etc/stunnel/syslog-client.conf.</p>
+<p>Then, start stunnel via “stunnel4 /etc/stunnel/syslog-client.conf”.&nbsp; Now
+you should see some startup messages. If no errors appear, you have a
+running client stunnel instance.</p>
+<p>Finally, you need to tell rsyslogd to send data to the remote host. In
+stock syslogd, you do this via the “&#64;host” forwarding directive. The
+same works with rsyslog, but it suppports extensions to use tcp. Add the
+following line to your /etc/rsyslog.conf:</p>
+<blockquote>
+<div><div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">*.*</span>      <span class="o">@</span><span class="nd">@127</span><span class="o">.</span><span class="mf">0.0</span><span class="o">.</span><span class="mi">1</span><span class="p">:</span><span class="mi">61514</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>Please note the double at-sign (&#64;&#64;). This is no typo. It tells rsyslog
+to use tcp instead of udp delivery. In this sample, all messages are
+forwarded to the remote host. Obviously, you may want to limit this via
+the usual rsyslog.conf settings (if in doubt, use man rsyslog.con).</p>
+<p>You do not need to add any special startup settings to rsyslog on the
+client. Start or restart rsyslog so that the new configuration setting
+takes place.</p>
+</div>
+<div class="section" id="done">
+<h3>Done<a class="headerlink" href="#done" title="Permalink to this headline">¶</a></h3>
+<p>After following these steps, you should have a working secure syslog
+forwarding system. To verify, you can type “logger test” or a similar
+smart command on the client. It should show up in the respective server
+log file. If you dig out you sniffer, you should see that the traffic on
+the wire is actually protected. In the configuration use above, the two
+stunnel endpoints should be quite chatty, so that you can follow the
+action going on on your system.</p>
+<p>If you have only basic security needs, you can probably just remove the
+debug settings and take the rest of the configuration to production. If
+you are security-sensitve, you should have a look at the various stunnel
+settings that help you further secure the system.</p>
+</div>
+</div>
+<div class="section" id="preventing-systems-from-talking-directly-to-the-rsyslog-server">
+<h2>Preventing Systems from talking directly to the rsyslog Server<a class="headerlink" href="#preventing-systems-from-talking-directly-to-the-rsyslog-server" title="Permalink to this headline">¶</a></h2>
+<p>It is possible that remote systems (or attackers) talk to the rsyslog
+server by directly connecting to its port 61514. Currently (July of
+2005), rsyslog does not offer the ability to bind to the local host,
+only. This feature is planned, but as long as it is missing, rsyslog
+must be protected via a firewall. This can easily be done via e.g
+iptables. Just be sure not to forget it.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>With minumal effort, you can set up a secure logging infrastructure
+employing ssl encrypted syslog message transmission. As a side note, you
+also have the benefit of reliable tcp delivery which is far less prone
+to message loss than udp.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">SSL Encrypting Syslog with Stunnel</a><ul>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#background">Background</a></li>
+<li><a class="reference internal" href="#overall-system-setup">Overall System Setup</a></li>
+<li><a class="reference internal" href="#setting-up-the-system">Setting up the system</a><ul>
+<li><a class="reference internal" href="#server-setup">Server Setup</a></li>
+<li><a class="reference internal" href="#client-setup">Client Setup</a></li>
+<li><a class="reference internal" href="#done">Done</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#preventing-systems-from-talking-directly-to-the-rsyslog-server">Preventing Systems from talking directly to the rsyslog Server</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="php_syslog_ng.html"
+                        title="previous chapter">Using php-syslog-ng with rsyslog</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="module_devel.html"
+                        title="next chapter">Developing rsyslog modules (outdated)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/historical/stunnel.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/historical/stunnel.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="module_devel.html" title="Developing rsyslog modules (outdated)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="php_syslog_ng.html" title="Using php-syslog-ng with rsyslog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

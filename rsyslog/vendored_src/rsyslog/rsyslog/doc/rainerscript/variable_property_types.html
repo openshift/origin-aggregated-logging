@@ -1,0 +1,229 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Variable (Property) types &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Lookup Tables" href="lookup_tables.html" />
+    <link rel="prev" title="String Constants" href="constant_strings.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="lookup_tables.html" title="Lookup Tables"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="constant_strings.html" title="String Constants"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" accesskey="U">RainerScript</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="variable-property-types">
+<h1>Variable (Property) types<a class="headerlink" href="#variable-property-types" title="Permalink to this headline">¶</a></h1>
+<p>All rsyslog properties (see the <a class="reference internal" href="../configuration/properties.html"><span class="doc">properties</span></a> page for a list) can be used in
+RainerScript by prefixing them with “$”, for example :</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.x!host = $hostname;
+</pre></div>
+</div>
+<p>In addition, it also supports local variables. Local
+variables are local to the current message, but are NOT message
+properties (e.g. the “$!” all JSON property does not contain them).</p>
+<p>Only message json (CEE/Lumberjack) properties can be modified by the
+<strong>set</strong>, <strong>unset</strong> and <strong>reset</strong> statements, not any other message property. Obviously,
+local variables are also modifiable.</p>
+<p>Message JSON property names start with “$!” where the bang character
+represents the root.</p>
+<p>Local variables names start with “$.”, where the dot denotes the root.</p>
+<p>Both JSON properties as well as local variables may contain an arbitrary
+deep path before the final element. The bang character is always used as
+path separator, no matter if it is a message property or a local
+variable. For example “$!path1!path2!varname” is a three-level deep
+message property where as the very similar looking
+“$.path1!path2!varname” specifies a three-level deep local variable. The
+bang or dot character immediately following the dollar sign is used by
+rsyslog to separate the different types.</p>
+<p>Note that the trailing semicolon is needed to indicate the end of expression.
+If it is not given, config load will fail with a syntax error message.</p>
+<p>Check the following usage examples to understand how these statements behave:</p>
+<div class="section" id="set">
+<h2><strong>set</strong><a class="headerlink" href="#set" title="Permalink to this headline">¶</a></h2>
+<p>sets the value of a local-variable or json property, but if the addressed
+variable already contains a value its behaviour differs as follows:</p>
+<p><strong>merges</strong> the value if both existing and new value are objects,
+but merges the new value to <em>root</em> rather than with value of the given key. Eg.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.x!one = &quot;val_1&quot;;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; } }
+set $.y!two = &quot;val_2&quot;;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; }, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; } }
+
+set $.z!var = $.x;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; }, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; }, &quot;z&quot;: { &quot;var&quot;: { &quot;one&quot;: &quot;val_1&quot; } } }
+
+set $.z!var = $.y;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; }, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; }, &quot;z&quot;: { &quot;var&quot;: { &quot;one&quot;: &quot;val_1&quot; } }, &quot;two&quot;: &quot;val_2&quot; }
+# note that the key *two* is at root level and not  under *$.z!var*.
+</pre></div>
+</div>
+<p><strong>ignores</strong> the new value if old value was an object, but new value is a not an object (Eg. string, number etc). Eg:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.x!one = &quot;val_1&quot;;
+set $.x = &quot;quux&quot;;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; } }
+# note that &quot;quux&quot; was ignored
+</pre></div>
+</div>
+<p><strong>resets</strong> variable, if old value was not an object.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.x!val = &quot;val_1&quot;;
+set $.x!val = &quot;quux&quot;;
+# results in $. = { &quot;x&quot;: { &quot;val&quot;: &quot;quux&quot; } }
+</pre></div>
+</div>
+</div>
+<div class="section" id="unset">
+<h2><strong>unset</strong><a class="headerlink" href="#unset" title="Permalink to this headline">¶</a></h2>
+<p>removes the key. Eg:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.x!val = &quot;val_1&quot;;
+unset $.x!val;
+# results in $. = { &quot;x&quot;: { } }
+</pre></div>
+</div>
+</div>
+<div class="section" id="reset">
+<h2><strong>reset</strong><a class="headerlink" href="#reset" title="Permalink to this headline">¶</a></h2>
+<p>force sets the new value regardless of what the variable
+originally contained or if it was even set. Eg.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># to contrast with the set example above, here is how results would look with reset
+set $.x!one = &quot;val_1&quot;;
+set $.y!two = &quot;val_2&quot;;
+set $.z!var = $.x;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; }, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; }, &quot;z&quot;: { &quot;var&quot;: { &quot;one&quot;: &quot;val_1&quot; } } }
+# &#39;set&#39; or &#39;reset&#39; can be used interchangeably above(3 lines), they both have the same behaviour, as variable doesn&#39;t have an existing value
+
+reset $.z!var = $.y;
+# results in $. = { &quot;x&quot;: { &quot;one&quot;: &quot;val_1&quot; }, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; }, &quot;z&quot;: { &quot;var&quot;: { &quot;two&quot;: &quot;val_2&quot; } } }
+# note how the value of $.z!var was replaced
+
+reset $.x = &quot;quux&quot;;
+# results in $. = { &quot;x&quot;: &quot;quux&quot;, &quot;y&quot;: { &quot;two&quot;: &quot;val_2&quot; }, &quot;z&quot;: { &quot;var&quot;: { &quot;two&quot;: &quot;val_2&quot; } } }
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Variable (Property) types</a><ul>
+<li><a class="reference internal" href="#set"><strong>set</strong></a></li>
+<li><a class="reference internal" href="#unset"><strong>unset</strong></a></li>
+<li><a class="reference internal" href="#reset"><strong>reset</strong></a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="constant_strings.html"
+                        title="previous chapter">String Constants</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="lookup_tables.html"
+                        title="next chapter">Lookup Tables</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/rainerscript/variable_property_types.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/rainerscript/variable_property_types.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="lookup_tables.html" title="Lookup Tables"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="constant_strings.html" title="String Constants"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >RainerScript</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

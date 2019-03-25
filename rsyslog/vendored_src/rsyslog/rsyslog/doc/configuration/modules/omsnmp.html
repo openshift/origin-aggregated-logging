@@ -1,0 +1,462 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>omsnmp: SNMP Trap Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omstdout: stdout output module (testbench tool)" href="omstdout.html" />
+    <link rel="prev" title="omruleset: ruleset output/including module" href="omruleset.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omstdout.html" title="omstdout: stdout output module (testbench tool)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omruleset.html" title="omruleset: ruleset output/including module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="omsnmp-snmp-trap-output-module">
+<h1>omsnmp: SNMP Trap Output Module<a class="headerlink" href="#omsnmp-snmp-trap-output-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>omsnmp</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td>Andre Lorbach &lt;<a class="reference external" href="mailto:alorbach&#37;&#52;&#48;adiscon&#46;com">alorbach<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>Provides the ability to send syslog messages as an SNMPv1 &amp; v2c traps.
+By default, SNMPv2c is preferred. The syslog message is wrapped into a
+OCTED STRING variable. This module uses the
+<a class="reference external" href="http://net-snmp.sourceforge.net/">NET-SNMP</a> library. In order to
+compile this module, you will need to have the
+<a class="reference external" href="http://net-snmp.sourceforge.net/">NET-SNMP</a> developer (headers)
+package installed.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="server">
+<h4>Server<a class="headerlink" href="#server" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmptarget</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>This can be a hostname or ip address, and is our snmp target host.
+This parameter is required, if the snmptarget is not defined, nothing
+will be send.</p>
+</div>
+<div class="section" id="port">
+<h4>Port<a class="headerlink" href="#port" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>162</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmptargetport</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The port which will be used, common values are port 162 or 161.</p>
+</div>
+<div class="section" id="transport">
+<h4>Transport<a class="headerlink" href="#transport" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>udp</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmptransport</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Defines the transport type you wish to use. Technically we can
+support all transport types which are supported by NET-SNMP.
+To name a few possible values:
+udp, tcp, udp6, tcp6, icmp, icmp6 …</p>
+</div>
+<div class="section" id="version">
+<h4>Version<a class="headerlink" href="#version" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>1</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmpversion</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>There can only be two choices for this parameter for now.
+0 means SNMPv1 will be used.
+1 means SNMPv2c will be used.
+Any other value will default to 1.</p>
+</div>
+<div class="section" id="community">
+<h4>Community<a class="headerlink" href="#community" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>public</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmpcommunity</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>This sets the used SNMP Community.</p>
+</div>
+<div class="section" id="trapoid">
+<h4>TrapOID<a class="headerlink" href="#trapoid" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>1.3.6.1.4.1.19406.1.2.1</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmptrapoid</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The default value means “ADISCON-MONITORWARE-MIB::syslogtrap”.</p>
+<p>This configuration parameter is used for <strong>SNMPv2</strong> only.
+This is the OID which defines the trap-type, or notifcation-type
+rsyslog uses to send the trap.
+In order to decode this OID, you will need to have the
+ADISCON-MONITORWARE-MIB and ADISCON-MIB mibs installed on the
+receiver side. Downloads of these mib files can be found here:</p>
+<p><a class="reference external" href="http://www.adiscon.org/download/ADISCON-MIB.txt">http://www.adiscon.org/download/ADISCON-MIB.txt</a></p>
+<p><a class="reference external" href="http://www.adiscon.org/download/ADISCON-MONITORWARE-MIB.txt">http://www.adiscon.org/download/ADISCON-MONITORWARE-MIB.txt</a>
+Thanks to the net-snmp mailinglist for the help and the
+recommendations ;).</p>
+</div>
+<div class="section" id="messageoid">
+<h4>MessageOID<a class="headerlink" href="#messageoid" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>1.3.6.1.4.1.19406.1.2.1</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmpsyslogmessageoid</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>This OID will be used as a variable, type “OCTET STRING”. This
+variable will contain up to 255 characters of the original syslog
+message including syslog header. It is recommend to use the default
+OID.
+In order to decode this OID, you will need to have the
+ADISCON-MONITORWARE-MIB and ADISCON-MIB mibs installed on the
+receiver side. To download these custom mibs, see the description of
+<strong>TrapOID</strong>.</p>
+</div>
+<div class="section" id="enterpriseoid">
+<h4>EnterpriseOID<a class="headerlink" href="#enterpriseoid" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>1.3.6.1.4.1.3.1.1</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmpenterpriseoid</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The default value means “enterprises.cmu.1.1”</p>
+<p>Customize this value if needed. I recommend to use the default value
+unless you require to use a different OID.
+This configuration parameter is used for <strong>SNMPv1</strong> only. It has no
+effect if <strong>SNMPv2</strong> is used.</p>
+</div>
+<div class="section" id="specifictype">
+<h4>SpecificType<a class="headerlink" href="#specifictype" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmpspecifictype</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>This is the specific trap number. This configuration parameter is
+used for <strong>SNMPv1</strong> only. It has no effect if <strong>SNMPv2</strong> is used.</p>
+</div>
+<div class="section" id="traptype">
+<h4>TrapType<a class="headerlink" href="#traptype" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>6</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$actionsnmptraptype</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>There are only 7 Possible trap types defined which can be used here.
+These trap types are:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>0 = SNMP_TRAP_COLDSTART
+1 = SNMP_TRAP_WARMSTART
+2 = SNMP_TRAP_LINKDOWN
+3 = SNMP_TRAP_LINKUP
+4 = SNMP_TRAP_AUTHFAIL
+5 = SNMP_TRAP_EGPNEIGHBORLOSS
+6 = SNMP_TRAP_ENTERPRISESPECIFIC
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Any other value will default to 6 automatically. This configuration
+parameter is used for <strong>SNMPv1</strong> only. It has no effect if <strong>SNMPv2</strong>
+is used.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="caveats-known-bugs">
+<h2>Caveats/Known Bugs<a class="headerlink" href="#caveats-known-bugs" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>In order to decode the custom OIDs, you will need to have the adiscon
+mibs installed.</li>
+</ul>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="sending-messages-as-snmp-traps">
+<h3>Sending messages as snmp traps<a class="headerlink" href="#sending-messages-as-snmp-traps" title="Permalink to this headline">¶</a></h3>
+<p>The following commands send every message as a snmp trap.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;omsnmp&quot;)
+action(type=&quot;omsnmp&quot; server=&quot;localhost&quot; port=&quot;162&quot; transport=&quot;udp&quot;
+       version=&quot;1&quot; community=&quot;public&quot;)
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">omsnmp: SNMP Trap Output Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#server">Server</a></li>
+<li><a class="reference internal" href="#port">Port</a></li>
+<li><a class="reference internal" href="#transport">Transport</a></li>
+<li><a class="reference internal" href="#version">Version</a></li>
+<li><a class="reference internal" href="#community">Community</a></li>
+<li><a class="reference internal" href="#trapoid">TrapOID</a></li>
+<li><a class="reference internal" href="#messageoid">MessageOID</a></li>
+<li><a class="reference internal" href="#enterpriseoid">EnterpriseOID</a></li>
+<li><a class="reference internal" href="#specifictype">SpecificType</a></li>
+<li><a class="reference internal" href="#traptype">TrapType</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#caveats-known-bugs">Caveats/Known Bugs</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#sending-messages-as-snmp-traps">Sending messages as snmp traps</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omruleset.html"
+                        title="previous chapter">omruleset: ruleset output/including module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omstdout.html"
+                        title="next chapter">omstdout: stdout output module (testbench tool)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/omsnmp.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/omsnmp.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omstdout.html" title="omstdout: stdout output module (testbench tool)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omruleset.html" title="omruleset: ruleset output/including module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

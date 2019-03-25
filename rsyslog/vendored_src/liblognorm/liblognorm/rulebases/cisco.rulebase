@@ -1,0 +1,10 @@
+prefix=%date:date-rfc3164% %host:word% %seqnum:number%: %othseq:char-to:\x3a%: %%%tag:char-to:\x3a%:
+rule=: Configured from console by %tty:word:% (%ip:ipv4%)
+rule=: Authentication failure for %proto:word% req from host %ip:ipv4%
+rule=: Interface %interface:char-to:,%, changed state to %state:word%
+rule=: Line protocol on Interface %interface:char-to:,%, changed state to %state:word%
+rule=: Attempted to connect to %servname:word% from %ip:ipv4%
+# too-generic syntaces (like %port:word% below) cause problems.
+# Best is to have very specific syntaxes, but as an
+# interim solution we may need to backtrack if there is no other way to handle it.
+#: %port:word% transmit error

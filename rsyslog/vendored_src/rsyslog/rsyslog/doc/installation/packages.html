@@ -1,0 +1,201 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Installing rsyslog from Package &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Using Rsyslog Docker Containers" href="rsyslog_docker.html" />
+    <link rel="prev" title="Installation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="rsyslog_docker.html" title="Using Rsyslog Docker Containers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Installation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installing-rsyslog-from-package">
+<h1>Installing rsyslog from Package<a class="headerlink" href="#installing-rsyslog-from-package" title="Permalink to this headline">¶</a></h1>
+<p>Installing from package is usually the most convenient way to install
+rsyslog. Usually, the regular package manager can be used.</p>
+<div class="section" id="package-availability">
+<h2>Package Availability<a class="headerlink" href="#package-availability" title="Permalink to this headline">¶</a></h2>
+<p><strong>Rsyslog is included in all major distributions.</strong> So you do not
+necessarily need to take care of where packages can be found - they
+are “just there”. Unfortunately, the distros provide often rather old
+versions. This is especially the case for so-called enterprise
+distributions.</p>
+<p>As long as you do not run into trouble with one of these old versions, using
+the distribution-provided packages is easy and a good idea. If you need
+new features, better performance and sometimes even a fix for a bug that
+the distro did not backport, you can use alternative packages. Please note
+that the project team does not support outdated versions. While we probably
+can help with simple config questions, for anything else we concentrate on
+current versions.</p>
+<p>The rsyslog project offers current packages for a number of major distributions.
+More information about these can be found at the <a class="reference external" href="http://www.rsyslog.com/downloads/download-other/">rsyslog package downloads</a>
+page.</p>
+<p>If you do not find a suitable package for your distribution, there is no
+reason to panic. You can use official rsyslog docker containers or
+install rsyslog from the source tarball.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<ul class="last simple">
+<li><a class="reference internal" href="rsyslog_docker.html"><span class="doc">Using Rsyslog Docker Containers</span></a></li>
+<li><a class="reference internal" href="install_from_source.html"><span class="doc">Installing rsyslog from Source</span></a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="package-structure">
+<h2>Package Structure<a class="headerlink" href="#package-structure" title="Permalink to this headline">¶</a></h2>
+<p>Almost all distributions package rsyslog in multiple packages. This is also
+the way Adiscon packages are created. The reason is that rsyslog has so many
+input and output plugins that enable it to connect to different systems
+like MariaDB/mysql, Kafka, ElasticSearch and so on. If everything were provided in a
+single gigantic package, you would need to install all of these dependencies,
+even though they are mostly not needed.</p>
+<p>For that reason, rsyslog comes with multiple packages:</p>
+<ul class="simple">
+<li><em>core package</em> (usually just called “rsyslog”) - this contains core
+technology that is required as a base for all other packages. It also
+contains modules like the file writer or syslog forwarder that is extremely
+often used and has little dependencies.</li>
+<li><em>feature package</em> (usually called “rsyslog-feature”) - there are
+multiple of these packages. What exactly is available and how it is
+named depends on the distro. This unfortunately is a bit consistent.
+Usually, it is a good guess that the package is intuitively named,
+e.g. “rsyslog-mysql” for the MySQL component and “rsyslog-elasticsearch”
+for ElasticSearch support. If in doubt, it is suggested to use the
+distro’s package manager and search for “rsyslog*”.</li>
+</ul>
+</div>
+<div class="section" id="contributing">
+<h2>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">¶</a></h2>
+<p><strong>Packaging is a community effort.</strong> If you would like to see support for an
+additional distribution and know how to build packages, please consider
+contributing to the project and joining the packaging team. Also, rsyslog’s
+presence on github also contains the sources for the currently
+maintained packages. They can be found at the <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a>.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Installing rsyslog from Package</a><ul>
+<li><a class="reference internal" href="#package-availability">Package Availability</a></li>
+<li><a class="reference internal" href="#package-structure">Package Structure</a></li>
+<li><a class="reference internal" href="#contributing">Contributing</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="rsyslog_docker.html"
+                        title="next chapter">Using Rsyslog Docker Containers</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/installation/packages.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/installation/packages.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="rsyslog_docker.html" title="Using Rsyslog Docker Containers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Installation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

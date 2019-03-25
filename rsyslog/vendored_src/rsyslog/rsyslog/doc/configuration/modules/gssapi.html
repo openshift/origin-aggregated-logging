@@ -1,0 +1,207 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>GSSAPI module support in rsyslog v3 &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="imjournal: Systemd Journal Input Module" href="imjournal.html" />
+    <link rel="prev" title="imgssapi: GSSAPI Syslog Input Module" href="imgssapi.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="imjournal.html" title="imjournal: Systemd Journal Input Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="imgssapi.html" title="imgssapi: GSSAPI Syslog Input Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_input.html" >Input Modules</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="imgssapi.html" accesskey="U">imgssapi: GSSAPI Syslog Input Module</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="gssapi-module-support-in-rsyslog-v3">
+<h1>GSSAPI module support in rsyslog v3<a class="headerlink" href="#gssapi-module-support-in-rsyslog-v3" title="Permalink to this headline">¶</a></h1>
+<p>What is it good for.</p>
+<ul class="simple">
+<li>client-serverauthentication</li>
+<li>Log messages encryption</li>
+</ul>
+<p>Requirements.</p>
+<ul class="simple">
+<li>Kerberos infrastructure</li>
+<li>rsyslog, rsyslog-gssapi</li>
+</ul>
+<p>Configuration.</p>
+<p>Let’s assume there are 3 machines in kerberos Realm:</p>
+<ul class="simple">
+<li>the first is running KDC (Kerberos Authentication Service and Key
+Distribution Center),</li>
+<li>the second is a client sending its logs to the server,</li>
+<li>the third is receiver, gathering all logs.</li>
+</ul>
+<ol class="arabic simple">
+<li>KDC:</li>
+</ol>
+<ul class="simple">
+<li>Kerberos database must be properly set-up on KDC machine first. Use
+kadmin/kadmin.local to do that. Two principals need to be add in our
+case:</li>
+</ul>
+<ol class="arabic simple">
+<li><a class="reference external" href="mailto:sender&#37;&#52;&#48;REALM&#46;ORG">sender<span>&#64;</span>REALM<span>&#46;</span>ORG</a></li>
+</ol>
+<ul class="simple">
+<li>client must have ticket for pricipal sender</li>
+<li>REALM.ORG is kerberos Realm</li>
+</ul>
+<ol class="arabic simple">
+<li><a class="reference external" href="mailto:host/receiver&#46;mydomain&#46;com&#37;&#52;&#48;REALM&#46;ORG">host/receiver<span>&#46;</span>mydomain<span>&#46;</span>com<span>&#64;</span>REALM<span>&#46;</span>ORG</a> - service principal</li>
+</ol>
+<ul class="simple">
+<li>Use ktadd to export service principal and transfer it to
+/etc/krb5.keytab on receiver</li>
+</ul>
+<ol class="arabic simple" start="2">
+<li>CLIENT:</li>
+</ol>
+<ul class="simple">
+<li>set-up rsyslog, in /etc/rsyslog.conf</li>
+<li>$ModLoad omgssapi - load output gss module</li>
+<li>$GSSForwardServiceName otherThanHost - set the name of service
+principal, “host” is the default one</li>
+<li>*.* :omgssapi:receiver.mydomain.com - action line, forward logs to
+receiver</li>
+<li>kinit root - get the TGT ticket</li>
+<li>service rsyslog start</li>
+</ul>
+<ol class="arabic simple" start="3">
+<li>SERVER:</li>
+</ol>
+<ul class="simple">
+<li>set-up rsyslog, in /etc/rsyslog.conf</li>
+<li>$ModLoad <a class="reference external" href="imgssapi.html">imgssapi</a> - load input gss module</li>
+<li>$InputGSSServerServiceName otherThanHost - set the name of service
+principal, “host” is the default one</li>
+<li>$InputGSSServerPermitPlainTCP on - accept GSS and TCP connections
+(not authenticated senders), off by default</li>
+<li>$InputGSSServerRun 514 - run server on port</li>
+<li>service rsyslog start</li>
+</ul>
+<p>The picture demonstrate how things work.</p>
+<div class="figure align-center" id="id1">
+<img alt="rsyslog gssapi support" src="../../_images/gssapi.png" />
+<p class="caption"><span class="caption-text">rsyslog gssapi support</span></p>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="imgssapi.html"
+                        title="previous chapter">imgssapi: GSSAPI Syslog Input Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="imjournal.html"
+                        title="next chapter">imjournal: Systemd Journal Input Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/gssapi.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/gssapi.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="imjournal.html" title="imjournal: Systemd Journal Input Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="imgssapi.html" title="imgssapi: GSSAPI Syslog Input Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_input.html" >Input Modules</a> &#187;</li>
+          <li class="nav-item nav-item-4"><a href="imgssapi.html" >imgssapi: GSSAPI Syslog Input Module</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

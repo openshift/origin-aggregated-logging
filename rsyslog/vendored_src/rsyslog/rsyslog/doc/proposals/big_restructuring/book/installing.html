@@ -1,0 +1,289 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Installing and configuring Rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="Create your first Rsyslog setup" href="first_setup.html" />
+    <link rel="prev" title="Overview" href="overview.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="first_setup.html" title="Create your first Rsyslog setup"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="overview.html" title="Overview"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Proposals</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index.html" >Rsyslog documentation</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" accesskey="U">The Book</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installing-and-configuring-rsyslog">
+<h1>Installing and configuring Rsyslog<a class="headerlink" href="#installing-and-configuring-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p>General procedures to install and configure.</p>
+<div class="section" id="installing-from-packages">
+<h2>Installing from packages<a class="headerlink" href="#installing-from-packages" title="Permalink to this headline">¶</a></h2>
+<p>How to install using apt-get, yum, etc.</p>
+</div>
+<div class="section" id="installing-from-sources">
+<h2>Installing from sources<a class="headerlink" href="#installing-from-sources" title="Permalink to this headline">¶</a></h2>
+<p>How to compile the sources into your system.</p>
+<p>Testing configuration blocks</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1">#### MODULES ####</span>
+
+<span class="c1"># Load (i)nput and (o)utput (m)odules</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;imuxsock&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;imklog&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;imudp&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;imtcp&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;imrelp&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;omrelp&quot;</span><span class="o">)</span>
+module<span class="o">(</span><span class="nv">load</span><span class="o">=</span><span class="s2">&quot;impstats&quot;</span> <span class="nv">interval</span><span class="o">=</span><span class="s2">&quot;3600&quot;</span> <span class="nv">severity</span><span class="o">=</span><span class="s2">&quot;7&quot;</span> log.syslog<span class="o">=</span><span class="s2">&quot;off&quot;</span> log.file<span class="o">=</span><span class="s2">&quot;/var/log/rsyslog-stats.log&quot;</span><span class="o">)</span>
+
+<span class="c1"># Module parameters</span>
+input<span class="o">(</span><span class="nv">type</span><span class="o">=</span><span class="s2">&quot;imrelp&quot;</span> <span class="nv">port</span><span class="o">=</span><span class="s2">&quot;1514&quot;</span> <span class="nv">ruleset</span><span class="o">=</span><span class="s2">&quot;remote&quot;</span><span class="o">)</span>
+input<span class="o">(</span><span class="nv">type</span><span class="o">=</span><span class="s2">&quot;imtcp&quot;</span> <span class="nv">port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span> <span class="nv">ruleset</span><span class="o">=</span><span class="s2">&quot;remote&quot;</span><span class="o">)</span>
+input<span class="o">(</span><span class="nv">type</span><span class="o">=</span><span class="s2">&quot;imudp&quot;</span> <span class="nv">port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span> <span class="nv">ruleset</span><span class="o">=</span><span class="s2">&quot;remote&quot;</span><span class="o">)</span>
+
+<span class="c1">#### GLOBAL DIRECTIVES ####</span>
+
+<span class="c1"># Use default timestamp format</span>
+<span class="nv">$ActionFileDefaultTemplate</span> RSYSLOG_TraditionalFileFormat
+
+<span class="c1"># Spool files</span>
+<span class="nv">$WorkDirectory</span> /var/spool/rsyslog
+
+<span class="c1"># Filter duplicate messages</span>
+<span class="nv">$RepeatedMsgReduction</span> on
+
+<span class="c1">#### RULES ####</span>
+
+<span class="c1">#...cut out standard log rules for brevity...#</span>
+
+ruleset<span class="o">(</span><span class="nv">name</span><span class="o">=</span><span class="s2">&quot;remote&quot;</span><span class="o">){</span>
+
+           action<span class="o">(</span><span class="nv">Name</span><span class="o">=</span><span class="s2">&quot;storage&quot;</span>
+                 <span class="nv">Type</span><span class="o">=</span><span class="s2">&quot;omrelp&quot;</span>
+                 <span class="nv">Target</span><span class="o">=</span><span class="s2">&quot;10.1.1.100&quot;</span>
+                 <span class="nv">Port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span>
+                 Action.ExecOnlyWhenPreviousIsSuspended<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.FileName<span class="o">=</span><span class="s2">&quot;storage-buffer&quot;</span>
+                 queue.SaveOnShutdown<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.Type<span class="o">=</span><span class="s2">&quot;LinkedList&quot;</span>
+                 Action.ResumeInterval<span class="o">=</span><span class="s2">&quot;30&quot;</span>
+                 Action.ResumeRetryCount<span class="o">=</span><span class="s2">&quot;-1&quot;</span>
+                 <span class="nv">Timeout</span><span class="o">=</span><span class="s2">&quot;5&quot;</span><span class="o">)</span>
+
+           action<span class="o">(</span><span class="nv">Name</span><span class="o">=</span><span class="s2">&quot;analysis&quot;</span>
+                 <span class="nv">Type</span><span class="o">=</span><span class="s2">&quot;omrelp&quot;</span>
+                 <span class="nv">Target</span><span class="o">=</span><span class="s2">&quot;10.1.1.101&quot;</span>
+                 <span class="nv">Port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span>
+                 Action.ExecOnlyWhenPreviousIsSuspended<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.FileName<span class="o">=</span><span class="s2">&quot;analysis-buffer&quot;</span>
+                 queue.SaveOnShutdown<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.Type<span class="o">=</span><span class="s2">&quot;LinkedList&quot;</span>
+                 Action.ResumeInterval<span class="o">=</span><span class="s2">&quot;30&quot;</span>
+                 Action.ResumeRetryCount<span class="o">=</span><span class="s2">&quot;-1&quot;</span>
+                 <span class="nv">Timeout</span><span class="o">=</span><span class="s2">&quot;5&quot;</span><span class="o">)</span>
+
+            action<span class="o">(</span><span class="nv">Name</span><span class="o">=</span><span class="s2">&quot;indexer&quot;</span>
+                 <span class="nv">Type</span><span class="o">=</span><span class="s2">&quot;omfwd&quot;</span>
+                 <span class="nv">Target</span><span class="o">=</span><span class="s2">&quot;10.1.1.102&quot;</span>
+                 <span class="nv">Protocol</span><span class="o">=</span><span class="s2">&quot;tcp&quot;</span>
+                 <span class="nv">Port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span>
+                 Action.ExecOnlyWhenPreviousIsSuspended<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.FileName<span class="o">=</span><span class="s2">&quot;indexer-buffer&quot;</span>
+                 queue.SaveOnShutdown<span class="o">=</span><span class="s2">&quot;on&quot;</span>
+                 queue.Type<span class="o">=</span><span class="s2">&quot;LinkedList&quot;</span>
+                 Action.ResumeInterval<span class="o">=</span><span class="s2">&quot;30&quot;</span>
+                 Action.ResumeRetryCount<span class="o">=</span><span class="s2">&quot;-1&quot;</span>
+                 <span class="nv">Timeout</span><span class="o">=</span><span class="s2">&quot;5&quot;</span><span class="o">)</span>
+<span class="o">}</span>
+
+<span class="c1">#### INCLUDES ####</span>
+
+<span class="c1"># Includes config files (Do these last)</span>
+<span class="nv">$IncludeConfig</span> /etc/rsyslog.d/*.conf
+</pre></div>
+</div>
+</div></blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You’ll learn exactly how to load each file/format in the next section.</p>
+</div>
+<dl class="option">
+<dt id="cmdoption-arg-dest-dir">
+<code class="descname">dest_dir</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-arg-dest-dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Destination directory.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-m">
+<code class="descname">-m</code><code class="descclassname"> &lt;module&gt;</code><code class="descclassname">, </code><code class="descname">--module</code><code class="descclassname"> &lt;module&gt;</code><a class="headerlink" href="#cmdoption-m" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a module as a script.</p>
+</dd></dl>
+
+<dl class="envvar">
+<dt id="envvar-nome_envvar">
+<code class="descname">nome_envvar</code><a class="headerlink" href="#envvar-nome_envvar" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Descrevendo um programa.</p>
+<dl class="option">
+<dt id="cmdoption-rm-r">
+<code class="descname">-r</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-rm-r" title="Permalink to this definition">¶</a></dt>
+<dd><p>Work recursively.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-svn-r">
+<code class="descname">-r</code><code class="descclassname"> revision</code><a class="headerlink" href="#cmdoption-svn-r" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the revision to work upon.</p>
+</dd></dl>
+
+<hr class="docutils" />
+<dl class="describe">
+<dt>
+<code class="descname">PAPER</code></dt>
+<dd><p>You can set this variable to select a paper size.</p>
+</dd></dl>
+
+<hr class="docutils" />
+<blockquote>
+<div><p>todo:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Este</span> <span class="n">item</span> <span class="n">é</span> <span class="n">do</span> <span class="n">TO</span> <span class="n">DO</span><span class="o">.</span>
+</pre></div>
+</div>
+</div></blockquote>
+<hr class="docutils" />
+<blockquote>
+<div><p>todolist:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">none</span>
+</pre></div>
+</div>
+</div></blockquote>
+<hr class="docutils" />
+<p>FIM</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Installing and configuring Rsyslog</a><ul>
+<li><a class="reference internal" href="#installing-from-packages">Installing from packages</a></li>
+<li><a class="reference internal" href="#installing-from-sources">Installing from sources</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="overview.html"
+                        title="previous chapter">Overview</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="first_setup.html"
+                        title="next chapter">Create your first Rsyslog setup</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../../_sources/proposals/big_restructuring/book/installing.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/proposals/big_restructuring/book/installing.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="first_setup.html" title="Create your first Rsyslog setup"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="overview.html" title="Overview"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Proposals</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index.html" >Rsyslog documentation</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" >The Book</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

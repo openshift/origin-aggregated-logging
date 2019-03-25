@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: lognorm
+Description: fast samples-based log normalization library
+Version: @VERSION@
+Requires: libfastjson
+Libs: -L${libdir} -llognorm
+Libs.private: @pkg_config_libs_private@
+Cflags: -I${includedir}
