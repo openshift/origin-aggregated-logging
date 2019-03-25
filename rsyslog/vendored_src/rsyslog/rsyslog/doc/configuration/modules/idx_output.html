@@ -1,0 +1,167 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Output Modules &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omamqp1: AMQP 1.0 Messaging Output Module" href="omamqp1.html" />
+    <link rel="prev" title="Modules" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omamqp1.html" title="omamqp1: AMQP 1.0 Messaging Output Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Modules"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" accesskey="U">Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="output-modules">
+<h1>Output Modules<a class="headerlink" href="#output-modules" title="Permalink to this headline">¶</a></h1>
+<p>Output modules process messages. With them, message formats can be
+transformed and messages be transmitted to various different targets.
+They are generally defined via <a class="reference internal" href="../actions.html"><span class="doc">action</span></a> configuration
+objects.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="omamqp1.html">omamqp1: AMQP 1.0 Messaging Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omelasticsearch.html">omelasticsearch: Elasticsearch Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omfile.html">omfile: File Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omfwd.html">omfwd: syslog Forwarding Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omhdfs.html">omhdfs: Hadoop Filesystem Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omhiredis.html">omhiredis: Redis Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omhttpfs.html">omhttpfs: Hadoop HTTPFS Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omjournal.html">omjournal: Systemd Journal Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omkafka.html">omkafka: write to Apache Kafka</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omlibdbi.html">omlibdbi: Generic Database Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ommail.html">ommail: Mail Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ommongodb.html">ommongodb: MongoDB Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ommysql.html">ommysql: MySQL Database Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omoracle.html">omoracle: Oracle Database Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ompgsql.html">PostgreSQL Database Output Module (ompgsql)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ompipe.html">ompipe: Pipe Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omprog.html">omprog: Program integration Output module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omrelp.html">omrelp: RELP Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omruleset.html">omruleset: ruleset output/including module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omsnmp.html">omsnmp: SNMP Trap Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omstdout.html">omstdout: stdout output module (testbench tool)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omudpspoof.html">omudpspoof: UDP spoofing output module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omusrmsg.html">omusrmsg: notify users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="omuxsock.html">omuxsock: Unix sockets Output Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sigprov_gt.html">GuardTime Log Signature Provider (gt)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sigprov_ksi.html">Keyless Signature Infrastructure Provider (ksi)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sigprov_ksi12.html">Keyless Signature Infrastructure Provider (rsyslog-ksi-ls12)</a></li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Modules</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omamqp1.html"
+                        title="next chapter">omamqp1: AMQP 1.0 Messaging Output Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/idx_output.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/idx_output.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omamqp1.html" title="omamqp1: AMQP 1.0 Messaging Output Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Modules"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

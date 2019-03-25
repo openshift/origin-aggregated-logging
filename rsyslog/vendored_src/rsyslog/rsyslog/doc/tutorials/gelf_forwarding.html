@@ -1,0 +1,193 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>GELF forwarding in rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Log Sampling" href="log_sampling.html" />
+    <link rel="prev" title="Log rotation with rsyslog" href="log_rotation_fix_size.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="log_sampling.html" title="Log Sampling"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="log_rotation_fix_size.html" title="Log rotation with rsyslog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Tutorials</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="gelf-forwarding-in-rsyslog">
+<h1>GELF forwarding in rsyslog<a class="headerlink" href="#gelf-forwarding-in-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by Florian Riedl</em></p>
+<div class="section" id="situation">
+<h2>Situation<a class="headerlink" href="#situation" title="Permalink to this headline">¶</a></h2>
+<p>The current setup has a system with rsyslog as the central syslog server
+and a system with Graylog for storage and analyzing the log messages.
+Graylog expects the log messages to arrive in GELF (Graylog Extended Log
+Format).</p>
+</div>
+<div class="section" id="changing-the-default-log-format-to-gelf">
+<h2>Changing the default log format to GELF<a class="headerlink" href="#changing-the-default-log-format-to-gelf" title="Permalink to this headline">¶</a></h2>
+<p>To make rsyslog send GELF we basically need to create a custom template.
+This template will define the format in which the log messages will get
+sent to Graylog.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">template</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;gelf&quot;</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;{</span><span class="se">\&quot;</span><span class="s2">version</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;</span><span class="s2">1.1</span><span class="se">\&quot;</span><span class="s2">,&quot;</span><span class="p">)</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">host</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">property</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;hostname&quot;</span><span class="p">)</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">,</span><span class="se">\&quot;</span><span class="s2">short_message</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">property</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;msg&quot;</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">)</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">,</span><span class="se">\&quot;</span><span class="s2">timestamp</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">property</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;timegenerated&quot;</span> <span class="n">dateformat</span><span class="o">=</span><span class="s2">&quot;unixtimestamp&quot;</span><span class="p">)</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">,</span><span class="se">\&quot;</span><span class="s2">level</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">property</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;syslogseverity&quot;</span><span class="p">)</span>
+    <span class="n">constant</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">}&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This is a typical representation in the list format with all the necessary
+fields and format definitions that Graylog expects.</p>
+</div>
+<div class="section" id="applying-the-template-to-a-syslog-action">
+<h2>Applying the template to a syslog action<a class="headerlink" href="#applying-the-template-to-a-syslog-action" title="Permalink to this headline">¶</a></h2>
+<p>The next step is applying the template to our output action. Since we
+are forwarding log messages to Graylog, this is usually a syslog sending
+action.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># syslog forwarder via UDP</span>
+<span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfwd&quot;</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;graylogserver&quot;</span> <span class="n">port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span> <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;udp&quot;</span> <span class="n">template</span><span class="o">=</span><span class="s2">&quot;gelf&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We now have a syslog forwarding action. This uses the omfwd module. Please
+note that the case above only works for UDP transport. When using TCP,
+Graylog expects a Nullbyte as message delimiter. This is currently not
+possible with rsyslog.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>With this quick and easy setup you can feed Graylog with the correct
+log message format so it can do its work. This case can be applied to
+a lot of different scenarios as well, but with different templates.</p>
+<p>This documentation is part of the <a class="reference external" href="http://www.rsyslog.com/">rsyslog</a>
+project.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">GELF forwarding in rsyslog</a><ul>
+<li><a class="reference internal" href="#situation">Situation</a></li>
+<li><a class="reference internal" href="#changing-the-default-log-format-to-gelf">Changing the default log format to GELF</a></li>
+<li><a class="reference internal" href="#applying-the-template-to-a-syslog-action">Applying the template to a syslog action</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="log_rotation_fix_size.html"
+                        title="previous chapter">Log rotation with rsyslog</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="log_sampling.html"
+                        title="next chapter">Log Sampling</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/gelf_forwarding.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/gelf_forwarding.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="log_sampling.html" title="Log Sampling"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="log_rotation_fix_size.html" title="Log rotation with rsyslog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

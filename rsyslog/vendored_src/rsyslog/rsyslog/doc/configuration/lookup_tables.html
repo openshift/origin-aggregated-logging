@@ -1,0 +1,397 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Lookup Tables &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="rsyslog and containers" href="../containers/index.html" />
+    <link rel="prev" title="Dynamic Stats" href="dyn_stats.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../containers/index.html" title="rsyslog and containers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="dyn_stats.html" title="Dynamic Stats"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="lookup-tables">
+<h1>Lookup Tables<a class="headerlink" href="#lookup-tables" title="Permalink to this headline">¶</a></h1>
+<p>Lookup tables are a powerful construct to obtain <em>class</em> information based
+on message content. It works on top of a data-file which maps key (to be looked
+up) to value (the result of lookup).</p>
+<p>The idea is to use a message properties (or derivatives of it) as an index
+into a table which then returns another value. For example, $fromhost-ip
+could be used as an index, with the table value representing the type of
+server or the department or remote office it is located in.</p>
+<p>This can be emulated using if and else-if stack, but implementing it as a
+dedicated component allows <code class="docutils literal"><span class="pre">lookup</span></code> to be made fast.</p>
+<p>The lookup tables itself exists in a separate data file (one per
+table). This file is loaded on Rsyslog startup and when a reload is requested.</p>
+<p>There are different types of lookup tables (identified by “type” field in json data-file).</p>
+<div class="section" id="types">
+<h2>Types<a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="string">
+<h3>string<a class="headerlink" href="#string" title="Permalink to this headline">¶</a></h3>
+<p>The key to be looked up is an arbitrary string.</p>
+<p><strong>Match criterion</strong>: The key must be exactly equal to index from one of the entries.</p>
+</div>
+<div class="section" id="array">
+<h3>array<a class="headerlink" href="#array" title="Permalink to this headline">¶</a></h3>
+<p>The value to be looked up is an integer number from a consecutive set.
+The set does not need to start at zero or one, but there must be no number missing.
+So, for example <code class="docutils literal"><span class="pre">5,6,7,8,9</span></code> would be a valid set of index values, while <code class="docutils literal"><span class="pre">1,2,4,5</span></code> would
+not be (due to missing <code class="docutils literal"><span class="pre">3</span></code>).</p>
+<p><strong>Match criterion</strong>: Looked-up number(key) must be exactly equal to index from one of the entries.</p>
+</div>
+<div class="section" id="sparsearray">
+<h3>sparseArray<a class="headerlink" href="#sparsearray" title="Permalink to this headline">¶</a></h3>
+<p>The value to be looked up is an integer value, but there may be gaps inside the
+set of values (usually there are large gaps). A typical use case would be the
+matching of IPv4 address information.</p>
+<p><strong>Match criterion</strong>: A match happens on the first index that is less than or equal to the looked-up key.</p>
+<p>Note that index integer numbers are represented by unsigned 32 bits.</p>
+</div>
+</div>
+<div class="section" id="lookup-table-file-format">
+<h2>Lookup Table File Format<a class="headerlink" href="#lookup-table-file-format" title="Permalink to this headline">¶</a></h2>
+<p>Lookup table files contain a single JSON object. This object consists of a header and a table part.</p>
+<p><strong>Header</strong></p>
+<p>The header is the top-level json.
+It has parameters “version”, “nomatch”, and “type”.</p>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>version</strong> &lt;number, default: 1&gt; : Version of table-definition format (so improvements in the future can be managed in a backward compatible way).</p>
+<p><strong>nomatch</strong> &lt;string literal, default: “”&gt; : Value to be returned for a lookup when match fails.</p>
+<p class="last"><strong>type</strong> &lt;<em>string</em>, <em>array</em> or <em>sparseArray</em>, default: <em>string</em>&gt; : Type of lookup-table (controls how matches are performed).</p>
+</dd>
+</dl>
+<p><strong>Table</strong></p>
+<p>This must be an array of elements, even if only a single value exists (for obvious reasons,
+we do not expect this to occur often). Each array element must contain two fields “index”
+and “value”.</p>
+<p>This is a sample of how an ip-to-office mapping may look like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="s2">&quot;version&quot;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="s2">&quot;nomatch&quot;</span> <span class="p">:</span> <span class="s2">&quot;unk&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;type&quot;</span> <span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table&quot;</span> <span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.1.1&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.1.2&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.1.3&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.2.1&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;B&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.2.2&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;B&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;10.0.2.3&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;B&quot;</span> <span class="p">}]}</span>
+</pre></div>
+</div>
+<p>Note: In the example above, if a different IP comes in, the value “unk” is returned thanks to the nomatch parameter in the first line.</p>
+<p>Lookup tables can be accessed via the <code class="docutils literal"><span class="pre">lookup()</span></code> built-in function. A common usage pattern is to set a local variable to the lookup result and later use that variable in templates.</p>
+</div>
+<div class="section" id="lookup-table-configuration">
+<h2>Lookup-table configuration<a class="headerlink" href="#lookup-table-configuration" title="Permalink to this headline">¶</a></h2>
+<p>Lookup-table configuration involves a <strong>two part setup</strong> (definition and usage(lookup)), with an optional third part,
+which allows reloading table using internal trigger.</p>
+<div class="section" id="lookup-table-name-table-file-path-to-file-object">
+<h3>lookup_table(name=”&lt;table&gt;” file=”&lt;/path/to/file&gt;”…) (object)<a class="headerlink" href="#lookup-table-name-table-file-path-to-file-object" title="Permalink to this headline">¶</a></h3>
+<p><strong>Defines</strong> the table(identified by the table-name) and allows user to set some properties that control behavior of the table.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">lookup_table</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;msg_per_host&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>name</strong> &lt;string literal, mandatory&gt; : Name of the table.</p>
+<p><strong>file</strong> &lt;string literal, file path, mandatory&gt; : Path to external json database file.</p>
+<p class="last"><strong>reloadOnHUP</strong> &lt;on|off, default: on&gt; : Whether or not table should be reloaded when process receives HUP signal.</p>
+</dd>
+</dl>
+<p>A definition setting all the parameters looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">lookup_table</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;host_bu&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/var/lib/host_billing_unit_mapping.json&quot;</span> <span class="n">reloadOnHUP</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="lookup-table-expr-function">
+<h3>lookup(“&lt;table&gt;”, &lt;expr&gt;) (function)<a class="headerlink" href="#lookup-table-expr-function" title="Permalink to this headline">¶</a></h3>
+<p><strong>Looks up</strong> and returns the value that is associated with the given key (passed as &lt;variable&gt;)
+in lookup table identified by table-name. If no match is found (according to table-type
+matching-criteria specified above), the “nomatch” string is returned (or an empty string if it is not defined).</p>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>name</strong> &lt;string literal, mandatory&gt; : Name of the table.</p>
+<p class="last"><strong>expr</strong> &lt;expression resulting in string or number according to lookup-table type, mandatory&gt; : Key to be looked up.</p>
+</dd>
+</dl>
+<p>A <code class="docutils literal"><span class="pre">lookup</span></code> call looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.bu = lookup(&quot;host_bu&quot;, $hostname);
+
+if ($.bu == &quot;unknown&quot;) then {
+    ....
+}
+</pre></div>
+</div>
+<p>Some examples of different match/no-match scenarios:</p>
+<p><strong>string table</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="s2">&quot;nomatch&quot;</span> <span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;type&quot;</span> <span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table&quot;</span><span class="p">:[</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;foo&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;bar&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;baz&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;quux&quot;</span> <span class="p">}]}</span>
+</pre></div>
+</div>
+<p>Match/no-Match behaviour:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="30%" />
+<col width="70%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">key</th>
+<th class="head">return</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>foo</td>
+<td>bar</td>
+</tr>
+<tr class="row-odd"><td>baz</td>
+<td>quux</td>
+</tr>
+<tr class="row-even"><td>corge</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p><strong>array table</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="s2">&quot;nomatch&quot;</span> <span class="p">:</span> <span class="s2">&quot;nothing&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;type&quot;</span> <span class="p">:</span> <span class="s2">&quot;array&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table&quot;</span><span class="p">:[</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="mi">9</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;foo&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;bar&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;baz&quot;</span> <span class="p">}]}</span>
+</pre></div>
+</div>
+<p>Match/no-Match behaviour:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="30%" />
+<col width="70%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">key</th>
+<th class="head">return</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>9</td>
+<td>foo</td>
+</tr>
+<tr class="row-odd"><td>11</td>
+<td>baz</td>
+</tr>
+<tr class="row-even"><td>15</td>
+<td>nothing</td>
+</tr>
+<tr class="row-odd"><td>0</td>
+<td>nothing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>sparseArray table</strong>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="s2">&quot;nomatch&quot;</span> <span class="p">:</span> <span class="s2">&quot;no_num&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;type&quot;</span> <span class="p">:</span> <span class="s2">&quot;sparseArray&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table&quot;</span><span class="p">:[</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;9&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;foo&quot;</span> <span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;index&quot;</span> <span class="p">:</span> <span class="s2">&quot;11&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span> <span class="p">:</span> <span class="s2">&quot;baz&quot;</span> <span class="p">}]}</span>
+</pre></div>
+</div>
+<p>Match/no-Match behaviour:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="30%" />
+<col width="70%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">key</th>
+<th class="head">return</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>8</td>
+<td>no_num</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>foo</td>
+</tr>
+<tr class="row-even"><td>10</td>
+<td>foo</td>
+</tr>
+<tr class="row-odd"><td>11</td>
+<td>baz</td>
+</tr>
+<tr class="row-even"><td>12</td>
+<td>baz</td>
+</tr>
+<tr class="row-odd"><td>100</td>
+<td>baz</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="reload-lookup-table-table-stub-value-statement">
+<h3>reload_lookup_table(“&lt;table&gt;”, “&lt;stub value&gt;”) (statement)<a class="headerlink" href="#reload-lookup-table-table-stub-value-statement" title="Permalink to this headline">¶</a></h3>
+<p><strong>Reloads</strong> lookup table identified by given table name <strong>asynchronously</strong> (by internal trigger, as opposed to HUP).</p>
+<p>This statement isn’t always useful. It needs to be used only when lookup-table-reload needs to be triggered in response to
+a message.</p>
+<p>Messages will continue to be processed while table is asynchronously reloaded.</p>
+<p>Note: For performance reasons, message that triggers reload should be accepted only from a trusted source.</p>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>name</strong> &lt;string literal, mandatory&gt; : Name of the table.</p>
+<p class="last"><strong>stub value</strong> &lt;string literal, optional&gt; : Value to stub the table in-case reload-attempt fails.</p>
+</dd>
+</dl>
+<p>A <code class="docutils literal"><span class="pre">reload_lookup_table</span></code> invocation looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>if ($.do_reload == &quot;y&quot;) then {
+    reload_lookup_table(&quot;host_bu&quot;, &quot;unknown&quot;)
+}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="implementation-details">
+<h2>Implementation Details<a class="headerlink" href="#implementation-details" title="Permalink to this headline">¶</a></h2>
+<p>The lookup table functionality is implemented via efficient algorithms.</p>
+<p>The string and sparseArray lookup have O(log(n)) time complexity, while array lookup is O(1).</p>
+<p>To preserve space and, more important, increase cache hit performance, equal data values are only stored once,
+no matter how often a lookup index points to them.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Lookup Tables</a><ul>
+<li><a class="reference internal" href="#types">Types</a><ul>
+<li><a class="reference internal" href="#string">string</a></li>
+<li><a class="reference internal" href="#array">array</a></li>
+<li><a class="reference internal" href="#sparsearray">sparseArray</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#lookup-table-file-format">Lookup Table File Format</a></li>
+<li><a class="reference internal" href="#lookup-table-configuration">Lookup-table configuration</a><ul>
+<li><a class="reference internal" href="#lookup-table-name-table-file-path-to-file-object">lookup_table(name=”&lt;table&gt;” file=”&lt;/path/to/file&gt;”…) (object)</a></li>
+<li><a class="reference internal" href="#lookup-table-expr-function">lookup(“&lt;table&gt;”, &lt;expr&gt;) (function)</a></li>
+<li><a class="reference internal" href="#reload-lookup-table-table-stub-value-statement">reload_lookup_table(“&lt;table&gt;”, “&lt;stub value&gt;”) (statement)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementation-details">Implementation Details</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="dyn_stats.html"
+                        title="previous chapter">Dynamic Stats</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../containers/index.html"
+                        title="next chapter">rsyslog and containers</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/lookup_tables.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/lookup_tables.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../containers/index.html" title="rsyslog and containers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="dyn_stats.html" title="Dynamic Stats"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,375 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Lookup Tables &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Rsyslog documentation" href="big_restructuring/index.html" />
+    <link rel="prev" title="Version Naming" href="version_naming.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="big_restructuring/index.html" title="Rsyslog documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="version_naming.html" title="Version Naming"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Proposals</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="lookup-tables">
+<h1>Lookup Tables<a class="headerlink" href="#lookup-tables" title="Permalink to this headline">¶</a></h1>
+<p><strong>NOTE: this is proposed functionality, which is NOT YET IMPLEMENTED!</strong></p>
+<p><strong>Lookup tables are a powerful construct to obtain “class” information
+based on message content (e.g. to build log file names for different
+server types, departments or remote offices).</strong></p>
+<p>The base idea is to use a message variable as an index into a table
+which then returns another value. For example, $fromhost-ip could be
+used as an index, with the table value representing the type of server
+or the department or remote office it is located in. A main point with
+lookup tables is that the lookup is very fast. So while lookup tables
+can be emulated with if-elseif constructs, they are generally much
+faster. Also, it is possible to reload lookup tables during rsyslog
+runtime without the need for a full restart.</p>
+<p>The lookup tables itself exists in a separate configuration file (one
+per table). This file is loaded on rsyslog startup and when a reload is
+requested.</p>
+<p>There are different types of lookup tables:</p>
+<ul class="simple">
+<li><strong>string</strong> - the value to be looked up is an arbitrary string. Only
+exact some strings match.</li>
+<li><strong>array</strong> - the value to be looked up is an integer number from a
+consequtive set. The set does not need to start at zero or one, but
+there must be no number missing. So, for example 5,6,7,8,9 would be a
+valid set of index values, while 1,2,4,5 would not be (due to missing
+2). A match happens if the requested number is present.</li>
+<li><strong>sparseArray</strong> - the value to be looked up is an integer value, but
+there may be gaps inside the set of values (usually there are large
+gaps). A typical use case would be the matching of IPv4 address
+information. A match happens on the first value that is less than or
+equal to the requested value.</li>
+</ul>
+<p>Note that index integer numbers are represented by unsigned 32 bits.</p>
+<p>Lookup tables can be access via the lookup() built-in function. The core
+idea is to set a local variable to the lookup result and later on use
+that local variable in templates.</p>
+<p>More details on usage now follow.</p>
+<div class="section" id="lookup-table-file-format">
+<h2>Lookup Table File Format<a class="headerlink" href="#lookup-table-file-format" title="Permalink to this headline">¶</a></h2>
+<p>Lookup table files contain a single JSON object. This object contains of
+a header and a table part.</p>
+<div class="section" id="header">
+<h3>Header<a class="headerlink" href="#header" title="Permalink to this headline">¶</a></h3>
+<p>The header is the top-level json. It has parameters “version”, “nomatch”,
+and “type”. The version parameter must be given and must always be one
+for this version of rsyslog. The nomatch parameter is optional. If
+specified, it contains the value to be used if lookup() is provided an
+index value for which no entry exists. The default for “nomatch” is the
+empty string. Type specifies the type of lookup to be done.</p>
+</div>
+<div class="section" id="table">
+<h3>Table<a class="headerlink" href="#table" title="Permalink to this headline">¶</a></h3>
+<p>This must be an array of elements, even if only a single value exists
+(for obvious reasons, we do not expect this to occur often). Each array
+element must contain two fields “index” and “value”.</p>
+</div>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>This is a sample of how an ip-to-office mapping may look like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;nomatch&quot;</span><span class="p">:</span><span class="s2">&quot;unk&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;string&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;table&quot;</span><span class="p">:[</span> <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.1.1&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+          <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.1.2&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+          <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.1.3&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;A&quot;</span> <span class="p">},</span>
+          <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.2.1&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;B&quot;</span> <span class="p">},</span>
+          <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.2.2&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;B&quot;</span> <span class="p">},</span>
+          <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;10.0.2.3&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span><span class="s2">&quot;B&quot;</span> <span class="p">}</span>
+        <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note: if a different IP comes in, the value “unk” is returend thanks to
+the nomatch parameter in the first line.</p>
+</div>
+</div>
+<div class="section" id="rainerscript-statements">
+<h2>RainerScript Statements<a class="headerlink" href="#rainerscript-statements" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="lookup-table-object">
+<h3>lookup_table() Object<a class="headerlink" href="#lookup-table-object" title="Permalink to this headline">¶</a></h3>
+<p>This statement defines and intially loads a lookup table. Its format is
+as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">lookup_table</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;name&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/path/to/file&quot;</span> <span class="n">reloadOnHUP</span><span class="o">=</span><span class="s2">&quot;on|off&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="parameters">
+<h4>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h4>
+<ul>
+<li><p class="first"><strong>name</strong> (mandatory)</p>
+<p>Defines the name of lookup table for further reference inside the
+configuration. Names must be unique. Note that it is possible, though
+not advisible, to have different names for the same file.</p>
+</li>
+<li><p class="first"><strong>file</strong> (mandatory)</p>
+<p>Specifies the full path for the lookup table file. This file must be
+readable for the user rsyslog is run under (important when dropping
+privileges). It must point to a valid lookup table file as described
+above.</p>
+</li>
+<li><p class="first"><strong>reloadOnHUP</strong> (optional, default “on”)</p>
+<p>Specifies if the table shall automatically be reloaded as part of
+HUP processing. For static tables, the default is “off” and
+specifying “on” triggers an error message. Note that the default of
+“on” may be somewhat suboptimal performance-wise, but probably is
+what the user intuitively expects. Turn it off if you know that you
+do not need the automatic reload capability.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="lookup-function">
+<h3>lookup() Function<a class="headerlink" href="#lookup-function" title="Permalink to this headline">¶</a></h3>
+<p>This function is used to actually do the table lookup. Format:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">indexvalue</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="id1">
+<h4>Parameters<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<ul>
+<li><p class="first"><strong>return value</strong></p>
+<p>The function returns the string that is associated with the given
+indexvalue. If the indexvalue is not present inside the lookup table,
+the “nomatch” string is returned (or an empty string if it is not
+defined).</p>
+</li>
+<li><p class="first"><strong>name</strong> (constant string)</p>
+<p>The lookup table to be used. Note that this must be specificed as a
+constant. In theory, variable table names could be made possible, but
+their runtime behaviour is not as good as for static names, and we do
+not (yet) see good use cases where dynamic table names could be
+useful.</p>
+</li>
+<li><p class="first"><strong>indexvalue</strong> (expression)</p>
+<p>The value to be looked up. While this is an arbitrary RainerScript
+expression, it’s final value is always converted to a string in order
+to conduct the lookup. For example, “lookup(table, 3+4)” would be
+exactly the same as “lookup(table, “7”)”. In most cases, indexvalue
+will probably be a single variable, but it could also be the result
+of all RainerScript-supported expression types (like string
+concatenation or substring extraction). Valid samples are
+“lookup(name, $fromhost-ip &amp; $hostname)” or “lookup(name,
+substr($fromhost-ip, 0, 5))” as well as of course the usual
+“lookup(table, $fromhost-ip)”.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="load-lookup-table-statement">
+<h3>load_lookup_table Statement<a class="headerlink" href="#load-lookup-table-statement" title="Permalink to this headline">¶</a></h3>
+<p><strong>Note: in the final implementation, this MAY be implemented as an
+action. This is a low-level decesion that must be made during the detail
+development process. Parameters and semantics will remain the same of
+this happens.</strong></p>
+<p>This statement is used to reload a lookup table. It will fail if the
+table is static. While this statement is executed, lookups to this table
+are temporarily blocked. So for large tables, there may be a slight
+performance hit during the load phase. It is assume that always a
+triggering condition is used to load the table.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">load_lookup_table</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;name&quot;</span> <span class="n">errOnFail</span><span class="o">=</span><span class="s2">&quot;on|off&quot;</span> <span class="n">valueOnFail</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="id2">
+<h4>Parameters<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<ul>
+<li><p class="first"><strong>name</strong> (string)</p>
+<p>The lookup table to be used.</p>
+</li>
+<li><p class="first"><strong>errOnFail</strong> (boolean, default “on”)</p>
+<p>Specifies whether or not an error message is to be emitted if there
+are any problems reloading the lookup table.</p>
+</li>
+<li><p class="first"><strong>valueOnFail</strong> (optional, string)</p>
+<p>This parameter affects processing if the lookup table cannot be
+loaded for some reason: If the parameter is not present, the previous
+table will be kept in use. If the parameter is given, the previous
+table will no longer be used, and instead an empty table be with
+nomath=valueOnFail be generated. In short, that means when the
+parameter is set and the reload fails, all matches will always return
+what is specified in valueOnFail.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="usage-example">
+<h3>Usage example<a class="headerlink" href="#usage-example" title="Permalink to this headline">¶</a></h3>
+<p>For clarity, we show only those parts of rsyslog.conf that affect lookup
+tables. We use the remote office example that an example lookup table
+file is given above for.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>lookup_table(name=&quot;ip2office&quot; file=&quot;/path/to/ipoffice.lu&quot;
+             reloadOnHUP=&quot;off&quot;)
+
+
+template(name=&quot;depfile&quot; type=&quot;string&quot;
+         string=&quot;/var/log/%$usr.dep%/messages&quot;)
+
+set $usr.dep = lookup(&quot;ip2office&quot;, $fromhost-ip);
+action(type=&quot;omfile&quot; dynfile=&quot;depfile&quot;)
+
+# support for reload &quot;commands&quot;
+if $fromhost-ip == &quot;10.0.1.123&quot;
+   and $msg contains &quot;reload office lookup table&quot;
+   then
+   load_lookup_table(name=&quot;ip2office&quot; errOnFail=&quot;on&quot;)
+</pre></div>
+</div>
+<p>Note: for performance reasons, it makes sense to put the reload command
+into a dedicated ruleset, bound to a specific listener - which than
+should also be sufficiently secured, e.g. via TLS mutual auth.</p>
+</div>
+</div>
+<div class="section" id="implementation-details">
+<h2>Implementation Details<a class="headerlink" href="#implementation-details" title="Permalink to this headline">¶</a></h2>
+<p>The lookup table functionality is implemented via highly efficient
+algorithms. The string lookup has O(log n) time complexity. The array
+lookup is O(1). In case of sparseArray, we have O(log n).</p>
+<p>To preserve space and, more important, increase cache hit performance,
+equal data values are only stored once, no matter how often a lookup
+index points to them.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Lookup Tables</a><ul>
+<li><a class="reference internal" href="#lookup-table-file-format">Lookup Table File Format</a><ul>
+<li><a class="reference internal" href="#header">Header</a></li>
+<li><a class="reference internal" href="#table">Table</a></li>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#rainerscript-statements">RainerScript Statements</a><ul>
+<li><a class="reference internal" href="#lookup-table-object">lookup_table() Object</a><ul>
+<li><a class="reference internal" href="#parameters">Parameters</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#lookup-function">lookup() Function</a><ul>
+<li><a class="reference internal" href="#id1">Parameters</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#load-lookup-table-statement">load_lookup_table Statement</a><ul>
+<li><a class="reference internal" href="#id2">Parameters</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#usage-example">Usage example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementation-details">Implementation Details</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="version_naming.html"
+                        title="previous chapter">Version Naming</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="big_restructuring/index.html"
+                        title="next chapter">Rsyslog documentation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/proposals/lookup_tables.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/proposals/lookup_tables.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="big_restructuring/index.html" title="Rsyslog documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="version_naming.html" title="Version Naming"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Proposals</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

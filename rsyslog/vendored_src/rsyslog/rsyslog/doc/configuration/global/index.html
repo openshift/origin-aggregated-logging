@@ -1,0 +1,316 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Legacy Global Configuration Statements &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="$AbortOnUncleanConfig" href="options/rsconf1_abortonuncleanconfig.html" />
+    <link rel="prev" title="Configuration Parameter Types" href="../config_param_types.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="options/rsconf1_abortonuncleanconfig.html" title="$AbortOnUncleanConfig"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../config_param_types.html" title="Configuration Parameter Types"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index_directives.html" accesskey="U">Legacy Configuration Directives</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="legacy-global-configuration-statements">
+<h1>Legacy Global Configuration Statements<a class="headerlink" href="#legacy-global-configuration-statements" title="Permalink to this headline">¶</a></h1>
+<p>Global configuration statements, as their name implies, usually affect
+some global features. However, some also affect main queues, which
+are “global” to a ruleset.</p>
+<div class="section" id="true-global-directives">
+<h2>True Global Directives<a class="headerlink" href="#true-global-directives" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_abortonuncleanconfig.html">$AbortOnUncleanConfig</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_debugprintcfsyslinehandlerlist.html">$DebugPrintCFSyslineHandlerList</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_debugprintmodulelist.html">$DebugPrintModuleList</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_debugprinttemplatelist.html">$DebugPrintTemplateList</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_failonchownfailure.html">$FailOnChownFailure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_generateconfiggraph.html">$GenerateConfigGraph</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_includeconfig.html">$IncludeConfig</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_mainmsgqueuesize.html">$MainMsgQueueSize</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_maxopenfiles.html">$MaxOpenFiles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_moddir.html">$ModDir</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_modload.html">$ModLoad</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_umask.html">$UMASK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options/rsconf1_resetconfigvariables.html">$ResetConfigVariables</a></li>
+</ul>
+</div>
+<ul>
+<li><p class="first"><strong>$MaxMessageSize</strong> &lt;size_nbr&gt;, default 8k - allows to specify
+maximum supported message size (both for sending and receiving). The
+default should be sufficient for almost all cases. Do not set this
+below 1k, as it would cause interoperability problems with other
+syslog implementations.</p>
+<p><strong>Important:</strong> In order for this directive to work correctly,
+it <strong>must</strong> be placed right at the top of <code class="docutils literal"><span class="pre">rsyslog.conf</span></code>
+(before any input is defined).</p>
+<p>Change the setting to e.g. 32768 if you would like to support large
+message sizes for IHE (32k is the current maximum needed for IHE). I
+was initially tempted to set the default to 32k, but there is a some
+memory footprint with the current implementation in rsyslog.
+If you intend to receive Windows Event Log data (e.g. via
+<a class="reference external" href="http://www.eventreporter.com/">EventReporter</a>), you might want to
+increase this number to an even higher value, as event log messages
+can be very lengthy (“$MaxMessageSize 64k” is not a bad idea). Note:
+testing showed that 4k seems to be the typical maximum for <strong>UDP</strong>
+based syslog. This is an IP stack restriction. Not always … but
+very often. If you go beyond that value, be sure to test that
+rsyslogd actually does what you think it should do ;) It is highly
+suggested to use a TCP based transport instead of UDP (plain TCP
+syslog, RELP). This resolves the UDP stack size restrictions.
+Note that 2k, is the smallest size that must be
+supported in order to be compliant to the upcoming new syslog RFC
+series.</p>
+</li>
+<li><p class="first"><strong>$LocalHostName</strong> [name] - this directive permits to overwrite the
+system hostname with the one specified in the directive. If the
+directive is given multiple times, all but the last one will be
+ignored. Please note that startup error messages may be issued with
+the real hostname. This is by design and not a bug (but one may argue
+if the design should be changed ;)). Available since 4.7.4+, 5.7.3+,
+6.1.3+.</p>
+</li>
+<li><p class="first"><strong>$LogRSyslogStatusMessages</strong> [<strong>on</strong>/off] - If set to on (the
+default), rsyslog emits message on startup and shutdown as well as
+when it is HUPed. This information might be needed by some log
+analyzers. If set to off, no such status messages are logged, what
+may be useful for other scenarios. [available since 4.7.0 and 5.3.0]</p>
+</li>
+<li><p class="first"><strong>$DefaultRuleset</strong> [name] - changes the default ruleset for unbound
+inputs to the provided <em>name</em> (the default default ruleset is named
+“RSYSLOG_DefaultRuleset”). It is advised to also read our paper on
+<a class="reference internal" href="../../concepts/multi_ruleset.html"><span class="doc">using multiple rule sets in rsyslog</span></a>.</p>
+</li>
+<li><p class="first"><strong>$DefaultNetstreamDriver</strong> &lt;drivername&gt;, the default
+<a class="reference internal" href="../../concepts/netstrm_drvr.html"><span class="doc">network stream driver</span></a> to use.
+Defaults to ptcp.</p>
+</li>
+<li><p class="first"><strong>$DefaultNetstreamDriverCAFile</strong> &lt;/path/to/cafile.pem&gt;</p>
+</li>
+<li><p class="first"><strong>$DefaultNetstreamDriverCertFile</strong> &lt;/path/to/certfile.pem&gt;</p>
+</li>
+<li><p class="first"><strong>$DefaultNetstreamDriverKeyFile</strong> &lt;/path/to/keyfile.pem&gt;</p>
+</li>
+<li><p class="first"><strong>$RepeatedMsgContainsOriginalMsg</strong> [on/<strong>off</strong>] - “last message
+repeated n times” messages, if generated, have a different format
+that contains the message that is being repeated. Note that only the
+first “n” characters are included, with n to be at least 80
+characters, most probably more (this may change from version to
+version, thus no specific limit is given). The bottom line is that n
+is large enough to get a good idea which message was repeated but it
+is not necessarily large enough for the whole message. (Introduced
+with 4.1.5). Once set, it affects all following actions.</p>
+</li>
+<li><p class="first"><strong>$OptimizeForUniprocessor</strong> - This directive is no longer supported.
+While present in versions prior to 8.32.0, the directive had no effect
+for many years. Attempts to use the directive now results in a warning.</p>
+</li>
+<li><p class="first"><strong>$PreserveFQDN</strong> [on/<strong>off</strong>) - if set to off (legacy default to remain
+compatible to sysklogd), the domain part from a name that is within
+the same domain as the receiving system is stripped. If set to on,
+full names are always used.</p>
+</li>
+<li><p class="first"><strong>$WorkDirectory</strong> &lt;name&gt; (directory for spool and other work files. Do
+<strong>not</strong> use trailing slashes)</p>
+</li>
+<li><p class="first"><a class="reference external" href="droppriv.html">$PrivDropToGroup</a></p>
+</li>
+<li><p class="first"><a class="reference external" href="droppriv.html">$PrivDropToGroupID</a></p>
+</li>
+<li><p class="first"><a class="reference external" href="droppriv.html">$PrivDropToUser</a></p>
+</li>
+<li><p class="first"><a class="reference external" href="droppriv.html">$PrivDropToUserID</a></p>
+</li>
+<li><p class="first"><strong>$Sleep</strong> &lt;seconds&gt; - puts the rsyslog main thread to sleep for the
+specified number of seconds immediately when the directive is
+encountered. You should have a good reason for using this directive!</p>
+</li>
+<li><p class="first"><strong>$LocalHostIPIF</strong> &lt;interface name&gt; - (available since 5.9.6) - if
+provided, the IP of the specified interface (e.g. “eth0”) shall be
+used as fromhost-ip for locall-originating messages. If this
+directive is not given OR the interface cannot be found (or has no IP
+address), the default of “127.0.0.1” is used. Note that this
+directive can be given only once. Trying to reset will result in an
+error message and the new value will be ignored. Please note that
+modules must have support for obtaining the local IP address set via
+this directive. While this is the case for rsyslog-provided modules,
+it may not always be the case for contributed plugins.
+<strong>Important:</strong> This directive shall be placed <strong>right at the top of
+rsyslog.conf</strong>. Otherwise, if error messages are triggered before
+this directive is processed, rsyslog will fix the local host IP to
+“127.0.0.1”, what than can not be reset.</p>
+</li>
+<li><p class="first"><strong>$ErrorMessagesToStderr</strong> [<strong>on</strong>|off] - direct rsyslogd error
+message to stderr (in addition to other targets)</p>
+</li>
+<li><p class="first"><strong>$SpaceLFOnReceive</strong> [on/<strong>off</strong>] - instructs rsyslogd to replace LF
+with spaces during message reception (sysklogd compatibility aid).
+This is applied at the beginning of the parser stage and cannot
+be overridden (neither at the input nor parser level). Consequently,
+it affects all inputs and parsers.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="main-queue-specific-directives">
+<h2>main queue specific Directives<a class="headerlink" href="#main-queue-specific-directives" title="Permalink to this headline">¶</a></h2>
+<p>Note that these directives modify ruleset main message queues.
+This includes the default ruleset’s main message queue, the one
+that is always present. To do this, specify directives outside of
+a ruleset definition.</p>
+<p>To understand queue parameters, read
+<a class="reference internal" href="../../concepts/queues.html"><span class="doc">queues in rsyslog</span></a>.</p>
+<ul class="simple">
+<li><strong>$MainMsgQueueCheckpointInterval</strong> &lt;number&gt;</li>
+<li><strong>$MainMsgQueueDequeueBatchSize</strong> &lt;number&gt; [default 32]</li>
+<li><strong>$MainMsgQueueDequeueSlowdown</strong> &lt;number&gt; [number is timeout in
+<em>micro</em>seconds (1000000us is 1sec!), default 0 (no delay). Simple
+rate-limiting!]</li>
+<li><strong>$MainMsgQueueDiscardMark</strong> &lt;number&gt; [default 98% of queue size]</li>
+<li><strong>$MainMsgQueueDiscardSeverity</strong> &lt;severity&gt; [either a textual or
+numerical severity! default 4 (warning)]</li>
+<li><strong>$MainMsgQueueFileName</strong> &lt;name&gt;</li>
+<li><strong>$MainMsgQueueHighWaterMark</strong> &lt;number&gt; [default 90% of queue size]</li>
+<li><strong>$MainMsgQueueImmediateShutdown</strong> [on/<strong>off</strong>]</li>
+<li><strong>$MainMsgQueueLowWaterMark</strong> &lt;number&gt; [default 70% of queue size]</li>
+<li><strong>$MainMsgQueueMaxFileSize</strong> &lt;size_nbr&gt;, default 1m</li>
+<li><strong>$MainMsgQueueTimeoutActionCompletion</strong> &lt;number&gt; [number is timeout in
+ms (1000ms is 1sec!), default 1000, 0 means immediate!]</li>
+<li><strong>$MainMsgQueueTimeoutEnqueue</strong> &lt;number&gt; [number is timeout in ms (1000ms
+is 1sec!), default 2000, 0 means discard immediately]</li>
+<li><strong>$MainMsgQueueTimeoutShutdown</strong> &lt;number&gt; [number is timeout in ms
+(1000ms is 1sec!), default 0 (indefinite)]</li>
+<li><strong>$MainMsgQueueWorkerTimeoutThreadShutdown</strong> &lt;number&gt; [number is timeout
+in ms (1000ms is 1sec!), default 60000 (1 minute)]</li>
+<li><strong>$MainMsgQueueType</strong> [<strong>FixedArray</strong>/LinkedList/Direct/Disk]</li>
+<li><strong>$MainMsgQueueSaveOnShutdown</strong>&nbsp; [on/<strong>off</strong>]</li>
+<li><strong>$MainMsgQueueWorkerThreads</strong> &lt;number&gt;, num worker threads, default 2,
+recommended 1</li>
+<li><strong>$MainMsgQueueWorkerThreadMinumumMessages</strong> &lt;number&gt;, default queue size/number of workers</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Legacy Global Configuration Statements</a><ul>
+<li><a class="reference internal" href="#true-global-directives">True Global Directives</a></li>
+<li><a class="reference internal" href="#main-queue-specific-directives">main queue specific Directives</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../config_param_types.html"
+                        title="previous chapter">Configuration Parameter Types</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="options/rsconf1_abortonuncleanconfig.html"
+                        title="next chapter">$AbortOnUncleanConfig</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/global/index.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/global/index.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="options/rsconf1_abortonuncleanconfig.html" title="$AbortOnUncleanConfig"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../config_param_types.html" title="Configuration Parameter Types"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index_directives.html" >Legacy Configuration Directives</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

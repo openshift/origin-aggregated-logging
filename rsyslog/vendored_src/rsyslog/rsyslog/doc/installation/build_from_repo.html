@@ -1,0 +1,212 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Installing rsyslog from the source repository &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Configuration" href="../configuration/index.html" />
+    <link rel="prev" title="Installing rsyslog from Source" href="install_from_source.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../configuration/index.html" title="Configuration"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="install_from_source.html" title="Installing rsyslog from Source"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Installation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installing-rsyslog-from-the-source-repository">
+<h1>Installing rsyslog from the source repository<a class="headerlink" href="#installing-rsyslog-from-the-source-repository" title="Permalink to this headline">¶</a></h1>
+<p>In most cases, people install rsyslog either via a package or use an
+“official” distribution tarball to generate it. But there may be
+situations where it is desirable to build directly from the source
+repository. This is useful for people who would like to participate in
+development or who would like to use the latest, not-yet-released code.
+The later may especially be the case if you are asked to try out an
+experimental version.</p>
+<p>Building from the repository is not much different than building from the
+source tarball, but some files are missing because they are output files
+and thus do not belong into the repository.</p>
+<div class="section" id="obtaining-the-source">
+<h2>Obtaining the Source<a class="headerlink" href="#obtaining-the-source" title="Permalink to this headline">¶</a></h2>
+<p>First of all, you need to download the sources. Rsyslog is kept in git.
+The “<a class="reference external" href="http://www.rsyslog.com/where-to-find-the-rsyslog-source-code/">Where to find the rsyslog source
+code</a>”
+page on the project site will point you to the current repository
+location.</p>
+<p>After you have cloned the repository, you are in the master branch by
+default. This is where we keep the devel branch. If you need any other
+branch, you need to do a “git checkout –track -b branch origin/branch”.
+For example, the command to check out the beta branch is “git checkout
+–track -b beta origin/beta”.</p>
+</div>
+<div class="section" id="prequisites">
+<h2>Prequisites<a class="headerlink" href="#prequisites" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The rsyslog project maintains multiple <a class="reference external" href="https://hub.docker.com/u/rsyslog/">rsyslog docker development
+environment images</a>. These
+images have been configured specifically for use with rsyslog and are
+recommended over your own build environment. Rsyslog docker development
+images are named with the <code class="docutils literal"><span class="pre">rsyslog_dev_</span></code> prefix, followed by the
+distro name.</p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If you plan to copy the binary for use outside of the container you need
+to make sure to use an image of the same distro/version when building
+rsyslog.</p>
+</div>
+<p>To build the compilation system, you need</p>
+<ul class="simple">
+<li>GNU autotools (autoconf, automake, …)</li>
+<li>libtool</li>
+<li>pkg-config</li>
+</ul>
+<p>Unfortunately, the actual package names vary between distributions. Doing
+a search for the names above inside the packaging system should lead to
+the right path, though.</p>
+<p>If some of these tools are missing, you will see errors like this one:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>checking for SYSLOG_UNIXAF support... yes
+checking for FSSTND support... yes
+./configure: line 25895: syntax error near unexpected token `RELP,&#39;
+./configure: line 25895: ` PKG_CHECK_MODULES(RELP, relp &gt;= 0.1.1)&#39;
+</pre></div>
+</div>
+<p>The actual error message will vary. In the case shown here, pkg-config
+was missing.</p>
+<p><strong>Important:</strong> the build dependencies must be present <strong>before</strong> creating
+the build environment is begun. Otherwise, some hard to interpret errors may
+occur. For example, the error above will also occur if you install
+pkg-config, but <em>after</em> you have run <em>autoreconf</em>. So be sure everything
+is in place <em>before</em> you create the build environment.</p>
+</div>
+<div class="section" id="creating-the-build-environment">
+<h2>Creating the Build Environment<a class="headerlink" href="#creating-the-build-environment" title="Permalink to this headline">¶</a></h2>
+<p>This is fairly easy: just issue “<strong>autoreconf -fvi</strong>”, which should do
+everything you need. Once this is done, you can follow the usual
+./configure steps just like when you downloaded an official distribution
+tarball (see the <a class="reference external" href="install.html">rsyslog install guide</a>, starting at
+step 2, for further details about that).</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Installing rsyslog from the source repository</a><ul>
+<li><a class="reference internal" href="#obtaining-the-source">Obtaining the Source</a></li>
+<li><a class="reference internal" href="#prequisites">Prequisites</a></li>
+<li><a class="reference internal" href="#creating-the-build-environment">Creating the Build Environment</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="install_from_source.html"
+                        title="previous chapter">Installing rsyslog from Source</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../configuration/index.html"
+                        title="next chapter">Configuration</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/installation/build_from_repo.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/installation/build_from_repo.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../configuration/index.html" title="Configuration"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="install_from_source.html" title="Installing rsyslog from Source"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Installation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

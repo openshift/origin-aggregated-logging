@@ -1,0 +1,504 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ommail: Mail Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="ommongodb: MongoDB Output Module" href="ommongodb.html" />
+    <link rel="prev" title="omlibdbi: Generic Database Output Module" href="omlibdbi.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ommongodb.html" title="ommongodb: MongoDB Output Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omlibdbi.html" title="omlibdbi: Generic Database Output Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="ommail-mail-output-module">
+<h1>ommail: Mail Output Module<a class="headerlink" href="#ommail-mail-output-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils" id="index-0">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>ommail</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Available Since:</strong></td>
+<td><strong>3.17.0</strong></td>
+</tr>
+<tr class="row-odd"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This module supports sending syslog messages via mail. Each syslog
+message is sent via its own mail. Obviously, you will want to apply
+rigorous filtering, otherwise your mailbox (and mail server) will be
+heavily spammed. The ommail plugin is primarily meant for alerting
+users. As such, it is assumed that mails will only be sent in an
+extremely limited number of cases.</p>
+<p>Ommail uses up to two templates, one for the mail body and optionally
+one for the subject line. Note that the subject line can also be set to
+a constant text.
+If neither the subject nor the mail body is provided, a quite meaningless
+subject line is used
+and the mail body will be a syslog message just as if it were written to
+a file. It is expected that the users customizes both messages. In an
+effort to support cell phones (including SMS gateways), there is an
+option to turn off the body part at all. This is considered to be useful
+to send a short alert to a pager-like device.
+It is highly recommended to use the</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action.execonlyonceeveryinterval=&quot;&lt;seconds&gt;&quot;
+</pre></div>
+</div>
+<p>parameter to limit the amount of mails that potentially be
+generated. With it, mails are sent at most in a &lt;seconds&gt; interval. This
+may be your life safer. And remember that an hour has 3,600 seconds, so
+if you would like to receive mails at most once every two hours, include
+a</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action.execonlyonceeveryinterval=&quot;7200&quot;
+</pre></div>
+</div>
+<p>in the action definition. Messages sent more frequently are simpy discarded.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<p>Configuration parameters are supported starting with v8.5.0. Earlier
+v7 and v8 versions did only support legacy parameters.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="server">
+<h4>Server<a class="headerlink" href="#server" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailSMTPServer</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Name or IP address of the SMTP server to be used. Must currently be
+set. The default is 127.0.0.1, the SMTP server on the local machine.
+Obviously it is not good to expect one to be present on each machine,
+so this value should be specified.</p>
+</div>
+<div class="section" id="port">
+<h4>Port<a class="headerlink" href="#port" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailSMTPPort</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Port number or name of the SMTP port to be used. The default is 25,
+the standard SMTP port.</p>
+</div>
+<div class="section" id="mailfrom">
+<h4>MailFrom<a class="headerlink" href="#mailfrom" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailFrom</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The email address used as the senders address.</p>
+</div>
+<div class="section" id="mailto">
+<h4>MailTo<a class="headerlink" href="#mailto" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>array</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailTo</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The recipient email address(es). Note that this is an array parameter. See
+samples below on how to specify multiple recipients.</p>
+</div>
+<div class="section" id="subject-template">
+<h4>Subject.Template<a class="headerlink" href="#subject-template" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailSubject</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The name of the template to be used as the mail subject.</p>
+<p>If you want to include some information from the message inside the
+template, you need to use <em>subject.template</em> with an appropriate template.
+If you just need a constant text, you can simply use <em>subject.text</em>
+instead, which doesn’t require a template definition.</p>
+</div>
+<div class="section" id="subject-text">
+<h4>Subject.Text<a class="headerlink" href="#subject-text" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This is used to set a <strong>constant</strong> subject text.</p>
+</div>
+<div class="section" id="body-enable">
+<h4>Body.Enable<a class="headerlink" href="#body-enable" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>on</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionMailEnableBody</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Setting this to “off” permits to exclude the actual message body.
+This may be useful for pager-like devices or cell phone SMS messages.
+The default is “on”, which is appropriate for allmost all cases. Turn
+it off only if you know exactly what you do!</p>
+</div>
+<div class="section" id="template">
+<h4>Template<a class="headerlink" href="#template" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>RSYSLOG_FileFormat</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Template to be used for the mail body (if enabled).</p>
+<p>The <em>template.subject</em> and <em>template.text</em> parameters cannot be given together
+inside a single action definition. Use either one of them. If none is used,
+a more or less meaningless mail subject is generated (we don’t tell you the exact
+text because that can change - if you want to have something specific, configure it!).</p>
+</div>
+</div>
+</div>
+<div class="section" id="caveats-known-bugs">
+<h2>Caveats/Known Bugs<a class="headerlink" href="#caveats-known-bugs" title="Permalink to this headline">¶</a></h2>
+<p>The current ommail implementation supports SMTP-direct mode only. In
+that mode, the plugin talks to the mail server via SMTP protocol. No
+other process is involved. This mode offers best reliability as it is
+not depending on any external entity except the mail server. Mail server
+downtime is acceptable if the action is put onto its own action queue,
+so that it may wait for the SMTP server to come back online. However,
+the module implements only the bare SMTP essentials. Most importantly,
+it does not provide any authentication capabilities. So your mail server
+must be configured to accept incoming mail from ommail without any
+authentication needs (this may be change in the future as need arises,
+but you may also be referred to sendmail-mode).</p>
+<p>In theory, ommail should also offer a mode where it uses the sendmail
+utility to send its mail (sendmail-mode). This is somewhat less reliable
+(because we depend on an entity we do not have close control over -
+sendmail). It also requires dramatically more system ressources, as we
+need to load the external process (but that should be no problem given
+the expected infrequent number of calls into this plugin). The big
+advantage of sendmail mode is that it supports all the bells and
+whistles of a full-blown SMTP implementation and may even work for local
+delivery without a SMTP server being present. Sendmail mode will be
+implemented as need arises. So if you need it, please drop us a line (If
+nobody does, sendmail mode will probably never be implemented).</p>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="example-1">
+<h3>Example 1<a class="headerlink" href="#example-1" title="Permalink to this headline">¶</a></h3>
+<p>The following example alerts the operator if the string “hard disk fatal
+failure” is present inside a syslog message. The mail server at
+mail.example.net is used and the subject shall be “disk problem on
+&lt;hostname&gt;”. Note how \r\n is included inside the body text to create
+line breaks. A message is sent at most once every 6 hours (21600 seconds),
+any other messages are silently discarded (or, to be precise, not being
+forwarded - they are still being processed by the rest of the configuration
+file).</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;ommail&quot;)
+
+template (name=&quot;mailBody&quot;  type=&quot;string&quot; string=&quot;RSYSLOG Alert\\r\\nmsg=&#39;%msg%&#39;&quot;)
+template (name=&quot;mailSubject&quot; type=&quot;string&quot; string=&quot;disk problem on %hostname%&quot;)
+
+if $msg contains &quot;hard disk fatal failure&quot; then {
+   action(type=&quot;ommail&quot; server=&quot;mail.example.net&quot; port=&quot;25&quot;
+          mailfrom=&quot;rsyslog@example.net&quot;
+          mailto=&quot;operator@example.net&quot;
+          subject.template=&quot;mailSubject&quot;
+          action.execonlyonceeveryinterval=&quot;21600&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-2">
+<h3>Example 2<a class="headerlink" href="#example-2" title="Permalink to this headline">¶</a></h3>
+<p>The following example is exactly like the first one, but it sends the mails
+to two different email addresses:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;ommail&quot;)
+
+template (name=&quot;mailBody&quot;  type=&quot;string&quot; string=&quot;RSYSLOG Alert\\r\\nmsg=&#39;%msg%&#39;&quot;)
+template (name=&quot;mailSubject&quot; type=&quot;string&quot; string=&quot;disk problem on %hostname%&quot;)
+
+if $msg contains &quot;hard disk fatal failure&quot; then {
+   action(type=&quot;ommail&quot; server=&quot;mail.example.net&quot; port=&quot;25&quot;
+          mailfrom=&quot;rsyslog@example.net&quot;
+          mailto=[&quot;operator@example.net&quot;, &quot;admin@example.net&quot;]
+          subject.template=&quot;mailSubject&quot;
+          action.execonlyonceeveryinterval=&quot;21600&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-3">
+<h3>Example 3<a class="headerlink" href="#example-3" title="Permalink to this headline">¶</a></h3>
+<p>Note the array syntax to specify email addresses. Note that while rsyslog
+permits you to specify as many recipients as you like, your mail server
+may limit their number. It is usually a bad idea to use more than 50
+recipients, and some servers may have lower limits. If you hit such a limit,
+you could either create additional actions or (recommended) create an
+email distribution list.</p>
+<p>The next example is again mostly equivalent to the previous one, but it uses a
+constant subject line, so no subject template is required:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;ommail&quot;)
+
+template (name=&quot;mailBody&quot;  type=&quot;string&quot; string=&quot;RSYSLOG Alert\\r\\nmsg=&#39;%msg%&#39;&quot;)
+
+if $msg contains &quot;hard disk fatal failure&quot; then {
+   action(type=&quot;ommail&quot; server=&quot;mail.example.net&quot; port=&quot;25&quot;
+          mailfrom=&quot;rsyslog@example.net&quot;
+          mailto=[&quot;operator@example.net&quot;, &quot;admin@example.net&quot;]
+          subject.text=&quot;rsyslog detected disk problem&quot;
+          action.execonlyonceeveryinterval=&quot;21600&quot;)
+}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="additional-resources">
+<h2>Additional Resources<a class="headerlink" href="#additional-resources" title="Permalink to this headline">¶</a></h2>
+<p>A more advanced example plus a discussion on using the email feature
+inside a reliable system can be found in Rainer’s blogpost “<a class="reference external" href="http://rgerhards.blogspot.com/2008/04/why-is-native-email-capability.html">Why is
+native email capability an advantage for a
+syslogd?</a>”</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">ommail: Mail Output Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#server">Server</a></li>
+<li><a class="reference internal" href="#port">Port</a></li>
+<li><a class="reference internal" href="#mailfrom">MailFrom</a></li>
+<li><a class="reference internal" href="#mailto">MailTo</a></li>
+<li><a class="reference internal" href="#subject-template">Subject.Template</a></li>
+<li><a class="reference internal" href="#subject-text">Subject.Text</a></li>
+<li><a class="reference internal" href="#body-enable">Body.Enable</a></li>
+<li><a class="reference internal" href="#template">Template</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#caveats-known-bugs">Caveats/Known Bugs</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#example-1">Example 1</a></li>
+<li><a class="reference internal" href="#example-2">Example 2</a></li>
+<li><a class="reference internal" href="#example-3">Example 3</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omlibdbi.html"
+                        title="previous chapter">omlibdbi: Generic Database Output Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="ommongodb.html"
+                        title="next chapter">ommongodb: MongoDB Output Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/ommail.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/ommail.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ommongodb.html" title="ommongodb: MongoDB Output Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omlibdbi.html" title="omlibdbi: Generic Database Output Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

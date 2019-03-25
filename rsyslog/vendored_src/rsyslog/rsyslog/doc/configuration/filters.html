@@ -1,0 +1,393 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Filter Conditions &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="RainerScript" href="../rainerscript/index.html" />
+    <link rel="prev" title="Property Replacer nomatch mode" href="nomatch.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../rainerscript/index.html" title="RainerScript"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="nomatch.html" title="Property Replacer nomatch mode"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="filter-conditions">
+<h1>Filter Conditions<a class="headerlink" href="#filter-conditions" title="Permalink to this headline">¶</a></h1>
+<p>Rsyslog offers four different types “filter conditions”:</p>
+<ul class="simple">
+<li>“traditional” severity and facility based selectors</li>
+<li>property-based filters</li>
+<li>expression-based filters</li>
+<li>BSD-style blocks (not upward compatible)</li>
+</ul>
+<div class="section" id="selectors">
+<h2>Selectors<a class="headerlink" href="#selectors" title="Permalink to this headline">¶</a></h2>
+<p><strong>Selectors are the traditional way of filtering syslog messages.</strong> They
+have been kept in rsyslog with their original syntax, because it is
+well-known, highly effective and also needed for compatibility with
+stock syslogd configuration files. If you just need to filter based on
+priority and facility, you should do this with selector lines. They are
+<strong>not</strong> second-class citizens in rsyslog and offer the simplest syntax
+for this job. In versions of rsyslog prior to v7 there were significant
+performance gains by using selector lines instead of the <code class="docutils literal"><span class="pre">advanced</span></code>
+format. There is no longer any difference in performance between the two
+formats.</p>
+<p>The selector field itself again consists of two parts, a facility and a
+priority, separated by a period (“.’‘). Both parts are case insensitive
+and can also be specified as decimal numbers, but don’t do that, you
+have been warned. Both facilities and priorities are described in
+syslog(3). The names mentioned below correspond to the similar
+LOG_-values in /usr/include/syslog.h.</p>
+<p>The facility is one of the following keywords: auth, authpriv, cron,
+daemon, kern, lpr, mail, mark, news, security (same as auth), syslog,
+user, uucp and local0 through local7. The keyword security should not be
+used anymore and mark is only for internal use and therefore should not
+be used in applications. Anyway, you may want to specify and redirect
+these messages here. The facility specifies the subsystem that produced
+the message, i.e. all mail programs log with the mail facility
+(LOG_MAIL) if they log using syslog.</p>
+<p>The priority is one of the following keywords, in ascending order:
+debug, info, notice, warning, warn (same as warning), err, error (same
+as err), crit, alert, emerg, panic (same as emerg). The keywords error,
+warn and panic are deprecated and should not be used anymore. The
+priority defines the severity of the message.</p>
+<p>The behavior of the original BSD syslogd is that all messages of the
+specified priority and higher are logged according to the given action.
+Rsyslogd behaves the same, but has some extensions.</p>
+<p>In addition to the above mentioned names the rsyslogd(8) understands
+the following extensions: An asterisk (“*’‘) stands for all facilities
+or all priorities, depending on where it is used (before or after the
+period). The keyword none stands for no priority of the given facility.
+You can specify multiple facilities with the same priority pattern in
+one statement using the comma (“,’‘) operator. You may specify as much
+facilities as you want. Remember that only the facility part from such a
+statement is taken, a priority part would be skipped.</p>
+<p>Multiple selectors may be specified for a single action using the
+semicolon (“;’‘) separator. Remember that each selector in the selector
+field is capable to overwrite the preceding ones. Using this behavior
+you can exclude some priorities from the pattern.</p>
+<p>Rsyslogd has a syntax extension to the original BSD source, that makes
+its use more intuitively. You may precede every priority with an equals
+sign (“=’‘) to specify only this single priority and not any of the
+above. You may also (both is valid, too) precede the priority with an
+exclamation mark (“!’‘) to ignore all that priorities, either exact this
+one or this and any higher priority. If you use both extensions then the
+exclamation mark must occur before the equals sign, just use it
+intuitively.</p>
+</div>
+<div class="section" id="property-based-filters">
+<h2>Property-Based Filters<a class="headerlink" href="#property-based-filters" title="Permalink to this headline">¶</a></h2>
+<p>Property-based filters are unique to rsyslogd. They allow to filter on
+any property, like HOSTNAME, syslogtag and msg. A list of all
+currently-supported properties can be found in the <a class="reference internal" href="properties.html"><span class="doc">rsyslog properties
+documentation</span></a>. With this filter, each property can be checked
+against a specified value, using a specified compare operation.</p>
+<p>A property-based filter must start with a colon <strong>in column 1</strong>. This tells
+rsyslogd that it is the new filter type. The colon must be followed by
+the property name, a comma, the name of the compare operation to carry
+out, another comma and then the value to compare against. This value
+must be quoted. There can be spaces and tabs between the commas.
+Property names and compare operations are case-sensitive, so “msg”
+works, while “MSG” is an invalid property name. In brief, the syntax is
+as follows:</p>
+<p><code class="docutils literal"><span class="pre">:property,</span> <span class="pre">[!]compare-operation,</span> <span class="pre">&quot;value&quot;</span></code></p>
+<div class="section" id="compare-operations">
+<h3>Compare-Operations<a class="headerlink" href="#compare-operations" title="Permalink to this headline">¶</a></h3>
+<p>The following <strong>compare-operations</strong> are currently supported:</p>
+<dl class="docutils">
+<dt><strong>contains</strong></dt>
+<dd>Checks if the string provided in value is contained in the property.
+There must be an exact match, wildcards are not supported.</dd>
+<dt><strong>isequal</strong></dt>
+<dd>Compares the “value” string provided and the property contents. These
+two values must be exactly equal to match. The difference to contains is
+that contains searches for the value anywhere inside the property value,
+whereas all characters must be identical for isequal. As such, isequal
+is most useful for fields like syslogtag or FROMHOST, where you probably
+know the exact contents.</dd>
+<dt><strong>startswith</strong></dt>
+<dd><p class="first">Checks if the value is found exactly at the beginning of the property
+value. For example, if you search for “val” with</p>
+<p><code class="docutils literal"><span class="pre">:msg,</span> <span class="pre">startswith,</span> <span class="pre">&quot;val&quot;</span></code></p>
+<p class="last">it will be a match if msg contains “values are in this message” but it
+won’t match if the msg contains “There are values in this message” (in
+the later case, <em>“contains”</em> would match). Please note that “startswith” is
+by far faster than regular expressions. So even once they are
+implemented, it can make very much sense (performance-wise) to use
+“startswith”.</p>
+</dd>
+<dt><strong>regex</strong></dt>
+<dd>Compares the property against the provided POSIX BRE regular expression.</dd>
+<dt><strong>ereregex</strong></dt>
+<dd>Compares the property against the provided POSIX ERE regular expression.</dd>
+</dl>
+<p>You can use the bang-character (!) immediately in front of a
+compare-operation, the outcome of this operation is negated. For
+example, if msg contains “This is an informative message”, the following
+sample would not match:</p>
+<p><code class="docutils literal"><span class="pre">:msg,</span> <span class="pre">contains,</span> <span class="pre">&quot;error&quot;</span></code></p>
+<p>but this one matches:</p>
+<p><code class="docutils literal"><span class="pre">:msg,</span> <span class="pre">!contains,</span> <span class="pre">&quot;error&quot;</span></code></p>
+<p>Using negation can be useful if you would like to do some generic
+processing but exclude some specific events. You can use the discard
+action in conjunction with that. A sample would be:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">*.*</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">allmsgs</span><span class="o">-</span><span class="n">including</span><span class="o">-</span><span class="n">informational</span><span class="o">.</span><span class="n">log</span>
+<span class="p">:</span><span class="n">msg</span><span class="p">,</span> <span class="n">contains</span><span class="p">,</span> <span class="s2">&quot;informational&quot;</span>  <span class="o">~</span>
+<span class="o">*.*</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">allmsgs</span><span class="o">-</span><span class="n">but</span><span class="o">-</span><span class="n">informational</span><span class="o">.</span><span class="n">log</span>
+</pre></div>
+</div>
+<p>Do not overlook the tilde in line 2! In this sample, all messages
+are written to the file allmsgs-including-informational.log. Then, all
+messages containing the string “informational” are discarded. That means
+the config file lines below the “discard line” (number 2 in our sample)
+will not be applied to this message. Then, all remaining lines will also
+be written to the file allmsgs-but-informational.log.</p>
+</div>
+<div class="section" id="value-part">
+<h3>Value Part<a class="headerlink" href="#value-part" title="Permalink to this headline">¶</a></h3>
+<p><strong>Value</strong> is a quoted string. It supports some escape sequences:</p>
+<dl class="docutils">
+<dt>&quot; - the quote character (e.g. “String with &quot;Quotes&quot;”)</dt>
+<dd>\ - the backslash character (e.g. “C:\tmp”)</dd>
+</dl>
+<p>Escape sequences always start with a backslash. Additional escape
+sequences might be added in the future. Backslash characters <strong>must</strong> be
+escaped. Any other sequence then those outlined above is invalid and may
+lead to unpredictable results.</p>
+<p>Probably, “msg” is the most prominent use case of property based
+filters. It is the actual message text. If you would like to filter
+based on some message content (e.g. the presence of a specific code),
+this can be done easily by:</p>
+<p><code class="docutils literal"><span class="pre">:msg,</span> <span class="pre">contains,</span> <span class="pre">&quot;ID-4711&quot;</span></code></p>
+<p>This filter will match when the message contains the string “ID-4711”.
+Please note that the comparison is case-sensitive, so it would not match
+if “id-4711” would be contained in the message.</p>
+<p><code class="docutils literal"><span class="pre">:msg,</span> <span class="pre">regex,</span> <span class="pre">&quot;fatal</span> <span class="pre">.*</span> <span class="pre">error&quot;</span></code></p>
+<p>This filter uses a POSIX regular expression. It matches when the string
+contains the words “fatal” and “error” with anything in between (e.g.
+“fatal net error” and “fatal lib error” but not “fatal error” as two
+spaces are required by the regular expression!).</p>
+<p>Getting property-based filters right can sometimes be challenging. In
+order to help you do it with as minimal effort as possible, rsyslogd
+spits out debug information for all property-based filters during their
+evaluation. To enable this, run rsyslogd in foreground and specify the
+“-d” option.</p>
+<p>Boolean operations inside property based filters (like ‘message contains
+“ID17” or message contains “ID18”’) are currently not supported (except
+for “not” as outlined above). Please note that while it is possible to
+query facility and severity via property-based filters, it is far more
+advisable to use classic selectors (see above) for those cases.</p>
+</div>
+</div>
+<div class="section" id="expression-based-filters">
+<h2>Expression-Based Filters<a class="headerlink" href="#expression-based-filters" title="Permalink to this headline">¶</a></h2>
+<p>Expression based filters allow filtering on arbitrary complex
+expressions, which can include boolean, arithmetic and string
+operations. Expression filters will evolve into a full configuration
+scripting language. Unfortunately, their syntax will slightly change
+during that process. So if you use them now, you need to be prepared to
+change your configuration files some time later. However, we try to
+implement the scripting facility as soon as possible (also in respect to
+stage work needed). So the window of exposure is probably not too long.</p>
+<p>Expression based filters are indicated by the keyword “if” in column 1
+of a new line. They have this format:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">expr</span> <span class="n">then</span> <span class="n">action</span><span class="o">-</span><span class="n">part</span><span class="o">-</span><span class="n">of</span><span class="o">-</span><span class="n">selector</span><span class="o">-</span><span class="n">line</span>
+</pre></div>
+</div>
+<p>“if” and “then” are fixed keywords that mus be present. “expr” is a
+(potentially quite complex) expression. So the <a class="reference internal" href="../rainerscript/expressions.html"><span class="doc">expression
+documentation</span></a> for details.
+“action-part-of-selector-line” is an action, just as you know it (e.g.
+“/var/log/logfile” to write to that file).</p>
+</div>
+<div class="section" id="bsd-style-blocks">
+<h2>BSD-style Blocks<a class="headerlink" href="#bsd-style-blocks" title="Permalink to this headline">¶</a></h2>
+<p><strong>Note:</strong> rsyslog v7+ does no longer support BSD-style blocks
+for technical reasons. So it is strongly recommended <strong>not</strong> to
+use them.</p>
+<p>Rsyslogd supports BSD-style blocks inside rsyslog.conf. Each block of
+lines is separated from the previous block by a program or hostname
+specification. A block will only log messages corresponding to the most
+recent program and hostname specifications given. Thus, a block which
+selects ‘ppp’ as the program, directly followed by a block that selects
+messages from the hostname ‘dialhost’, then the second block will only
+log messages from the ppp program on dialhost.</p>
+<p>A program specification is a line beginning with ‘!prog’ and the
+following blocks will be associated with calls to syslog from that
+specific program. A program specification for ‘foo’ will also match any
+message logged by the kernel with the prefix ‘foo: ’. Alternatively, a
+program specification ‘-foo’ causes the following blocks to be applied
+to messages from any program but the one specified. A hostname
+specification of the form ‘+hostname’ and the following blocks will be
+applied to messages received from the specified hostname. Alternatively,
+a hostname specification ‘-hostname’ causes the following blocks to be
+applied to messages from any host but the one specified. If the hostname
+is given as ‘&#64;’, the local hostname will be used. (NOT YET IMPLEMENTED)
+A program or hostname specification may be reset by giving the program
+or hostname as ‘*’.</p>
+<p>Please note that the “#!prog”, “#+hostname” and “#-hostname” syntax
+available in BSD syslogd is not supported by rsyslogd. By default, no
+hostname or program is set.</p>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span>*.* /var/log/file1 # the traditional way
+if $msg contains &#39;error&#39; then /var/log/errlog # the expression-based way
+</pre></div>
+</div>
+<p>Right now, you need to specify numerical values if you would like to
+check for facilities and severity. These can be found in <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5424.html"><strong>RFC 5424</strong></a>.
+If you don’t like that,
+you can of course also use the textual property - just be sure to use
+the right one. As expression support is enhanced, this will change. For
+example, if you would like to filter on message that have facility
+local0, start with “DEVNAME” and have either “error1” or “error0” in
+their message content, you could use the following filter:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>if $syslogfacility-text == &#39;local0&#39; and $msg startswith &#39;DEVNAME&#39; and ($msg contains &#39;error1&#39; or $msg contains &#39;error0&#39;) then /var/log/somelog
+</pre></div>
+</div>
+<p>Please note that the above must all be on one line! And if you would
+like to store all messages except those that contain “error1” or
+“error0”, you just need to add a “not”:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>if $syslogfacility-text == &#39;local0&#39; and $msg startswith &#39;DEVNAME&#39; and not ($msg contains &#39;error1&#39; or $msg contains &#39;error0&#39;) then /var/log/somelog
+</pre></div>
+</div>
+<p>If you would like to do case-insensitive comparisons, use “contains_i”
+instead of “contains” and “startswith_i” instead of “startswith”.
+Note that regular expressions are currently NOT supported in
+expression-based filters. These will be added later when function
+support is added to the expression engine (the reason is that regular
+expressions will be a separate loadable module, which requires some more
+prequisites before it can be implemented).</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Filter Conditions</a><ul>
+<li><a class="reference internal" href="#selectors">Selectors</a></li>
+<li><a class="reference internal" href="#property-based-filters">Property-Based Filters</a><ul>
+<li><a class="reference internal" href="#compare-operations">Compare-Operations</a></li>
+<li><a class="reference internal" href="#value-part">Value Part</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#expression-based-filters">Expression-Based Filters</a></li>
+<li><a class="reference internal" href="#bsd-style-blocks">BSD-style Blocks</a></li>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="nomatch.html"
+                        title="previous chapter">Property Replacer nomatch mode</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../rainerscript/index.html"
+                        title="next chapter">RainerScript</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/filters.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/filters.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../rainerscript/index.html" title="RainerScript"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="nomatch.html" title="Property Replacer nomatch mode"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,144 @@
+WARNING
+=======
+
+This file is somewhat obsolete, for current information look at doc/
+directory.
+
+Basic syntax
+============
+
+Each line in rulebase file is evaluated separately.
+Lines starting with '#' are commentaries.
+Empty lines are just skipped, they can be inserted for readability.
+If the line starts with 'rule=', then it contains a rule. This line has
+following format:
+
+	rule=[<tag1>[,<tag2>...]]:<match description>
+	
+Everything before a colon is treated as comma-separated list of tags, which
+will be attached to a match. After the colon, match description should be
+given. It consists of string literals and field selectors. String literals
+should match exactly. Field selector has this format:
+
+	%<field name>:<field type>[:<extra data>]%
+
+Percent sign is used to enclose field selector. If you need to match literal
+'%', it can be written as '%%' or '\x25'.
+
+Behaviour of field selector depends on its type, which is decribed below.
+
+If field name is set to '-', this field is matched but not saved.
+
+Several rules can have a common prefix. You can set it once with this syntax:
+
+	prefix=<prefix match description>
+	
+Every following rule will be treated as an addition to this prefix.
+
+Prefix can be reset to default (empty value) by the line:
+
+	prefix=
+
+Tags of the matched rule are attached to the message and can be used to
+annotate it. Annotation allows to add fixed fields to the message.
+Syntax is as following:
+
+	annotate=<tag>:+<field name>="<field value>"
+
+Field value should always be enclosed in double quote marks.
+
+There can be multiple annotations for the same tag.
+
+Field types
+===========
+
+Field type:		'number'
+Matches:		One or more decimal digits.
+Extra data:		Not used
+Example:		%field_name:number%
+
+Field type:		'word'
+Matches:		One or more characters, up to the next space (\x20), or
+				up to end of line.
+Extra data:		Not used
+Example:		%field_name:word%
+
+Field type:		'alpha'
+Matches:		One or more alphabetic characters, up to the next
+				whitespace, punctuation, decimal digit or ctrl.
+Extra data:		Not used
+Example:		%field_name:alpha%
+
+Field type:		'char-to'
+Matches:		One or more characters, up to the next character given in
+				extra data.
+Extra data:		One character (can be escaped)
+Example:		%field_name:char-to:,%
+				%field_name:char-to:\x25%
+
+Field type:		'char-sep'
+Matches:		Zero or more characters, up to the next character given in
+				extra data, or up to end of line.
+Extra data:		One character (can be escaped)
+Example:		%field_name:char-sep:,%
+				%field_name:char-sep:\x25%
+
+Field type:		'rest'
+Matches:		Zero or more characters till end of line.
+Extra data:		Not used
+Example:		%field_name:rest%
+Notes:			Should be always at end of the rule.
+
+Field type:		'quoted-string'
+Matches:		Zero or more characters, surrounded by double quote marks.
+Extra data:		Not used
+Example:		%field_name:quoted-string%
+Notes:			Quote marks are stripped from the match.
+
+Field type:		'date-iso'
+Matches:		Date of format 'YYYY-MM-DD'.
+Extra data:		Not used
+Example:		%field-name:date-iso%
+
+Field type:		'time-24hr'
+Matches:		Time of format 'HH:MM:SS', where HH is 00..23.
+Extra data:		Not used
+Example:		%field_name:time-24hr%
+
+Field type:		'time-12hr'
+Matches:		Time of format 'HH:MM:SS', where HH is 00..12.
+Extra data:		Not used
+Example:		%field_name:time-12hr%
+
+Field type:		'ipv4'
+Matches:		IPv4 address, in dot-decimal notation (AAA.BBB.CCC.DDD).
+Extra data:		Not used
+Example:		%field_name:ipv4%
+
+Field type:		'date-rfc3164'
+Matches:		Valid date/time in RFC3164 format, i.e.: 'Oct 29 09:47:08'
+Extra data:		Not used
+Example:		%field_name:date-rfc3164%
+Notes:			This parser implements several quirks to match malformed
+				timestamps from some devices.
+
+Field type:		'date-rfc5424'
+Matches:		Valid date/time in RFC5424 format, i.e.:
+				'1985-04-12T19:20:50.52-04:00'
+Extra data:		Not used
+Example:		%field_name:date-rfc5424%
+Notes:			Slightly different formats are allowed.
+
+Field type:		'iptables'
+Matches:		Name=value pairs, separated by spaces, as in Netfilter log
+				messages.
+Extra data:		Not used
+Example:		%-:iptables%
+Notes:			Name of the selector is not used; names from the line are 
+				used instead. This selector always matches everything till 
+				end of the line. Cannot match zero characters.
+
+Examples
+========
+
+Look at sample.rulebase for example rules and matching lines.

@@ -1,0 +1,354 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Rsyslog Debug Support &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="troubleshooting problems" href="troubleshoot.html" />
+    <link rel="prev" title="Troubleshooting SELinux-Related Issues" href="selinux.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="troubleshoot.html" title="troubleshooting problems"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="selinux.html" title="Troubleshooting SELinux-Related Issues"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Troubleshooting</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="rsyslog-debug-support">
+<h1>Rsyslog Debug Support<a class="headerlink" href="#rsyslog-debug-support" title="Permalink to this headline">¶</a></h1>
+<p>For harder to find issues, rsyslog has integrated debug support. Usually,
+this is not required for finding configuration issues but rather
+to hunt for program or plugin bugs. However, there are several
+occasions where debug log has proven to be quite helpful in finding
+out configuration issues.</p>
+<p>Part of debug supports is activated by
+adding the <code class="docutils literal"><span class="pre">--enable-rtinst</span></code> ./configure option (“rtinst” means runtime
+instrumentation). Turning debugging on obviously costs some performance
+(in some cases considerable). For typical cases, runtime instrumentation
+is <em>not</em> required.</p>
+<div class="section" id="signals-supported">
+<h2>Signals supported<a class="headerlink" href="#signals-supported" title="Permalink to this headline">¶</a></h2>
+<p><strong>SIGUSR1</strong> - turns debug messages on and off. Note that for this signal
+to work, rsyslogd must be running with debugging enabled, either via the
+-d command line switch or the environment options specified below. It is
+<strong>not</strong> required that rsyslog was compiled with debugging enabled (but
+depending on the settings this may lead to better debug info).</p>
+<p><strong>SIGUSR2</strong> - outputs debug information (including active threads and a
+call stack) for the state when SIGUSR2 was received. This is a one-time
+output. Can be sent as often as the user likes.</p>
+<p><strong>Note:</strong> this signal <strong>may go away</strong> in later releases and may be
+replaced by something else.</p>
+</div>
+<div class="section" id="environment-variables">
+<h2>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<p>There are two environment variables that set several debug settings:</p>
+<ul>
+<li><p class="first">The “RSYSLOG_DEBUGLOG” (sample:
+&nbsp;RSYSLOG_DEBUGLOG=”/path/to/debuglog/debug.log”) writes (allmost) all debug
+message to the specified log file in addition to stdout. Some system
+messages (e.g. segfault or abort message) are not written to the file
+as we can not capture them.</p>
+</li>
+<li><p class="first">Runtime debug support is controlled by “RSYSLOG_DEBUG”.</p>
+<p>The “RSYSLOG_DEBUG” environment variable contains an option string
+with the following options possible (all are case insensitive):</p>
+<ul class="simple">
+<li><strong>LogFuncFlow</strong> - print out the logical flow of functions
+(entering and exiting them)</li>
+<li><strong>FileTrace</strong> - specifies which files to trace LogFuncFlow. If
+<strong>not</strong> set (the default), a LogFuncFlow trace is provided for all
+files. Set to limit it to the files specified. FileTrace may be
+specified multiple times, one file each (e.g. export
+RSYSLOG_DEBUG=”LogFuncFlow FileTrace=vm.c FileTrace=expr.c”</li>
+<li><strong>PrintFuncDB</strong> - print the content of the debug function database
+whenever debug information is printed (e.g. abort case)!</li>
+<li><strong>PrintAllDebugInfoOnExit</strong> - print all debug information
+immediately before rsyslogd exits (currently not implemented!)</li>
+<li><strong>PrintMutexAction</strong> - print mutex action as it happens. Useful
+for finding deadlocks and such.</li>
+<li><strong>NoLogTimeStamp</strong> - do not prefix log lines with a timestamp
+(default is to do that).</li>
+<li><strong>NoStdOut</strong> - do not emit debug messages to stdout. If
+RSYSLOG_DEBUGLOG is not set, this means no messages will be
+displayed at all.</li>
+<li><strong>Debug</strong> - if present, turns on the debug system and enables
+debug output</li>
+<li><strong>DebugOnDemand</strong> - if present, turns on the debug system but does
+not enable debug output itself. You need to send SIGUSR1 to turn
+it on when desired.</li>
+<li><strong>OutputTidToStderr</strong> - if present, makes rsyslog output
+information about the thread id (tid) of newly created processes to
+stderr. Note that not necessarily all new threads are reported
+(depends on the code, e.g. of plugins). This is only available
+under Linux. This usually does NOT work when privileges have been
+dropped (that’s not a bug, but the way it is).</li>
+<li><strong>help</strong> - display a very short list of commands - hopefully a
+life saver if you can’t access the documentation…</li>
+</ul>
+<p>Individual options are separated by spaces.</p>
+</li>
+</ul>
+<div class="section" id="why-environment-variables">
+<h3>Why Environment Variables?<a class="headerlink" href="#why-environment-variables" title="Permalink to this headline">¶</a></h3>
+<p>You may ask why we use environment variables for debug-system parameters
+and not the usual rsyslog.conf configuration commands. After all,
+environment variables force one to change distro-specific configuration
+files, whereas regular configuration directives would fit nicely into
+the one central rsyslog.conf.</p>
+<p>The problem here is that many settings of the debug system must be
+initialized before the full rsyslog engine starts up. At that point,
+there is no such thing like rsyslog.conf or the objects needed to
+process it present in an running instance. And even if we would enable
+to change settings some time later, that would mean that we can not
+correctly monitor (and debug) the initial startup phase of rsyslogd.
+What makes matters worse is that during this startup phase (and never
+again later!) some of the base debug structure needs to be created, at
+least if the build is configured for that (many of these things only
+happen in –enable-rtinst mode). So if we do not initialize the debug
+system <strong>before</strong> actually starting up the rsyslog core, we get a number
+of data structures wrong.</p>
+<p>For these reasons, we utilize environment variables to initialize and
+configure the debugging system. We understand this may be somewhat
+painful, but now you know there are at least some good reasons for doing
+so.</p>
+<p>HOWEVER, if you have a too hard time to set debug instructions using the
+environment variables, there is a cure, described in the next paragraph.</p>
+</div>
+</div>
+<div class="section" id="enabling-debug-via-rsyslog-conf">
+<h2>Enabling Debug via rsyslog.conf<a class="headerlink" href="#enabling-debug-via-rsyslog-conf" title="Permalink to this headline">¶</a></h2>
+<p>As described in the previous paragraph, enabling debug via rsyslog.conf
+may not be perfect for some debugging needs, but basic debug output will
+work - and that is what most often is required. There are limited
+options available, but these cover the most important use cases.</p>
+<p>Debug processing is done via legacy config statements. There currently
+is no plan to move these over to the v6+ config system. Available
+settings are</p>
+<ul class="simple">
+<li>$DebugFile &lt;filename&gt; - sets the debug file name</li>
+<li>$DebugLevel &lt;0|1|2&gt; - sets the respective debug level, where 0
+means debug off, 1 is debug on demand activated (but debug mode off)
+and 2 is full debug mode.</li>
+</ul>
+<p>Note that in theory it is forbidden to specify these parameters more
+than once. However, we do not enforce that and if it happens results are
+undefined.</p>
+</div>
+<div class="section" id="getting-debug-information-from-a-running-instance">
+<h2>Getting debug information from a running Instance<a class="headerlink" href="#getting-debug-information-from-a-running-instance" title="Permalink to this headline">¶</a></h2>
+<p>It is possible to obtain debugging information from a running instance,
+but this requires some setup. We assume that the instance runs in the
+background, so debug output to stdout is not desired. As such, all debug
+information needs to go into a log file.</p>
+<p>To create this setup, you need to</p>
+<ul class="simple">
+<li>point the RSYSLOG_DEBUGLOG environment variable to a file that is
+accessible during the while runtime (we strongly suggest a file in
+the local file system!)</li>
+<li>set RSYSLOG_DEBUG at least to “DebugOnDeman NoStdOut”</li>
+<li>make sure these environment variables are set in the correct
+(distro-specifc) startup script if you do not run rsyslogd
+interactively</li>
+</ul>
+<p>These settings enable the capability to react to SIGUSR1. The signal
+will toggle debug status when received. So send it once to turn debug
+logging on, and send it again to turn debug logging off again. The third
+time it will be turned on again … and so on.</p>
+<p>On a typical system, you can signal rsyslogd as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>kill -USR1 `cat /var/run/rsyslogd.pid`
+</pre></div>
+</div>
+<p>Important: there are backticks around the “cat”-command. If you use the
+regular quote it won’t work. The debug log will show whether debug
+logging has been turned on or off. There is no other indication of the
+status.</p>
+<p>Note: running with DebugOnDemand by itself does in practice not have any
+performance toll. However, switching debug logging on has a severe
+performance toll. Also, debug logging synchronizes much of the code,
+removing a lot of concurrency and thus potential race conditions. As
+such, the very same running instance may behave very differently with
+debug logging turned on vs. off. The on-demand debug log functionality
+is considered to be very valuable to analyze hard-to-find bugs that only
+manifest after a long runtime. Turning debug logging on a failing
+instance may reveal the cause of the failure. However, depending on the
+failure, debug logging may not even be successfully turned on. Also
+note that with this rsyslog version we cannot obtain any debug
+information on events that happened <em>before</em> debug logging was turned
+on.</p>
+<p>If an instance hangs, it is possible to obtain some useful information
+about the current threads and their calling stack by sending SIGUSR2.
+However, the usefulness of that information is very much depending on
+rsyslog compile-time settings, must importantly the –enable-rtinst
+configure flag. Note that activating this option causes additional
+overhead and slows down rsyslgod considerable. So if you do that, you
+need to check if it is capable to handle the workload. Also, threading
+behavior is modified by the runtime instrumentation.</p>
+<p>Sending SIGUSR2 writes new process state information to the log file
+each time it is sent. So it may be useful to do that from time to time.
+It probably is most useful if the process seems to hang, in which case
+it may (may!) be able to output some diagnostic information on the
+current processing state. In that case, turning on the mutex debugging
+options (see above) is probably useful.</p>
+</div>
+<div class="section" id="interpreting-the-logs">
+<h2>Interpreting the Logs<a class="headerlink" href="#interpreting-the-logs" title="Permalink to this headline">¶</a></h2>
+<p>Debug logs are primarily meant for rsyslog developers. But they may
+still provide valuable information to users. Just be warned that logs
+sometimes contains information the looks like an error, but actually is
+none. We put a lot of extra information into the logs, and there are
+some cases where it is OK for an error to happen, we just wanted to
+record it inside the log. The code handles many cases automatically. So,
+in short, the log may not make sense to you, but it (hopefully) makes
+sense to a developer. Note that we developers often need many lines of
+the log file, it is relatively rare that a problem can be diagnosed by
+looking at just a couple of (hundred) log records.</p>
+</div>
+<div class="section" id="security-risks">
+<h2>Security Risks<a class="headerlink" href="#security-risks" title="Permalink to this headline">¶</a></h2>
+<p>The debug log will reveal potentially sensible information, including
+user accounts and passwords, to anyone able to read the log file. As
+such, it is recommended to properly guard access to the log file. Also,
+an instance running with debug log enabled runs much slower than one
+without. An attacker may use this to place carry out a denial-of-service
+attack or try to hide some information from the log file. As such, it is
+suggested to enable DebugOnDemand mode only for a reason. Note that when
+no debug mode is enabled, SIGUSR1 and SIGUSR2 are completely ignored.</p>
+<p>When running in any of the debug modes (including on demand mode), an
+interactive instance of rsyslogd can be aborted by pressing ctl-c.</p>
+</div>
+<div class="section" id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.rsyslog.com/how-to-use-debug-on-demand/">How to use debug on
+demand</a></li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Rsyslog Debug Support</a><ul>
+<li><a class="reference internal" href="#signals-supported">Signals supported</a></li>
+<li><a class="reference internal" href="#environment-variables">Environment Variables</a><ul>
+<li><a class="reference internal" href="#why-environment-variables">Why Environment Variables?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#enabling-debug-via-rsyslog-conf">Enabling Debug via rsyslog.conf</a></li>
+<li><a class="reference internal" href="#getting-debug-information-from-a-running-instance">Getting debug information from a running Instance</a></li>
+<li><a class="reference internal" href="#interpreting-the-logs">Interpreting the Logs</a></li>
+<li><a class="reference internal" href="#security-risks">Security Risks</a></li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="selinux.html"
+                        title="previous chapter">Troubleshooting SELinux-Related Issues</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="troubleshoot.html"
+                        title="next chapter">troubleshooting problems</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/troubleshooting/debug.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/troubleshooting/debug.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="troubleshoot.html" title="troubleshooting problems"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="selinux.html" title="Troubleshooting SELinux-Related Issues"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Troubleshooting</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

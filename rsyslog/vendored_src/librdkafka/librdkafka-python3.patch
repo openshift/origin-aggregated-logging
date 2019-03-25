@@ -1,0 +1,42 @@
+diff -up ./configure.librdkafka.python3 ./configure.librdkafka
+--- ./configure.librdkafka.python3	2018-06-28 14:31:29.059417830 +0200
++++ ./configure.librdkafka	2018-06-28 14:31:54.328300531 +0200
+@@ -179,7 +179,7 @@ void foo (void) {
+ 
+     # The linker-script generator (lds-gen.py) requires python
+     if [[ $WITH_LDS == y ]]; then
+-        if ! mkl_command_check python "HAVE_PYTHON" "disable" "python -V"; then
++        if ! mkl_command_check python "HAVE_PYTHON" "disable" "python3 -V"; then
+             mkl_err "disabling linker-script since python is not available"
+             mkl_mkvar_set WITH_LDS WITH_LDS "n"
+         fi
+diff -up ./lds-gen.py.python3 ./lds-gen.py
+--- ./lds-gen.py.python3	2017-07-19 22:10:29.000000000 +0200
++++ ./lds-gen.py	2018-06-28 14:22:12.745022430 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python3
+ #
+ #
+ # Generate linker script to only expose symbols of the public API
+diff -up ./Makefile.python3 ./Makefile
+--- ./Makefile.python3	2018-06-28 14:32:46.176059853 +0200
++++ ./Makefile	2018-06-28 14:32:56.542011734 +0200
+@@ -5,7 +5,7 @@ CHECK_FILES+=	CONFIGURATION.md \
+ 		examples/rdkafka_example_cpp
+ 
+ PACKAGE_NAME?=	librdkafka
+-VERSION?=	$(shell python packaging/get_version.py src/rdkafka.h)
++VERSION?=	$(shell python3 packaging/get_version.py src/rdkafka.h)
+ 
+ # Jenkins CI integration
+ BUILD_NUMBER ?= 1
+diff -up ./packaging/get_version.py.python3 ./packaging/get_version.py
+--- ./packaging/get_version.py.python3	2018-06-28 14:33:48.825769032 +0200
++++ ./packaging/get_version.py	2018-06-28 14:33:57.385729296 +0200
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python3
+ 
+ import sys
+ 

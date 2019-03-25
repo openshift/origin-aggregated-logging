@@ -1,0 +1,6 @@
+use_valgrind=@VALGRIND@
+
+echo "Using valgrind: $use_valgrind"
+if [ $use_valgrind == "yes" ]; then
+    cmd="valgrind --error-exitcode=191 --malloc-fill=ff --free-fill=fe --leak-check=full --trace-children=yes $cmd"
+fi

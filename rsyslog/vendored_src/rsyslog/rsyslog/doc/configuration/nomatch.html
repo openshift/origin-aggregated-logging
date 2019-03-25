@@ -1,0 +1,191 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Property Replacer nomatch mode &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Filter Conditions" href="filters.html" />
+    <link rel="prev" title="The Property Replacer" href="property_replacer.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="filters.html" title="Filter Conditions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="property_replacer.html" title="The Property Replacer"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="property_replacer.html" accesskey="U">The Property Replacer</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="property-replacer-nomatch-mode">
+<h1>Property Replacer nomatch mode<a class="headerlink" href="#property-replacer-nomatch-mode" title="Permalink to this headline">¶</a></h1>
+<p><strong>The “nomatch-Mode” specifies which string the property replacer shall
+return if a regular expression did not find the search string.</strong>.
+Traditionally, the string “**NO MATCH**” was returned, but many
+people complained this was almost never useful. Still, this mode is
+support as “<strong>DFLT</strong>” for legacy configurations.</p>
+<p>Three additional and potentially useful modes exist: in one (<strong>BLANK</strong>)
+a blank string is returned. This is probably useful for inserting values
+into databases where no value shall be inserted if the expression could
+not be found.</p>
+<p>A similar mode is “<strong>ZERO</strong>” where the string “0” is returned. This is
+suitable for numerical values. A use case may be that you record a
+traffic log based on firewall rules and the “bytes transmitted” counter
+is extracted via a regular expression. If no “bytes transmitted” counter
+is available in the current message, it is probably a good idea to
+return an empty string, which the database layer can turn into a zero.</p>
+<p>The other mode is “<strong>FIELD</strong>”, in which the complete field is
+returned. This may be useful in cases where absense of a match is
+considered a failure and the message that triggered it shall be logged.</p>
+<p>If in doubt, <strong>it is highly suggested to use the</strong> <a class="reference external" href="http://www.rsyslog.com/tool-regex">rsyslog online regular
+expression checker and generator</a>
+<strong>to see these options in action</strong>. With that online tool, you can craft
+regular expressions based on samples and try out the different modes.</p>
+<div class="section" id="summary-of-nomatch-modes">
+<h2>Summary of nomatch Modes<a class="headerlink" href="#summary-of-nomatch-modes" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="17%" />
+<col width="83%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Mode</strong></td>
+<td><strong>Returned</strong></td>
+</tr>
+<tr class="row-even"><td>DFLT</td>
+<td>“**NO MATCH**”</td>
+</tr>
+<tr class="row-odd"><td>BLANK</td>
+<td>“” (empty string)</td>
+</tr>
+<tr class="row-even"><td>ZERO</td>
+<td>“0”</td>
+</tr>
+<tr class="row-odd"><td>FIELD</td>
+<td>full content of original field</td>
+</tr>
+<tr class="row-even"><td>&#160;</td>
+<td><a class="reference external" href="http://www.rsyslog.com/tool-regex">Interactive Tool</a></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Property Replacer nomatch mode</a><ul>
+<li><a class="reference internal" href="#summary-of-nomatch-modes">Summary of nomatch Modes</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="property_replacer.html"
+                        title="previous chapter">The Property Replacer</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="filters.html"
+                        title="next chapter">Filter Conditions</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/nomatch.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/nomatch.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="filters.html" title="Filter Conditions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="property_replacer.html" title="The Property Replacer"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="property_replacer.html" >The Property Replacer</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

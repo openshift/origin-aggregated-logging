@@ -1,0 +1,222 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>libgcrypt Log Crypto Provider (gcry) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Dynamic Stats" href="dyn_stats.html" />
+    <link rel="prev" title="Notes on IPv6 Handling in Rsyslog" href="ipv6.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="dyn_stats.html" title="Dynamic Stats"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ipv6.html" title="Notes on IPv6 Handling in Rsyslog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="libgcrypt-log-crypto-provider-gcry">
+<h1>libgcrypt Log Crypto Provider (gcry)<a class="headerlink" href="#libgcrypt-log-crypto-provider-gcry" title="Permalink to this headline">¶</a></h1>
+<p><strong>Crypto Provider Name:</strong>&nbsp;&nbsp;&nbsp; gcry</p>
+<p><strong>Author:</strong> Rainer Gerhards &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</p>
+<p><strong>Supported Since:</strong> since 7.3.10</p>
+<p><strong>Description</strong>:</p>
+<p>Provides encryption support to rsyslog.</p>
+<p><strong>Configuration Parameters</strong>:</p>
+<p>Crypto providers are loaded by omfile, when the provider is selected in
+its “cry.providerName” parameter. Parameters for the provider are given
+in the omfile action instance line.</p>
+<p>This provider creates an encryption information file with the same base
+name but the extension “.encinfo” for each log file (both for fixed-name
+files as well as dynafiles). Both files together form a set. So you need
+to archive both in order to prove integrity.</p>
+<ul>
+<li><p class="first"><strong>cry.algo</strong> &lt;Encryption Algorithm&gt;
+The algorithm (cipher) to be used for encryption. The default algorithm is “AES128”.
+Currently, the following Algorithms are supported:</p>
+<ul class="simple">
+<li>3DES</li>
+<li>CAST5</li>
+<li>BLOWFISH</li>
+<li>AES128</li>
+<li>AES192</li>
+<li>AES256</li>
+<li>TWOFISH</li>
+<li>TWOFISH128</li>
+<li>ARCFOUR</li>
+<li>DES</li>
+<li>SERPENT128</li>
+<li>SERPENT192</li>
+<li>SERPENT256</li>
+<li>RFC2268_40</li>
+<li>SEED</li>
+<li>CAMELLIA128</li>
+<li>CAMELLIA192</li>
+<li>CAMELLIA256</li>
+</ul>
+<p>The actual availability of an algorithms depends on which ones are
+compiled into libgcrypt. Note that some versions of libgcrypt simply
+abort the process (rsyslogd in this case!) if a supported algorithm
+is select but not available due to libgcrypt build settings. There is
+nothing rsyslog can do against this. So in order to avoid production
+downtime, always check carefully when you change the algorithm.</p>
+</li>
+<li><p class="first"><strong>cry.mode</strong> &lt;Algorithm Mode&gt;
+The encryption mode to be used. Default ist Cipher Block Chaining
+(CBC). Note that not all encryption modes can be used together with
+all algorithms.
+Currently, the following modes are supported:</p>
+<ul class="simple">
+<li>ECB</li>
+<li>CFB</li>
+<li>CBC</li>
+<li>STREAM</li>
+<li>OFB</li>
+<li>CTR</li>
+<li>AESWRAP</li>
+</ul>
+</li>
+<li><p class="first"><strong>cry.key</strong> &lt;encryption key&gt;
+TESTING AID, NOT FOR PRODUCTION USE. This uses the KEY specified
+inside rsyslog.conf. This is the actual key, and as such this mode is
+highly insecure. However, it can be useful for intial testing steps.
+This option may be removed in the future.</p>
+</li>
+<li><p class="first"><strong>cry.keyfile</strong> &lt;filename&gt;
+Reads the key from the specified file. The file must contain the
+key, only, no headers or other meta information. Keyfiles can be
+generated via the rscrytool utility.</p>
+</li>
+<li><p class="first"><strong>cry.keyprogram</strong> &lt;path to program&gt;
+If given, the key is provided by a so-called “key program”. This
+program is executed and must return the key (as well as some meta
+information) via stdout. The core idea of key programs is that using
+this interface the user can implement as complex (and secure) method
+to obtain keys as desired, all without the need to make modifications
+to rsyslog.</p>
+</li>
+</ul>
+<p><strong>Caveats/Known Bugs:</strong></p>
+<ul class="simple">
+<li>currently none known</li>
+</ul>
+<p><strong>Samples:</strong></p>
+<p>This encrypts a log file. Default parameters are used, they key is
+provided via a keyfile.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/var/log/somelog&quot;</span> <span class="n">cry</span><span class="o">.</span><span class="n">provider</span><span class="o">=</span><span class="s2">&quot;gcry&quot;</span>
+       <span class="n">cry</span><span class="o">.</span><span class="n">keyfile</span><span class="o">=</span><span class="s2">&quot;/secured/path/to/keyfile&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that the keyfile can be generated via the rscrytool utility (see its
+documentation for how to actually do that).</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="ipv6.html"
+                        title="previous chapter">Notes on IPv6 Handling in Rsyslog</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="dyn_stats.html"
+                        title="next chapter">Dynamic Stats</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/cryprov_gcry.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/cryprov_gcry.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="dyn_stats.html" title="Dynamic Stats"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ipv6.html" title="Notes on IPv6 Handling in Rsyslog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

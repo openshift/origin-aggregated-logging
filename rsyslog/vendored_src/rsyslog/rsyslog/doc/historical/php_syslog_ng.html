@@ -1,0 +1,282 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Using php-syslog-ng with rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SSL Encrypting Syslog with Stunnel" href="stunnel.html" />
+    <link rel="prev" title="Historical Documents" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="stunnel.html" title="SSL Encrypting Syslog with Stunnel"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Historical Documents"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="using-php-syslog-ng-with-rsyslog">
+<h1>Using php-syslog-ng with rsyslog<a class="headerlink" href="#using-php-syslog-ng-with-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by</em> <a class="reference external" href="https://rainer.gerhards.net">Rainer Gerhards</a> <em>(2005-08-04)</em></p>
+<p>Note: it has been reported that this guide is somewhat outdated. Most
+importantly, this guide is for the <strong>original</strong> php-syslog-ng and
+<strong>cannot</strong> be used for it successor logzilla. Please
+use the guide with care. Also, please note that <strong>rsyslog’s “native” web frontend
+is</strong> <a class="reference external" href="http://www.phplogcon.org">Adiscon LogAnalyzer</a>, which provides best
+integration and a lot of extra functionality.</p>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p><strong>In this paper, I describe how to use</strong>
+<a class="reference external" href="http://www.vermeer.org/projects/php-syslog-ng">php-syslog-ng</a> <strong>with</strong>
+<a class="reference external" href="http://www.rsyslog.com/">rsyslogd</a>.&nbsp;Php-syslog-ng is a popular web
+interface to syslog data. Its name stem from the fact that it usually
+picks up its data from a database created by
+<a class="reference external" href="http://www.balabit.com/products/syslog_ng/">syslog-ng</a> and some
+helper scripts. However, there is nothing syslog-ng specific in the
+database. With rsyslogd’s high customizability, it is easy to write to a
+syslog-ng like schema. I will tell you how to do this, enabling you to
+use php-syslog-ng as a front-end for rsyslogd - or save the hassle with
+syslog-ng database configuration and simply go ahead and use rsyslogd
+instead.*</p>
+</div>
+<div class="section" id="overall-system-setup">
+<h2>Overall System Setup<a class="headerlink" href="#overall-system-setup" title="Permalink to this headline">¶</a></h2>
+<p>The setup is pretty straightforward. Basically, php-syslog-ng’s
+interface to the syslogd is the database. We use the schema that
+php-syslog-ng expects and make rsyslogd write to it in its format.
+Because of this, php-syslog-ng does not even know there is no syslog-ng
+present.</p>
+</div>
+<div class="section" id="setting-up-the-system">
+<h2>Setting up the system<a class="headerlink" href="#setting-up-the-system" title="Permalink to this headline">¶</a></h2>
+<p>For php-syslog-ng, you can follow its usual setup instructions. Just
+skip any steps refering to configure syslog-ng. Make sure you create the
+database schema in <a class="reference external" href="http://www.mysql.com/">MySQL</a>. As of this writing,
+the expected schema can be created via this script:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>CREATE DATABASE syslog
+USE syslog
+CREATE TABLE logs(host varchar(32) default NULL,
+                  facility varchar(10)
+                  default NULL,
+                  priority varchar(10) default NULL,
+                  level varchar(10) default NULL,
+                  tag varchar(10) default NULL,
+                  date date default NULL,
+                  time time default NULL,
+                  program varchar(15) default NULL,
+                  msg text,
+                  seq int(10) unsigned NOT NULL auto_increment,
+                  PRIMARY KEY (seq),
+                  KEY host (host),
+                  KEY seq (seq),
+                  KEY program (program),
+                  KEY time (time),
+                  KEY date (date),
+                  KEY priority (priority),
+                  KEY facility (facility
+                 ) TYPE=MyISAM;``
+</pre></div>
+</div>
+<p>Please note that at the time you are reading this paper, the schema
+might have changed. Check for any differences. As we customize rsyslogd
+to the schema, it is vital to have the correct one. If this paper is
+outdated, <a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">let me know</a> so that I can
+fix it.</p>
+<p>Once this schema is created, we simply instruct rsyslogd to store
+received data in it. I wont go into too much detail here. If you are
+interested in some more details, you might find my paper “<a class="reference external" href="rsyslog_mysql.html">Writing
+syslog messages to MySQL</a>” worth reading. For
+this article, we simply modify <a class="reference external" href="rsyslog_conf.html">rsyslog.conf</a>so
+that it writes to the database. That is easy. Just these two lines are
+needed:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$template syslog-ng,&quot;insert into logs(host, facility, priority, tag, date, time, msg) values (&#39;%HOSTNAME%&#39;, %syslogfacility%, %syslogpriority%, &#39;%syslogtag%&#39;, &#39;%timereported:::date-mysql%&#39;, &#39;%timereported:::date-mysql%&#39;, &#39;%msg%&#39;)&quot;, SQL
+*.*,           mysql-server,syslog,user,pass;syslog-ng
+</pre></div>
+</div>
+<p>These are just <strong>two</strong> lines. I have color-coded them so that you see
+what belongs together (the colors have no other meaning). The green line
+is the actual SQL statement being used to take care of the syslog-ng
+schema. Rsyslogd allows you to fully control the statement sent to the
+database. This allows you to write to any database format, including
+your homegrown one (if you so desire). Please note that there is a small
+inefficiency in our current usage: the
+<code class="docutils literal"><span class="pre">'%timereported:::date-mysql%'</span></code>
+property is used for both the time
+and the date (if you wonder about what all these funny characters mean,
+see the <a class="reference external" href="property_replacer.html">rsyslogd property replacer manual</a>) .
+We could have extracted just the date and time parts of the respective
+properties. However, this is more complicated and also adds processing
+time to rsyslogd’s processing (substrings must be extracted). So we take
+a full mysql-formatted timestamp and supply it to MySQL. The sql engine
+in turn discards the unneeded part. It works pretty well. As of my
+understanding, the inefficiency of discarding the unneeded part in MySQL
+is lower than the effciency gain from using the full timestamp in
+rsyslogd. So it is most probably the best solution.</p>
+<p>Please note that rsyslogd knows two different timestamp properties: one
+is timereported, used here. It is the timestamp from the message itself.
+Sometimes that is a good choice, in other cases not. It depends on your
+environment. The other one is the timegenerated property. This is the
+time when rsyslogd received the message. For obvious reasons, that
+timestamp is consistent, even when your devices are in multiple time
+zones or their clocks are off. However, it is not “the real thing”. It’s
+your choice which one you prefer. If you prefer timegenerated … simply
+use it ;)</p>
+<p>The line in red tells rsyslogd which messages to log and where to store
+it. The “*.*” selects all messages. You can use standard syslog
+selector line filters here if you do not like to see everything in your
+database. The “&gt;” tells rsyslogd that a MySQL connection must be
+established. Then, “mysql-server” is the name or IP address of the
+server machine, “syslog” is the database name (default from the schema)
+and “user” and “pass” are the logon credentials. Use a user with low
+privileges, insert into the logs table is sufficient. “syslog-ng” is the
+template name and tells rsyslogd to use the SQL statement shown above.</p>
+<p>Once you have made the changes, all you need to do is restart rsyslogd.
+Then, you should see syslog messages flow into your database - and show
+up in php-syslog-ng.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>With minumal effort, you can use php-syslog-ng together with rsyslogd.
+For those unfamiliar with syslog-ng, this configuration is probably
+easier to set up then switching to syslog-ng. For existing rsyslogd
+users, php-syslog-ng might be a nice add-on to their logging
+infrastructure.</p>
+<p>Please note that the <a class="reference external" href="http://www.monitorware.com/en/">MonitorWare
+family</a> (to which rsyslog belongs)
+also offers a web-interface: <a class="reference external" href="http://www.phplogcon.org">Adiscon LogAnalyzer</a>.
+From my point of view, obviously, <strong>phpLogCon is the more natural choice
+for a web interface to be used together with rsyslog</strong>. It also offers
+superb functionality and provides, for example,native display of Windows
+event log entries. I have set up a <a class="reference external" href="http://demo.phplogcon.org/">demo
+server</a>., You can have a peek at it
+without installing anything.</p>
+</div>
+<div class="section" id="references-and-additional-material">
+<h2>References and Additional Material<a class="headerlink" href="#references-and-additional-material" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.vermeer.org/projects/php-syslog-ng">php-syslog-ng</a></li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Using php-syslog-ng with rsyslog</a><ul>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#overall-system-setup">Overall System Setup</a></li>
+<li><a class="reference internal" href="#setting-up-the-system">Setting up the system</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+<li><a class="reference internal" href="#references-and-additional-material">References and Additional Material</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Historical Documents</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="stunnel.html"
+                        title="next chapter">SSL Encrypting Syslog with Stunnel</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/historical/php_syslog_ng.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/historical/php_syslog_ng.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="stunnel.html" title="SSL Encrypting Syslog with Stunnel"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Historical Documents"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,315 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>JSON/CEE Structured Content Extraction Module (mmjsonparse) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Kubernetes Metadata Module (mmkubernetes)" href="mmkubernetes.html" />
+    <link rel="prev" title="Fields Extraction Module (mmfields)" href="mmfields.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="mmkubernetes.html" title="Kubernetes Metadata Module (mmkubernetes)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mmfields.html" title="Fields Extraction Module (mmfields)"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" accesskey="U">Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="json-cee-structured-content-extraction-module-mmjsonparse">
+<h1>JSON/CEE Structured Content Extraction Module (mmjsonparse)<a class="headerlink" href="#json-cee-structured-content-extraction-module-mmjsonparse" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>mmjsonparse</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="http://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+<tr class="row-odd"><td><strong>Available since:</strong></td>
+<td>6.6.0</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This module provides support for parsing structured log messages that
+follow the CEE/lumberjack spec. The so-called “CEE cookie” is checked
+and, if present, the JSON-encoded structured message content is parsed.
+The properties are then available as original message properties.</p>
+<p>As a convenience, mmjsonparse will produce a valid CEE/lumberjack log
+message if passed a message without the CEE cookie.  A JSON structure
+will be created and the “msg” field will be the only field and it will
+contain the message. Note that in this case, mmjsonparse will
+nonetheless return that the JSON parsing has failed.</p>
+<p>The “CEE cookie” is the character squence “&#64;cee:” which must prepend the
+actual JSON. Note that the JSON must be valid and MUST NOT be followed
+by any non-JSON message. If either of these conditions is not true,
+mmjsonparse will <strong>not</strong> parse the associated JSON. This is based on the
+cookie definition used in CEE/project lumberjack and is meant to aid
+against an erroneous detection of a message as being CEE where it is
+not.</p>
+<p>This also means that mmjsonparse currently is NOT a generic JSON parser
+that picks up JSON from whereever it may occur in the message. This is
+intentional, but future versions may support config parameters to relax
+the format requirements.</p>
+</div>
+<div class="section" id="notable-features">
+<h2>Notable Features<a class="headerlink" href="#notable-features" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="#mmjsonparse-parsing-result"><span class="std std-ref">Check parsing result</span></a></li>
+</ul>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="cookie">
+<h4>cookie<a class="headerlink" href="#cookie" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>&#64;cee:</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Permits to set the cookie that must be present in front of the
+JSON part of the message.</p>
+<p>Most importantly, this can be set to the empty string (“”) in order
+to not require any cookie. In this case, leading spaces are permitted
+in front of the JSON. No non-whitespace characters are permitted
+after the JSON. If such is required, mmnormalize must be used.</p>
+</div>
+<div class="section" id="userawmsg">
+<h4>useRawMsg<a class="headerlink" href="#userawmsg" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Specifies if the raw message should be used for normalization (on)
+or just the MSG part of the message (off).</p>
+</div>
+<div class="section" id="container">
+<h4>container<a class="headerlink" href="#container" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>$!</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Specifies the JSON container (path) under which parsed elements should be
+placed. By default, all parsed properties are merged into root of
+message properties. You can place them under a subtree, instead. You
+can place them in local variables, also, by setting path=”$.”.</p>
+</div>
+</div>
+</div>
+<div class="section" id="check-parsing-result">
+<span id="mmjsonparse-parsing-result"></span><h2>Check parsing result<a class="headerlink" href="#check-parsing-result" title="Permalink to this headline">¶</a></h2>
+<p>You can check whether rsyslogd was able to successfully parse the
+message by reading the $parsesuccess variable :</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action(type=&quot;mmjsonparse&quot;)
+if $parsesuccess == &quot;OK&quot; then {
+   action(type=&quot;omfile&quot; File=&quot;/tmp/output&quot;)
+}
+else if $parsesuccess == &quot;FAIL&quot; then {
+   action(type=&quot;omfile&quot; File=&quot;/tmp/parsing_failure&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="apply-default-normalization">
+<h3>Apply default normalization<a class="headerlink" href="#apply-default-normalization" title="Permalink to this headline">¶</a></h3>
+<p>This activates the module and applies normalization to all messages.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;mmjsonparse&quot;)
+action(type=&quot;mmjsonparse&quot;)
+</pre></div>
+</div>
+</div>
+<div class="section" id="permit-parsing-messages-without-cookie">
+<h3>Permit parsing messages without cookie<a class="headerlink" href="#permit-parsing-messages-without-cookie" title="Permalink to this headline">¶</a></h3>
+<p>To permit parsing messages without cookie, use this action statement</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action(type=&quot;mmjsonparse&quot; cookie=&quot;&quot;)
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">JSON/CEE Structured Content Extraction Module (mmjsonparse)</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#notable-features">Notable Features</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#cookie">cookie</a></li>
+<li><a class="reference internal" href="#userawmsg">useRawMsg</a></li>
+<li><a class="reference internal" href="#container">container</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#check-parsing-result">Check parsing result</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#apply-default-normalization">Apply default normalization</a></li>
+<li><a class="reference internal" href="#permit-parsing-messages-without-cookie">Permit parsing messages without cookie</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mmfields.html"
+                        title="previous chapter">Fields Extraction Module (mmfields)</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mmkubernetes.html"
+                        title="next chapter">Kubernetes Metadata Module (mmkubernetes)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/mmjsonparse.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/mmjsonparse.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="mmkubernetes.html" title="Kubernetes Metadata Module (mmkubernetes)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mmfields.html" title="Fields Extraction Module (mmfields)"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" >Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

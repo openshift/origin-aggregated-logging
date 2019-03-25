@@ -1,0 +1,455 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>The Property Replacer &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Property Replacer nomatch mode" href="nomatch.html" />
+    <link rel="prev" title="rsyslog Properties" href="properties.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="nomatch.html" title="Property Replacer nomatch mode"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="properties.html" title="rsyslog Properties"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-property-replacer">
+<h1>The Property Replacer<a class="headerlink" href="#the-property-replacer" title="Permalink to this headline">¶</a></h1>
+<p><strong>The property replacer is a core component in rsyslogd’s</strong> <a class="reference external" href="templates.html">string template
+system</a>. A syslog message has a number of well-defined properties.
+Each of this properties can be accessed <strong>and</strong> manipulated by
+the property replacer. With it, it is easy to use only part of a
+property value or manipulate the value, e.g. by converting all
+characters to lower case.</p>
+<div class="section" id="accessing-properties">
+<h2>Accessing Properties<a class="headerlink" href="#accessing-properties" title="Permalink to this headline">¶</a></h2>
+<p>Syslog message properties are used inside templates. They are accessed
+by putting them between percent signs. Properties can be modified by the
+property replacer. The full syntax is as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">%</span><span class="nb">property</span><span class="p">:</span><span class="n">fromChar</span><span class="p">:</span><span class="n">toChar</span><span class="p">:</span><span class="n">options</span><span class="o">%</span>
+</pre></div>
+</div>
+<div class="section" id="available-properties">
+<h3>Available Properties<a class="headerlink" href="#available-properties" title="Permalink to this headline">¶</a></h3>
+<p>The property replacer can use all <a class="reference internal" href="properties.html"><span class="doc">rsyslog properties</span></a>.</p>
+</div>
+<div class="section" id="character-positions">
+<h3>Character Positions<a class="headerlink" href="#character-positions" title="Permalink to this headline">¶</a></h3>
+<p><strong>FromChar</strong> and <strong>toChar</strong> are used to build substrings. They
+specify the offset within the string that should be copied. Offset
+counting starts at 1, so if you need to obtain the first 2 characters of
+the message text, you can use this syntax: “%msg:1:2%”. If you do not
+whish to specify from and to, but you want to specify options, you still
+need to include the colons. For example, if you would like to convert
+the full message text to lower case, use “%msg:::lowercase%”. If you
+would like to extract from a position until the end of the string, you
+can place a dollar-sign (“$”) in toChar (e.g. %msg:10:$%, which will
+extract from position 10 to the end of the string).</p>
+<p>There is also support for <strong>regular expressions</strong>. To use them, you need
+to place a “R” into FromChar. This tells rsyslog that a regular
+expression instead of position-based extraction is desired. The actual
+regular expression must then be provided in toChar. The regular
+expression <strong>must</strong> be followed by the string “–end”. It denotes the
+end of the regular expression and will not become part of it. If you are
+using regular expressions, the property replacer will return the part of
+the property text that matches the regular expression. An example for a
+property replacer sequence with a regular expression is:
+“%msg:R:.*Sev:. \(.*\) \[.*–end%”</p>
+<p>It is possible to specify some parametes after the “R”. These are
+comma-separated. They are:</p>
+<p>R,&lt;regexp-type&gt;,&lt;submatch&gt;,&lt;<a class="reference internal" href="nomatch.html"><span class="doc">nomatch</span></a>&gt;,&lt;match-number&gt;</p>
+<p>regexp-type is either “BRE” for Posix basic regular expressions or “ERE”
+for extended ones. The string must be given in upper case. The default
+is “BRE” to be consistent with earlier versions of rsyslog that did not
+support ERE. The submatch identifies the submatch to be used with the
+result. A single digit is supported. Match 0 is the full match, while 1
+to 9 are the acutal submatches. The match-number identifies which match
+to use, if the expression occurs more than once inside the string.
+Please note that the first match is number 0, the second 1 and so on. Up
+to 10 matches (up to number 9) are supported. Please note that it would
+be more natural to have the match-number in front of submatch, but this
+would break backward-compatibility. So the match-number must be
+specified after “nomatch”.</p>
+<p><a class="reference internal" href="nomatch.html"><span class="doc">nomatch</span></a> specifies what should be used in
+case no match is found.</p>
+<p>The following is a sample of an ERE expression that takes the first
+submatch from the message string and replaces the expression with the
+full field if no match is found:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">%</span><span class="n">msg</span><span class="p">:</span><span class="n">R</span><span class="p">,</span><span class="n">ERE</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">FIELD</span><span class="p">:</span><span class="k">for</span> <span class="p">(</span><span class="n">vlan</span><span class="p">[</span><span class="mi">0</span><span class="o">-</span><span class="mi">9</span><span class="p">]</span>\<span class="o">*</span><span class="p">):</span><span class="o">--</span><span class="n">end</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>and this takes the first submatch of the second match of said
+expression:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">%</span><span class="n">msg</span><span class="p">:</span><span class="n">R</span><span class="p">,</span><span class="n">ERE</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">FIELD</span><span class="p">,</span><span class="mi">1</span><span class="p">:</span><span class="k">for</span> <span class="p">(</span><span class="n">vlan</span><span class="p">[</span><span class="mi">0</span><span class="o">-</span><span class="mi">9</span><span class="p">]</span>\<span class="o">*</span><span class="p">):</span><span class="o">--</span><span class="n">end</span><span class="o">%</span>
+</pre></div>
+</div>
+<p><strong>Please note: there is also a</strong> <a class="reference external" href="http://www.rsyslog.com/tool-regex">rsyslog regular expression
+checker/generator</a> <strong>online tool
+available.</strong> With that tool, you can check your regular expressions and
+also generate a valid property replacer sequence. Usage of this tool is
+recommended. Depending on the version offered, the tool may not cover
+all subleties that can be done with the property replacer. It
+concentrates on the most often used cases. So it is still useful to
+hand-craft expressions for demanding environments.</p>
+<p><strong>Also, extraction can be done based on so-called “fields”</strong>. To do so,
+place a “F” into FromChar. A field in its current definition is anything
+that is delimited by a delimiter character. The delimiter by default is
+TAB (US-ASCII value 9). However, if can be changed to any other US-ASCII
+character by specifying a comma and the <strong>decimal</strong> US-ASCII value of
+the delimiter immediately after the “F”. For example, to use comma (“,”)
+as a delimiter, use this field specifier: “F,44”.&nbsp; If your syslog data
+is delimited, this is a quicker way to extract than via regular
+expressions (actually, a <em>much</em> quicker way). Field counting starts at
+1. Field zero is accepted, but will always lead to a “field not found”
+error. The same happens if a field number higher than the number of
+fields in the property is requested. The field number must be placed in
+the “ToChar” parameter. An example where the 3rd field (delimited by
+TAB) from the msg property is extracted is as follows: “%msg:F:3%”. The
+same example with semicolon as delimiter is “%msg:F,59:3%”.</p>
+<p>The use of fields does not permit to select substrings, what is rather
+unfortunate. To solve this issue, starting with 6.3.9, fromPos and toPos
+can be specified for strings as well. However, the syntax is quite ugly,
+but it was the only way to integrate this functonality into the
+already-existing system. To do so, use “,fromPos” and “,toPos” during
+field extraction. Let’s assume you want to extract the substring from
+position 5 to 9 in the previous example. Then, the syntax is as follows:
+“%msg:F,59,5:3,9%”. As you can see, “F,59” means field-mode, with
+semicolon delimiter and “,5” means starting at position 5. Then “3,9”
+means field 3 and string extraction to position 9.</p>
+<p>Please note that the special characters “F” and “R” are case-sensitive.
+Only upper case works, lower case will return an error. There are no
+white spaces permitted inside the sequence (that will lead to error
+messages and will NOT provide the intended result).</p>
+<p>Each occurence of the field delimiter starts a new field. However, if
+you add a plus sign (“+”) after the field delimiter, multiple
+delimiters, one immediately after the others, are treated as separate
+fields. This can be useful in cases where the syslog message contains
+such sequences. A frequent case may be with code that is written as
+follows:</p>
+<hr class="docutils" />
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nb">int</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
+<span class="o">...</span>
+<span class="n">syslog</span><span class="p">(</span><span class="n">LOG_ERR</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> test </span><span class="si">%6d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This will result into things like this in syslog messages: “1
+test&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2”, “1 test&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;23”, “1 test&nbsp;&nbsp;234567”</p>
+<p>As you can see, the fields are delimited by space characters, but their
+exact number is unknown. They can properly be extracted as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="s2">&quot;%msg:F,32:2%&quot;</span> <span class="n">to</span> <span class="s2">&quot;%msg:F,32+:2%&quot;</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>This feature was suggested by Zhuang Yuyao and implemented by him. It is
+modeled after perl compatible regular expressions.</p>
+</div>
+<div class="section" id="property-options">
+<h3>Property Options<a class="headerlink" href="#property-options" title="Permalink to this headline">¶</a></h3>
+<p><strong>Property options</strong> are case-insensitive. Currently, the following
+options are defined:</p>
+<dl class="docutils">
+<dt><strong>uppercase</strong></dt>
+<dd>convert property to uppercase only</dd>
+<dt><strong>lowercase</strong></dt>
+<dd>convert property text to lowercase only</dd>
+<dt><strong>fixed-width</strong></dt>
+<dd>changes behaviour of toChar so that it pads the source string with spaces
+up to the value of toChar if the source string is shorter.
+<em>This feature was introduced in rsyslog 8.13.0</em></dd>
+<dt><strong>json</strong></dt>
+<dd>encode the value so that it can be used inside a JSON field. This means
+that several characters (according to the JSON spec) are being escaped, for
+example US-ASCII LF is replaced by “\n”.
+The json option cannot be used together with either jsonf or csv options.</dd>
+<dt><strong>jsonf</strong>[:outname]</dt>
+<dd><p class="first">(available in 6.3.9+)
+This signifies that the property should be expressed as a JSON field.
+That means not only the property is written, but rather a complete JSON field in
+the format</p>
+<p><code class="docutils literal"><span class="pre">&quot;fieldname&quot;=&quot;value&quot;</span></code></p>
+<p>where “fieldname” is given in the <em>outname</em> property (or the property name
+if none was assigned) and value is the end result of property replacer operation.
+Note that value supports all property replacer options, like substrings, case
+converson and the like. Values are properly JSON-escaped, however field names are
+(currently) not, so it is expected that proper field names are configured.
+The jsonf option cannot be used together with either json or csv options.</p>
+<p class="last">For more information you can read <a class="reference external" href="https://rainer.gerhards.net/2012/04/rsyslog-templates-json.html">this article from Rainer’s blog</a>.</p>
+</dd>
+<dt><strong>csv</strong></dt>
+<dd>formats the resulting field (after all modifications) in CSV format as
+specified in <a class="reference external" href="http://www.ietf.org/rfc/rfc4180.txt">RFC 4180</a>. Rsyslog
+will always use double quotes. Note that in order to have full
+CSV-formatted text, you need to define a proper template. An example is
+this one:
+$template csvline,”%syslogtag:::csv%,%msg:::csv%”
+Most importantly, you need to provide the commas between the fields
+inside the template.
+<em>This feature was introduced in rsyslog 4.1.6.</em></dd>
+<dt><strong>drop-last-lf</strong></dt>
+<dd>The last LF in the message (if any), is dropped. Especially useful for
+PIX.</dd>
+<dt><strong>date-utc</strong></dt>
+<dd>convert data to UTC prior to outputing it (available since 8.18.0)</dd>
+<dt><strong>date-mysql</strong></dt>
+<dd>format as mysql date</dd>
+<dt><strong>date-rfc3164</strong></dt>
+<dd>format as RFC 3164 date</dd>
+<dt><strong>date-rfc3164-buggyday</strong></dt>
+<dd><p class="first">similar to date-rfc3164, but emulates a common coding error: RFC 3164
+demands that a space is written for single-digit days. With this option,
+a zero is written instead. This format seems to be used by syslog-ng and
+the date-rfc3164-buggyday option can be used in migration scenarios
+where otherwise lots of scripts would need to be adjusted. It is
+recommended <em>not</em> to use this option when forwarding to remote hosts -
+they may treat the date as invalid (especially when parsing strictly
+according to RFC 3164).</p>
+<p class="last"><em>This feature was introduced in rsyslog 4.6.2 and v4 versions above and
+5.5.3 and all versions above.</em></p>
+</dd>
+<dt><strong>date-rfc3339</strong></dt>
+<dd>format as RFC 3339 date</dd>
+<dt><strong>date-unixtimestamp</strong></dt>
+<dd>Format as a unix timestamp (seconds since epoch)</dd>
+<dt><strong>date-year</strong></dt>
+<dd>just the year part (4-digit) of a timestamp</dd>
+<dt><strong>date-month</strong></dt>
+<dd>just the month part (2-digit) of a timestamp</dd>
+<dt><strong>date-day</strong></dt>
+<dd>just the day part (2-digit) of a timestamp</dd>
+<dt><strong>date-hour</strong></dt>
+<dd>just the hour part (2-digit, 24-hour clock) of a timestamp</dd>
+<dt><strong>date-minute</strong></dt>
+<dd>just the minute part (2-digit) of a timestamp</dd>
+<dt><strong>date-second</strong></dt>
+<dd>just the second part (2-digit) of a timestamp</dd>
+<dt><strong>date-subseconds</strong></dt>
+<dd>just the subseconds of a timestamp (always 0 for a low precision
+timestamp)</dd>
+<dt><strong>date-tzoffshour</strong></dt>
+<dd>just the timezone offset hour part (2-digit) of a timestamp</dd>
+<dt><strong>date-tzoffsmin</strong></dt>
+<dd>just the timezone offset minute part (2-digit) of a timestamp. Note
+that this is usually 0, but there are some time zones that have
+offsets which are not hourly-granular. If so, this is the minute
+offset.</dd>
+<dt><strong>date-tzoffsdirection</strong></dt>
+<dd>just the timezone offset direction part of a timestamp. This
+specifies if the offsets needs to be added (“+”) or subtracted (“-“)
+to the timestamp in order to get UTC.</dd>
+<dt><strong>date-ordinal</strong></dt>
+<dd>returns the ordinal for the given day, e.g. it is 2 for January, 2nd</dd>
+<dt><strong>date-week</strong></dt>
+<dd>returns the week number</dd>
+<dt><strong>date-wday</strong></dt>
+<dd>just the weekday number of the timstamp. This is a single digit,
+with 0=Sunday, 1=Monday, …, 6=Saturday.</dd>
+<dt><strong>date-wdayname</strong></dt>
+<dd>just the abbreviated english name of the weekday (e.g. “Mon”, “Sat”) of
+the timestamp.</dd>
+<dt><strong>escape-cc</strong></dt>
+<dd>replace control characters (ASCII value 127 and values less then 32)
+with an escape sequence. The sequence is “#&lt;charval&gt;” where charval is
+the 3-digit decimal value of the control character. For example, a
+tabulator would be replaced by “#009”.
+Note: using this option requires that
+<a class="reference external" href="rsconf1_escapecontrolcharactersonreceive.html">$EscapeControlCharactersOnReceive</a>
+is set to off.</dd>
+<dt><strong>space-cc</strong></dt>
+<dd>replace control characters by spaces
+Note: using this option requires that
+<a class="reference external" href="rsconf1_escapecontrolcharactersonreceive.html">$EscapeControlCharactersOnReceive</a>
+is set to off.</dd>
+<dt><strong>drop-cc</strong></dt>
+<dd>drop control characters - the resulting string will neither contain
+control characters, escape sequences nor any other replacement character
+like space.
+Note: using this option requires that
+<a class="reference external" href="rsconf1_escapecontrolcharactersonreceive.html">$EscapeControlCharactersOnReceive</a>
+is set to off.</dd>
+<dt><strong>compressspace</strong></dt>
+<dd>compresses multiple spaces (US-ASCII SP character) inside the
+string to a single one. This compression happens at a very late
+stage in processing. Most importantly, it happens after substring
+extraction, so the <strong>FromChar</strong> and <strong>ToChar</strong> positions are <strong>NOT</strong>
+affected by this option. (available since v8.18.0)</dd>
+<dt><strong>sp-if-no-1st-sp</strong></dt>
+<dd>This option looks scary and should probably not be used by a user. For
+any field given, it returns either a single space character or no
+character at all. Field content is never returned. A space is returned
+if (and only if) the first character of the field’s content is NOT a
+space. This option is kind of a hack to solve a problem rooted in RFC
+3164: 3164 specifies no delimiter between the syslog tag sequence and
+the actual message text. Almost all implementation in fact delimit the
+two by a space. As of RFC 3164, this space is part of the message text
+itself. This leads to a problem when building the message (e.g. when
+writing to disk or forwarding). Should a delimiting space be included if
+the message does not start with one? If not, the tag is immediately
+followed by another non-space character, which can lead some log parsers
+to misinterpret what is the tag and what the message. The problem
+finally surfaced when the klog module was restructured and the tag
+correctly written. It exists with other message sources, too. The
+solution was the introduction of this special property replacer option.
+Now, the default template can contain a conditional space, which exists
+only if the message does not start with one. While this does not solve
+all issues, it should work good enough in the far majority of all cases.
+If you read this text and have no idea of what it is talking about -
+relax: this is a good indication you will never need this option. Simply
+forget about it ;)</dd>
+<dt><strong>secpath-drop</strong></dt>
+<dd>Drops slashes inside the field (e.g. “a/b” becomes “ab”). Useful for
+secure pathname generation (with dynafiles).</dd>
+<dt><strong>secpath-replace</strong></dt>
+<dd>Replace slashes inside the field by an underscore. (e.g. “a/b” becomes
+“a_b”). Useful for secure pathname generation (with dynafiles).</dd>
+</dl>
+<p>To use multiple options, simply place them one after each other with a
+comma delimiting them. For example “escape-cc,sp-if-no-1st-sp”. If you
+use conflicting options together, the last one will override the
+previous one. For example, using “escape-cc,drop-cc” will use drop-cc
+and “drop-cc,escape-cc” will use escape-cc mode.</p>
+</div>
+</div>
+<div class="section" id="further-links">
+<h2>Further Links<a class="headerlink" href="#further-links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Article on “<a class="reference internal" href="../tutorials/recording_pri.html"><span class="doc">Recording the Priority of Syslog
+Messages</span></a>” (describes use of
+templates to record severity and facility of a message)</li>
+<li><a class="reference external" href="rsyslog_conf.html">Configuration file syntax</a>, this is where you
+actually use the property replacer.</li>
+</ul>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="nomatch.html">Property Replacer nomatch mode</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="nomatch.html#summary-of-nomatch-modes">Summary of nomatch Modes</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">The Property Replacer</a><ul>
+<li><a class="reference internal" href="#accessing-properties">Accessing Properties</a><ul>
+<li><a class="reference internal" href="#available-properties">Available Properties</a></li>
+<li><a class="reference internal" href="#character-positions">Character Positions</a></li>
+<li><a class="reference internal" href="#property-options">Property Options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#further-links">Further Links</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="properties.html"
+                        title="previous chapter">rsyslog Properties</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="nomatch.html"
+                        title="next chapter">Property Replacer nomatch mode</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/property_replacer.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/property_replacer.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="nomatch.html" title="Property Replacer nomatch mode"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="properties.html" title="rsyslog Properties"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

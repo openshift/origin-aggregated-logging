@@ -1,0 +1,93 @@
+diff -up ./plugins/imjournal/imjournal.c.default-tag ./plugins/imjournal/imjournal.c
+--- ./plugins/imjournal/imjournal.c.default-tag	2018-05-17 08:50:11.416418022 -0400
++++ ./plugins/imjournal/imjournal.c	2018-05-17 08:53:02.884418022 -0400
+@@ -78,6 +78,7 @@ static struct configSettings_s {
+ 	int bUseJnlPID;
+ 	char *usePid;
+ 	int bWorkAroundJournalBug;
++	char *dfltTag;
+ } cs;
+ 
+ static rsRetVal facilityHdlr(uchar **pp, void *pVal);
+@@ -93,7 +94,8 @@ static struct cnfparamdescr modpdescr[]
+ 	{ "defaultfacility", eCmdHdlrString, 0 },
+ 	{ "usepidfromsystem", eCmdHdlrBinary, 0 },
+ 	{ "usepid", eCmdHdlrString, 0 },
+-	{ "workaroundjournalbug", eCmdHdlrBinary, 0 }
++	{ "workaroundjournalbug", eCmdHdlrBinary, 0 },
++	{ "defaulttag", eCmdHdlrGetWord, 0 }
+ };
+ static struct cnfparamblk modpblk =
+ 	{ CNFPARAMBLK_VERSION,
+@@ -104,6 +106,7 @@ static struct cnfparamblk modpblk =
+ #define DFLT_persiststateinterval 10
+ #define DFLT_SEVERITY pri2sev(LOG_NOTICE)
+ #define DFLT_FACILITY pri2fac(LOG_USER)
++#define DFLT_TAG "journal"
+ 
+ static int bLegacyCnfModGlobalsPermitted = 1;/* are legacy module-global config parameters permitted? */
+ 
+@@ -268,7 +271,7 @@ readjournal(void)
+ 
+ 	/* Information from messages */
+ 	char *message = NULL;
+-	char *sys_iden;
++	char *sys_iden = NULL;
+ 	char *sys_iden_help = NULL;
+ 	char *c = NULL;
+ 
+@@ -331,7 +334,7 @@ readjournal(void)
+ 	if (sd_journal_get_data(j, "SYSLOG_IDENTIFIER", &get, &length) >= 0) {
+ 		CHKiRet(sanitizeValue(((const char *)get) + 18, length - 18, &sys_iden));
+ 	} else {
+-		CHKmalloc(sys_iden = strdup("journal"));
++		CHKmalloc(sys_iden = strdup(cs.dfltTag));
+ 	}
+ 
+ 	/* trying to get PID, default is "SYSLOG_PID" property */
+@@ -654,6 +657,11 @@ CODESTARTrunInput
+ 			"\"usepidfromsystem\" is depricated, use \"usepid\" instead");
+ 	}
+ 
++	if (cs.dfltTag == NULL) {
++		cs.dfltTag = strdup(DFLT_TAG);
++	}
++
++
+ 	if (cs.usePid && (strcmp(cs.usePid, "system") == 0)) {
+ 		pidFieldName = "_PID";
+ 		bPidFallBack = 0;
+@@ -732,6 +740,7 @@ CODESTARTbeginCnfLoad
+ 	cs.bUseJnlPID = -1;
+ 	cs.usePid = NULL;
+ 	cs.bWorkAroundJournalBug = 0;
++	cs.dfltTag = NULL;
+ ENDbeginCnfLoad
+ 
+ 
+@@ -754,6 +763,7 @@ BEGINfreeCnf
+ CODESTARTfreeCnf
+ 	free(cs.stateFile);
+ 	free(cs.usePid);
++	free(cs.dfltTag);
+	statsobj.Destruct(&(statsCounter.stats));
+ ENDfreeCnf
+ 
+@@ -832,6 +842,8 @@ CODESTARTsetModCnf
+ 			cs.usePid = (char *)es_str2cstr(pvals[i].val.d.estr, NULL);
+ 		} else if (!strcmp(modpblk.descr[i].name, "workaroundjournalbug")) {
+ 			cs.bWorkAroundJournalBug = (int) pvals[i].val.d.n;
++		} else if (!strcmp(modpblk.descr[i].name, "defaulttag")) {
++			cs.dfltTag = (char *)es_str2cstr(pvals[i].val.d.estr, NULL);
+ 		} else {
+ 			dbgprintf("imjournal: program error, non-handled "
+ 				"param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
+@@ -799,6 +820,8 @@ CODEmodInit_QueryRegCFSLineHdlr
+ 		facilityHdlr, &cs.iDfltFacility, STD_LOADABLE_MODULE_ID));
+ 	CHKiRet(omsdRegCFSLineHdlr((uchar *)"imjournalusepidfromsystem", 0, eCmdHdlrBinary,
+ 		NULL, &cs.bUseJnlPID, STD_LOADABLE_MODULE_ID));
++	CHKiRet(omsdRegCFSLineHdlr((uchar *)"imjournaldefaulttag", 0, eCmdHdlrGetWord,
++		NULL, &cs.dfltTag, STD_LOADABLE_MODULE_ID));
+ ENDmodInit
+ /* vim:set ai:
+  */

@@ -1,0 +1,296 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Reliable Forwarding of syslog Messages with Rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Recording the Priority of Syslog Messages" href="recording_pri.html" />
+    <link rel="prev" title="Handling a massive syslog database insert rate with Rsyslog" href="high_database_rate.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="recording_pri.html" title="Recording the Priority of Syslog Messages"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="high_database_rate.html" title="Handling a massive syslog database insert rate with Rsyslog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Tutorials</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="reliable-forwarding-of-syslog-messages-with-rsyslog">
+<h1>Reliable Forwarding of syslog Messages with Rsyslog<a class="headerlink" href="#reliable-forwarding-of-syslog-messages-with-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by</em> <a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a>
+<em>(2008-06-27)</em></p>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p><strong>In this paper, I describe how to forward</strong>
+<a class="reference external" href="http://www.monitorware.com/en/topics/syslog/">syslog</a> <strong>messages
+(quite) reliable to a central rsyslog server.</strong> This depends on rsyslog
+being installed on the client system and it is recommended to have it
+installed on the server system. Please note that industry-standard
+<a class="reference external" href="https://rainer.gerhards.net/2008/04/on-unreliability-of-plain-tcp-syslog.html">plain TCP syslog protocol is not fully
+reliable</a>
+(thus the “quite reliable”). If you need a truly reliable solution, you
+need to look into RELP (natively supported by rsyslog).*</p>
+</div>
+<div class="section" id="the-intention">
+<h2>The Intention<a class="headerlink" href="#the-intention" title="Permalink to this headline">¶</a></h2>
+<p>Whenever two systems talk over a network, something can go wrong. For
+example, the communications link may go down, or a client or server may
+abort. Even in regular cases, the server may be offline for a short
+period of time because of routine maintenance.</p>
+<p>A logging system should be capable of avoiding message loss in
+situations where the server is not reachable. To do so, unsent data
+needs to be buffered at the client while the server is offline. Then,
+once the server is up again, this data is to be sent.</p>
+<p>This can easily be acomplished by rsyslog. In rsyslog, every action runs
+on its own queue and each queue can be set to buffer data if the action
+is not ready. Of course, you must be able to detect that “the action is
+not ready”, which means the remote server is offline. This can be
+detected with plain TCP syslog and RELP, but not with UDP. So you need
+to use either of the two. In this howto, we use plain TCP syslog.</p>
+<p>Please note that we are using rsyslog-specific features. The are
+required on the client, but not on the server. So the client system must
+run rsyslog (at least version 3.12.0), while on the server another
+syslogd may be running, as long as it supports plain tcp syslog.</p>
+<p><strong>The rsyslog queueing subsystem tries to buffer to memory. So even if
+the remote server goes offline, no disk file is generated.</strong> File on
+disk are created only if there is need to, for example if rsyslog runs
+out of (configured) memory queue space or needs to shutdown (and thus
+persist yet unsent messages). Using main memory and going to the disk
+when needed is a huge performance benefit. You do not need to care about
+it, because, all of it is handled automatically and transparently by
+rsyslog.</p>
+</div>
+<div class="section" id="how-to-setup">
+<h2>How To Setup<a class="headerlink" href="#how-to-setup" title="Permalink to this headline">¶</a></h2>
+<p>First, you need to create a working directory for rsyslog. This is where
+it stores its queue files (should need arise). You may use any location
+on your local system.</p>
+<p>Next, you need to do is instruct rsyslog to use a disk queue and then
+configure your action. There is nothing else to do. With the following
+simple config file, you forward anything you receive to a remote server
+and have buffering applied automatically when it goes down. This must be
+done on the client machine.</p>
+<div class="highlight-linux-config"><div class="highlight"><pre><span></span>$ModLoad imuxsock <span class="c1"># local message reception</span>
+$WorkDirectory /rsyslog/work <span class="c1"># default location for work (spool) files</span>
+$ActionQueueType LinkedList <span class="c1"># use asynchronous processing</span>
+$ActionQueueFileName srvrfwd <span class="c1"># set file name, also enables disk mode</span>
+$ActionResumeRetryCount -1 <span class="c1"># infinite retries on insert failure</span>
+$ActionQueueSaveOnShutdown on <span class="c1"># save in-memory data if rsyslog shuts down</span>
+*.* @@server:port
+</pre></div>
+</div>
+<p>The port given above is optional. It may not be specified, in which case
+you only provide the server name. The “$ActionQueueFileName” is used to
+create queue files, should need arise. This value must be unique inside
+rsyslog.conf. No two rules must use the same queue file. Also, for
+obvious reasons, it must only contain those characters that can be used
+inside a valid file name. Rsyslog possibly adds some characters in front
+and/or at the end of that name when it creates files. So that name
+should not be at the file size name length limit (which should not be a
+problem these days).</p>
+<p>Please note that actual spool files are only created if the remote
+server is down <strong>and</strong> there is no more space in the in-memory queue. By
+default, a short failure of the remote server will never result in the
+creation of a disk file as a couple of hundred messages can be held in
+memory by default. [These parameters can be fine-tuned. However, then
+you need to either fully understand how the queue works (<a class="reference external" href="http://www.rsyslog.com/doc-queues.html">read elaborate
+doc</a>) or use <a class="reference external" href="http://www.rsyslog.com/professional-services/">professional
+services</a> to
+have it done based on your specs ;) - what that means is that
+fine-tuning queue parameters is far from being trivial…]</p>
+<p>If you would like to test if your buffering scenario works, you need to
+stop, wait a while and restart you central server. Do <strong>not</strong> watch for
+files being created, as this usually does not happen and never happens
+immediately.</p>
+<div class="section" id="forwarding-to-more-than-one-server">
+<h3>Forwarding to More than One Server<a class="headerlink" href="#forwarding-to-more-than-one-server" title="Permalink to this headline">¶</a></h3>
+<p>If you have more than one server you would like to forward to, that’s
+quickly done. Rsyslog has no limit on the number or type of actions, so
+you can define as many targets as you like. What is important to know,
+however, is that the full set of directives make up an action. So you
+can not simply add (just) a second forwarding rule, but need to
+duplicate the rule configuration as well. Be careful that you use
+different queue file names for the second action, else you will mess up
+your system.</p>
+<p>A sample for forwarding to two hosts looks like this:</p>
+<div class="highlight-linux-config"><div class="highlight"><pre><span></span>$ModLoad imuxsock <span class="c1"># local message reception</span>
+$WorkDirectory /rsyslog/work <span class="c1"># default location for work (spool) files</span>
+
+<span class="c1"># start forwarding rule 1</span>
+$ActionQueueType LinkedList <span class="c1"># use asynchronous processing</span>
+$ActionQueueFileName srvrfwd1 <span class="c1"># set file name, also enables disk mode</span>
+$ActionResumeRetryCount -1 <span class="c1"># infinite retries on insert failure</span>
+$ActionQueueSaveOnShutdown on <span class="c1"># save in-memory data if rsyslog shuts down</span>
+*.* @@server1:port
+<span class="c1"># end forwarding rule 1</span>
+
+<span class="c1"># start forwarding rule 2</span>
+$ActionQueueType LinkedList <span class="c1"># use asynchronous processing</span>
+$ActionQueueFileName srvrfwd2 <span class="c1"># set file name, also enables disk mode</span>
+$ActionResumeRetryCount -1 <span class="c1"># infinite retries on insert failure</span>
+$ActionQueueSaveOnShutdown on <span class="c1"># save in-memory data if rsyslog shuts down</span>
+*.* @@server2
+<span class="c1"># end forwarding rule 2</span>
+</pre></div>
+</div>
+<p>Note the filename used for the first rule it is “srvrfwd1” and for the
+second it is “srvrfwd2”. I have used a server without port name in the
+second forwarding rule. This was just to illustrate how this can be
+done. You can also specify a port there (or drop the port from server1).</p>
+<p>When there are multiple action queues, they all work independently.
+Thus, if server1 goes down, server2 still receives data in real-time.
+The client will <strong>not</strong> block and wait for server1 to come back online.
+Similarly, server1’s operation will not be affected by server2’s state.</p>
+</div>
+</div>
+<div class="section" id="some-final-words-on-reliability">
+<h2>Some Final Words on Reliability …<a class="headerlink" href="#some-final-words-on-reliability" title="Permalink to this headline">¶</a></h2>
+<p>Using plain TCP syslog provides a lot of reliability over UDP syslog.
+However, plain TCP syslog is <strong>not</strong> a fully reliable transport. In
+order to get full reliability, you need to use the RELP protocol.</p>
+<p>Follow the next link to learn more about <a class="reference external" href="https://rainer.gerhards.net/2008/04/on-unreliability-of-plain-tcp-syslog.html">the problems you may encounter
+with plain tcp
+syslog</a>.</p>
+<div class="section" id="feedback-requested">
+<h3>Feedback requested<a class="headerlink" href="#feedback-requested" title="Permalink to this headline">¶</a></h3>
+<p>I would appreciate feedback on this tutorial. If you have additional
+ideas, comments or find bugs (I *do* bugs - no way… ;)), please <a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">let
+me know</a>.</p>
+</div>
+</div>
+<div class="section" id="revision-history">
+<h2>Revision History<a class="headerlink" href="#revision-history" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>2008-06-27 * <a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> *
+Initial Version created</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Reliable Forwarding of syslog Messages with Rsyslog</a><ul>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#the-intention">The Intention</a></li>
+<li><a class="reference internal" href="#how-to-setup">How To Setup</a><ul>
+<li><a class="reference internal" href="#forwarding-to-more-than-one-server">Forwarding to More than One Server</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#some-final-words-on-reliability">Some Final Words on Reliability …</a><ul>
+<li><a class="reference internal" href="#feedback-requested">Feedback requested</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#revision-history">Revision History</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="high_database_rate.html"
+                        title="previous chapter">Handling a massive syslog database insert rate with Rsyslog</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="recording_pri.html"
+                        title="next chapter">Recording the Priority of Syslog Messages</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/reliable_forwarding.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/reliable_forwarding.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="recording_pri.html" title="Recording the Priority of Syslog Messages"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="high_database_rate.html" title="Handling a massive syslog database insert rate with Rsyslog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

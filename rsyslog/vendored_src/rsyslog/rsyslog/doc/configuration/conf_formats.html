@@ -1,0 +1,218 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Configuration Formats &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="sysklogd format" href="sysklogd_format.html" />
+    <link rel="prev" title="Configuration" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="sysklogd_format.html" title="sysklogd format"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Configuration"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="configuration-formats">
+<h1>Configuration Formats<a class="headerlink" href="#configuration-formats" title="Permalink to this headline">¶</a></h1>
+<p>Rsyslog has evolved over several decades. For this reason it supports three
+different configuration formats (“languages”):</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">basic</span></code> - previously known as the <a class="reference internal" href="sysklogd_format.html"><span class="doc">sysklogd</span></a>
+format, this is the format best used to express basic things, such as where
+the statement fits on a single line. It stems back to the original
+syslog.conf format, in use now for several decades.</p>
+<p>The most common use case is matching on facility/severity and writing
+matching messages to a log file.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">advanced</span></code> - previously known as the <code class="docutils literal"><span class="pre">RainerScript</span></code> format, this
+format was first available in rsyslog v6 and is the current, best and most
+precise format for non-trivial use cases where more than one line is needed.</p>
+<p>Prior to v7, there was a performance impact when using this format that
+encouraged use of the <code class="docutils literal"><span class="pre">basic</span></code> format for best results. Current
+versions of rsyslog do not suffer from this (historical) performance impact.</p>
+<p>This new style format is specifically targeted towards more advanced use
+cases like forwarding to remote hosts that might be partially offline.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> - previously known simply as the <code class="docutils literal"><span class="pre">legacy</span></code> format, this
+format is exactly what its name implies: it is obsolete and should not
+be used when writing new configurations. It was created in the early
+days (up to rsyslog version 5) where we expected that rsyslog would extend
+sysklogd just mildly.  Consequently, it was primarily aimed at small
+additions to the original sysklogd format. Practice has shown that it
+was notoriously hard to use for more advanced use cases, and thus we
+replaced it with the <code class="docutils literal"><span class="pre">advanced</span></code> format.</p>
+<p>In essence, everything that needs to be written on a single line that
+starts with a dollar sign is legacy format. Users of this format are
+encouraged to migrate to the <code class="docutils literal"><span class="pre">basic</span></code> or <code class="docutils literal"><span class="pre">advanced</span></code> formats.</p>
+</li>
+</ul>
+<div class="section" id="which-format-should-i-use">
+<h2>Which Format should I Use?<a class="headerlink" href="#which-format-should-i-use" title="Permalink to this headline">¶</a></h2>
+<p>While rsyslog supports all three formats concurrently, you are <strong>strongly</strong>
+encouraged to avoid using the <code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> format. Instead, you should
+use the <code class="docutils literal"><span class="pre">basic</span></code> format for basic configurations and the <code class="docutils literal"><span class="pre">advanced</span></code>
+format for anything else.</p>
+<p>While it is an older format, the <code class="docutils literal"><span class="pre">basic</span></code> format is still suggested for
+configurations that mostly consist of simple statements. The classic
+example is writing to files (or forwarding) via priority. In <code class="docutils literal"><span class="pre">basic</span></code>
+format, this looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mail</span><span class="o">.</span><span class="n">info</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">mail</span><span class="o">.</span><span class="n">log</span>
+<span class="n">mail</span><span class="o">.</span><span class="n">err</span> <span class="o">@</span><span class="nd">@server</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">net</span>
+</pre></div>
+</div>
+<p>This is hard to beat in simplicity, still being taught in courses
+and a lot of people know this syntax. It is perfectly fine to use
+these constructs even in newly written config files. Note that many
+distributions use this format in their default rsyslog.conf, so you will
+likely find it in existing configurations.</p>
+<p><strong>For anything more advanced, use</strong> the <code class="docutils literal"><span class="pre">advanced</span></code> format. Advantages are:</p>
+<ul class="simple">
+<li>fine control over rsyslog operations via advanced parameters</li>
+<li>easy to follow block structure</li>
+<li>easy to write</li>
+<li>safe for use with include files</li>
+</ul>
+<p>To continue with the above example, the <code class="docutils literal"><span class="pre">advanced</span></code> format is preferrable
+if you want to make sure that an offline remote destination will not slow down
+local log file writing. In that case, forwarding is done via:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mail</span><span class="o">.</span><span class="n">err</span> <span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfwd&quot;</span> <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;tcp&quot;</span> <span class="n">queue</span><span class="o">.</span><span class="n">type</span><span class="o">=</span><span class="s2">&quot;linkedList&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As can be seen by this example, the <code class="docutils literal"><span class="pre">advanced</span></code> format permits specifing
+additional parameters to fine tune the behavior, whereas the <code class="docutils literal"><span class="pre">basic</span></code>
+format does not provide this level of control.</p>
+<p><strong>Do not use</strong> <code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> <strong>format. It will make your life
+miserable.</strong> It is primarily supported in order to not break existing
+configurations.</p>
+<p>Whatever you can do with the <code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> format, you can also do
+with the <code class="docutils literal"><span class="pre">advanced</span></code> format. The opposite is not true: Many newer features
+cannot be turned on via the <code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> format. The <code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code>
+format is hard to understand and hard to get right. As you may inherit a rsyslog
+configuration that makes use of it, this documentation gives you some clues
+of what the obsolete statements do. For full details, obtain a
+<a class="reference external" href="http://www.rsyslog.com/doc/v5-stable/index.html">v5 version of the rsyslog
+documentation</a> (yes, this
+format is dead since 2010!).</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Configuration Formats</a><ul>
+<li><a class="reference internal" href="#which-format-should-i-use">Which Format should I Use?</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Configuration</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="sysklogd_format.html"
+                        title="next chapter">sysklogd format</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/conf_formats.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/conf_formats.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="sysklogd_format.html" title="sysklogd format"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Configuration"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

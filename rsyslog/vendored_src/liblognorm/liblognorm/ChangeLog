@@ -1,0 +1,241 @@
+----------------------------------------------------------------------
+Version 2.0.5, 2018-04-26
+- bugfix: es_str2cstr leak in string-to v1 parser
+  Thanks to Harshvardhan Shrivastava for the patch.
+- make "make check" "succeed" on solaris 10
+  actually, we just ignore the CI failures so that OpenCSW can build
+  new packages. The problems actually exist on that platform, but
+  testing has shown they always existed. We currently run out of time
+  to really fixing this, plus we never had any bug report on Solaris
+  (I assme nobody uses it on Solaris 10). However, that issues is a
+  blocker to make new rsyslog versions available on OpenCSW for
+  Solaris 10, so we go the dirty way of pretenting there is no
+  problem. Note: the issues was orignally not seen, as the failing
+  tests have been added later on. So the problem was always there,
+  just not visible.
+- some mostly cosmetic fixes detected by Coverity Scan
+  e. g. memory leak if and only if system was completely out of memory
+----------------------------------------------------------------------
+Version 2.0.4, 2017-10-04
+- added support for native JSON number formats
+  supported by parsers: number, float, hex
+- added support for creating unix timestamps
+  supported by parsers: date-rfc3164, date-rfc5424
+- fixed build problems on Solaris
+  ... but there still seem to be some code issues, manifested in
+  testbench failures. So use with care!
+----------------------------------------------------------------------
+Version 2.0.3, 2017-03-22
+- add ability to load rulebase from a string
+  introduces new API:
+  int ln_loadSamplesFromString(ln_ctx ctx, const char *string);
+  closes https://github.com/rsyslog/liblognorm/issues/239
+- bugfix: string parser did not correctly parse word at end of line
+- bugfix: literal parser does not always store value if name is specified
+  if
+  rule=:%{"type":"literal", "text":"a", "name":"var"}%
+  is used and matching message is provided, variable var ist not persisted.
+  see also http://lists.adiscon.net/pipermail/rsyslog/2016-December/043985.html
+----------------------------------------------------------------------
+Version 2.0.2, 2016-11-15
+- bugfix: no error was emitted on invalid "annotate" line
+- "annnotate": permit inline comments
+- fix a problem with cross-compilation
+  see also: https://github.com/rsyslog/liblognorm/pull/221
+  Thanks to Luca Boccassi for the patch
+- testbench: add test for "annotate" functionality
+- bugfix: abort in literal path compaction when useing "alternative" parser
+  When using the "alternative" parser, literals nodes could be created with
+  multiple reference count. This is valid. However, literal path compaction
+  did not consider this case, and so "merged" these nodes, which lead to
+  pdag corruption and quickly to segfault.
+  closes https://github.com/rsyslog/liblognorm/issues/220
+  closes https://github.com/rsyslog/liblognorm/issues/153
+- bugfix: lognormalizer could loop
+  This also caused the testbench to fail on some platforms.
+  due too incorrect data type
+  Thanks to Michael Biebl for this fix.
+- fix misleading compiler warning
+  Thanks to Michael Biebl for this fix.
+- testbench: add test for "annotate" functionality
+----------------------------------------------------------------------
+Version 2.0.1, 2016-08-01
+- fix public headers, which invalidly contained a strndup() definition
+  Thanks to Michael Biebl for this fix.
+- fix some issues in pkgconfig file
+  Thanks to Michael Biebl for this fix.
+- enhance build system to natively support systems with older
+  autoconf versions and/or missing autoconf-archive. In this case we
+  gracefully degrade functionality, but the build still is possible.
+  Among others, this enables builds on CentOS 5.
+----------------------------------------------------------------------
+Version 2.0.0, 2016-07-21
+- completely rewritten, much feature-enhanced version
+- requires libfastjson instead of json-c
+- big improvements to testbench runs, especially on travis
+  among others, the static analyzer is now run and testbench throws
+  an error if the static analyzer (via clang) is not clean
+- lognormalizer tool can now handle lines larger 10k characters
+  Thanks to Janmejay Singh for the patch
+----------------------------------------------------------------------
+Version 1.1.3, 2015-??-?? [no official release]
+- make work on Solaris
+- check for runaway rules.
+  A runaway rule is one that has unmatched percent signs and thus
+  is not terminated properly at its end. This also means we no longer
+  accept "rule=" at the first column of a continuation line, which is
+  no problem (see doc for more information).
+- fix: process last line if it misses the terminating LF
+  This problem occurs with the very last line of a rulebase (at EOF).
+  If it is not properly terminated (LF missing), it is silently ignored.
+  Previous versions did obviously process lines in this case. While
+  technically this is invalid input, we can't outrule that such rulebases
+  exist. For example, they do in the rsyslog testbench, which made
+  us aware of the problem (see https://github.com/rsyslog/rsyslog/issues/489 )
+  I think the proper way of addressing this is to process such lines without
+  termination, as many other tools do as well.
+  closes https://github.com/rsyslog/liblognorm/issues/135
+----------------------------------------------------------------------
+Version 1.1.2, 2015-07-20
+- permit newline inside parser definition
+- new parser "cisco-interface-spec"
+- new parser "json" to process json parts of the message
+- new parser "mac48" to process mac layer addresses
+- new parser "name-value-list" (currently inofficial, experimental)
+- some parsers did incorrectly report success when an error occurred
+  this was caused by inconsistencies between various macros. We have
+  changed the parser-generation macros to match the semantics of the
+  broader CHKN/CHKR macros and also restructured/simplified the 
+  parser generation macros.
+  closes https://github.com/rsyslog/liblognorm/issues/41
+- call "rest" parser only if nothing else matches.
+  Versions prior to 1.1.2 did execute "rest" during regular parser
+  processing, and thus parser matches have been more or less random.
+  With 1.1.2 this is now always the last parser called. This may cause
+  problems with existing rulesets, HOWEVER, adding any other rule or
+  changing the load order would also have caused problems, so there
+  really is no compatibility to preserve.
+  see also:
+  http://blog.gerhards.net/2015/04/liblognorms-rest-parser-now-more-useful.html
+- new API to support error callbacks 
+  This permits callers to forward messages in regard to e.g. wrong rule
+  bases to their users, which is very useful and actually missing in the
+  previous code base. So far, we only have few error messages.
+  However, we will review the code and add more. The important part is
+  that callers can begin to use the new API and thus will benefit when
+  we add more error messages.
+- testbench is now enabled by default
+- bugfix: misadressing on some constant values
+  see also https://github.com/rsyslog/liblognorm/pull/67
+  Thanks to github user ontholerian for the patch
+- bugfix: add missing function prototypes
+  This could potentially lead to problems on some platforms,
+  especially those with 64 bit pointers.
+----------------------------------------------------------------------
+Version 1.1.1, 2015-03-09
+- fixed library version numbering
+  Thanks to Tomas Heinreich for reporting the problem.
+- added new parser syntaxes
+  Thanks to Janmejay Singh for implementing most of them.
+- bugfix: function ln_parseFieldDescr() returns state value
+  due to unitialized variable. This can also lead to invalid
+  returning no sample node where one would have to be created.
+----------------------------------------------------------------------
+Version 1.1.0, 2015-01-08
+- added regular expression support
+  use this feature with great care, as it thrashes performance
+  Thanks to Janmejay Singh for implementing this feature.
+- fix build problem when --enable-debug was set
+  closes: https://github.com/rsyslog/liblognorm/issues/5
+----------------------------------------------------------------------
+Version 1.0.1, 2014-04-11
+- improved doc (via RST/Sphinx)
+- bugfix: unparsed fields were copied incorrectly from non-terminated
+  string. Thanks to Josh Blum for the fix.
+- bugfix: mandatory tag did not work in lognormalizer
+----------------------------------------------------------------------
+Version 1.0.0, 2013-11-28
+- WARNING: this version has incompatible interface and older programs 
+  will not compile with it.
+  For details see http://www.liblognorm.com/news/on-liblognorm-1-0-0/
+- libestr is not used any more in interface functions. Traditional
+  C strings are used instead. Internally, libestr is still used, but
+  scheduled for removal.
+- libee is not used any more. JSON-C is used for object handling
+  instead. Parsers and formatters are now part of liblognorm.
+- added new field type "rest", which simply sinks all up to end of
+  the string.
+- added support for glueing two fields together, without literal 
+  between them. It allows for constructs like:
+  %volume:number%%unit:word%
+  which matches string "1000Kbps"
+- Fix incorrect merging of trees with empty literal at end
+  Thanks to Pavel Levshin for the patch
+- this version has survived many bugfixes
+----------------------------------------------------------------------
+================================================================================
+The versions below is liblognorm0, which has a different API
+================================================================================
+----------------------------------------------------------------------
+Version 0.3.7, 2013-07-17
+- added support to load single samples
+  Thanks to John Hopper for the patch
+----------------------------------------------------------------------
+Version 0.3.6, 2013-03-22
+- bugfix: unitialized variable could lead to rulebase load error
+----------------------------------------------------------------------
+Version 0.3.5 (rgerhards), 2012-09-18
+- renamed "normalizer" tool to "lognormalizer" to solve name clashes
+  Thanks to the Fedora folks for pointing this out.
+----------------------------------------------------------------------
+Version 0.3.4 (rgerhards), 2012-04-16
+- bugfix: normalizer tool had a memory leak
+  Thanks to Brian Know for alerting me and helping to debug
+----------------------------------------------------------------------
+Version 0.3.3 (rgerhards), 2012-02-06
+- required header file was not installed, resulting in compile error
+  closes: http://bugzilla.adiscon.com/show_bug.cgi?id=307
+  Thanks to Andreis Vinogradovs for alerting us on this bug.
+----------------------------------------------------------------------
+Version 0.3.2 (rgerhards), 2011-11-21
+- added rfc5424 parser (requires libee >= 0.3.2)
+- added "-" to serve as name for filler fields. Value is extracted,
+  but no field is written
+- special handling for iptables log via %iptables% parser added 
+  (currently experimental pending practical verification)
+- normalizer tool on its way to a full-blow stand-alone tool
+- support for annotations added, for the time being see
+  http://blog.gerhards.net/2011/11/log-annotation-with-liblognorm.html
+----------------------------------------------------------------------
+Version 0.3.1 (rgerhards), 2011-04-18
+- added -t option to normalizer so that only messages with a 
+  specified tag will be output
+- bugfix: abort if a tag was assigned to a message without any 
+  fields parsed out (uncommon scenario)
+- bugfix: mem leak on parse tree destruct -- associated tags were
+  not deleted
+- bugfix: potential abort in normalizer due to misadressing in debug
+  message generation
+----------------------------------------------------------------------
+Version 0.3.0 (rgerhards), 2011-04-06
+- support for message classification via tags added
+- bugfix: partial messages were invalidly matched
+  closes: http://bugzilla.adiscon.com/show_bug.cgi?id=247
+----------------------------------------------------------------------
+Version 0.2.0 (rgerhards), 2011-04-01
+- added -E option to normalizer tool, permits to specify data for
+  encoders
+- support for new libee parsers:
+  * Time12hr
+  * Time24hr
+  * ISODate
+  * QuotedString
+- support for csv encoding added
+- added -p option to normalizer tool (output only correctly parsed
+  entries)
+- bugfix: segfault if a parse tree prefix had exactly buffer size,
+  in which case it was invalidly assumed that an external buffer had
+  been allocated
+----------------------------------------------------------------------
+Version 0.1.0 (rgerhards), 2010-12-09
+Initial public release.

@@ -1,0 +1,211 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Receiving massive amounts of messages with high performance &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorials" href="../tutorials/index.html" />
+    <link rel="prev" title="Example Use Cases" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../tutorials/index.html" title="Tutorials"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Example Use Cases"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Example Use Cases</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="receiving-massive-amounts-of-messages-with-high-performance">
+<h1>Receiving massive amounts of messages with high performance<a class="headerlink" href="#receiving-massive-amounts-of-messages-with-high-performance" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="use-case">
+<h2>Use Case<a class="headerlink" href="#use-case" title="Permalink to this headline">¶</a></h2>
+<p>You are receiving syslog messages via UDP and or TCP at a very high data rate.
+You want to tune the system so that it can process as many messages as
+possible. All messages shall be written to a single output file.</p>
+</div>
+<div class="section" id="sample-configuration">
+<h2>Sample Configuration<a class="headerlink" href="#sample-configuration" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># load required modules</span>
+<span class="n">module</span><span class="p">(</span><span class="n">load</span><span class="o">=</span><span class="s2">&quot;imudp&quot;</span> <span class="n">threads</span><span class="o">=</span><span class="s2">&quot;2&quot;</span>
+       <span class="n">timeRequery</span><span class="o">=</span><span class="s2">&quot;8&quot;</span> <span class="n">batchSize</span><span class="o">=</span><span class="s2">&quot;128&quot;</span><span class="p">)</span>
+<span class="n">module</span><span class="p">(</span><span class="n">load</span><span class="o">=</span><span class="s2">&quot;imptcp&quot;</span> <span class="n">threads</span><span class="o">=</span><span class="s2">&quot;3&quot;</span><span class="p">)</span>
+
+<span class="c1"># listeners</span>
+<span class="c1"># repeat blocks if more listeners are needed</span>
+<span class="c1"># alternatively, use array syntax:</span>
+<span class="c1"># port=[&quot;514&quot;,&quot;515&quot;,...]</span>
+<span class="nb">input</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;imudp&quot;</span> <span class="n">port</span><span class="o">=</span><span class="s2">&quot;514&quot;</span>
+      <span class="n">ruleset</span><span class="o">=</span><span class="s2">&quot;writeRemoteData&quot;</span><span class="p">)</span>
+<span class="nb">input</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;imptcp&quot;</span> <span class="n">port</span><span class="o">=</span><span class="s2">&quot;10514&quot;</span>
+      <span class="n">ruleset</span><span class="o">=</span><span class="s2">&quot;writeRemoteData&quot;</span><span class="p">)</span>
+
+<span class="c1"># now define our ruleset, which also includes</span>
+<span class="c1"># threading and queue parameters.</span>
+<span class="n">ruleset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;writeRemoteData&quot;</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">type</span><span class="o">=</span><span class="s2">&quot;fixedArray&quot;</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">size</span><span class="o">=</span><span class="s2">&quot;250000&quot;</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">dequeueBatchSize</span><span class="o">=</span><span class="s2">&quot;4096&quot;</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">workerThreads</span><span class="o">=</span><span class="s2">&quot;4&quot;</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">workerThreadMinimumMessages</span><span class="o">=</span><span class="s2">&quot;60000&quot;</span>
+       <span class="p">)</span> <span class="p">{</span>
+    <span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/var/log/remote.log&quot;</span>
+           <span class="n">ioBufferSize</span><span class="o">=</span><span class="s2">&quot;64k&quot;</span> <span class="n">flushOnTXEnd</span><span class="o">=</span><span class="s2">&quot;off&quot;</span>
+           <span class="n">asyncWriting</span><span class="o">=</span><span class="s2">&quot;on&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="notes-on-the-suggested-config">
+<h2>Notes on the suggested config<a class="headerlink" href="#notes-on-the-suggested-config" title="Permalink to this headline">¶</a></h2>
+<p>It is highly suggested to use a recent enough Linux kernel that supports
+the <strong>recvmmsg()</strong> system call. This system call improves UDP reception
+speed and decreases overall system CPU utilization.</p>
+<p>We use the <strong>imptcp</strong> module for tcp input, as it uses more optimal
+results. Note, however, that it is only available on Linux and does
+currently <em>not</em> support TLS. If <strong>imptcp</strong> cannot be used, use
+<strong>imtcp</strong> instead (this will be a bit slower).</p>
+<p>When writing to the output file, we use buffered mode. This means that
+full buffers are written, but during processing file lines are not
+written until the buffer is full (and thus may be delayed) and also
+incomplete lines are written (at buffer boundary). When the file is closed
+(rsyslogd stop or HUP), the buffer is completely flushed. As this is
+a high-traffic use case, we assume that buffered mode does not cause
+any concerns.</p>
+</div>
+<div class="section" id="suggested-user-performance-testing">
+<h2>Suggested User Performance Testing<a class="headerlink" href="#suggested-user-performance-testing" title="Permalink to this headline">¶</a></h2>
+<p>Each environment is a bit different.
+Depending on circumstances, the <strong>imudp</strong> module parameters may not be
+optimal. In order to obtain best performance, it is suggested to measure
+performance level with two to four threads and somewhat lower and higher
+batchSize. Note that these parameters affect each other. The values given
+in the config above should usually work well in <em>high-traffic</em> environments.
+They are sub-optimal for low to medium traffic environments.</p>
+</div>
+<div class="section" id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>imptcp, imtcp, imudp, ruleset()</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Receiving massive amounts of messages with high performance</a><ul>
+<li><a class="reference internal" href="#use-case">Use Case</a></li>
+<li><a class="reference internal" href="#sample-configuration">Sample Configuration</a></li>
+<li><a class="reference internal" href="#notes-on-the-suggested-config">Notes on the suggested config</a></li>
+<li><a class="reference internal" href="#suggested-user-performance-testing">Suggested User Performance Testing</a></li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Example Use Cases</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../tutorials/index.html"
+                        title="next chapter">Tutorials</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/examples/high_performance.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/examples/high_performance.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../tutorials/index.html" title="Tutorials"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Example Use Cases"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Example Use Cases</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

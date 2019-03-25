@@ -1,0 +1,799 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>imtcp: TCP Syslog Input Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="imudp: UDP Syslog Input Module" href="imudp.html" />
+    <link rel="prev" title="imsolaris: Solaris Input Module" href="imsolaris.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="imudp.html" title="imudp: UDP Syslog Input Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="imsolaris.html" title="imsolaris: Solaris Input Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_input.html" accesskey="U">Input Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="imtcp-tcp-syslog-input-module">
+<h1>imtcp: TCP Syslog Input Module<a class="headerlink" href="#imtcp-tcp-syslog-input-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>imtcp</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>Provides the ability to receive syslog messages via TCP. Encryption is
+natively provided by selecting the approprioate network stream driver
+and can also be provided by using <a class="reference external" href="rsyslog_stunnel.html">stunnel</a> (an
+alternative is the use the <a class="reference external" href="imgssapi.html">imgssapi</a> module).</p>
+</div>
+<div class="section" id="notable-features">
+<h2>Notable Features<a class="headerlink" href="#notable-features" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="#imtcp-statistic-counter"><span class="std std-ref">Statistic Counter</span></a></li>
+</ul>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="module-parameters">
+<h3>Module Parameters<a class="headerlink" href="#module-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="addtlframedelimiter">
+<h4>AddtlFrameDelimiter<a class="headerlink" href="#addtlframedelimiter" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>-1</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerAddtlFrameDelimiter</span></code></td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 4.3.1.</span></p>
+</div>
+<p>This directive permits to specify an additional frame delimiter for
+Multiple receivers may be configured by specifying $InputTCPServerRun
+multiple times.</p>
+</div>
+<div class="section" id="disablelfdelimiter">
+<h4>DisableLFDelimiter<a class="headerlink" href="#disablelfdelimiter" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerDisableLFDelimiter</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Industry-strandard plain text tcp syslog uses the LF to delimit
+syslog frames. However, some users brought up the case that it may be
+useful to define a different delimiter and totally disable LF as a
+delimiter (the use case named were multi-line messages). This mode is
+non-standard and will probably come with a lot of problems. However,
+as there is need for it and it is relatively easy to support, we do
+so. Be sure to turn this setting to “on” only if you exactly know
+what you are doing. You may run into all sorts of troubles, so be
+prepared to wrangle with that!</p>
+</div>
+<div class="section" id="maxframesize">
+<h4>MaxFrameSize<a class="headerlink" href="#maxframesize" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>200000</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>When in octet counted mode, the frame size is given at the beginning
+of the message. With this parameter the max size this frame can have
+is specified and when the frame gets to large the mode is switched to
+octet stuffing.
+The max value this parameter can have was specified because otherwise
+the integer could become negative and this would result in a
+Segmentation Fault. (Max Value = 200000000)</p>
+</div>
+<div class="section" id="notifyonconnectionclose">
+<h4>NotifyOnConnectionClose<a class="headerlink" href="#notifyonconnectionclose" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerNotifyOnConnectionClose</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Instructs imtcp to emit a message if the remote peer closes a
+connection.</p>
+<p><strong>Important:</strong> This directive is global to all listeners and must be
+given right after loading imtcp, otherwise it may have no effect.</p>
+</div>
+<div class="section" id="keepalive">
+<h4>KeepAlive<a class="headerlink" href="#keepalive" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerKeepAlive</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Enable of disable keep-alive packets at the tcp socket layer. The
+default is to disable them.</p>
+</div>
+<div class="section" id="keepalive-probes">
+<h4>KeepAlive.Probes<a class="headerlink" href="#keepalive-probes" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerKeepAlive_probes</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The number of unacknowledged probes to send before considering the
+connection dead and notifying the application layer. The default, 0,
+means that the operating system defaults are used. This has only
+effect if keep-alive is enabled. The functionality may not be
+available on all platforms.</p>
+</div>
+<div class="section" id="keepalive-time">
+<h4>KeepAlive.Time<a class="headerlink" href="#keepalive-time" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerKeepAlive_time</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>The interval between the last data packet sent (simple ACKs are not
+considered data) and the first keepalive probe; after the connection
+is marked to need keepalive, this counter is not used any further.
+The default, 0, means that the operating system defaults are used.
+This has only effect if keep-alive is enabled. The functionality may
+not be available on all platforms.</p>
+</div>
+<div class="section" id="flowcontrol">
+<h4>FlowControl<a class="headerlink" href="#flowcontrol" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>on</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPFlowControl</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>This setting specifies whether some message flow control shall be
+exercised on the related TCP input. If set to on, messages are
+handled as “light delayable”, which means the sender is throttled a
+bit when the queue becomes near-full. This is done in order to
+preserve some queue space for inputs that can not throttle (like
+UDP), but it may have some undesired effect in some configurations.
+Still, we consider this as a useful setting and thus it is the
+default. To turn the handling off, simply configure that explicitely.</p>
+</div>
+<div class="section" id="maxlisteners">
+<h4>MaxListeners<a class="headerlink" href="#maxlisteners" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>20</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPMaxListeners</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets the maximum number of listeners (server ports) supported.
+This must be set before the first $InputTCPServerRun directive.</p>
+</div>
+<div class="section" id="maxsessions">
+<h4>MaxSessions<a class="headerlink" href="#maxsessions" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>200</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPMaxSessions</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets the maximum number of sessions supported. This must be set
+before the first $InputTCPServerRun directive.</p>
+</div>
+<div class="section" id="streamdriver-name">
+<h4>StreamDriver.Name<a class="headerlink" href="#streamdriver-name" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Selects <a class="reference internal" href="../../concepts/netstrm_drvr.html"><span class="doc">network stream driver</span></a>
+for all inputs using this module.</p>
+</div>
+<div class="section" id="streamdriver-mode">
+<h4>StreamDriver.Mode<a class="headerlink" href="#streamdriver-mode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerStreamDriverMode</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets the driver mode for the currently selected
+<a class="reference internal" href="../../concepts/netstrm_drvr.html"><span class="doc">network stream driver</span></a>.
+&lt;number&gt; is driver specific.</p>
+</div>
+<div class="section" id="streamdriver-authmode">
+<h4>StreamDriver.AuthMode<a class="headerlink" href="#streamdriver-authmode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerStreamDriverAuthMode</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets permitted peer IDs. Only these peers are able to connect to
+the listener. &lt;id-string&gt; semantics depend on the currently
+selected AuthMode and
+<a class="reference internal" href="../../concepts/netstrm_drvr.html"><span class="doc">network stream driver</span></a>.
+PermittedPeers may not be set in anonymous modes.</p>
+</div>
+<div class="section" id="permittedpeer">
+<h4>PermittedPeer<a class="headerlink" href="#permittedpeer" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>array</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerStreamDriverPermittedPeer</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets permitted peer IDs. Only these peers are able to connect to
+the listener. &lt;id-string&gt; semantics depend on the currently
+selected AuthMode and
+<a class="reference internal" href="../../concepts/netstrm_drvr.html"><span class="doc">network stream driver</span></a>.
+PermittedPeer may not be set in anonymous modes. PermittedPeer may
+be set either to a single peer or an array of peers either of type
+IP or name, depending on the tls certificate.</p>
+<p>Single peer:
+PermittedPeer=”127.0.0.1”</p>
+<p>Array of peers:
+PermittedPeer=[“test1.example.net”,”10.1.2.3”,”test2.example.net”,”…”]</p>
+</div>
+<div class="section" id="discardtruncatedmsg">
+<h4>DiscardTruncatedMsg<a class="headerlink" href="#discardtruncatedmsg" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Normally when a message is truncated in octet stuffing mode the part that
+is cut off is processed as the next message. When this parameter is activated,
+the part that is cut off after a truncation is discarded and not processed.</p>
+</div>
+<div class="section" id="gnutlsprioritystring">
+<h4>gnutlsPriorityString<a class="headerlink" href="#gnutlsprioritystring" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.29.0.</span></p>
+</div>
+<p>The GnuTLS priority strings specify the TLS session’s handshake algorithms and
+options. These strings are intended as a user-specified override of the library
+defaults. If this parameter is NULL, the default settings are used. More
+information about priority Strings
+<a class="reference external" href="https://gnutls.org/manual/html_node/Priority-Strings.html">here</a>.</p>
+</div>
+</div>
+<div class="section" id="input-parameters">
+<h3>Input Parameters<a class="headerlink" href="#input-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="port">
+<h4>Port<a class="headerlink" href="#port" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>yes</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerRun</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Starts a TCP server on selected port</p>
+</div>
+<div class="section" id="address">
+<h4>Address<a class="headerlink" href="#address" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>On multi-homed machines, specifies to which local address the
+listerner should be bound.</p>
+</div>
+<div class="section" id="name">
+<h4>Name<a class="headerlink" href="#name" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>imtcp</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerInputName</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets a name for the inputname property. If no name is set “imtcp” is
+used by default. Setting a name is not strictly necessary, but can be
+useful to apply filtering based on which input the message was
+received from.</p>
+</div>
+<div class="section" id="ruleset">
+<h4>Ruleset<a class="headerlink" href="#ruleset" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPServerBindRuleset</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Binds the listener to a specific <a class="reference internal" href="../../concepts/multi_ruleset.html"><span class="doc">ruleset</span></a>.</p>
+</div>
+<div class="section" id="supportoctetcountedframing">
+<h4>SupportOctetCountedFraming<a class="headerlink" href="#supportoctetcountedframing" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>on</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$InputTCPSupportOctetCountedFraming</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>If set to “on”, the legacy octed-counted framing (similar to RFC5425
+framing) is activated. This should be left unchanged until you know
+very well what you do. It may be useful to turn it off, if you know
+this framing is not used and some senders emit multi-line messages
+into the message stream.</p>
+</div>
+<div class="section" id="ratelimit-interval">
+<h4>RateLimit.Interval<a class="headerlink" href="#ratelimit-interval" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Specifies the rate-limiting interval in seconds. Default value is 0,
+which turns off rate limiting. Set it to a number of seconds (5
+recommended) to activate rate-limiting.</p>
+</div>
+<div class="section" id="ratelimit-burst">
+<h4>RateLimit.Burst<a class="headerlink" href="#ratelimit-burst" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>10000</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Specifies the rate-limiting burst in number of messages. Default is
+10,000.</p>
+</div>
+</div>
+</div>
+<div class="section" id="statistic-counter">
+<span id="imtcp-statistic-counter"></span><h2>Statistic Counter<a class="headerlink" href="#statistic-counter" title="Permalink to this headline">¶</a></h2>
+<p>This plugin maintains <a class="reference internal" href="../rsyslog_statistic_counter.html"><span class="doc">statistics</span></a> for each listener. The statistic is named
+after the given input name (or “imtcp” if none is configured), followed by
+the listener port in parenthesis. For example, the counter for a listener
+on port 514 with no set name is called “imtcp(514)”.</p>
+<p>The following properties are maintained for each listener:</p>
+<ul class="simple">
+<li><strong>submitted</strong> - total number of messages submitted for processing since startup</li>
+</ul>
+</div>
+<div class="section" id="caveats-known-bugs">
+<h2>Caveats/Known Bugs<a class="headerlink" href="#caveats-known-bugs" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>module always binds to all interfaces</li>
+<li>can not be loaded together with <a class="reference external" href="imgssapi.html">imgssapi</a> (which
+includes the functionality of imtcp)</li>
+</ul>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="example-1">
+<h3>Example 1<a class="headerlink" href="#example-1" title="Permalink to this headline">¶</a></h3>
+<p>This sets up a TCP server on port 514 and permits it to accept up to 500
+connections:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot; MaxSessions=&quot;500&quot;)
+input(type=&quot;imtcp&quot; port=&quot;514&quot;)
+</pre></div>
+</div>
+<p>Note that the global parameters (here: max sessions) need to be set when
+the module is loaded. Otherwise, the parameters will not apply.</p>
+</div>
+</div>
+<div class="section" id="additional-resources">
+<h2>Additional Resources<a class="headerlink" href="#additional-resources" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.rsyslog.com/howto-store-remote-messages-in-a-separate-file/">rsyslog video tutorial on how to store remote messages in a separate file</a> (for legacy syntax, but you get the idea).</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">imtcp: TCP Syslog Input Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#notable-features">Notable Features</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#module-parameters">Module Parameters</a><ul>
+<li><a class="reference internal" href="#addtlframedelimiter">AddtlFrameDelimiter</a></li>
+<li><a class="reference internal" href="#disablelfdelimiter">DisableLFDelimiter</a></li>
+<li><a class="reference internal" href="#maxframesize">MaxFrameSize</a></li>
+<li><a class="reference internal" href="#notifyonconnectionclose">NotifyOnConnectionClose</a></li>
+<li><a class="reference internal" href="#keepalive">KeepAlive</a></li>
+<li><a class="reference internal" href="#keepalive-probes">KeepAlive.Probes</a></li>
+<li><a class="reference internal" href="#keepalive-time">KeepAlive.Time</a></li>
+<li><a class="reference internal" href="#flowcontrol">FlowControl</a></li>
+<li><a class="reference internal" href="#maxlisteners">MaxListeners</a></li>
+<li><a class="reference internal" href="#maxsessions">MaxSessions</a></li>
+<li><a class="reference internal" href="#streamdriver-name">StreamDriver.Name</a></li>
+<li><a class="reference internal" href="#streamdriver-mode">StreamDriver.Mode</a></li>
+<li><a class="reference internal" href="#streamdriver-authmode">StreamDriver.AuthMode</a></li>
+<li><a class="reference internal" href="#permittedpeer">PermittedPeer</a></li>
+<li><a class="reference internal" href="#discardtruncatedmsg">DiscardTruncatedMsg</a></li>
+<li><a class="reference internal" href="#gnutlsprioritystring">gnutlsPriorityString</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#input-parameters">Input Parameters</a><ul>
+<li><a class="reference internal" href="#port">Port</a></li>
+<li><a class="reference internal" href="#address">Address</a></li>
+<li><a class="reference internal" href="#name">Name</a></li>
+<li><a class="reference internal" href="#ruleset">Ruleset</a></li>
+<li><a class="reference internal" href="#supportoctetcountedframing">SupportOctetCountedFraming</a></li>
+<li><a class="reference internal" href="#ratelimit-interval">RateLimit.Interval</a></li>
+<li><a class="reference internal" href="#ratelimit-burst">RateLimit.Burst</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#statistic-counter">Statistic Counter</a></li>
+<li><a class="reference internal" href="#caveats-known-bugs">Caveats/Known Bugs</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#example-1">Example 1</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#additional-resources">Additional Resources</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="imsolaris.html"
+                        title="previous chapter">imsolaris: Solaris Input Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="imudp.html"
+                        title="next chapter">imudp: UDP Syslog Input Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/imtcp.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/imtcp.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="imudp.html" title="imudp: UDP Syslog Input Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="imsolaris.html" title="imsolaris: Solaris Input Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_input.html" >Input Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>
