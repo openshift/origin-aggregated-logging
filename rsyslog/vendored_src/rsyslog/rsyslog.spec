@@ -11,8 +11,6 @@ License: (GPLv3+ and ASL 2.0)
 Group: System Environment/Daemons
 ExcludeArch: i686
 URL: http://www.rsyslog.com/
-Source0: http://www.rsyslog.com/files/download/rsyslog/%{name}-%{version}.tar.gz
-Source1: http://www.rsyslog.com/files/download/rsyslog/%{name}-doc-%{version}.tar.gz
 Source2: rsyslog.conf
 Source3: rsyslog.sysconfig
 Source4: rsyslog.log
@@ -28,7 +26,11 @@ BuildRequires: libestr-devel >= 0.1.9
 BuildRequires: libtool
 BuildRequires: libuuid-devel
 BuildRequires: pkgconfig
+%if 0%{?rhel} > 7
 BuildRequires: python3-docutils
+%else
+BuildRequires: python-docutils
+%endif
 # it depens on rhbz#1419228
 BuildRequires: systemd-devel >= 219-39
 BuildRequires: zlib-devel
@@ -36,19 +38,13 @@ BuildRequires: zlib-devel
 Requires: logrotate >= 3.5.2
 Requires: bash >= 2.0
 Requires: libestr >= 0.1.9
+Requires: libfastjson >= 0.99.8
 Requires(post): systemd
 Requires(preun): systemd
 Requires(postun): systemd
 
 Provides: syslog
 Obsoletes: sysklogd < 1.5-11
-
-# tweak the upstream service file to honour configuration from /etc/sysconfig/rsyslog
-Patch0: rsyslog-8.32.0-service.patch
-# imjournal: adds "journal" when tag/process name is missing
-Patch1: rsyslog-8.37.0-rhbz1659898-imjournal-default-tag.patch
-Patch2: rsyslog-8.37.0-rhbz1614179-imfile-symlink-support.patch
-Patch3: rsyslog-8.37.0-rhbz1622768-kubernetes-404-handling.patch
 
 %package crypto
 Summary: Encryption support
@@ -103,7 +99,8 @@ Requires: %name = %version-%release
 Summary: Log normalization support for rsyslog
 Group: System Environment/Daemons
 Requires: %name = %version-%release
-BuildRequires: liblognorm-devel
+BuildRequires: liblognorm-devel >= 2.0.5
+Requires: liblognorm >= 2.0.5
 
 %package mmsnmptrapd
 Summary: Message modification module for snmptrapd generated messages
@@ -114,7 +111,11 @@ Requires: %name = %version-%release
 Summary: MySQL support for rsyslog
 Group: System Environment/Daemons
 Requires: %name = %version-%release
+%if 0%{?rhel} > 7
 BuildRequires: mariadb-connector-c-devel
+%else
+BuildRequires: mariadb-devel
+%endif
 
 %package pgsql
 Summary: PostgresSQL support for rsyslog

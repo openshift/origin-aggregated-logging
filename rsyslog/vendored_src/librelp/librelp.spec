@@ -5,12 +5,9 @@ Release: 1%{?dist}
 License: GPLv3+
 Group: System Environment/Libraries
 URL: http://www.rsyslog.com/
-Source0: http://download.rsyslog.com/librelp/%{name}-%{version}.tar.gz
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires: gnutls-devel >= 1.4.0
-
-Patch0: librelp-1.2.13-crypto-compliance.patch
 
 %description
 Librelp is an easy to use library for the RELP protocol. RELP (stands

@@ -5,7 +5,6 @@ Summary:        String handling essentials library
 
 License:        LGPLv2+
 URL:            http://libestr.adiscon.com/
-Source0:        http://libestr.adiscon.com/files/download/libestr-%{version}.tar.gz
 
 BuildRequires: autoconf
 BuildRequires: automake

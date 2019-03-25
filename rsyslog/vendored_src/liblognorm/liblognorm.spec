@@ -6,7 +6,6 @@ Release:	1%{?dist}
 Summary:	Fast samples-based log normalization library
 License:	LGPLv2+
 URL:		http://www.liblognorm.com
-Source0:	http://www.liblognorm.com/files/download/%{name}-%{version}.tar.gz
 
 BuildRequires:	chrpath
 BuildRequires:	libfastjson-devel
@@ -35,7 +34,11 @@ developing programs which use liblognorm library.
 %package doc
 Summary: HTML documentation for liblognorm
 Group: Documentation
+%if 0%{?rhel} > 7
 BuildRequires: python3-sphinx
+%else
+BuildRequires: python-sphinx
+%endif
 
 %description doc
 This sub-package contains documentation for liblognorm in a HTML form.

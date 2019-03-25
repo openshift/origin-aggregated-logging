@@ -6,16 +6,18 @@ Summary:	The Apache Kafka C library
 Group:		Development/Libraries
 License:	BSD
 URL:		https://github.com/edenhill/librdkafka
-Source0:	https://github.com/edenhill/librdkafka/archive/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
 
 BuildRequires:	gcc
 BuildRequires:	gcc-c++
-BuildRequires:	python3
+%if 0%{?rhel} > 7
+BuildRequires: python3
+%else
+BuildRequires: python
+%endif
 BuildRequires:  openssl-devel
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  lz4-devel
 
-Patch1: librdkafka-python3.patch 
 
 %description
 Librdkafka is a C/C++ library implementation of the Apache Kafka protocol,
