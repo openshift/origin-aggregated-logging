@@ -35,8 +35,8 @@ fi
 export LOGGING_NS
 
 # if using operators, turn off the managed state
-if oc get clusterlogging example > /dev/null 2>&1 ; then
-    oc patch -n ${LOGGING_NS} clusterlogging example --type=json --patch '[
+if oc get clusterlogging instance > /dev/null 2>&1 ; then
+    oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
           {"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]'
 fi
 
@@ -44,7 +44,7 @@ fluentd_ds=$( get_fluentd_ds_name )
 oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
 
 # patch fluentd and the node to make it easier to test in new environment
-if oc get clusterlogging example > /dev/null 2>&1 ; then
+if oc get clusterlogging instance > /dev/null 2>&1 ; then
     tolerations="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.tolerations}' )"
     if [ -n "$tolerations" ] ; then
         oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
@@ -54,7 +54,7 @@ if oc get clusterlogging example > /dev/null 2>&1 ; then
     if [ -z "$nodesel" ] ; then
         oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
             {"op":"add","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
-        oc patch -n ${LOGGING_NS} clusterlogging example --type=json --patch '[
+        oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
             {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-infra-fluentd":"true"}},
             {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}}]'
     fi
