@@ -143,6 +143,7 @@ struct modConfData_s {
 	uchar *myCertFile; /* File holding cert corresponding to private key used for client cert auth */
 	uchar *myPrivKeyFile; /* File holding private key corresponding to cert used for client cert auth */
 	sbool allowUnsignedCerts; /* For testing/debugging - do not check for CA certs (CURLOPT_SSL_VERIFYPEER FALSE) */
+	sbool skipVerifyHost; /* For testing/debugging - skip cert hostname verify (CURLOPT_SSL_VERIFYHOST FALSE) */
 	uchar *token; /* The token value to use to authenticate to Kubernetes - takes precedence over tokenFile */
 	uchar *tokenFile; /* The file whose contents is the token value to use to authenticate to Kubernetes */
 	sbool de_dot; /* If true (default), convert '.' characters in labels & annotations to de_dot_separator */
@@ -168,6 +169,7 @@ typedef struct _instanceData {
 	uchar *myCertFile; /* File holding cert corresponding to private key used for client cert auth */
 	uchar *myPrivKeyFile; /* File holding private key corresponding to cert used for client cert auth */
 	sbool allowUnsignedCerts; /* For testing/debugging - do not check for CA certs (CURLOPT_SSL_VERIFYPEER FALSE) */
+	sbool skipVerifyHost; /* For testing/debugging - skip cert hostname verify (CURLOPT_SSL_VERIFYHOST FALSE) */
 	uchar *token; /* The token value to use to authenticate to Kubernetes - takes precedence over tokenFile */
 	uchar *tokenFile; /* The file whose contents is the token value to use to authenticate to Kubernetes */
 	sbool de_dot; /* If true (default), convert '.' characters in labels & annotations to de_dot_separator */
@@ -223,6 +225,7 @@ static struct cnfparamdescr modpdescr[] = {
 	{ "tls.mycert", eCmdHdlrString, 0 },
 	{ "tls.myprivkey", eCmdHdlrString, 0 },
 	{ "allowunsignedcerts", eCmdHdlrBinary, 0 },
+	{ "skipverifyhost", eCmdHdlrBinary, 0 },
 	{ "token", eCmdHdlrString, 0 },
 	{ "tokenfile", eCmdHdlrString, 0 },
 	{ "annotation_match", eCmdHdlrArray, 0 },
@@ -255,6 +258,7 @@ static struct cnfparamdescr actpdescr[] = {
 	{ "tls.mycert", eCmdHdlrString, 0 },
 	{ "tls.myprivkey", eCmdHdlrString, 0 },
 	{ "allowunsignedcerts", eCmdHdlrBinary, 0 },
+	{ "skipverifyhost", eCmdHdlrBinary, 0 },
 	{ "token", eCmdHdlrString, 0 },
 	{ "tokenfile", eCmdHdlrString, 0 },
 	{ "annotation_match", eCmdHdlrArray, 0 },
@@ -637,6 +641,8 @@ CODESTARTsetModCnf
 			}
 		} else if(!strcmp(modpblk.descr[i].name, "allowunsignedcerts")) {
 			loadModConf->allowUnsignedCerts = pvals[i].val.d.n;
+		} else if(!strcmp(modpblk.descr[i].name, "skipverifyhost")) {
+			loadModConf->skipVerifyHost = pvals[i].val.d.n;
 		} else if(!strcmp(modpblk.descr[i].name, "token")) {
 			free(loadModConf->token);
 			loadModConf->token = (uchar *) es_str2cstr(pvals[i].val.d.estr, NULL);
@@ -954,6 +960,8 @@ CODESTARTcreateWrkrInstance
 		curl_easy_setopt(ctx, CURLOPT_SSLKEY, pWrkrData->pData->myPrivKeyFile);
 	if(pWrkrData->pData->allowUnsignedCerts)
 		curl_easy_setopt(ctx, CURLOPT_SSL_VERIFYPEER, 0);
+	if(pWrkrData->pData->skipVerifyHost)
+		curl_easy_setopt(ctx, CURLOPT_SSL_VERIFYHOST, 0);
 #if defined(SUPPORT_SSL_PARTIAL_CHAIN)
 	if(pWrkrData->pData->sslPartialChain) {
 		curl_easy_setopt(ctx, CURLOPT_SSL_CTX_FUNCTION, set_ssl_partial_chain);
@@ -1257,6 +1265,7 @@ CODESTARTnewActInst
 
 	pData->de_dot = loadModConf->de_dot;
 	pData->allowUnsignedCerts = loadModConf->allowUnsignedCerts;
+	pData->skipVerifyHost = loadModConf->skipVerifyHost;
 	pData->busyRetryInterval = loadModConf->busyRetryInterval;
 	pData->sslPartialChain = loadModConf->sslPartialChain;
 	pData->cacheEntryTTL = loadModConf->cacheEntryTTL;
@@ -1322,6 +1331,8 @@ CODESTARTnewActInst
 			}
 		} else if(!strcmp(actpblk.descr[i].name, "allowunsignedcerts")) {
 			pData->allowUnsignedCerts = pvals[i].val.d.n;
+		} else if(!strcmp(actpblk.descr[i].name, "skipverifyhost")) {
+			pData->skipVerifyHost = pvals[i].val.d.n;
 		} else if(!strcmp(actpblk.descr[i].name, "token")) {
 			free(pData->token);
 			pData->token = (uchar *) es_str2cstr(pvals[i].val.d.estr, NULL);
@@ -1566,6 +1577,7 @@ CODESTARTdbgPrintInstInfo
 	dbgprintf("\ttls.mycert='%s'\n", pData->myCertFile);
 	dbgprintf("\ttls.myprivkey='%s'\n", pData->myPrivKeyFile);
 	dbgprintf("\tallowUnsignedCerts='%d'\n", pData->allowUnsignedCerts);
+	dbgprintf("\tskipVerifyHost='%d'\n", pData->skipVerifyHost);
 	dbgprintf("\ttoken='%s'\n", pData->token);
 	dbgprintf("\ttokenFile='%s'\n", pData->tokenFile);
 	dbgprintf("\tde_dot='%d'\n", pData->de_dot);
