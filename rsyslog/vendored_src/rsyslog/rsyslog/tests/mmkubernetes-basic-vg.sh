@@ -95,8 +95,37 @@ for pod,hsh in expected.items():
 				print("Error: value {0} for key {1} in record for pod {2} does not match the expected value {3}".format(actual[pod][kk], kk, pod, vv))
 				rc = 1
 sys.exit(rc)
-' mmkubernetes-basic.out.json $RSYSLOG_OUT_LOG
-if [ $? -ne 0 ]; then
+' $srcdir/mmkubernetes-basic.out.json $RSYSLOG_OUT_LOG || rc=$?
+grep -q 'mmkubernetes: Not Found: the resource does not exist at url .*/namespaces\\\/namespace-name-6-not-found' $RSYSLOG_OUT_LOG || { echo fail1; rc=1; }
+grep -q 'mmkubernetes: Not Found: the resource does not exist at url .*/pods\\\/pod-name-7-not-found' $RSYSLOG_OUT_LOG || { echo fail2; rc=1; }
+grep -q 'mmkubernetes: Too Many Requests: the server is too heavily loaded to provide the data for the requested url .*/namespaces\\\/namespace-name-8-busy' $RSYSLOG_OUT_LOG || { echo fail3; rc=1; }
+grep -q 'mmkubernetes: Too Many Requests: the server is too heavily loaded to provide the data for the requested url .*/pods\\\/pod-name-9-busy' $RSYSLOG_OUT_LOG || { echo fail4; rc=1; }
+
+if [ -f ${RSYSLOG_DYNNAME}.spool/mmkubernetes-stats.log ] ; then
+	python <${RSYSLOG_DYNNAME}.spool/mmkubernetes-stats.log  -c '
+import sys,json
+k8s_srv_port = sys.argv[1]
+expected = {"name": "mmkubernetes(http://localhost:{0})".format(k8s_srv_port),
+    "origin": "mmkubernetes", "recordseen": 12, "namespacemetadatasuccess": 9,
+	"namespacemetadatanotfound": 1, "namespacemetadatabusy": 1, "namespacemetadataerror": 0,
+	"podmetadatasuccess": 9, "podmetadatanotfound": 1, "podmetadatabusy": 2, "podmetadataerror": 0,
+	"namespacecachenumentries": 10, "podcachenumentries": 10, "namespacecachehits": 1,
+	"podcachehits": 0, "namespacecachemisses": 11, "podcachemisses": 12 }
+actual = {}
+for line in sys.stdin:
+	jstart = line.find("{")
+	if jstart >= 0:
+		hsh = json.loads(line[jstart:])
+		if hsh["origin"] == "mmkubernetes":
+			actual = hsh
+assert(expected == actual)
+' $k8s_srv_port || { rc=$?; echo error: expected stats not found in ${RSYSLOG_DYNNAME}.spool/mmkubernetes-stats.log; }
+else
+	echo error: stats file ${RSYSLOG_DYNNAME}.spool/mmkubernetes-stats.log not found
+	rc=1
+fi
+
+if [ ${rc:-0} -ne 0 ]; then
 	echo
 	echo "FAIL: expected data not found.  $RSYSLOG_OUT_LOG is:"
 	cat $RSYSLOG_OUT_LOG

@@ -912,10 +912,12 @@ if ENABLE_MMKUBERNETES
 if ENABLE_MMJSONPARSE
 if ENABLE_IMFILE
 TESTS += \
-	mmkubernetes-basic.sh
+	mmkubernetes-basic.sh \
+	mmkubernetes-cache-expire.sh
 if HAVE_VALGRIND
 TESTS += \
-	mmkubernetes-basic-vg.sh
+	mmkubernetes-basic-vg.sh \
+	mmkubernetes-cache-expire-vg.sh
 endif
 endif
 endif
@@ -1967,6 +1969,8 @@ EXTRA_DIST= \
 	mmkubernetes-basic-vg.sh \
 	mmkubernetes_test_server.py \
 	mmkubernetes-basic.out.json \
+	mmkubernetes-cache-expire.sh \
+	mmkubernetes-cache-expire-vg.sh \
 	es-writeoperation.sh
 
 ourtail_SOURCES = ourtail.c
