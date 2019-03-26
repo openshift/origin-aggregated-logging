@@ -14,6 +14,8 @@ add_conf '
 template(name="tpl" type="string"
 	 string="{\"msgnum\":\"%msg:F,58:2%\"}")
 
+module(load="../plugins/impstats/.libs/impstats" interval="1"
+	   log.file="'"$RSYSLOG_DYNNAME.spool"'/omelasticsearch-stats.log" log.syslog="off" format="cee")
 module(load="../plugins/omelasticsearch/.libs/omelasticsearch")
 
 if $msg contains "msgnum:" then
@@ -21,7 +23,8 @@ if $msg contains "msgnum:" then
 	       server="127.0.0.1"
 	       serverport="19200"
 	       template="tpl"
-	       searchIndex="rsyslog_testbench")
+	       searchIndex="rsyslog_testbench"
+	       rebindinterval="'$REBIND_INTERVAL'")
 '
 startup
 . $srcdir/diag.sh injectmsg  0 10000
