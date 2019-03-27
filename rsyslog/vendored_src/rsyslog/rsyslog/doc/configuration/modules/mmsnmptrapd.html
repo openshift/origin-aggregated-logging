@@ -1,0 +1,220 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>mmsnmptrapd message modification module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Fix invalid UTF-8 Sequences (mmutf8fix)" href="mmutf8fix.html" />
+    <link rel="prev" title="Number generator and counter module (mmsequence)" href="mmsequence.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="mmutf8fix.html" title="Fix invalid UTF-8 Sequences (mmutf8fix)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mmsequence.html" title="Number generator and counter module (mmsequence)"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" accesskey="U">Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="mmsnmptrapd-message-modification-module">
+<h1>mmsnmptrapd message modification module<a class="headerlink" href="#mmsnmptrapd-message-modification-module" title="Permalink to this headline">¶</a></h1>
+<p><strong>Module Name:</strong>&nbsp;mmsnmptrapd</p>
+<p><strong>Author:</strong> Rainer Gerhards &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt; (custom-created)</p>
+<p><strong>Multi-Ruleset Support:</strong> since 5.8.1</p>
+<p><strong>Description</strong>:</p>
+<p>This module uses a specific configuration of snmptrapd’s tag values to
+obtain information of the original source system and the severity
+present inside the original SNMP trap. It then replaces these fields
+inside the syslog message.</p>
+<p>Let’s look at an example. Essentially, SNMPTT will invoke something like
+this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">logger</span> <span class="o">-</span><span class="n">t</span> <span class="n">snmptrapd</span><span class="o">/</span><span class="n">warning</span><span class="o">/</span><span class="n">realhost</span> <span class="n">Host</span> <span class="mi">003</span><span class="n">c</span><span class="o">.</span><span class="n">abcd</span><span class="o">.</span><span class="n">ffff</span> <span class="ow">in</span> <span class="n">vlan</span> <span class="mi">17</span> <span class="ow">is</span> <span class="n">flapping</span> <span class="n">between</span> <span class="n">port</span> <span class="n">Gi4</span><span class="o">/</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">port</span> <span class="n">Gi3</span><span class="o">/</span><span class="mi">2</span>
+</pre></div>
+</div>
+<p>This message modification module will change the tag (removing the
+additional information), hostname and severity (not shown in example),
+so the log entry will look as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="mi">2011</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">21</span><span class="n">T16</span><span class="p">:</span><span class="mi">43</span><span class="p">:</span><span class="mf">09.101633</span><span class="o">+</span><span class="mi">02</span><span class="p">:</span><span class="mi">00</span> <span class="n">realhost</span> <span class="n">snmptrapd</span><span class="p">:</span> <span class="n">Host</span> <span class="mi">003</span><span class="n">c</span><span class="o">.</span><span class="n">abcd</span><span class="o">.</span><span class="n">ffff</span> <span class="ow">in</span> <span class="n">vlan</span> <span class="mi">122</span> <span class="ow">is</span> <span class="n">flapping</span> <span class="n">between</span> <span class="n">port</span> <span class="n">Gi4</span><span class="o">/</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">port</span> <span class="n">Gi3</span><span class="o">/</span><span class="mi">2</span>
+</pre></div>
+</div>
+<p>The following logic is applied to all message being processed:</p>
+<ol class="arabic simple">
+<li>The module checks incoming syslog entries. If their TAG field starts
+with “snmptrapd/” (configurable), they are modified, otherwise not.
+If the are modified, this happens as follows:</li>
+<li>It will derive the hostname from the tag field which has format
+snmptrapd/severity/hostname</li>
+<li>It should derive the severity from the tag field which has format
+snmptrapd/severity/hostname. A configurable mapping table will be
+used to drive a new severity value from that severity string. If no
+mapping has been defined, the original severity is not changed.</li>
+<li>It replaces the “FromHost” value with the derived value from step 2</li>
+<li>It replaces the “Severity” value with the derived value from step 3</li>
+</ol>
+<p>Note that the placement of this module inside the configuration is
+important. All actions before this modules is called will work on the
+unmodified message. All messages after it’s call will work on the
+modified message. Please also note that there is some extra power in
+case it is required: as this module is implemented via the output module
+interface, a filter can be used (actually must be used) in order to tell
+when it is called. Usually, the catch-all filter (*.*) is used, but
+more specific filters are fully supported. So it is possible to define
+different parameters for this module depending on different filters. It
+is also possible to just run messages from one remote system through
+this module, with the help of filters or multiple rulesets and ruleset
+bindings. In short words, all capabilities rsyslog offers to control
+output modules are also available to mmsnmptrapd.</p>
+<p><strong>Configuration Parameters</strong>:</p>
+<p>Note: parameter names are case-insensitive.</p>
+<ul>
+<li><p class="first"><strong>$mmsnmptrapdTag</strong> [tagname]</p>
+<p>tells the module which start string inside the tag to look for. The
+default is “snmptrapd”. Note that a slash is automatically added to
+this tag when it comes to matching incoming messages. It MUST not be
+given, except if two slashes are required for whatever reasons (so
+“tag/” results in a check for “tag//” at the start of the tag field).</p>
+</li>
+<li><p class="first"><strong>$mmsnmptrapdSeverityMapping</strong> [severitymap]
+This specifies the severity mapping table. It needs to be specified
+as a list. Note that due to the current config system <strong>no
+whitespace</strong> is supported inside the list, so be sure not to use any
+whitespace inside it.
+The list is constructed of Severtiy-Name/Severity-Value pairs,
+delimited by comma. Severity-Name is a case-sensitive string, e.g.
+“warning” and an associated numerical value (e.g. 4). Possible values
+are in the rage 0..7 and are defined in RFC5424, table 2. The given
+sample would be specified as “warning/4”.
+If multiple instances of mmsnmptrapd are used, each instance uses
+the most recently defined $mmsnmptrapdSeverityMapping before itself.</p>
+</li>
+</ul>
+<p><strong>Caveats/Known Bugs:</strong></p>
+<ul class="simple">
+<li>currently none known</li>
+</ul>
+<p><strong>Example:</strong></p>
+<p>This enables to rewrite messages from snmptrapd and configures error and
+warning severities. The default tag is used.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad mmsnmptrapd # needs to be done just once
+# ... other module loads and listener setup ...
+*.* /path/to/file/with/orignalMessage # this file receives unmodified messages
+$mmsnmptrapdSeverityMapping warning/4,error/3
+*.* :mmsnmptrapd: # now message is modified
+*.* /path/to/file/with/modifiedMessage # this file receives modified messages
+# ... rest of config ...
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mmsequence.html"
+                        title="previous chapter">Number generator and counter module (mmsequence)</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mmutf8fix.html"
+                        title="next chapter">Fix invalid UTF-8 Sequences (mmutf8fix)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/mmsnmptrapd.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/mmsnmptrapd.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="mmutf8fix.html" title="Fix invalid UTF-8 Sequences (mmutf8fix)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mmsequence.html" title="Number generator and counter module (mmsequence)"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" >Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

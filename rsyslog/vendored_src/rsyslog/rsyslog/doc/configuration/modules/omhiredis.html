@@ -1,0 +1,452 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>omhiredis: Redis Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omhttpfs: Hadoop HTTPFS Output Module" href="omhttpfs.html" />
+    <link rel="prev" title="omhdfs: Hadoop Filesystem Output Module" href="omhdfs.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omhttpfs.html" title="omhttpfs: Hadoop HTTPFS Output Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omhdfs.html" title="omhdfs: Hadoop Filesystem Output Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="omhiredis-redis-output-module">
+<h1>omhiredis: Redis Output Module<a class="headerlink" href="#omhiredis-redis-output-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>omhiredis</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td>Brian Knox &lt;<a class="reference external" href="mailto:bknox&#37;&#52;&#48;digitalocean&#46;com">bknox<span>&#64;</span>digitalocean<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This module provides native support for writing to Redis,
+using the hiredis client library.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="server">
+<h4>Server<a class="headerlink" href="#server" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Name or address of the Redis server</p>
+</div>
+<div class="section" id="serverport">
+<h4>ServerPort<a class="headerlink" href="#serverport" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>6379</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Port of the Redis server if the server is not listening on the default port.</p>
+</div>
+<div class="section" id="serverpassword">
+<h4>ServerPassword<a class="headerlink" href="#serverpassword" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Password to support authenticated redis database server to push messages
+across networks and datacenters. Parameter is optional if not provided
+AUTH command wont be sent to the server.</p>
+</div>
+<div class="section" id="mode">
+<h4>Mode<a class="headerlink" href="#mode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>template</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Mode to run the output action in: “queue” or “publish”. If not supplied, the
+original “template” mode is used.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Due to a config parsing bug in 8.13, explicitly setting this to “template” mode will result in a config parsing error.</p>
+</div>
+</div>
+<div class="section" id="template">
+<h4>Template<a class="headerlink" href="#template" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>RSYSLOG_ForwardFormat</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Template is required if using “template” mode.</p>
+</div>
+<div class="section" id="key">
+<h4>Key<a class="headerlink" href="#key" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Key is required if using “publish” or “queue” mode.</p>
+</div>
+<div class="section" id="userpush">
+<h4>Userpush<a class="headerlink" href="#userpush" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>If set to on, use RPUSH instead of LPUSH, if not set or off, use LPUSH.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="example-1">
+<h3>Example 1<a class="headerlink" href="#example-1" title="Permalink to this headline">¶</a></h3>
+<p><em>Mode: template</em></p>
+<p>In “template” mode, the string constructed by the template is sent
+to Redis as a command.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This mode has problems with strings with spaces in them - full message won’t work correctly. In this mode, the template argument is required, and the key argument is meaningless.</p>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;omhiredis&quot;)
+
+template(
+  name=&quot;program_count_tmpl&quot;
+  type=&quot;string&quot;
+  string=&quot;HINCRBY progcount %programname% 1&quot;)
+
+action(
+  name=&quot;count_programs&quot;
+  server=&quot;my-redis-server.example.com&quot;
+  serverport=&quot;6379&quot;
+  type=&quot;omhiredis&quot;
+  mode=&quot;template&quot;
+  template=&quot;program_count_tmpl&quot;)
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-2">
+<h3>Example 2<a class="headerlink" href="#example-2" title="Permalink to this headline">¶</a></h3>
+<p>Here’s an example redis-cli session where we HGETALL the counts:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>&gt; redis-cli
+127.0.0.1:6379&gt; HGETALL progcount
+1) &quot;rsyslogd&quot;
+2) &quot;35&quot;
+3) &quot;rsyslogd-pstats&quot;
+4) &quot;4302&quot;
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-3">
+<h3>Example 3<a class="headerlink" href="#example-3" title="Permalink to this headline">¶</a></h3>
+<p><em>Mode: queue</em></p>
+<p>In “queue” mode, the syslog message is pushed into a Redis list
+at “key”, using the LPUSH command. If a template is not supplied,
+the plugin will default to the RSYSLOG_ForwardFormat template.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;omhiredis&quot;)
+
+action(
+  name=&quot;push_redis&quot;
+  server=&quot;my-redis-server.example.com&quot;
+  serverport=&quot;6379&quot;
+  type=&quot;omhiredis&quot;
+  mode=&quot;queue&quot;
+  key=&quot;my_queue&quot;)
+</pre></div>
+</div>
+</div>
+<div class="section" id="id1">
+<h3>Example 3<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Here’s an example redis-cli session where we RPOP from the queue:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>&gt; redis-cli
+127.0.0.1:6379&gt; RPOP my_queue
+
+&quot;&lt;46&gt;2015-09-17T10:54:50.080252-04:00 myhost rsyslogd: [origin software=\&quot;rsyslogd\&quot; swVersion=\&quot;8.13.0.master\&quot; x-pid=\&quot;6452\&quot; x-info=\&quot;http://www.rsyslog.com\&quot;] start&quot;
+
+127.0.0.1:6379&gt;
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-4">
+<h3>Example 4<a class="headerlink" href="#example-4" title="Permalink to this headline">¶</a></h3>
+<p><em>Mode: publish</em></p>
+<p>In “publish” mode, the syslog message is published to a Redis
+topic set by “key”.  If a template is not supplied, the plugin
+will default to the RSYSLOG_ForwardFormat template.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;omhiredis&quot;)
+
+action(
+  name=&quot;publish_redis&quot;
+  server=&quot;my-redis-server.example.com&quot;
+  serverport=&quot;6379&quot;
+  type=&quot;omhiredis&quot;
+  mode=&quot;publish&quot;
+  key=&quot;my_channel&quot;)
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-5">
+<h3>Example 5<a class="headerlink" href="#example-5" title="Permalink to this headline">¶</a></h3>
+<p>Here’s an example redis-cli session where we SUBSCRIBE to the topic:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>&gt; redis-cli
+
+127.0.0.1:6379&gt; subscribe my_channel
+
+Reading messages... (press Ctrl-C to quit)
+
+1) &quot;subscribe&quot;
+
+2) &quot;my_channel&quot;
+
+3) (integer) 1
+
+1) &quot;message&quot;
+
+2) &quot;my_channel&quot;
+
+3) &quot;&lt;46&gt;2015-09-17T10:55:44.486416-04:00 myhost rsyslogd-pstats: {\&quot;name\&quot;:\&quot;imuxsock\&quot;,\&quot;origin\&quot;:\&quot;imuxsock\&quot;,\&quot;submitted\&quot;:0,\&quot;ratelimit.discarded\&quot;:0,\&quot;ratelimit.numratelimiters\&quot;:0}&quot;
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">omhiredis: Redis Output Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#server">Server</a></li>
+<li><a class="reference internal" href="#serverport">ServerPort</a></li>
+<li><a class="reference internal" href="#serverpassword">ServerPassword</a></li>
+<li><a class="reference internal" href="#mode">Mode</a></li>
+<li><a class="reference internal" href="#template">Template</a></li>
+<li><a class="reference internal" href="#key">Key</a></li>
+<li><a class="reference internal" href="#userpush">Userpush</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#example-1">Example 1</a></li>
+<li><a class="reference internal" href="#example-2">Example 2</a></li>
+<li><a class="reference internal" href="#example-3">Example 3</a></li>
+<li><a class="reference internal" href="#id1">Example 3</a></li>
+<li><a class="reference internal" href="#example-4">Example 4</a></li>
+<li><a class="reference internal" href="#example-5">Example 5</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omhdfs.html"
+                        title="previous chapter">omhdfs: Hadoop Filesystem Output Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omhttpfs.html"
+                        title="next chapter">omhttpfs: Hadoop HTTPFS Output Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/omhiredis.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/omhiredis.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omhttpfs.html" title="omhttpfs: Hadoop HTTPFS Output Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omhdfs.html" title="omhdfs: Hadoop Filesystem Output Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

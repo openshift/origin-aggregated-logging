@@ -1,0 +1,232 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Control Structures &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="configuration objects" href="configuration_objects.html" />
+    <link rel="prev" title="HTTP-Request" href="functions/mo-http_request.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="configuration_objects.html" title="configuration objects"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="functions/mo-http_request.html" title="HTTP-Request"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" accesskey="U">RainerScript</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="control-structures">
+<h1>Control Structures<a class="headerlink" href="#control-structures" title="Permalink to this headline">¶</a></h1>
+<p>Control structures in RainerScript are similar in semantics to a lot
+of other mainstream languages such as C, Java, Javascript, Ruby,
+Bash etc.
+So this section assumes the reader is familiar with semantics of such
+structures, and goes about describing RainerScript implementation in
+usage-example form rather than by formal-definition and
+detailed semantics documentation.</p>
+<p>RainerScript supports following control structures:</p>
+<div class="section" id="if">
+<h2>if<a class="headerlink" href="#if" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-none"><div class="highlight"><pre><span></span>if ($msg contains &quot;important&quot;) then {
+   if ( $.foo != &quot;&quot; ) then set $.foo = $.bar &amp; $.baz;
+   action(type=&quot;omfile&quot; file=&quot;/var/log/important.log&quot; template=&quot;outfmt&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="if-else-if-else">
+<h2>if/else-if/else<a class="headerlink" href="#if-else-if-else" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-none"><div class="highlight"><pre><span></span>if ($msg contains &quot;important&quot;) then {
+   set $.foo = $.bar &amp; $.baz;
+   action(type=&quot;omfile&quot; file=&quot;/var/log/important.log&quot; template=&quot;outfmt&quot;)
+} else if ($msg startswith &quot;slow-query:&quot;) then {
+   action(type=&quot;omfile&quot; file=&quot;/var/log/slow_log.log&quot; template=&quot;outfmt&quot;)
+} else {
+   set $.foo = $.quux;
+   action(type=&quot;omfile&quot; file=&quot;/var/log/general.log&quot; template=&quot;outfmt&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="foreach">
+<h2>foreach<a class="headerlink" href="#foreach" title="Permalink to this headline">¶</a></h2>
+<p>Foreach can iterate both arrays and objects. As opposed to array-iteration
+(which is ordered), object-iteration accesses key-values in arbitrary order
+(is unordered).</p>
+<p>For the foreach invocation below:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>foreach ($.i in $.collection) do {
+   ...
+}
+</pre></div>
+</div>
+<p>Say <code class="docutils literal"><span class="pre">$.collection</span></code> holds an array <code class="docutils literal"><span class="pre">[1,</span> <span class="pre">&quot;2&quot;,</span> <span class="pre">{&quot;a&quot;:</span> <span class="pre">&quot;b&quot;},</span> <span class="pre">4]</span></code>, value
+of <code class="docutils literal"><span class="pre">$.i</span></code> across invocations would be <code class="docutils literal"><span class="pre">1</span></code>, <code class="docutils literal"><span class="pre">&quot;2&quot;</span></code>, <code class="docutils literal"><span class="pre">{&quot;a&quot;</span> <span class="pre">:</span> <span class="pre">&quot;b&quot;}</span></code>
+and <code class="docutils literal"><span class="pre">4</span></code>.</p>
+<p>When <code class="docutils literal"><span class="pre">$.collection</span></code> holds an object
+<code class="docutils literal"><span class="pre">{&quot;a&quot;:</span> <span class="pre">&quot;b&quot;,</span> <span class="pre">&quot;c&quot;</span> <span class="pre">:</span> <span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3],</span> <span class="pre">&quot;d&quot;</span> <span class="pre">:</span> <span class="pre">{&quot;foo&quot;:</span> <span class="pre">&quot;bar&quot;}}</span></code>, value of <code class="docutils literal"><span class="pre">$.i</span></code>
+across invocations would be <code class="docutils literal"><span class="pre">{&quot;key&quot;</span> <span class="pre">:</span> <span class="pre">&quot;a&quot;,</span> <span class="pre">&quot;value&quot;</span> <span class="pre">:</span> <span class="pre">&quot;b&quot;}</span></code>,
+<code class="docutils literal"><span class="pre">{&quot;key&quot;</span> <span class="pre">:</span> <span class="pre">&quot;c&quot;,</span> <span class="pre">&quot;value&quot;</span> <span class="pre">:</span> <span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]}</span></code> and
+<code class="docutils literal"><span class="pre">{&quot;key&quot;</span> <span class="pre">:</span> <span class="pre">&quot;d&quot;,</span> <span class="pre">&quot;value&quot;</span> <span class="pre">:</span> <span class="pre">{&quot;foo&quot;</span> <span class="pre">:</span> <span class="pre">&quot;bar&quot;}}</span></code> (not necessarily in the that
+order). In this case key and value will need to be accessed as <code class="docutils literal"><span class="pre">$.i!key</span></code>
+and <code class="docutils literal"><span class="pre">$.i!value</span></code> respectively.</p>
+<p>Here is an example of a nested foreach statement:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>foreach ($.quux in $!foo) do {
+   action(type=&quot;omfile&quot; file=&quot;./rsyslog.out.log&quot; template=&quot;quux&quot;)
+   foreach ($.corge in $.quux!bar) do {
+      reset $.grault = $.corge;
+      action(type=&quot;omfile&quot; file=&quot;./rsyslog.out.log&quot; template=&quot;grault&quot;)
+      if ($.garply != &quot;&quot;) then
+          set $.garply = $.garply &amp; &quot;, &quot;;
+      reset $.garply = $.garply &amp; $.grault!baz;
+   }
+}
+</pre></div>
+</div>
+<p>Please note that asynchronous-action calls in foreach-statement body should
+almost always set <code class="docutils literal"><span class="pre">action.copyMsg</span></code> to <code class="docutils literal"><span class="pre">on</span></code>. This is because action calls
+within foreach usually want to work with the variable loop populates (in the
+above example, <code class="docutils literal"><span class="pre">$.quux</span></code> and <code class="docutils literal"><span class="pre">$.corge</span></code>) which causes message-mutation and
+async-action must see message as it was in a certain invocation of loop-body,
+so they must make a copy to keep it safe from further modification as iteration
+continues. For instance, an async-action invocation with linked-list based
+queue would look like:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>foreach ($.quux in $!foo) do {
+    action(type=&quot;omfile&quot; file=&quot;./rsyslog.out.log&quot; template=&quot;quux
+           queue.type=&quot;linkedlist&quot; action.copyMsg=&quot;on&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="call">
+<h2>call<a class="headerlink" href="#call" title="Permalink to this headline">¶</a></h2>
+<p>Details here: <a class="reference internal" href="rainerscript_call.html"><span class="doc">The rsyslog “call” statement</span></a></p>
+</div>
+<div class="section" id="continue">
+<h2>continue<a class="headerlink" href="#continue" title="Permalink to this headline">¶</a></h2>
+<p>A NOP, useful e.g. inside the <code class="docutils literal"><span class="pre">then</span></code> part of an if-structure.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Control Structures</a><ul>
+<li><a class="reference internal" href="#if">if</a></li>
+<li><a class="reference internal" href="#if-else-if-else">if/else-if/else</a></li>
+<li><a class="reference internal" href="#foreach">foreach</a></li>
+<li><a class="reference internal" href="#call">call</a></li>
+<li><a class="reference internal" href="#continue">continue</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="functions/mo-http_request.html"
+                        title="previous chapter">HTTP-Request</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="configuration_objects.html"
+                        title="next chapter">configuration objects</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/rainerscript/control_structures.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/rainerscript/control_structures.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="configuration_objects.html" title="configuration objects"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="functions/mo-http_request.html" title="HTTP-Request"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../configuration/index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >RainerScript</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

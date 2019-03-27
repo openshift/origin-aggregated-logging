@@ -1,0 +1,356 @@
+----------------------------------------------------------------------
+Version 1.2.16 - 2018-05-14
+- API changes
+  * add new API: relpSrvSetOversizeMode()
+    This permits to tell librelp how to handle oversize messages.
+    Traditionally (and now default), this aborts the session. We now
+    added an option to truncate the message instead.
+    Also, in case of session abort a descriptive error message is
+    emitted. This did not happen previously and caused confusion.
+    closes https://github.com/rsyslog/librelp/issues/81
+  * add new API: relpSrvSetLstnAddr()
+    It permits to set the listen address inside the relp server.
+    If not called, the server will bind to all interfaces. 
+    Thanks to github user perlei for contributing it.
+- support additional hashes for fingerprint mode
+  old-style SHA1 is used automatically
+  Thanks to github user briaeros for the patch.
+  see also https://github.com/rsyslog/librelp/pull/55
+- bugfix: potential memory leak
+  This is very unlikely to occur in practice. Memory can be leaked
+  when TLS initialization fails when the client tries to connect
+  to the server. However, if this actually happens, it can happen
+  frequently and so accumulate to a large leak.
+  No report of such occurence from practice.
+  Detected by Coverity Scan, CID 266008.
+- bugfix: memory leak on protocol error
+  Receiving relp frames are not correctly deallocated while handling
+  protocol errors resulting in memory leak of dirty pages.
+  Thanks to github user gleentea for the patch.
+  see also https://github.com/rsyslog/librelp/issues/59
+  closes https://github.com/rsyslog/librelp/issues/60
+- fixed a couple of minor issues:
+  * fix memory leak when relp frame construction fails
+    detected by clang static analyzer
+  * removed unnecessary code
+    detected by clang static analyzer
+  * fix memory leak
+    This leaks occurs if the process is already totally out of memory,
+    a situation that is very rare and will also cuase other troubles.
+    So the practical relevance of this patch looks rather slim.
+    Detected by clang static analyzer.
+  * fix memory leak on relpSrvRun() error
+    this is kind of cosmetic, because it can only occur when the
+    run fails, which usually should lead to termination of the
+    calling application
+    deteced by Coverity Scan, CID 266016
+  * fix memory leak on relp listener construction error
+    detected by Coverity Scan, CID 266014, 266015
+  * also resolved all other issues reported by Coverity scan
+- CI
+  * added native testbench (formerly used rsyslog for testing)
+  * added additional compile tests
+----------------------------------------------------------------------
+Version 1.2.15 - 2018-03-21
+- made build on Solaris again
+- made build on AIX
+  Thanks to Philippe Duveau for providing the patches
+- bugfix: invalid handling of snprintf() return code
+- bugfix: invalid assert predicate
+  an assert could change status variable due to typo, so in debug
+  mode processing could fail.
+  thanks to github user KatMisato for alerting us
+  fixes https://github.com/rsyslog/librelp/issues/66
+- some code cleanup
+- bugfix: error message on open error was truncated
+  The "connection already open" error message when trying to open
+  an already open connection was truncated due to too-small size
+  specified.
+  Thanks to rsyslog forum user AlanR for the problem report.
+----------------------------------------------------------------------
+Version 1.2.14 - 2017-05-29
+- API extension: add relpSrvSetMaxDataSize()
+  Thanks to Nathan Brown for the patch.
+----------------------------------------------------------------------
+Version 1.2.13 - 2017-02-20
+- make build under BSD
+- bugfix: duplicated lines after server reconnect
+  Thanks to Hervé for the patch.
+----------------------------------------------------------------------
+Version 1.2.12 - 2016-07-07
+- API enhancement: permit to set connection timeout
+  Thanks to Nathan Brown for the patch.
+- cleanup: replace deprecated GnuTLS data types by current ones
+- CI improvements: added dynamic tests
+  we now use the rsyslog testbench to do dynamic librelp tests. This
+  currently happens only under Travis CI.
+----------------------------------------------------------------------
+Version 1.2.11 - 2016-06-22
+- bugfix: do not accept more than one "open" verb on a connection
+  closes https://github.com/rsyslog/librelp/issues/37
+- bugfix: potential segfault when high-numbered fd is used in sender
+  When a fd (socket) with value >= 1024 was used by the client sender
+  process, the library could segfault in select(). This depended a bit
+  on the platform.
+  This patch solves the issue by replacing the select() call with
+  poll(). Note that we do not changed to epoll(), because
+  (a) we only wait on a single fd
+  (b) poll() is more portable
+  closes https://github.com/rsyslog/librelp/issues/38
+- bugfix: make librelp not run in thight loop when out of sockets
+  If the process can no longer accept new connections (via accept)
+  because it has reached its file handle maximum, librelp runs in
+  a thight loop until either the client connection request is aborted
+  or a file handle becomes available.
+  This happens due to the fact that we get event notifications on
+  connection requests. As we can't satisfy it, we librelp always
+  retries. Unfortunately, there is no socket call to cancel a
+  connection request, so we cannot push the client request out.
+  An alternative solution would be to close and re-open the
+  listening socket, but in that case it is uncertain if we ever can
+  re-aquire a socket (an easy DoS). So the best thing we can
+  probably do is delay retries a bit. We must be careful, however,
+  not to use a too long delay, as that would also affect other
+  connections. We could address that problem via a dedicated thread
+  for the listening process, but librelp is designed so that it can
+  be used by callers with any threading library and threading model,
+  and that would violate this design principle.
+  Judging the alternatives, a slight delay probably is the best
+  solution, especially as the situation is uncommon and will hopefully
+  not last too long. This patch implements that solution.
+  closes https://github.com/rsyslog/librelp/issues/34
+- bugfix: flush the current recv frame if it exists if the client
+  session is restarting
+  Thanks to Nate Brown for the patch.
+- API enhancement: add configurable connection timeout
+  Thanks to Nate Brown for the patch.
+----------------------------------------------------------------------
+Version 1.2.10 - 2016-03-30
+- make compatible with older versions of GnuTLS which require
+  libgcrypt
+- improve example sender/receiver code
+  Thanks to Chris Pilkington for the patches.
+- bugfix: Send full buffers after connection re-establishing
+  When sending large buffers it's possible that only part of buffer data
+  will be transferred before connection is closed. Then on connection
+  re-establishing librelp thinks part of buffer is already sent and
+  transfers only remaining part. Remote side then is not be able to parse
+  such message and always closes the connection.
+  Thanks to github user cellscape for the patch.
+----------------------------------------------------------------------
+Version 1.2.9 - 2015-12-15
+- bugfix: Ignoring return status when handling syslog frames now.
+  Otherwise valid messages in the frame buffer will get lost when the 
+  remote connection is closed during meantime.
+- build bugfix: GnuTLS header was required even if TLS was turned off
+  Thanks to Pedro Alvarez Piedehierro for the patch.
+- bugfix: correct wrong assert() calls [debug mode only affected]
+----------------------------------------------------------------------
+Version 1.2.8 - 2014-09-07
+- bugfix: segfault if KEEPALIVE is used
+  Thanks to Tomas Heinrich for the patch.
+----------------------------------------------------------------------
+Version 1.2.7 - 2014-04-29
+- bugfix: librelp was incompatible with C++ without a real reason
+  Thanks to Ivan Kryak for the patch
+- bugfix: potential misadressing in wildcard match
+  see: https://github.com/rsyslog/librelp/pull/3
+  Thanks to Sebastian Schmidt for the patch.
+- bugfix: always last wildcard match was reported, not first
+  see: https://github.com/rsyslog/librelp/pull/4
+  Thanks to Sebastian Schmidt for the patch.
+----------------------------------------------------------------------
+Version 1.2.6 - 2014-03-20
+- report error when preparing for non-anon TLS and this is unsupported
+  The error is reported when the processes own certificate is set,
+  which also turns off anon TLS. We now check if TLS AUTH is supported
+  and, if not, return an error. This enables better error tracking
+  in the client, as otherwise the problem is reported much later
+  or even not at all (in the case of a relp server).
+----------------------------------------------------------------------
+Version 1.2.5 - 2014-03-20
+- permit to use anonymous TLS on platforms where GnuTLS misses
+  certificate verification function. This permits to use at least
+  anon TLS on platforms like RHEL and CENTOS 6.
+----------------------------------------------------------------------
+Version 1.2.4 - 2014-03-17
+- correct API/ABI change in 1.2.3
+  My reasoning was flawed, and we could run into problems with
+  apps that required the new version but could not detect that an
+  older one was installed.
+  Thanks to Michael Biebl for pointing this out.
+  What we have done is:
+  - revert back to previous state (return void)
+    * relpSrvEnableTLS();
+    * relpSrvEnableTLSZip();
+    These functions are now deprecated.
+  - introduce new functions that return a state
+    * relpSrvEnableTLS2();
+    * relpSrvEnableTLSZip2();
+----------------------------------------------------------------------
+Version 1.2.3 - 2014-03-13
+  ************************************************************
+  * NOTE: this version should NOT be used due to the API     *
+  *       change specified below.                            *
+  ************************************************************
+- add ability to build librelp without TLS
+  This is required on some platforms where GnuTLS is too old 
+  Use --disable-tls to select this mode. If set, RELP_RET_ERR_NO_TLS
+  will be returned on calls that selected TLS mode.
+  See also: https://github.com/rsyslog/librelp/issues/1
+- API change: two functions that used to return void now return state
+  these are:
+  * relpSrvEnableTLS();
+  * relpSrvEnableTLSZip();
+  This change is acceptable because the state must not necessary be
+  evaluated. If not, the same error is returned a bit later in the
+  calling sequence. Having it early, however, may help with better
+  error messages. So it's still optional to check.
+- bugfix: configure required too-old version of GnuTLS
+  This lead to successful builds which later on would not execute.
+----------------------------------------------------------------------
+Version 1.2.2 - 2014-01-07
+- add capability to enable tcp KEEPALIVE
+- introduced new API relpSrvSetKeepAlive() to support KEEPALIVE
+----------------------------------------------------------------------
+Version 1.2.1 - 2013-09-26
+- errors binding listener port are now reported via error message
+  callback
+----------------------------------------------------------------------
+Version 1.2.0 - 2013-07-15
+- support for epoll() added
+  platforms that do not support it fall back to select()
+- API extension: relpEngineSetOnGenericErr
+----------------------------------------------------------------------
+Version 1.1.5 - 2013-07-05
+- bugfix: memory leak on connection close
+  around 60 bytes of memory were lost on each connection close at the
+  server side (when the client initiated a close)
+- bugfix: potential misadressing on session close
+  This can happen if also a write was outstanding, a quite unusable
+  situation. In that case, already freed memory was being accessed.
+----------------------------------------------------------------------
+Version 1.1.4 - 2013-07-03
+- fix build problems on BSD
+  Thanks to Christiano for analysis and patch suggestion.
+- add ability to specify a non-standard RELP Window size
+- add burst support to the client API
+  With this, we remove the unconditional performance improvement
+  done in 1.1.3 - it is better to call the APIs explicitely.
+- wildcards are now supported in TLS name peer authentication
+  They follow RFC5425 recommandations, e.g.
+  *.example.com, client*.example.com, client01.*.com
+- new APIs: relpCltHintBurstBegin, relpCltHintBurstEnd,
+  relpCltSetWindowSize
+----------------------------------------------------------------------
+Version 1.1.3 - 2013-06-26
+- increased performance of RELP connection
+- bugfix: potential segfault if no GnuTLS priority string was set
+----------------------------------------------------------------------
+Version 1.1.2 - 2013-06-24
+- add capability to specify the GnuTLS priority string
+  This gives callers complete control over crypto parameters, like
+  ciphers to use.
+- add certificate-based authentication
+- add capability to specify number of Diffie-Hellman bits to use
+- API extension: relpSrvSetDHBits, relpSrvSetGnuTLSPriString,
+  relpSrvSetGnuTLSPriString, relpCltSetGnuTLSPriString
+  relpEngineSetOnAuthErr, relpCltSetUsrPtr,
+  relpSrvSetAuthMode, relpCltSetAuthMode
+----------------------------------------------------------------------
+Version 1.1.1 - 2013-06-11
+- added compression support for TLS
+- API extension: relpCltEnableTLSZip, relpSrvEnableTLSZip
+----------------------------------------------------------------------
+Version 1.1.0 - 2013-06-03
+- add TLS support
+- new api for creating listners:
+  ... which permits us to set various properties before the listener
+  is actually started. New callers should use it. Sequence is:
+  * relpEngineListnerConstruct()
+  * ... set properties ... (via relpSrv...() family)
+  * relgEngineListnerConstructFinalize()
+  This new style permits us to add/set additional listner options
+  without the need to introduce ever-new listner create functions.
+  Actually, their number would grow exponentionally, so this were
+  a dead end.
+  The old-style APIs relpEngineAddListner() and
+  relpEngineAddListner2() are still fully supported (and supposed
+  to be for a long time), but flagged as deprecated.
+----------------------------------------------------------------------
+Version 1.0.7 - 2013-05-13
+- ABI change: removed relpCltConnect2() API which was against
+  librelp API philosophy
+  This was only introduced in 1.0.6 and been in the code for a very
+  short time. So we decided that the best thing to do is actually
+  remove it (there is NO known released user, this changes was for
+  yet unreleased rsyslog 7.5.0).
+----------------------------------------------------------------------
+Version 1.0.6 - 2013-05-06
+- enhanced API to permit binding a client to a specific IP address
+----------------------------------------------------------------------
+Version 1.0.5 (rgerhards), 2013-04-24
+- bugfix: compile problem on Solaris
+  Thanks to John Lyman for the patch
+----------------------------------------------------------------------
+Version 1.0.4 (rgerhards), 2013-04-11
+- bugfix: busy loop on syslog sending as a client when server did not
+  accept data; this was broken out only when the remote peer
+  indicated that the connection as whole was broken. Now we properly
+  timeout.
+----------------------------------------------------------------------
+Version 1.0.3 (rgerhards), 2013-04-10
+- added relpCltSetTimeout() interface function
+- improved timeout handling
+  Note: default timeout is now consistently 90 seconds (there were
+  some parts of the code where it were 10 seconds and at others
+  they were 180).
+- provide support for user-settable shutdown indicator
+  This was introduced in support of rsyslog, but is probably useful
+  for other users as well. In short, it provides the ability to set
+  a pointer that is expected to be zero as long as the library shall
+  continue to run and set to 1 if it shall terminate. That ptr is then
+  checked at appropriate places of the library code.
+----------------------------------------------------------------------
+Version 1.0.2 (rgerhards), 2013-03-15
+- added capability to support only IPv4/v6 instead of both
+----------------------------------------------------------------------
+Version 1.0.1 (rgerhards), 2012-09-06
+- added capability to stop server without canceling its thread
+- bugfix: interrupt of select() was not properly handled
+  However, this caused no actual failure, just some unnecessary code
+  execution (and confusing debug messages).
+----------------------------------------------------------------------
+Version 1.0.0 (rgerhards), 2009-12-11
+This version of librelp matured in practice and it is now time for
+a 1.0 release. Besides that, it includes a small number of
+changes:
+- bugfix: user callback never received remote IP address
+- bugfix: offers builder did use a fixed size string without bounds
+  checking. I don't think this was a real issue as it was not
+  exposed to the outside world, but now the buffer dynamically
+  grows (which is the right thing to do). Thank to mterry for alerting
+  me.
+----------------------------------------------------------------------
+Version 0.1.3 (rgerhards), 2009-02-10
+- the callback on message reception did not contain a way to pass on
+  a caller cookie (e.g. for an instance pointer). An additional
+  interface has been added to support that.
+- cleaned up FDL license specifics
+- added libtool versioning
+- made librelp compile out of the box on FreeBSD - thanks to Michael
+  Biebl for the patch
+----------------------------------------------------------------------
+Version 0.1.2 (rgerhards), 2008-04-09
+- forward compatibility changes in support of our plans to use the
+  rsyslog runtime in the future
+----------------------------------------------------------------------
+Version 0.1.1 (rgerhards), 2008-04-09
+- improved build system, thanks to Michael Biebl
+  now easier to integrate with autoconf
+----------------------------------------------------------------------
+Version 0.1.0 (rgerhards), 2008-04-01
+- first version that is available to the public
+----------------------------------------------------------------------
+Version 0.0.1 (rgerhards), 2008-03-13
+- very experimental and incomplete version, not to be used any longer

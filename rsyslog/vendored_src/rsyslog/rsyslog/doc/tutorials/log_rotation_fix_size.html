@@ -1,0 +1,189 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Log rotation with rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="GELF forwarding in rsyslog" href="gelf_forwarding.html" />
+    <link rel="prev" title="Failover Syslog Server" href="failover_syslog_server.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gelf_forwarding.html" title="GELF forwarding in rsyslog"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="failover_syslog_server.html" title="Failover Syslog Server"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Tutorials</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="log-rotation-with-rsyslog">
+<h1>Log rotation with rsyslog<a class="headerlink" href="#log-rotation-with-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by Michael Meckelein</em></p>
+<div class="section" id="situation">
+<h2>Situation<a class="headerlink" href="#situation" title="Permalink to this headline">¶</a></h2>
+<p>Your environment does not allow you to store tons of logs? You have
+limited disc space available for logging, for example you want to log to
+a 124 MB RAM usb stick? Or you do not want to keep all the logs for
+months, logs from the last days is sufficient? Think about log rotation.</p>
+</div>
+<div class="section" id="log-rotation-based-on-a-fixed-log-size">
+<h2>Log rotation based on a fixed log size<a class="headerlink" href="#log-rotation-based-on-a-fixed-log-size" title="Permalink to this headline">¶</a></h2>
+<p>This small but hopefully useful article will show you the way to keep
+your logs at a given size. The following sample is based on rsyslog
+illustrating a simple but effective log rotation with a maximum size
+condition.</p>
+</div>
+<div class="section" id="use-output-channels-for-fixed-length-syslog-files">
+<h2>Use Output Channels for fixed-length syslog files<a class="headerlink" href="#use-output-channels-for-fixed-length-syslog-files" title="Permalink to this headline">¶</a></h2>
+<p>Lets assume you do not want to spend more than 100 MB hard disc space
+for you logs. With rsyslog you can configure Output Channels to achieve
+this. Putting the following directive</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># start log rotation via outchannel
+# outchannel definition
+$outchannel log_rotation,/var/log/log_rotation.log, 52428800,/home/me/./log_rotation_script
+#  activate the channel and log everything to it
+*.* :omfile:$log_rotation
+# end log rotation via outchannel
+</pre></div>
+</div>
+<p>to ryslog.conf instruct rsyslog to log everything to the destination
+file ‘/var/log/log_rotation.log’ until the give file size of 50 MB is
+reached. If the max file size is reached it will perform an action. In
+our case it executes the script /home/me/log_rotation_script which
+contains a single command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mv</span> <span class="o">-</span><span class="n">f</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">log_rotation</span><span class="o">.</span><span class="n">log</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">log_rotation</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="mi">1</span>
+</pre></div>
+</div>
+<p>This moves the original log to a kind of backup log file. After the
+action was successfully performed rsyslog creates a new
+/var/log/log_rotation.log file and fill it up with new logs. So the
+latest logs are always in log_rotation.log.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>With this approach two files for logging are used, each with a maximum
+size of 50 MB. So we can say we have successfully configured a log
+rotation which satisfies our requirement. We keep the logs at a
+fixed-size level of 100 MB.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Log rotation with rsyslog</a><ul>
+<li><a class="reference internal" href="#situation">Situation</a></li>
+<li><a class="reference internal" href="#log-rotation-based-on-a-fixed-log-size">Log rotation based on a fixed log size</a></li>
+<li><a class="reference internal" href="#use-output-channels-for-fixed-length-syslog-files">Use Output Channels for fixed-length syslog files</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="failover_syslog_server.html"
+                        title="previous chapter">Failover Syslog Server</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="gelf_forwarding.html"
+                        title="next chapter">GELF forwarding in rsyslog</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/log_rotation_fix_size.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/log_rotation_fix_size.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gelf_forwarding.html" title="GELF forwarding in rsyslog"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="failover_syslog_server.html" title="Failover Syslog Server"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

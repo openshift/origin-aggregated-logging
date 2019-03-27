@@ -1,0 +1,226 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Dynamic Stats &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Lookup Tables" href="lookup_tables.html" />
+    <link rel="prev" title="libgcrypt Log Crypto Provider (gcry)" href="cryprov_gcry.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="lookup_tables.html" title="Lookup Tables"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cryprov_gcry.html" title="libgcrypt Log Crypto Provider (gcry)"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Configuration</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="dynamic-stats">
+<h1>Dynamic Stats<a class="headerlink" href="#dynamic-stats" title="Permalink to this headline">¶</a></h1>
+<p>Rsyslog produces runtime-stats to allow user to study service health, performance, bottlenecks etc. Runtime-stats counters that Rsyslog components publish are statically defined.</p>
+<p><strong>Dynamic Stats</strong> (called dyn-stats henceforth) component allows user to configure stats-namespaces (called stats-buckets) and increment counters within these buckets using Rainerscript function call.</p>
+<p>The metric-name in this case can be a message-property or a sub-string extracted from message etc.</p>
+<div class="section" id="dyn-stats-configuration">
+<h2>Dyn-stats configuration<a class="headerlink" href="#dyn-stats-configuration" title="Permalink to this headline">¶</a></h2>
+<p>Dyn-stats configuration involves a <strong>two part setup</strong>.</p>
+<div class="section" id="dyn-stats-name-bucket-object">
+<h3>dyn_stats(name=”&lt;bucket&gt;”…) (object)<a class="headerlink" href="#dyn-stats-name-bucket-object" title="Permalink to this headline">¶</a></h3>
+<p><strong>Defines</strong> the bucket(identified by the bucket-name) and allows user to set some properties that control behavior of the bucket.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">dyn_stats</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;msg_per_host&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>name</strong> &lt;string litteral, mandatory&gt; : Name of the bucket.</p>
+<p><strong>resettable</strong> &lt;on|off, default: on&gt; : Whether or not counters should be reset every time they are reported. This works independent of <code class="docutils literal"><span class="pre">resetCounters</span></code> config parameter in <a class="reference internal" href="modules/impstats.html"><span class="doc">impstats: Generate Periodic Statistics of Internal Counters</span></a>.</p>
+<p><strong>maxCardinality</strong> &lt;number, default: 2000&gt; : Maximum number of unique counter-names to track.</p>
+<p class="last"><strong>unusedMetricLife</strong> &lt;number, default: 3600&gt; : Interval between full purges (in seconds).  This prevents unused counters from occupying resources forever.</p>
+</dd>
+</dl>
+<p>A definition setting all the parameters looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">dyn_stats</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;msg_per_host&quot;</span> <span class="n">resettable</span><span class="o">=</span><span class="s2">&quot;on&quot;</span> <span class="n">maxCardinality</span><span class="o">=</span><span class="s2">&quot;3000&quot;</span> <span class="n">unusedMetricLife</span><span class="o">=</span><span class="s2">&quot;600&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="dyn-inc-bucket-expr-function">
+<h3>dyn_inc(“&lt;bucket&gt;”, &lt;expr&gt;) (function)<a class="headerlink" href="#dyn-inc-bucket-expr-function" title="Permalink to this headline">¶</a></h3>
+<p><strong>Increments</strong> counter identified by value of variable in bucket identified by name.</p>
+<dl class="docutils">
+<dt>Parameters:</dt>
+<dd><p class="first"><strong>name</strong> &lt;string litteral, mandatory&gt; : Name of the bucket</p>
+<p class="last"><strong>expr</strong> &lt;expression resulting in a string&gt; : Name of counter (this name will be reported by impstats to identify the counter)</p>
+</dd>
+</dl>
+<p>A <code class="docutils literal"><span class="pre">dyn_inc</span></code> call looks like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>set $.inc = dyn_inc(&quot;msg_per_host&quot;, $hostname);
+
+if ($.inc != 0) then {
+    ....
+}
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">$.inc</span></code> captures the error-code. It has value <code class="docutils literal"><span class="pre">0</span></code> when increment operation is successful and non-zero when it fails. It uses Rsyslog error-codes.</p>
+</div>
+</div>
+<div class="section" id="reporting">
+<h2>Reporting<a class="headerlink" href="#reporting" title="Permalink to this headline">¶</a></h2>
+<p>Legacy format:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="k">global</span><span class="p">:</span> <span class="n">origin</span><span class="o">=</span><span class="n">dynstats</span> <span class="n">msg_per_host</span><span class="o">.</span><span class="n">ops_overflow</span><span class="o">=</span><span class="mi">1</span> <span class="n">msg_per_host</span><span class="o">.</span><span class="n">new_metric_add</span><span class="o">=</span><span class="mi">3</span> <span class="n">msg_per_host</span><span class="o">.</span><span class="n">no_metric</span><span class="o">=</span><span class="mi">0</span> <span class="n">msg_per_host</span><span class="o">.</span><span class="n">metrics_purged</span><span class="o">=</span><span class="mi">0</span> <span class="n">msg_per_host</span><span class="o">.</span><span class="n">ops_ignored</span><span class="o">=</span><span class="mi">0</span>
+<span class="o">...</span>
+<span class="n">msg_per_host</span><span class="p">:</span> <span class="n">origin</span><span class="o">=</span><span class="n">dynstats</span><span class="o">.</span><span class="n">bucket</span> <span class="n">foo</span><span class="o">=</span><span class="mi">2</span> <span class="n">bar</span><span class="o">=</span><span class="mi">1</span> <span class="n">baz</span><span class="o">=</span><span class="mi">1</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>Json(variants with the same structure are used in other Json based formats such as <code class="docutils literal"><span class="pre">cee</span></code> and <code class="docutils literal"><span class="pre">json-elasticsearch</span></code>) format:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="p">{</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;global&quot;</span><span class="p">,</span> <span class="s2">&quot;origin&quot;</span><span class="p">:</span> <span class="s2">&quot;dynstats&quot;</span><span class="p">,</span> <span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="s2">&quot;msg_per_host.ops_overflow&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;msg_per_host.new_metric_add&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;msg_per_host.no_metric&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;msg_per_host.metrics_purged&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;msg_per_host.ops_ignored&quot;</span><span class="p">:</span> <span class="mi">0</span> <span class="p">}</span> <span class="p">}</span>
+<span class="o">...</span>
+<span class="p">{</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;msg_per_host&quot;</span><span class="p">,</span> <span class="s2">&quot;origin&quot;</span><span class="p">:</span> <span class="s2">&quot;dynstats.bucket&quot;</span><span class="p">,</span> <span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="s2">&quot;foo&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;bar&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;baz&quot;</span><span class="p">:</span> <span class="mi">1</span> <span class="p">}</span> <span class="p">}</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>In this case counters are encapsulated inside an object hanging off top-level-key <code class="docutils literal"><span class="pre">values</span></code>.</p>
+<div class="section" id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>global: origin=dynstats</strong>:</dt>
+<dd><p class="first"><strong>ops_overflow</strong>: Number of operations ignored because number-of-counters-tracked has hit configured max-cardinality.</p>
+<p><strong>new_metric_add</strong>: Number of “new” metrics added (new counters created).</p>
+<p><strong>no_metric</strong>: Counter-name given was invalid (length = 0).</p>
+<p><strong>metrics_purged</strong>: Number of counters discarded at discard-cycle (controlled by <strong>unusedMetricLife</strong>).</p>
+<p><strong>ops_ignored</strong>: Number of operations ignored due to potential performance overhead. Dyn-stats subsystem ignores operations to avoid performance-penalty if it can’t get access to counter without delay(lock acquiring latency).</p>
+<p class="last"><strong>purge_triggered</strong>: Indicates that a discard was performed (1 implies a discard-cycle run).</p>
+</dd>
+<dt><strong>msg_per_host: origin=dynstats.bucket</strong>:</dt>
+<dd><strong>&lt;metric_name&gt;</strong>: Value of counter identified by &lt;metric-name&gt;.</dd>
+</dl>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Dynamic Stats</a><ul>
+<li><a class="reference internal" href="#dyn-stats-configuration">Dyn-stats configuration</a><ul>
+<li><a class="reference internal" href="#dyn-stats-name-bucket-object">dyn_stats(name=”&lt;bucket&gt;”…) (object)</a></li>
+<li><a class="reference internal" href="#dyn-inc-bucket-expr-function">dyn_inc(“&lt;bucket&gt;”, &lt;expr&gt;) (function)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reporting">Reporting</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="cryprov_gcry.html"
+                        title="previous chapter">libgcrypt Log Crypto Provider (gcry)</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="lookup_tables.html"
+                        title="next chapter">Lookup Tables</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/configuration/dyn_stats.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/dyn_stats.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="lookup_tables.html" title="Lookup Tables"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cryprov_gcry.html" title="libgcrypt Log Crypto Provider (gcry)"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Configuration</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

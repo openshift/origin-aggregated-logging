@@ -1,0 +1,456 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Encrypting Syslog Traffic with TLS (SSL) [short version] &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database" href="database.html" />
+    <link rel="prev" title="Error Messages" href="tls_cert_errmsgs.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="database.html" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tls_cert_errmsgs.html" title="Error Messages"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Tutorials</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="encrypting-syslog-traffic-with-tls-ssl-short-version">
+<h1>Encrypting Syslog Traffic with TLS (SSL) [short version]<a class="headerlink" href="#encrypting-syslog-traffic-with-tls-ssl-short-version" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by</em> <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a>
+<em>(2008-05-06)</em></p>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p><strong>In this paper, I describe how to encrypt</strong>
+<a class="reference external" href="http://www.monitorware.com/en/topics/syslog/">syslog</a>
+<strong>messages on the network.</strong>
+Encryption is vital to keep the confidential content of
+syslog messages secure. I describe the overall approach and provide an
+HOWTO do it with <a class="reference external" href="http://www.rsyslog.com">rsyslog’s</a> TLS features.</p>
+<p>Please note that TLS is the more secure successor of SSL. While people
+often talk about “SSL encryption” they actually mean “TLS encryption”.
+So don’t look any further if you look for how to SSL-encrypt syslog. You
+have found the right spot.</p>
+<p>This is a quick guide. There is a more elaborate guide currently under
+construction which provides a much more secure environment. It is highly
+recommended to <a class="reference external" href="rsyslog_secure_tls.html">at least have a look at it</a>.</p>
+</div>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p><strong>Traditional syslog is a clear-text protocol. That means anyone with a
+sniffer can have a peek at your data.</strong> In some environments, this is no
+problem at all. In others, it is a huge setback, probably even
+preventing deployment of syslog solutions. Thankfully, there are easy
+ways to encrypt syslog communication.</p>
+<p>The traditional approach involves <a class="reference external" href="rsyslog_stunnel.html">running a wrapper like stunnel around
+the syslog session</a>. This works quite well and
+is in widespread use. However, it is not tightly coupled with the main
+syslogd and some, even severe, problems can result from this (follow a
+mailing list thread that describes <a class="reference external" href="http://lists.adiscon.net/pipermail/rsyslog/2008-March/000580.html">total loss of syslog messages due to
+stunnel
+mode</a>
+and the <a class="reference external" href="http://rgerhards.blogspot.com/2008/04/on-unreliability-of-plain-tcp-syslog.html">unreliability of TCP
+syslog</a>).</p>
+<p><a class="reference external" href="gssapi.html">Rsyslog supports syslog via GSSAP</a>I since long to
+overcome these limitations. However, syslog via GSSAPI is a
+rsyslog-exclusive transfer mode and it requires a proper Kerberos
+environment. As such, it isn’t a really universal solution. The
+<a class="reference external" href="http://www.ietf.org/">IETF</a> has begun standardizing syslog over plain
+tcp over TLS for a while now. While I am not fully satisfied with the
+results so far, this obviously has the&nbsp; potential to become the
+long-term solution. The Internet Draft in question, syslog-transport-tls
+has been dormant for some time but is now (May of 2008) again being
+worked on. I expect it to turn into a RFC within the next 12 month (but
+don’t take this for granted ;)). I didn’t want to wait for it, because
+there obviously is need for TLS syslog right now (and, honestly, I have
+waited long enough…). Consequently, I have implemented the current
+draft, with some interpretations I made (there will be a compliance doc
+soon). So in essence, a TLS-protected syslog transfer mode is available
+right now. As a side-note, Rsyslog is&nbsp;the world’s first implementation
+of syslog-transport-tls.</p>
+<p>Please note that in theory it should be compatible with other, non IETF
+syslog-transport-tls implementations. If you would like to run it with
+something else, please let us know so that we can create a compatibility
+list (and implement compatibility where it doesn’t yet exist).</p>
+</div>
+<div class="section" id="overall-system-setup">
+<h2>Overall System Setup<a class="headerlink" href="#overall-system-setup" title="Permalink to this headline">¶</a></h2>
+<p>Encryption requires a reliable stream. So It will not work over UDP
+syslog. In rsyslog, network transports utilize a so-called “network
+stream layer” (netstream for short). This layer provides a unified view
+of the transport to the application layer. The plain TCP syslog sender
+and receiver are the upper layer. The driver layer currently consists of
+the “ptcp” and “gtls” library plugins. “ptcp” stands for “plain tcp” and
+is used for unencrypted message transfer. It is also used internally by
+the gtls driver, so it must always be present on a system. The “gtls”
+driver is for GnutTLS, a TLS library. It is used for encrypted message
+transfer. In the future, additional drivers will become available (most
+importantly, we would like to include a driver for NSS).</p>
+<p>What you need to do to build an encrypted syslog channel is to simply
+use the proper netstream drivers on both the client and the server.
+Client, in the sense of this document, is the rsyslog system that is
+sending syslog messages to a remote (central) loghost, which is called
+the server. In short, the setup is as follows:</p>
+<p><strong>Client</strong></p>
+<ul class="simple">
+<li>forwards messages via plain tcp syslog using gtls netstream driver to
+central server on port 10514</li>
+</ul>
+<p><strong>Server</strong></p>
+<ul class="simple">
+<li>accept incoming messages via plain tcp syslog using gtls netstream
+driver on port 10514</li>
+</ul>
+</div>
+<div class="section" id="setting-up-the-system">
+<h2>Setting up the system<a class="headerlink" href="#setting-up-the-system" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="server-setup">
+<h3>Server Setup<a class="headerlink" href="#server-setup" title="Permalink to this headline">¶</a></h3>
+<p>At the server, you need to have a digital certificate. That certificate
+enables SSL operation, as it provides the necessary crypto keys being
+used to secure the connection. There is a set of default certificates in
+./contrib/gnutls. These are key.pem and cert.pem. These are&nbsp;good for
+testing. If you use it in production, it is very easy to break into your
+secure channel as everybody is able to get hold of your private key. So
+it is&nbsp;a good idea to generate the key and certificate yourself.</p>
+<p>You also need a root CA certificate. Again, there is a sample CA
+certificate in ./contrib/gnutls, named ca.cert. It is suggested to
+generate your own.</p>
+<p>To configure the server, you need to tell it where are its certificate
+files, to use the gtls driver and start up a listener. This is done as
+follows:</p>
+<blockquote>
+<div><div class="highlight-default"><div class="highlight"><pre><span></span># make gtls driver the default
+$DefaultNetstreamDriver gtls
+
+# certificate files
+$DefaultNetstreamDriverCAFile /path/to/contrib/gnutls/ca.pem
+$DefaultNetstreamDriverCertFile /path/to/contrib/gnutls/cert.pem
+$DefaultNetstreamDriverKeyFile /path/to/contrib/gnutls/key.pem
+
+$ModLoad imtcp # load TCP listener
+
+$InputTCPServerStreamDriverMode 1 # run driver in TLS-only mode
+$InputTCPServerStreamDriverAuthMode anon # client is NOT authenticated
+$InputTCPServerRun 10514 # start up listener at port 10514
+</pre></div>
+</div>
+</div></blockquote>
+<p>This is all you need to do. You can use the rest of your rsyslog.conf
+together with this configuration. The way messages are received does not
+interfere with any other option, so you are able to do anything else you
+like without any restrictions.</p>
+<p>Restart rsyslogd. The server should now be fully operational.</p>
+</div>
+<div class="section" id="client-setup">
+<h3>Client Setup<a class="headerlink" href="#client-setup" title="Permalink to this headline">¶</a></h3>
+<p>The client setup is equally&nbsp;simple. You need less certificates, just the
+CA cert.</p>
+<blockquote>
+<div><div class="highlight-default"><div class="highlight"><pre><span></span># certificate files - just CA for a client
+$DefaultNetstreamDriverCAFile /path/to/contrib/gnutls/ca.pem
+
+# set up the action
+$DefaultNetstreamDriver gtls # use gtls netstream driver
+$ActionSendStreamDriverMode 1 # require TLS for the connection
+$ActionSendStreamDriverAuthMode anon # server is NOT authenticated
+*.* @@(o)server.example.net:10514 # send (all) messages
+</pre></div>
+</div>
+</div></blockquote>
+<p>Note that we use the regular TCP forwarding syntax (&#64;&#64;) here. There is
+nothing special, because the encryption is handled by the netstream
+driver. So I have just forwarded every message (*.*) for simplicity -
+you can use any of rsyslog’s filtering capabilities (like
+expression-based filters or regular expressions). Note that the “(o)”
+part is not strictly necessary. It selects octet-based framing, which
+provides compatibility to IETF’s syslog-transport-tls draft. Besides
+compatibility, this is also a more reliable transfer mode, so I suggest
+to always use it.</p>
+</div>
+<div class="section" id="done">
+<h3>Done<a class="headerlink" href="#done" title="Permalink to this headline">¶</a></h3>
+<p>After following these steps, you should have a working secure syslog
+forwarding system. To verify, you can type “logger test” or a similar
+“smart” command on the client. It should show up in the respective
+server log file. If you dig out your sniffer, you should see that the
+traffic on the wire is actually protected.</p>
+</div>
+</div>
+<div class="section" id="certificates">
+<h2>Certificates<a class="headerlink" href="#certificates" title="Permalink to this headline">¶</a></h2>
+<p>In order to be really secure, certificates are needed. This is a short
+summary on how to generate the necessary certificates with GnuTLS’
+certtool. You can also generate certificates via other tools, but as we
+currently support GnuTLS as the only TLS library, we thought it is a
+good idea to use their tools.</p>
+<p>Note that this section aims at people who are not involved with PKI at
+all. The main goal is to get them going in a reasonable secure way.</p>
+<div class="section" id="ca-certificate">
+<h3>CA Certificate<a class="headerlink" href="#ca-certificate" title="Permalink to this headline">¶</a></h3>
+<p>This is used to sign all of your other certificates. The CA cert must be
+trusted by all clients and servers. The private key must be
+well-protected and not given to any third parties. The certificate
+itself can (and must) be distributed. To generate it, do the following:</p>
+<ol class="arabic">
+<li><p class="first">generate the private key:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">certtool</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">privkey</span> <span class="o">--</span><span class="n">outfile</span> <span class="n">ca</span><span class="o">-</span><span class="n">key</span><span class="o">.</span><span class="n">pem</span>
+</pre></div>
+</div>
+<p>This takes a short while. Be sure to do some work on your
+workstation, it waits for random input. Switching between windows is
+sufficient ;)</p>
+</li>
+<li><p class="first">now create the (self-signed) CA certificate itself:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">certtool</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="bp">self</span><span class="o">-</span><span class="n">signed</span> <span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">privkey</span> <span class="n">ca</span><span class="o">-</span><span class="n">key</span><span class="o">.</span><span class="n">pem</span> <span class="o">--</span><span class="n">outfile</span> <span class="n">ca</span><span class="o">.</span><span class="n">pem</span>
+</pre></div>
+</div>
+<p>This generates the CA certificate. This command queries you for a
+number of things. Use appropriate responses. When it comes to
+certificate validity, keep in mind that you need to recreate all
+certificates when this one expires. So it may be a good idea to use a
+long period, eg. 3650 days (roughly 10 years). You need to specify
+that the certificates belongs to an authority. The certificate is used
+to sign other certificates.</p>
+</li>
+<li><p class="first">You need to distribute this certificate to all peers and you need to
+point to it via the $DefaultNetstreamDriverCAFile config directive.
+All other certificates will be issued by this CA.
+Important: do only distribute the ca.pem, NOT ca-key.pem (the
+private key). Distributing the CA private key would totally breach
+security as everybody could issue new certificates on the behalf of
+this CA.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="individual-peer-certificate">
+<h3>Individual Peer Certificate<a class="headerlink" href="#individual-peer-certificate" title="Permalink to this headline">¶</a></h3>
+<p>Each peer (be it client, server or both), needs a certificate that
+conveys its identity. Access control is based on these certificates. You
+can, for example, configure a server to accept connections only from
+configured clients. The client ID is taken from the client instances
+certificate. So as a general rule of thumb, you need to create a
+certificate for each instance of rsyslogd that you run. That instance
+also needs the private key, so that it can properly decrypt the traffic.
+Safeguard the peer’s private key file. If somebody gets hold of it, it
+can maliciously pretend to be the compromised host. If such happens,
+regenerate the certificate and make sure you use a different name
+instead of the compromised one (if you use name-based authentication).</p>
+<p>These are the steps to generate the individual certificates (repeat: you
+need to do this for every instance, do NOT share the certificates
+created in this step):</p>
+<ol class="arabic">
+<li><p class="first">generate a private key (do NOT mistake this with the CA’s private key
+- this one is different):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">certtool</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">privkey</span> <span class="o">--</span><span class="n">outfile</span> <span class="n">key</span><span class="o">.</span><span class="n">pem</span>
+</pre></div>
+</div>
+<p>Again, this takes a short while.</p>
+</li>
+<li><p class="first">generate a certificate request:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">certtool</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">request</span> <span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">privkey</span> <span class="n">key</span><span class="o">.</span><span class="n">pem</span> <span class="o">--</span><span class="n">outfile</span> <span class="n">request</span><span class="o">.</span><span class="n">pem</span>
+</pre></div>
+</div>
+<p>If you do not have the CA’s private key (because you are not
+authorized for this), you can send the certificate request to the
+responsible person. If you do this, you can skip the remaining steps,
+as the CA will provide you with the final certificate. If you submit
+the request to the CA, you need to tell the CA the answers that you
+would normally provide in step 3 below.</p>
+</li>
+<li><p class="first">Sign (validate, authorize) the certificate request and generate the
+instances certificate. You need to have the CA’s certificate and
+private key for this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">certtool</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">certificate</span> <span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">request</span> <span class="n">request</span><span class="o">.</span><span class="n">pem</span> <span class="o">--</span><span class="n">outfile</span> <span class="n">cert</span><span class="o">.</span><span class="n">pem</span> \ <span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">ca</span><span class="o">-</span><span class="n">certificate</span> <span class="n">ca</span><span class="o">.</span><span class="n">pem</span> <span class="o">--</span><span class="n">load</span><span class="o">-</span><span class="n">ca</span><span class="o">-</span><span class="n">privkey</span> <span class="n">ca</span><span class="o">-</span><span class="n">key</span><span class="o">.</span><span class="n">pem</span>
+</pre></div>
+</div>
+<p>Answer questions as follows: Cert does not belong to an authority; it
+is a TLS web server and client certificate; the dnsName MUST be the
+name of the peer in question (e.g. centralserver.example.net) - this
+is the name used for authenticating the peers. Please note that you
+may use an IP address in dnsName. This is a good idea if you would
+like to use default server authentication and you use selector lines
+with IP addresses (e.g. “*.* &#64;&#64;192.168.0.1”) - in that case you
+need to select a dnsName of 192.168.0.1. But, of course, changing the
+server IP then requires generating a new certificate.</p>
+</li>
+</ol>
+<p>After you have generated the certificate, you need to place it onto the
+local machine running rsyslogd. Specify the certificate and key via the
+$DefaultNetstreamDriverCertFile /path/to/cert.pem and
+$DefaultNetstreamDriverKeyFile /path/to/key.pem configuration
+directives. Make sure that nobody has access to key.pem, as that would
+breach security. And, once again: do NOT use these files on more than
+one instance. Doing so would prevent you from distinguishing between the
+instances and thus would disable useful authentication.</p>
+</div>
+<div class="section" id="troubleshooting-certificates">
+<h3>Troubleshooting Certificates<a class="headerlink" href="#troubleshooting-certificates" title="Permalink to this headline">¶</a></h3>
+<p>If you experience trouble with your certificate setup, it may be useful
+to get some information on what is contained in a specific certificate
+(file). To obtain that information, do</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ certtool --certificate-info --infile cert.pem
+</pre></div>
+</div>
+<p>where “cert.pem” can be replaced by the various certificate pem files
+(but it does not work with the key files).</p>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>With minimal effort, you can set up a secure logging infrastructure
+employing TLS encrypted syslog message transmission.</p>
+<div class="section" id="feedback-requested">
+<h3>Feedback requested<a class="headerlink" href="#feedback-requested" title="Permalink to this headline">¶</a></h3>
+<p>I would appreciate feedback on this tutorial. If you have additional
+ideas, comments or find bugs (I *do* bugs - no way… ;)), please <a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">let
+me know</a>.</p>
+</div>
+</div>
+<div class="section" id="revision-history">
+<h2>Revision History<a class="headerlink" href="#revision-history" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>2008-05-06 * <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a> *
+Initial Version created</li>
+<li>2008-05-26 * <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a> *
+added information about certificates</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Encrypting Syslog Traffic with TLS (SSL) [short version]</a><ul>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#background">Background</a></li>
+<li><a class="reference internal" href="#overall-system-setup">Overall System Setup</a></li>
+<li><a class="reference internal" href="#setting-up-the-system">Setting up the system</a><ul>
+<li><a class="reference internal" href="#server-setup">Server Setup</a></li>
+<li><a class="reference internal" href="#client-setup">Client Setup</a></li>
+<li><a class="reference internal" href="#done">Done</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#certificates">Certificates</a><ul>
+<li><a class="reference internal" href="#ca-certificate">CA Certificate</a></li>
+<li><a class="reference internal" href="#individual-peer-certificate">Individual Peer Certificate</a></li>
+<li><a class="reference internal" href="#troubleshooting-certificates">Troubleshooting Certificates</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a><ul>
+<li><a class="reference internal" href="#feedback-requested">Feedback requested</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#revision-history">Revision History</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tls_cert_errmsgs.html"
+                        title="previous chapter">Error Messages</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="database.html"
+                        title="next chapter">Writing syslog messages to MySQL, PostgreSQL or any other supported Database</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/tls.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/tls.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="database.html" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tls_cert_errmsgs.html" title="Error Messages"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

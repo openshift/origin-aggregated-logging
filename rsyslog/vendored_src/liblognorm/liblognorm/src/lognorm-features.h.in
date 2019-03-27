@@ -1,0 +1,3 @@
+#if @FEATURE_REGEXP@
+#define LOGNORM_REGEX_SUPPORTED 1
+#endif

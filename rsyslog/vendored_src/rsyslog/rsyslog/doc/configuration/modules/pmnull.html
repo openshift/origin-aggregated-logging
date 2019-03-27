@@ -1,0 +1,286 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pmnull: Syslog Null Parser Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="pmrfc3164: Parse RFC3164-formatted messages" href="pmrfc3164.html" />
+    <link rel="prev" title="Log Message Normalization Parser Module (pmnormalize)" href="pmnormalize.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="pmrfc3164.html" title="pmrfc3164: Parse RFC3164-formatted messages"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="pmnormalize.html" title="Log Message Normalization Parser Module (pmnormalize)"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" accesskey="U">Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pmnull-syslog-null-parser-module">
+<h1>pmnull: Syslog Null Parser Module<a class="headerlink" href="#pmnull-syslog-null-parser-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>pmnull</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>When a message is received it is tried to match a set of parsers to get
+properties populated. This parser module sets all attributes to “” but rawmsg.
+There usually should be no need to use this module. It may be useful to
+process certain known-not-syslog messages.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="parser-parameters">
+<h3>Parser Parameters<a class="headerlink" href="#parser-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="tag">
+<h4>Tag<a class="headerlink" href="#tag" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>&#160;</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This setting sets the tag value to the message.</p>
+</div>
+<div class="section" id="syslogfacility">
+<h4>SyslogFacility<a class="headerlink" href="#syslogfacility" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Facility</td>
+<td>1</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This setting sets the syslog facility value. The default comes from the
+rfc3164 standard.</p>
+</div>
+<div class="section" id="syslogseverity">
+<h4>SyslogSeverity<a class="headerlink" href="#syslogseverity" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Severity</td>
+<td>5</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This setting sets the syslog severity value. The default comes from the
+rfc3164 standard.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="process-messages-received-via-imtcp">
+<h3>Process messages received via imtcp<a class="headerlink" href="#process-messages-received-via-imtcp" title="Permalink to this headline">¶</a></h3>
+<p>In this example messages are received through imtcp on port 13514. The
+ruleset uses the parser pmnull which has the parameters tag, syslogfacility
+and syslogseverity given.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmnull&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;13514&quot; ruleset=&quot;ruleset&quot;)
+parser(name=&quot;custom.pmnull&quot; type=&quot;pmnull&quot; tag=&quot;mytag&quot; syslogfacility=&quot;3&quot;
+      syslogseverity=&quot;1&quot;)
+
+ruleset(name=&quot;ruleset&quot; parser=[&quot;custom.pmnull&quot;, &quot;rsyslog.pmnull&quot;]) {
+     action(type=&quot;omfile&quot; file=&quot;rsyslog.out.log&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="process-messages-with-default-parameters">
+<h3>Process messages with default parameters<a class="headerlink" href="#process-messages-with-default-parameters" title="Permalink to this headline">¶</a></h3>
+<p>In this example the ruleset uses the parser pmnull with the default parameters
+because no specifics were given.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmnull&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;13514&quot; ruleset=&quot;ruleset&quot;)
+parser(name=&quot;custom.pmnull&quot; type=&quot;pmnull&quot;)
+
+ruleset(name=&quot;ruleset&quot; parser=&quot;custom.pmnull&quot;) {
+     action(type=&quot;omfile&quot; file=&quot;rsyslog.out.log&quot;)
+}
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">pmnull: Syslog Null Parser Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#parser-parameters">Parser Parameters</a><ul>
+<li><a class="reference internal" href="#tag">Tag</a></li>
+<li><a class="reference internal" href="#syslogfacility">SyslogFacility</a></li>
+<li><a class="reference internal" href="#syslogseverity">SyslogSeverity</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#process-messages-received-via-imtcp">Process messages received via imtcp</a></li>
+<li><a class="reference internal" href="#process-messages-with-default-parameters">Process messages with default parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="pmnormalize.html"
+                        title="previous chapter">Log Message Normalization Parser Module (pmnormalize)</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="pmrfc3164.html"
+                        title="next chapter">pmrfc3164: Parse RFC3164-formatted messages</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/pmnull.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/pmnull.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="pmrfc3164.html" title="pmrfc3164: Parse RFC3164-formatted messages"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="pmnormalize.html" title="Log Message Normalization Parser Module (pmnormalize)"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" >Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

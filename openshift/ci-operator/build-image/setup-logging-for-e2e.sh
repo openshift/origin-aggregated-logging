@@ -124,6 +124,8 @@ if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     sed -e 's,docker.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' \
         -e 's,quay.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' | \
     oc set env -e - deploy/cluster-logging-operator
+    # special handling for rsyslog for now
+    oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${imageprefix}pipeline:logging-rsyslog
     testimage=${imageprefix}pipeline:src
     testroot=$( pwd )
 else
@@ -135,6 +137,8 @@ else
     sed -e '/docker.io\/openshift\/origin-logging-/ {s,docker.io/openshift/origin-,'"$registry"',}' \
         -e '/quay.io\/openshift\/origin-logging-/ {s,quay.io/openshift/origin-,'"$registry"',}' | \
     oc set env -e - deploy/cluster-logging-operator
+    # special handling for rsyslog for now
+    oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${registry}logging-rsyslog:latest
     testimage=${registry}logging-ci-test-runner:latest
     testroot=/go/src/github.com/openshift/origin-aggregated-logging
 fi

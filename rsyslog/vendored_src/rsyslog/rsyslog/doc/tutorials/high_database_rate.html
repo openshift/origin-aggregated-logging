@@ -1,0 +1,273 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Handling a massive syslog database insert rate with Rsyslog &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Reliable Forwarding of syslog Messages with Rsyslog" href="reliable_forwarding.html" />
+    <link rel="prev" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database" href="database.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="reliable_forwarding.html" title="Reliable Forwarding of syslog Messages with Rsyslog"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="database.html" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Tutorials</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="handling-a-massive-syslog-database-insert-rate-with-rsyslog">
+<h1>Handling a massive syslog database insert rate with Rsyslog<a class="headerlink" href="#handling-a-massive-syslog-database-insert-rate-with-rsyslog" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by</em> <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a>
+<em>(2008-01-31)</em></p>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p><strong>In this paper, I describe how log massive amounts of</strong>
+<a class="reference external" href="http://www.monitorware.com/en/topics/syslog/">syslog</a> <strong>messages to a
+database.</strong>This HOWTO is currently under development and thus a bit
+brief. Updates are promised ;).*</p>
+</div>
+<div class="section" id="the-intention">
+<h2>The Intention<a class="headerlink" href="#the-intention" title="Permalink to this headline">¶</a></h2>
+<p>Database updates are inherently slow when it comes to storing syslog
+messages. However, there are a number of applications where it is handy
+to have the message inside a database. Rsyslog supports native database
+writing via output plugins. As of this writing, there are plugins
+available for MySQL an PostgreSQL. Maybe additional plugins have become
+available by the time you read this. Be sure to check.</p>
+<p>In order to successfully write messages to a database backend, the
+backend must be capable to record messages at the expected average
+arrival rate. This is the rate if you take all messages that can arrive
+within a day and divide it by 86400 (the number of seconds per day).
+Let’s say you expect 43,200,000 messages per day. That’s an average rate
+of 500 messages per second (mps). Your database server MUST be able to
+handle that amount of message per second on a sustained rate. If it
+doesn’t, you either need to add an additional server, lower the number
+of message - or forget about it.</p>
+<p>However, this is probably not your peak rate. Let’s simply assume your
+systems work only half a day, that’s 12 hours (and, yes, I know this is
+unrealistic, but you’ll get the point soon). So your average rate is
+actually 1,000 mps during work hours and 0 mps during non-work hours. To
+make matters worse, workload is not divided evenly during the day. So
+you may have peaks of up to 10,000mps while at other times the load may
+go down to maybe just 100mps. Peaks may stay well above 2,000mps for a
+few minutes.</p>
+<p>So how the hack you will be able to handle all of this traffic
+(including the peaks) with a database server that is just capable of
+inserting a maximum of 500mps?</p>
+<p>The key here is buffering. Messages that the database server is not
+capable to handle will be buffered until it is. Of course, that means
+database insert are NOT real-time. If you need real-time inserts, you
+need to make sure your database server can handle traffic at the actual
+peak rate. But lets assume you are OK with some delay.</p>
+<p>Buffering is fine. But how about these massive amounts of data? That
+can’t be hold in memory, so don’t we run out of luck with buffering? The
+key here is that rsyslog can not only buffer in memory but also buffer
+to disk (this may remind you of “spooling” which gets you the right
+idea). There are several queuing modes available, offering different
+throughput. In general, the idea is to buffer in memory until the memory
+buffer is exhausted and switch to disk-buffering when needed (and only
+as long as needed). All of this is handled automatically and
+transparently by rsyslog.</p>
+<p>With our above scenario, the disk buffer would build up during the day
+and rsyslog would use the night to drain it. Obviously, this is an
+extreme example, but it shows what can be done. Please note that queue
+content survies rsyslogd restarts, so even a reboot of the system will
+not cause any message loss.</p>
+</div>
+<div class="section" id="how-to-setup">
+<h2>How To Setup<a class="headerlink" href="#how-to-setup" title="Permalink to this headline">¶</a></h2>
+<p>Frankly, it’s quite easy. You just need to do is instruct rsyslog to use
+a disk queue and then configure your action. There is nothing else to
+do. With the following simple config file, you log anything you receive
+to a MySQL database and have buffering applied automatically.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad ommysql # load the output driver (use ompgsql for PostgreSQL)
+$ModLoad imudp # network reception
+$UDPServerRun 514 # start a udp server at port 514
+$ModLoad imuxsock # local message reception
+$WorkDirectory /rsyslog/work # default location for work (spool) files
+$MainMsgQueueFileName mainq # set file name, also enables disk mode
+$ActionResumeRetryCount -1 # infinite retries on insert failure
+#for PostgreSQL replace :ommysql: by :ompgsql: below: *.* :ommysql:hostname,dbname,userid,password;
+</pre></div>
+</div>
+<p>The simple setup above has one drawback: the write database action is
+executed together with all other actions. Typically, local files are
+also written. These local file writes are now bound to the speed of the
+database action. So if the database is down, or there is a large
+backlog, local files are also not (or late) written.</p>
+<p><strong>There is an easy way to avoid this with rsyslog.</strong> It involves a
+slightly more complicated setup. In rsyslog, each action can utilize its
+own queue. If so, messages are simply pulled over from the main queue
+and then the action queue handles action processing on its own. This
+way, main processing and the action are de-coupled. In the above
+example, this means that local file writes will happen immediately while
+the database writes are queued. As a side-note, each action can have its
+own queue, so if you would like to more than a single database or send
+messages reliably to another host, you can do all of this on their own
+queues, de-coupling their processing speeds.</p>
+<p>The configuration for the de-coupled database write involves just a few
+more commands:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad ommysql # load the output driver (use ompgsql for PostgreSQL)
+$ModLoad imudp # network reception
+$UDPServerRun 514 # start a udp server at port 514
+$ModLoad imuxsock # local message reception
+$WorkDirectory /rsyslog/work # default location for work (spool) files
+$ActionQueueType LinkedList # use asynchronous processing
+$ActionQueueFileName dbq # set file name, also enables disk mode
+$ActionResumeRetryCount -1 # infinite retries on insert failure
+# for PostgreSQL replace :ommysql: by :ompgsql: below: *.* :ommysql:hostname,dbname,userid,password;
+</pre></div>
+</div>
+<p><strong>This is the recommended configuration for this use case.</strong> It requires
+rsyslog 3.11.0 or above.</p>
+<p>In this example, the main message queue is NOT disk-assisted (there is
+no $MainMsgQueueFileName directive). We still could do that, but have
+not done it because there seems to be no need. The only slow running
+action is the database writer and it has its own queue. So there is no
+real reason to use a large main message queue (except, of course, if you
+expect *really* heavy traffic bursts).</p>
+<p>Note that you can modify a lot of queue performance parameters, but the
+above config will get you going with default values. If you consider
+using this on a real busy server, it is strongly recommended to invest
+some time in setting the tuning parameters to appropriate values.</p>
+<div class="section" id="feedback-requested">
+<h3>Feedback requested<a class="headerlink" href="#feedback-requested" title="Permalink to this headline">¶</a></h3>
+<p>I would appreciate feedback on this tutorial. If you have additional
+ideas, comments or find bugs (I *do* bugs - no way… ;)), please <a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">let
+me know</a>.</p>
+</div>
+</div>
+<div class="section" id="revision-history">
+<h2>Revision History<a class="headerlink" href="#revision-history" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>2008-01-28 * <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a> *
+Initial Version created</li>
+<li>2008-01-28 * <a class="reference external" href="http://www.gerhards.net/rainer">Rainer Gerhards</a> *
+Updated to new v3.11.0 capabilities</li>
+</ul>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Handling a massive syslog database insert rate with Rsyslog</a><ul>
+<li><a class="reference internal" href="#abstract">Abstract</a></li>
+<li><a class="reference internal" href="#the-intention">The Intention</a></li>
+<li><a class="reference internal" href="#how-to-setup">How To Setup</a><ul>
+<li><a class="reference internal" href="#feedback-requested">Feedback requested</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#revision-history">Revision History</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="database.html"
+                        title="previous chapter">Writing syslog messages to MySQL, PostgreSQL or any other supported Database</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="reliable_forwarding.html"
+                        title="next chapter">Reliable Forwarding of syslog Messages with Rsyslog</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/tutorials/high_database_rate.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/tutorials/high_database_rate.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="reliable_forwarding.html" title="Reliable Forwarding of syslog Messages with Rsyslog"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="database.html" title="Writing syslog messages to MySQL, PostgreSQL or any other supported Database"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Tutorials</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

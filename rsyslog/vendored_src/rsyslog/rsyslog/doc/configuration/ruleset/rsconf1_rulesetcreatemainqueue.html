@@ -1,0 +1,205 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>$RulesetCreateMainQueue &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="$RulesetParser" href="rsconf1_rulesetparser.html" />
+    <link rel="prev" title="Ruleset-Specific Legacy Configuration Statements" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="rsconf1_rulesetparser.html" title="$RulesetParser"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Ruleset-Specific Legacy Configuration Statements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index_directives.html" >Legacy Configuration Directives</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" accesskey="U">Ruleset-Specific Legacy Configuration Statements</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="rsyslog_conf_global.html">rsyslog.conf configuration directive</a></p>
+<div class="section" id="rulesetcreatemainqueue">
+<h1>$RulesetCreateMainQueue<a class="headerlink" href="#rulesetcreatemainqueue" title="Permalink to this headline">¶</a></h1>
+<p><strong>Type:</strong> ruleset-specific configuration directive</p>
+<p><strong>Parameter Values:</strong> boolean (on/off, yes/no)</p>
+<p><strong>Available since:</strong> 5.3.5+</p>
+<p><strong>Default:</strong> off</p>
+<p><strong>Description:</strong></p>
+<p>Rulesets may use their own “main” message queue for message submission.
+Specifying this directive, <strong>inside a ruleset definition</strong>, turns this
+on. This is both a performance enhancement and also permits different
+rulesets (and thus different inputs within the same rsyslogd instance)
+to use different types of main message queues.</p>
+<p>The ruleset queue is created with the parameters that are specified for
+the main message queue at the time the directive is given. If different
+queue configurations are desired, different main message queue
+directives must be used <strong>in front of</strong> the $RulesetCreateMainQueue
+directive. Note that this directive may only be given once per ruleset.
+If multiple statements are specified, only the first is used and for the
+others error messages are emitted.</p>
+<p>Note that the final set of ruleset configuration directives specifies
+the parameters for the default main message queue.</p>
+<p>To learn more about this feature, please be sure to read about
+<a class="reference external" href="multi_ruleset.html">multi-ruleset support in rsyslog</a>.</p>
+<p><strong>Caveats:</strong></p>
+<p>The configuration statement “$RulesetCreateMainQueue off” has no effect
+at all. The capability to specify this is an artifact of the legacy
+configuration language.</p>
+<p><strong>Example:</strong></p>
+<p>This example sets up a tcp server with three listeners. Each of these
+three listener is bound to a specific ruleset. As a performance
+optimization, the rulesets all receive their own private queue. The
+result is that received messages can be independently processed. With
+only a single main message queue, we would have some lock contention
+between the messages. This does not happen here. Note that in this
+example, we use different processing. Of course, all messages could also
+have been processed in the same way ($IncludeConfig may be useful in
+that case!).</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ModLoad imtcp
+# at first, this is a copy of the unmodified rsyslog.conf
+#define rulesets first
+$RuleSet remote10514
+$RulesetCreateMainQueue on # create ruleset-specific queue
+*.*     /var/log/remote10514
+
+$RuleSet remote10515
+$RulesetCreateMainQueue on # create ruleset-specific queue
+*.*     /var/log/remote10515
+
+$RuleSet remote10516
+$RulesetCreateMainQueue on # create ruleset-specific queue
+mail.*        /var/log/mail10516
+&amp;       ~
+# note that the discard-action will prevent this messag from
+# being written to the remote10516 file - as usual...
+*.*     /var/log/remote10516
+
+# and now define listeners bound to the relevant ruleset
+$InputTCPServerBindRuleset remote10514
+$InputTCPServerRun 10514
+
+$InputTCPServerBindRuleset remote10515
+$InputTCPServerRun 10515
+
+$InputTCPServerBindRuleset remote10516
+$InputTCPServerRun 10516
+</pre></div>
+</div>
+<p>Note the positions of the directives. With the legacy language,
+position is very important. It is highly suggested to use
+the <em>ruleset()</em> object in RainerScript config language if you intend
+to use ruleset queues. The configuration is much more straightforward in
+that language and less error-prone.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Ruleset-Specific Legacy Configuration Statements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="rsconf1_rulesetparser.html"
+                        title="next chapter">$RulesetParser</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/ruleset/rsconf1_rulesetcreatemainqueue.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/ruleset/rsconf1_rulesetcreatemainqueue.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="rsconf1_rulesetparser.html" title="$RulesetParser"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Ruleset-Specific Legacy Configuration Statements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../index_directives.html" >Legacy Configuration Directives</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="index.html" >Ruleset-Specific Legacy Configuration Statements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,937 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>omfwd: syslog Forwarding Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omhdfs: Hadoop Filesystem Output Module" href="omhdfs.html" />
+    <link rel="prev" title="omfile: File Output Module" href="omfile.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omhdfs.html" title="omhdfs: Hadoop Filesystem Output Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omfile.html" title="omfile: File Output Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="omfwd-syslog-forwarding-output-module">
+<h1>omfwd: syslog Forwarding Output Module<a class="headerlink" href="#omfwd-syslog-forwarding-output-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>omfwd</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>The omfwd plug-in provides the core functionality of traditional message
+forwarding via UDP and plain TCP. It is a built-in module that does not
+need to be loaded.</p>
+</div>
+<div class="section" id="notable-features">
+<h2>Notable Features<a class="headerlink" href="#notable-features" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="module-parameters">
+<h3>Module Parameters<a class="headerlink" href="#module-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="template">
+<h4>Template<a class="headerlink" href="#template" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>RSYSLOG_TraditionalForwardFormat</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionForwardDefaultTemplateName</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Sets a non-standard default template for this module.</p>
+</div>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="target">
+<h4>Target<a class="headerlink" href="#target" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Name or IP-Address of the system that shall receive messages. Any
+resolvable name is fine.</p>
+</div>
+<div class="section" id="port">
+<h4>Port<a class="headerlink" href="#port" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>514</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Name or numerical value of port to use when connecting to target.</p>
+</div>
+<div class="section" id="protocol">
+<h4>Protocol<a class="headerlink" href="#protocol" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>udp</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Type of protocol to use for forwarding. Note that ``tcp’’ means
+both legacy plain tcp syslog as well as RFC5425-based TLS-encrypted
+syslog. Which one is selected depends on the StreamDriver parameter.
+If StreamDriver is set to “ossl” or “gtls” it will use TLS-encrypted syslog.</p>
+</div>
+<div class="section" id="networknamespace">
+<h4>NetworkNamespace<a class="headerlink" href="#networknamespace" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Name of a network namespace as in /var/run/netns/ to use for forwarding.</p>
+<p>If the setns() system call is not available on the system (e.g. BSD
+kernel, linux kernel before v2.6.24) the given namespace will be
+ignored.</p>
+</div>
+<div class="section" id="address">
+<h4>Address<a class="headerlink" href="#address" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.35.0.</span></p>
+</div>
+<p>Bind socket to a given local IP address. This option is only supported
+for UDP, not TCP.</p>
+</div>
+<div class="section" id="ipfreebind">
+<h4>IpFreeBind<a class="headerlink" href="#ipfreebind" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>2</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.35.0.</span></p>
+</div>
+<p>Manages the IP_FREEBIND option on the UDP socket, which allows binding it to
+an IP address that is not yet associated to any network interface. This option
+is only relevant if the address option is set.</p>
+<p>The parameter accepts the following values:</p>
+<ul class="simple">
+<li>0 - does not enable the IP_FREEBIND option on the
+UDP socket. If the <em>bind()</em> call fails because of <em>EADDRNOTAVAIL</em> error,
+socket initialization fails.</li>
+<li>1 - silently enables the IP_FREEBIND socket
+option if it is required to successfully bind the socket to a nonlocal address.</li>
+<li>2 - enables the IP_FREEBIND socket option and
+warns when it is used to successfully bind the socket to a nonlocal address.</li>
+</ul>
+</div>
+<div class="section" id="device">
+<h4>Device<a class="headerlink" href="#device" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Bind socket to given device (e.g., eth0)</p>
+<p>For Linux with VRF support, the Device option can be used to specify the
+VRF for the Target address.</p>
+</div>
+<div class="section" id="tcp-framing">
+<h4>TCP_Framing<a class="headerlink" href="#tcp-framing" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>traditional</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Framing-Mode to be for forwarding. This affects only TCP-based
+protocols. It is ignored for UDP. In protocol engineering,
+“framing” means how multiple messages over the same connection
+are separated. Usually, this is transparent to users. Unfortunately,
+the early syslog protocol evolved, and so there are cases where users
+need to specify the framing. The traditional framing is
+nontransparent. With it, messages are end when a LF (aka “line
+break”, “return”) is encountered, and the next message starts
+immediately after the LF. If multi-line messages are received, these
+are essentially broken up into multiple message, usually with all but
+the first message segment being incorrectly formatted. The
+octet-counting framing solves this issue. With it, each message is
+prefixed with the actual message length, so that a receivers knows
+exactly where the message ends. Multi-line messages cause no problem
+here. This mode is very close to the method described in RFC5425 for
+TLS-enabled syslog. Unfortunately, only few syslogd implementations
+support octet-counted framing. As such, the traditional framing is
+set as default, even though it has defects. If it is known that the
+receiver supports octet-counted framing, it is suggested to use that
+framing mode.</p>
+</div>
+<div class="section" id="tcp-framedelimiter">
+<h4>TCP_FrameDelimiter<a class="headerlink" href="#tcp-framedelimiter" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>10</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Sets a custom frame delimiter for TCP transmission when running TCP_Framing
+in “traditional” mode. The delimiter has to be a number between 0 and 255
+(representing the ASCII-code of said character). The default value for this
+parameter is 10, representing a ‘\n’. When using Graylog, the parameter
+must be set to 0.</p>
+</div>
+<div class="section" id="ziplevel">
+<h4>ZipLevel<a class="headerlink" href="#ziplevel" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Compression level for messages.</p>
+<p>Up until rsyslog 7.5.1, this was the only compression setting that
+rsyslog understood. Starting with 7.5.1, we have different
+compression modes. All of them are affected by the ziplevel. If,
+however, no mode is explicitely set, setting ziplevel also turns on
+“single” compression mode, so pre 7.5.1 configuration will continue
+to work as expected.</p>
+<p>The compression level is specified via the usual factor of 0 to 9,
+with 9 being the strongest compression (taking up most processing
+time) and 0 being no compression at all (taking up no extra
+processing time).</p>
+</div>
+<div class="section" id="compression-mode">
+<h4>compression.Mode<a class="headerlink" href="#compression-mode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p><em>mode</em> is one of “none”, “single”, or “stream:always”. The default
+is “none”, in which no compression happens at all.
+In “single” compression mode, Rsyslog implements a proprietary
+capability to zip transmitted messages. That compression happens on a
+message-per-message basis. As such, there is a performance gain only
+for larger messages. Before compressing a message, rsyslog checks if
+there is some gain by compression. If so, the message is sent
+compressed. If not, it is sent uncompressed. As such, it is totally
+valid that compressed and uncompressed messages are intermixed within
+a conversation.</p>
+<p>In “stream:always” compression mode the full stream is being
+compressed. This also uses non-standard protocol and is compatible
+only with receives that have the same abilities. This mode offers
+potentially very high compression ratios. With typical syslog
+messages, it can be as high as 95+% compression (so only one
+twentieth of data is actually transmitted!). Note that this mode
+introduces extra latency, as data is only sent when the compressor
+emits new compressed data. For typical syslog messages, this can mean
+that some hundered messages may be held in local buffers before they
+are actually sent. This mode has been introduced in 7.5.1.</p>
+<p><strong>Note: currently only imptcp supports receiving stream-compressed
+data.</strong></p>
+</div>
+<div class="section" id="compression-stream-flushontxend">
+<h4>compression.stream.flushOnTXEnd<a class="headerlink" href="#compression-stream-flushontxend" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>on</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 7.5.3.</span></p>
+</div>
+<p>This setting affects stream compression mode, only. If enabled (the
+default), the compression buffer will by emptied at the end of a
+rsyslog batch. If set to “off”, end of batch will not affect
+compression at all.</p>
+<p>While setting it to “off” can potentially greatly improve
+compression ratio, it will also introduce severe delay between when a
+message is being processed by rsyslog and actually sent out to the
+network. We have seen cases where for several thousand message not a
+single byte was sent. This is good in the sense that it can happen
+only if we have a great compression ratio. This is most probably a
+very good mode for busy machines which will process several thousand
+messages per second and te resulting short delay will not pose any
+problems. However, the default is more conservative, while it works
+more “naturally” with even low message traffic. Even in flush mode,
+notable compression should be achivable (but we do not yet have
+practice reports on actual compression ratios).</p>
+</div>
+<div class="section" id="rebindinterval">
+<h4>RebindInterval<a class="headerlink" href="#rebindinterval" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendTCPRebindInterval</span></code> or <code class="docutils literal"><span class="pre">$ActionSendUDPRebindInterval</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Permits to specify an interval at which the current connection is
+broken and re-established. This setting is primarily an aid to load
+balancers. After the configured number of messages has been
+transmitted, the current connection is terminated and a new one
+started. Note that this setting applies to both TCP and UDP traffic.
+For UDP, the new ``connection’’ uses a different source port (ports
+are cycled and not reused too frequently). This usually is perceived
+as a ``new connection’’ by load balancers, which in turn forward
+messages to another physical target system.</p>
+</div>
+<div class="section" id="keepalive">
+<h4>KeepAlive<a class="headerlink" href="#keepalive" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Enable or disable keep-alive packets at the tcp socket layer. The
+default is to disable them.</p>
+</div>
+<div class="section" id="keepalive-probes">
+<h4>KeepAlive.Probes<a class="headerlink" href="#keepalive-probes" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The number of unacknowledged probes to send before considering the
+connection dead and notifying the application layer. The default, 0,
+means that the operating system defaults are used. This has only
+effect if keep-alive is enabled. The functionality may not be
+available on all platforms.</p>
+</div>
+<div class="section" id="keepalive-interval">
+<h4>KeepAlive.Interval<a class="headerlink" href="#keepalive-interval" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The interval between subsequential keepalive probes, regardless of
+what the connection has exchanged in the meantime. The default, 0,
+means that the operating system defaults are used. This has only
+effect if keep-alive is enabled. The functionality may not be
+available on all platforms.</p>
+</div>
+<div class="section" id="keepalive-time">
+<h4>KeepAlive.Time<a class="headerlink" href="#keepalive-time" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The interval between the last data packet sent (simple ACKs are not
+considered data) and the first keepalive probe; after the connection
+is marked to need keepalive, this counter is not used any further.
+The default, 0, means that the operating system defaults are used.
+This has only effect if keep-alive is enabled. The functionality may
+not be available on all platforms.</p>
+</div>
+<div class="section" id="streamdriver">
+<h4>StreamDriver<a class="headerlink" href="#streamdriver" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendStreamDriver</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Choose the stream driver to be used. Default is plain tcp, but
+you can also choose “ossl” or “gtls” for TLS encryption.</p>
+</div>
+<div class="section" id="streamdrivermode">
+<h4>StreamDriverMode<a class="headerlink" href="#streamdrivermode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendStreamDriverMode</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Mode to use with the stream driver (driver-specific)</p>
+</div>
+<div class="section" id="streamdriverauthmode">
+<h4>StreamDriverAuthMode<a class="headerlink" href="#streamdriverauthmode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendStreamDriverAuthMode</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Authentication mode to use with the stream driver. Note that this
+parameter requires TLS netstream drivers. For all others, it will be
+ignored. (driver-specific).</p>
+</div>
+<div class="section" id="streamdriverpermittedpeers">
+<h4>StreamDriverPermittedPeers<a class="headerlink" href="#streamdriverpermittedpeers" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendStreamDriverPermittedPeers</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Accepted fingerprint (SHA1) or name of remote peer. Note that this
+parameter requires TLS netstream drivers. For all others, it will be
+ignored. (driver-specific)</p>
+</div>
+<div class="section" id="resendlastmsgonreconnect">
+<h4>ResendLastMSGOnReconnect<a class="headerlink" href="#resendlastmsgonreconnect" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td><code class="docutils literal"><span class="pre">$ActionSendResendLastMsgOnReconnect</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Permits to resend the last message when a connection is reconnected.
+This setting affects TCP-based syslog, only. It is most useful for
+traditional, plain TCP syslog. Using this protocol, it is not always
+possible to know which messages were successfully transmitted to the
+receiver when a connection breaks. In many cases, the last message
+sent is lost. By switching this setting to “yes”, rsyslog will always
+retransmit the last message when a connection is reestablished. This
+reduces potential message loss, but comes at the price that some
+messages may be duplicated (what usually is more acceptable).</p>
+<p>Please note that busy systems probably loose more than a
+single message in such cases. This is caused by an
+<a class="reference external" href="https://rainer.gerhards.net/2008/04/on-unreliability-of-plain-tcp-syslog.html">inherant unreliability in plain tcp syslog</a>
+and there is no way rsyslog could prevent this from happening
+(if you read the detail description, be sure to follow the link
+to the follow-up posting). In order to prevent these problems,
+we recommend the use of <a class="reference internal" href="omrelp.html"><span class="doc">omrelp</span></a>.</p>
+</div>
+<div class="section" id="udp-sendtoall">
+<h4>udp.SendToAll<a class="headerlink" href="#udp-sendtoall" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>When sending UDP messages, there are potentially multiple paths to
+the target destination. By default, rsyslogd
+only sends to the first target it can successfully send to. If this
+option is set to “on”, messages are sent to all targets. This may improve
+reliability, but may also cause message duplication. This option
+should be enabled only if it is fully understood.</p>
+<p>Note: this option replaces the former -A command line option. In
+contrast to the -A option, this option must be set once per
+input() definition.</p>
+</div>
+<div class="section" id="udp-senddelay">
+<h4>udp.SendDelay<a class="headerlink" href="#udp-senddelay" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>integer</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.7.0.</span></p>
+</div>
+<p>This is an <strong>expert option</strong>, do only use it if you know very well
+why you are using it!</p>
+<p>This options permits to introduce a small delay after <em>each</em> send
+operation. The integer specifies the delay in microseconds. This
+option can be used in cases where too-quick sending of UDP messages
+causes message loss (UDP is permitted to drop packets if e.g. a device
+runs out of buffers). Usually, you do not want this delay. The parameter
+was introduced in order to support some testbench tests. Be sure
+to think twice before you use it in producetion.</p>
+</div>
+<div class="section" id="gnutlsprioritystring">
+<h4>gnutlsPriorityString<a class="headerlink" href="#gnutlsprioritystring" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.29.0.</span></p>
+</div>
+<p>The GnuTLS priority strings specify the TLS session’s handshake algorithms and
+options. These strings are intended as a user-specified override of the library
+defaults. If this parameter is NULL, the default settings are used. More
+information about priority Strings
+<a class="reference external" href="https://gnutls.org/manual/html_node/Priority-Strings.html">here</a>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.rsyslog.com/encrypted-disk-queues/">Encrypted Disk
+Queues</a></li>
+</ul>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="example-1">
+<h3>Example 1<a class="headerlink" href="#example-1" title="Permalink to this headline">¶</a></h3>
+<p>The following command sends all syslog messages to a remote server via
+TCP port 10514.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action(type=&quot;omfwd&quot; Target=&quot;192.168.2.11&quot; Port=&quot;10514&quot; Protocol=&quot;tcp&quot; Device=&quot;eth0&quot;)
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-2">
+<h3>Example 2<a class="headerlink" href="#example-2" title="Permalink to this headline">¶</a></h3>
+<p>In case the system in use has multiple (maybe virtual) network interfaces network
+namespaces come in handy, each with its own routing table. To be able to distribute
+syslogs to remote servers in different namespaces specify them as separate actions.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>action(type=&quot;omfwd&quot; Target=&quot;192.168.1.13&quot; Port=&quot;10514&quot; Protocol=&quot;tcp&quot; NetworkNamespace=&quot;ns_eth0.0&quot;)
+action(type=&quot;omfwd&quot; Target=&quot;192.168.2.24&quot; Port=&quot;10514&quot; Protocol=&quot;tcp&quot; NetworkNamespace=&quot;ns_eth0.1&quot;)
+action(type=&quot;omfwd&quot; Target=&quot;192.168.3.38&quot; Port=&quot;10514&quot; Protocol=&quot;tcp&quot; NetworkNamespace=&quot;ns_eth0.2&quot;)
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">omfwd: syslog Forwarding Output Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#notable-features">Notable Features</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#module-parameters">Module Parameters</a><ul>
+<li><a class="reference internal" href="#template">Template</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#target">Target</a></li>
+<li><a class="reference internal" href="#port">Port</a></li>
+<li><a class="reference internal" href="#protocol">Protocol</a></li>
+<li><a class="reference internal" href="#networknamespace">NetworkNamespace</a></li>
+<li><a class="reference internal" href="#address">Address</a></li>
+<li><a class="reference internal" href="#ipfreebind">IpFreeBind</a></li>
+<li><a class="reference internal" href="#device">Device</a></li>
+<li><a class="reference internal" href="#tcp-framing">TCP_Framing</a></li>
+<li><a class="reference internal" href="#tcp-framedelimiter">TCP_FrameDelimiter</a></li>
+<li><a class="reference internal" href="#ziplevel">ZipLevel</a></li>
+<li><a class="reference internal" href="#compression-mode">compression.Mode</a></li>
+<li><a class="reference internal" href="#compression-stream-flushontxend">compression.stream.flushOnTXEnd</a></li>
+<li><a class="reference internal" href="#rebindinterval">RebindInterval</a></li>
+<li><a class="reference internal" href="#keepalive">KeepAlive</a></li>
+<li><a class="reference internal" href="#keepalive-probes">KeepAlive.Probes</a></li>
+<li><a class="reference internal" href="#keepalive-interval">KeepAlive.Interval</a></li>
+<li><a class="reference internal" href="#keepalive-time">KeepAlive.Time</a></li>
+<li><a class="reference internal" href="#streamdriver">StreamDriver</a></li>
+<li><a class="reference internal" href="#streamdrivermode">StreamDriverMode</a></li>
+<li><a class="reference internal" href="#streamdriverauthmode">StreamDriverAuthMode</a></li>
+<li><a class="reference internal" href="#streamdriverpermittedpeers">StreamDriverPermittedPeers</a></li>
+<li><a class="reference internal" href="#resendlastmsgonreconnect">ResendLastMSGOnReconnect</a></li>
+<li><a class="reference internal" href="#udp-sendtoall">udp.SendToAll</a></li>
+<li><a class="reference internal" href="#udp-senddelay">udp.SendDelay</a></li>
+<li><a class="reference internal" href="#gnutlsprioritystring">gnutlsPriorityString</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#example-1">Example 1</a></li>
+<li><a class="reference internal" href="#example-2">Example 2</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omfile.html"
+                        title="previous chapter">omfile: File Output Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omhdfs.html"
+                        title="next chapter">omhdfs: Hadoop Filesystem Output Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/omfwd.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/omfwd.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omhdfs.html" title="omhdfs: Hadoop Filesystem Output Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omfile.html" title="omfile: File Output Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

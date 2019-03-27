@@ -1,0 +1,70 @@
+# Some sample rules and strings matching them
+
+# Prefix sample:
+# myhostname: code=23
+prefix=%host:char-to:\x3a%: 
+rule=prefixed_code:code=%code:number%
+# myhostname: name=somename
+rule=prefixed_name:name=%name:word%
+# Reset prefix to default (empty value):
+prefix=
+
+# Quantity: 555
+rule=tag1:Quantity: %N:number%
+
+# Weight: 42kg
+rule=tag2:Weight: %N:number%%unit:word%
+annotate=tag2:+fat="free"
+
+# %%
+rule=tag3,percent:\x25%%
+annotate=percent:+percent="100"
+annotate=tag3:+whole="whale"
+annotate=tag3:+part="wha"
+
+# literal
+rule=tag4,tag5,tag6,tag4:literal
+annotate=tag4:+this="that"
+
+# first field,second field,third field,fourth field
+rule=csv:%r1:char-to:,%,%r2:char-to:,%,%r3:char-to:,%,%r4:rest%
+
+# CSV: field1,,field3
+rule=better-csv:CSV: %f1:char-sep:,%,%f2:char-sep:,%,%f3:char-sep:,%
+
+# Snow White and the Seven Dwarfs
+rule=tale:Snow White and %company:rest%
+
+# iptables: SRC=192.168.1.134 DST=46.252.161.13 LEN=48 TOS=0x00 PREC=0x00
+rule=ipt:iptables: %dummy:iptables%
+
+# 2012-10-11 src=127.0.0.1 dst=88.111.222.19
+rule=:%date:date-iso% src=%src:ipv4% dst=%dst:ipv4%
+
+# Oct 29 09:47:08 server rsyslogd: rsyslogd's groupid changed to 103
+rule=syslog:%date1:date-rfc3164% %host:word% %tag:char-to:\x3a%: %text:rest%
+
+# Oct 29 09:47:08
+rule=rfc3164:%date1:date-rfc3164%
+
+# 1985-04-12T19:20:50.52-04:00
+rule=rfc5424:%date1:date-rfc5424%
+
+# 1985-04-12T19:20:50.52-04:00 testing 123
+rule=rfc5424:%date1:date-rfc5424% %test:word% %test2:number%
+
+# quoted_string="Contents of a quoted string cannot include quote marks"
+rule=quote:quoted_string=%quote:quoted-string%
+
+# tokenized words: aaa.org; bbb.com; ccc.net
+rule=tokenized_words:tokenized words: %arr:tokenized:; :char-sep:\x3b%
+
+# tokenized regex: aaa.org; bbb.com; ccc.net
+rule=tokenized_regex:tokenized regex: %arr:tokenized:; :regex:[^; ]+%
+
+# regex: abcdef
+rule=regex:regex: %token:regex:abc.ef%
+
+# host451
+# generates  { basename:"host", hostid:451 }
+rule=:%basename:alpha%%hostid:number%

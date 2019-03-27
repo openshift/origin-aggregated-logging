@@ -1,0 +1,323 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>MaxMind/GeoIP DB lookup (mmdblookup) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Support module for external message modification modules" href="mmexternal.html" />
+    <link rel="prev" title="mmcount" href="mmcount.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="mmexternal.html" title="Support module for external message modification modules"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mmcount.html" title="mmcount"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" accesskey="U">Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="maxmind-geoip-db-lookup-mmdblookup">
+<span id="index-0"></span><h1>MaxMind/GeoIP DB lookup (mmdblookup)<a class="headerlink" href="#maxmind-geoip-db-lookup-mmdblookup" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="32%" />
+<col width="68%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td>mmdblookup</td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="mailto:rao&#46;chenlin&#37;&#52;&#48;gmail&#46;com">chenryn</a></td>
+</tr>
+<tr class="row-odd"><td><strong>Available:</strong></td>
+<td>8.24+</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>MaxMindDB is the new file format for storing information about IP addresses
+in a highly optimized, flexible database format. GeoIP2 Databases are
+available in the MaxMind DB format.</p>
+<p>Plugin author claimed a MaxMindDB vs GeoIP speed around 4 to 6 times.</p>
+</div>
+<div class="section" id="how-to-build-the-module">
+<h2>How to build the module<a class="headerlink" href="#how-to-build-the-module" title="Permalink to this headline">¶</a></h2>
+<p>To compile Rsyslog with mmdblookup you’ll need to:</p>
+<ul class="simple">
+<li>install <em>libmaxminddb-devel</em> package</li>
+<li>set <em>–enable-mmdblookup</em> on configure</li>
+</ul>
+</div>
+<div class="section" id="configuration-parameter">
+<h2>Configuration Parameter<a class="headerlink" href="#configuration-parameter" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="module-parameters">
+<h3>Module Parameters<a class="headerlink" href="#module-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="container">
+<h4>container<a class="headerlink" href="#container" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>!iplocation</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<div class="versionadded">
+<p><span class="versionmodified">New in version 8.28.0.</span></p>
+</div>
+<p>Specifies the container to be used to store the fields ammended by
+mmdblookup.</p>
+</div>
+</div>
+<div class="section" id="input-parameters">
+<h3>Input Parameters<a class="headerlink" href="#input-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="key">
+<h4>key<a class="headerlink" href="#key" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Name of field containing IP address.</p>
+</div>
+<div class="section" id="mmdbfile">
+<h4>mmdbfile<a class="headerlink" href="#mmdbfile" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Location of Maxmind DB file.</p>
+</div>
+<div class="section" id="fields">
+<h4>fields<a class="headerlink" href="#fields" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>array</td>
+<td>none</td>
+<td>yes</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Fields that will be appended to processed message. The fields will
+always be appended in the container used by mmdblookup (which may be
+overriden by the “container” parameter on module load).</p>
+<p>By default, the maxmindb field name is used for variables. This can
+be overriden by specifying a custom name between colons at the
+beginnig of the field name. As usual, bang signs denote path levels.
+So for example, if you want to extract “!city!names!en” but rename it
+to “cityname”, you can use “:cityname:!city!names!en” as field name.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="minimum-configuration">
+<h3>Minimum configuration<a class="headerlink" href="#minimum-configuration" title="Permalink to this headline">¶</a></h3>
+<p>This example showes the minimum configuration.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span># load module
+module( load=&quot;mmdblookup&quot; )
+
+action( type=&quot;mmdblookup&quot; mmdbfile=&quot;/etc/rsyslog.d/GeoLite2-City.mmdb&quot;
+             fields=[&quot;!continent!code&quot;,&quot;!location&quot;] key=&quot;!clientip&quot; )
+</pre></div>
+</div>
+</div>
+<div class="section" id="custom-container-and-field-name">
+<h3>Custom container and field name<a class="headerlink" href="#custom-container-and-field-name" title="Permalink to this headline">¶</a></h3>
+<p>The following example uses a custom container and custom field name</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span># load module
+module( load=&quot;mmdblookup&quot; container=&quot;!geo_ip&quot;)
+
+action( type=&quot;mmdblookup&quot; mmdbfile=&quot;/etc/rsyslog.d/GeoLite2-City.mmdb&quot;
+             fields=[&quot;:continent:!continent!code&quot;, &quot;:loc:!location&quot;]
+             key=&quot;!clientip&quot;)
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">MaxMind/GeoIP DB lookup (mmdblookup)</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#how-to-build-the-module">How to build the module</a></li>
+<li><a class="reference internal" href="#configuration-parameter">Configuration Parameter</a><ul>
+<li><a class="reference internal" href="#module-parameters">Module Parameters</a><ul>
+<li><a class="reference internal" href="#container">container</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#input-parameters">Input Parameters</a><ul>
+<li><a class="reference internal" href="#key">key</a></li>
+<li><a class="reference internal" href="#mmdbfile">mmdbfile</a></li>
+<li><a class="reference internal" href="#fields">fields</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#minimum-configuration">Minimum configuration</a></li>
+<li><a class="reference internal" href="#custom-container-and-field-name">Custom container and field name</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mmcount.html"
+                        title="previous chapter">mmcount</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mmexternal.html"
+                        title="next chapter">Support module for external message modification modules</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/mmdblookup.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/mmdblookup.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="mmexternal.html" title="Support module for external message modification modules"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mmcount.html" title="mmcount"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" >Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

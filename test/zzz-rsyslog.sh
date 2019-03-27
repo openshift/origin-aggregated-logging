@@ -39,6 +39,7 @@ clear_and_restart_journal
 cleanup() {
     local return_code="$?"
     set +e
+    get_all_logging_pod_logs
     if [ "deploy_using_ansible" = "$deployfunc" ] ; then
         if [ -n "${tmpinv:-}" -a -f "${tmpinv:-}" ] ; then
             rm -f $tmpinv
@@ -54,7 +55,9 @@ cleanup() {
         start_fluentd true 2>&1 | artifact_out
     else
         rpod=$( get_running_pod rsyslog )
-        oc logs $rpod > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
+        oc get clusterlogging instance -o yaml > $ARTIFACT_DIR/clinstance.yaml 2>&1
+        oc describe deploy cluster-logging-operator > $ARTIFACT_DIR/deploy.clo.yaml 2>&1
+        oc describe ds rsyslog > $ARTIFACT_DIR/ds.rsyslog.yaml 2>&1
         oc patch clusterlogging instance --type=json \
             --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"},
                       {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out

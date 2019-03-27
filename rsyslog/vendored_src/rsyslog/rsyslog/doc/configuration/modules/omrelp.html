@@ -1,0 +1,596 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>omrelp: RELP Output Module &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="omruleset: ruleset output/including module" href="omruleset.html" />
+    <link rel="prev" title="omprog: Program integration Output module" href="omprog.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="omruleset.html" title="omruleset: ruleset output/including module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="omprog.html" title="omprog: Program integration Output module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" accesskey="U">Output Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="omrelp-relp-output-module">
+<h1>omrelp: RELP Output Module<a class="headerlink" href="#omrelp-relp-output-module" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>omrelp</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="https://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This module supports sending syslog messages over the reliable RELP
+protocol. For RELP’s advantages over plain tcp syslog, please see the
+documentation for <a class="reference internal" href="imrelp.html"><span class="doc">imrelp</span></a> (the server counterpart).</p>
+<p>Setup</p>
+<p>Please note that <a class="reference external" href="http://www.librelp.com">librelp</a> is required for
+imrelp (it provides the core relp protocol implementation).</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="target">
+<h4>Target<a class="headerlink" href="#target" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>yes</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The target server to connect to.</p>
+</div>
+<div class="section" id="template">
+<h4>Template<a class="headerlink" href="#template" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>RSYSLOG_ForwardFormat</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Defines the template to be used for the output.</p>
+</div>
+<div class="section" id="timeout">
+<h4>Timeout<a class="headerlink" href="#timeout" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>int</td>
+<td>90</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Timeout for relp sessions. If set too low, valid sessions may be
+considered dead and tried to recover.</p>
+</div>
+<div class="section" id="conn-timeout">
+<h4>Conn.Timeout<a class="headerlink" href="#conn-timeout" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>int</td>
+<td>10</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Timeout for the socket connection.</p>
+</div>
+<div class="section" id="rebindinterval">
+<h4>RebindInterval<a class="headerlink" href="#rebindinterval" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>int</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Permits to specify an interval at which the current connection is
+broken and re-established. This setting is primarily an aid to load
+balancers. After the configured number of messages has been
+transmitted, the current connection is terminated and a new one
+started. This usually is perceived as a ``new connection’’ by load
+balancers, which in turn forward messages to another physical target
+system.</p>
+</div>
+<div class="section" id="windowsize">
+<h4>WindowSize<a class="headerlink" href="#windowsize" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>int</td>
+<td>0</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This is an <strong>expert parameter</strong>. It permits to override the RELP
+window size being used by the client. Changing the window size has
+both an effect on performance as well as potential message
+duplication in failure case. A larger window size means more
+performance, but also potentially more duplicated messages - and vice
+versa. The default 0 means that librelp’s default window size is
+being used, which is considered a compromise between goals reached.
+For your information: at the time of this writing, the librelp
+default window size is 128 messages, but this may change at any time.
+Note that there is no equivalent server parameter, as the client
+proposes and manages the window size in RELP protocol.</p>
+</div>
+<div class="section" id="tls">
+<h4>TLS<a class="headerlink" href="#tls" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>If set to “on”, the RELP connection will be encrypted by TLS, so
+that the data is protected against observers. Please note that both
+the client and the server must have set TLS to either “on” or “off”.
+Other combinations lead to unpredictable results.</p>
+<p><em>Attention when using GnuTLS 2.10.x or older</em></p>
+<p>Versions older than GnuTLS 2.10.x may cause a crash (Segfault) under
+certain circumstances. Most likely when an imrelp inputs and an
+omrelp output is configured. The crash may happen when you are
+receiving/sending messages at the same time. Upgrade to a newer
+version like GnuTLS 2.12.21 to solve the problem.</p>
+</div>
+<div class="section" id="tls-compression">
+<h4>TLS.Compression<a class="headerlink" href="#tls-compression" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The controls if the TLS stream should be compressed (zipped). While
+this increases CPU use, the network bandwidth should be reduced. Note
+that typical text-based log records usually compress rather well.</p>
+</div>
+<div class="section" id="tls-permittedpeer">
+<h4>TLS.PermittedPeer<a class="headerlink" href="#tls-permittedpeer" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>array</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Peer Places access restrictions on this forwarder. Only peers which
+have been listed in this parameter may be connected to. This guards
+against rouge servers and man-in-the-middle attacks. The validation
+bases on the certficate the remote peer presents.</p>
+<p>The <em>peer</em> parameter lists permitted certificate fingerprints. Note
+that it is an array parameter, so either a single or multiple
+fingerprints can be listed. When a non-permitted peer is connected
+to, the refusal is logged together with it’s fingerprint. So if the
+administrator knows this was a valid request, he can simple add the
+fingerprint by copy and paste from the logfile to rsyslog.conf. It
+must be noted, though, that this situation should usually not happen
+after initial client setup and administrators should be alert in this
+case.</p>
+<p>Note that usually a single remote peer should be all that is ever
+needed. Support for multiple peers is primarily included in support
+of load balancing scenarios. If the connection goes to a specific
+server, only one specific certificate is ever expected (just like
+when connecting to a specific ssh server).
+To specify multiple fingerprints, just enclose them in braces like
+this:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>tls.permittedPeer=[&quot;SHA1:...1&quot;, &quot;SHA1:....2&quot;]
+</pre></div>
+</div>
+<p>To specify just a single peer, you can either specify the string
+directly or enclose it in braces.</p>
+</div>
+<div class="section" id="tls-authmode">
+<h4>TLS.AuthMode<a class="headerlink" href="#tls-authmode" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Sets the mode used for mutual authentication. Supported values are
+either “<em>fingerprint</em>” or “<em>name”</em>. Fingerprint mode basically is
+what SSH does. It does not require a full PKI to be present, instead
+self-signed certs can be used on all peers. Even if a CA certificate
+is given, the validity of the peer cert is NOT verified against it.
+Only the certificate fingerprint counts.
+In “name” mode, certificate validation happens. Here, the matching is
+done against the certificate’s subjectAltName and, as a fallback, the
+subject common name. If the certificate contains multiple names, a
+match on any one of these names is considered good and permits the
+peer to talk to rsyslog.</p>
+</div>
+<div class="section" id="tls-cacert">
+<h4>TLS.CaCert<a class="headerlink" href="#tls-cacert" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The CA certificate that can verify the machine certs.</p>
+</div>
+<div class="section" id="tls-mycert">
+<h4>TLS.MyCert<a class="headerlink" href="#tls-mycert" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The machine public certiificate.</p>
+</div>
+<div class="section" id="tls-myprivkey">
+<h4>TLS.MyPrivKey<a class="headerlink" href="#tls-myprivkey" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The machine private key.</p>
+</div>
+<div class="section" id="tls-prioritystring">
+<h4>TLS.PriorityString<a class="headerlink" href="#tls-prioritystring" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>string</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This parameter permits to specify the so-called “priority string” to
+GnuTLS. This string gives complete control over all crypto
+parameters, including compression setting. For this reason, when the
+prioritystring is specified, the “tls.compression” parameter has no
+effect and is ignored.
+Full information about how to construct a priority string can be
+found in the GnuTLS manual. At the time of this writing, this
+information was contained in <a class="reference external" href="http://gnutls.org/manual/html_node/Priority-Strings.html">section 6.10 of the GnuTLS
+manual</a>.
+<strong>Note: this is an expert parameter.</strong> Do not use if you do not
+exactly know what you are doing.</p>
+</div>
+<div class="section" id="localclientip">
+<h4>LocalClientIp<a class="headerlink" href="#localclientip" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Omrelp uses ip_address as local client address while connecting
+to remote logserver.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="sending-msgs-with-omrelp">
+<h3>Sending msgs with omrelp<a class="headerlink" href="#sending-msgs-with-omrelp" title="Permalink to this headline">¶</a></h3>
+<p>The following sample sends all messages to the central server
+“centralserv” at port 2514 (note that that server must run imrelp on
+port 2514).</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;omrelp&quot;)
+action(type=&quot;omrelp&quot; target=&quot;centralserv&quot; port=&quot;2514&quot;)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="fmtobsoletename-directives">
+<h2><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directives<a class="headerlink" href="#fmtobsoletename-directives" title="Permalink to this headline">¶</a></h2>
+<p>This module uses old-style action configuration to keep consistent with
+the forwarding rule. So far, no additional configuration directives can
+be specified. To send a message via RELP, use</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>*.*  :omrelp:&lt;server&gt;:&lt;port&gt;;&lt;template&gt;
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">omrelp: RELP Output Module</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#target">Target</a></li>
+<li><a class="reference internal" href="#template">Template</a></li>
+<li><a class="reference internal" href="#timeout">Timeout</a></li>
+<li><a class="reference internal" href="#conn-timeout">Conn.Timeout</a></li>
+<li><a class="reference internal" href="#rebindinterval">RebindInterval</a></li>
+<li><a class="reference internal" href="#windowsize">WindowSize</a></li>
+<li><a class="reference internal" href="#tls">TLS</a></li>
+<li><a class="reference internal" href="#tls-compression">TLS.Compression</a></li>
+<li><a class="reference internal" href="#tls-permittedpeer">TLS.PermittedPeer</a></li>
+<li><a class="reference internal" href="#tls-authmode">TLS.AuthMode</a></li>
+<li><a class="reference internal" href="#tls-cacert">TLS.CaCert</a></li>
+<li><a class="reference internal" href="#tls-mycert">TLS.MyCert</a></li>
+<li><a class="reference internal" href="#tls-myprivkey">TLS.MyPrivKey</a></li>
+<li><a class="reference internal" href="#tls-prioritystring">TLS.PriorityString</a></li>
+<li><a class="reference internal" href="#localclientip">LocalClientIp</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#sending-msgs-with-omrelp">Sending msgs with omrelp</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#fmtobsoletename-directives"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directives</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="omprog.html"
+                        title="previous chapter">omprog: Program integration Output module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="omruleset.html"
+                        title="next chapter">omruleset: ruleset output/including module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/omrelp.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/omrelp.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="omruleset.html" title="omruleset: ruleset output/including module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="omprog.html" title="omprog: Program integration Output module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_output.html" >Output Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

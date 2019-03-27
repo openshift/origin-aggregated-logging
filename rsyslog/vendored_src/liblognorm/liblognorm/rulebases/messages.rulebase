@@ -1,0 +1,9 @@
+prefix=%date:date-rfc3164% %host:word% %tag:char-to:\x3a%:
+rule=: restart.
+rule=: Bad line received from identity server at %ip:ipv4%: %port:number% 
+rule=: FTP session closed
+rule=: wu-ftpd - TLS settings: control %wuftp-control:char-to:,%, client_cert %wuftp-clcert:char-to:,%, data %wuftp-allow:word%
+rule=: User %user:word% timed out after %timeout:number% seconds at %otherdatesyntax:word% %otherdate:date-rfc3164% %otheryear:word%
+rule=: getpeername (in.ftpd): Transport endpoint is not connected
+# the one below is problematic (and needs some backtracking)
+#: %disk:char-to:\x3a%: timeout waiting for DMA

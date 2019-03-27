@@ -1,0 +1,220 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Fix invalid UTF-8 Sequences (mmutf8fix) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="String Generator Modules" href="idx_stringgen.html" />
+    <link rel="prev" title="mmsnmptrapd message modification module" href="mmsnmptrapd.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="idx_stringgen.html" title="String Generator Modules"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mmsnmptrapd.html" title="mmsnmptrapd message modification module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" accesskey="U">Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="fix-invalid-utf-8-sequences-mmutf8fix">
+<h1>Fix invalid UTF-8 Sequences (mmutf8fix)<a class="headerlink" href="#fix-invalid-utf-8-sequences-mmutf8fix" title="Permalink to this headline">¶</a></h1>
+<p><strong>Module Name:</strong> mmutf8fix</p>
+<p><strong>Author:</strong> Rainer Gerhards &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</p>
+<p><strong>Available since</strong>: 7.5.4</p>
+<p><strong>Description</strong>:</p>
+<p>The mmutf8fix module permits to fix invalid UTF-8 sequences. Most often,
+such invalid sequences result from syslog sources sending in non-UTF
+character sets, e.g. ISO 8859. As syslog does not have a way to convey
+the character set information, these sequences are not properly handled.
+While they are typically uncritical with plain text files, they can
+cause big headache with database sources as well as systems like
+ElasticSearch.</p>
+<p>The module supports different “fixing” modes and fixes. The current
+implementation will always replace invalid bytes with a single US ASCII
+character. Additional replacement modes will probably be added in the
+future, depending on user demand. In the longer term it could also be
+evolved into an any-charset-to-UTF8 converter. But first let’s see if it
+really gets into widespread enough use.</p>
+<p><strong>Proper Usage</strong>:</p>
+<p>Some notes are due for proper use of this module. This is a message
+modification module utilizing the action interface, which means you call
+it like an action. This gives great flexibility on the question on when
+and how to call this module. Note that once it has been called, it
+actually modifies the message. The original messsage is then no longer
+available. However, this does <strong>not</strong> change any properties set, used or
+extracted before the modification is done.</p>
+<p>One potential use case is to normalize all messages. This is done by
+simply calling mmutf8fix right in front of all other actions.</p>
+<p>If only a specific source (or set of sources) is known to cause
+problems, mmutf8fix can be conditionally called only on messages from
+them. This also offers performance benefits. If such multiple sources
+exists, it probably is a good idea to define different listeners for
+their incoming traffic, bind them to specific
+<a class="reference external" href="multi_ruleset.html">ruleset</a> and call mmutf8fix as first action in
+this ruleset.</p>
+<p><strong>Module Configuration Parameters</strong>:</p>
+<p>Note: parameter names are case-insensitive.</p>
+<p>Currently none.</p>
+<p><strong>Action Confguration Parameters</strong>:</p>
+<p>Note: parameter names are case-insensitive.</p>
+<ul>
+<li><p class="first"><strong>mode</strong> - <strong>utf-8</strong>/controlcharacters</p>
+<p>This sets the basic detection mode.
+In <strong>utf-8</strong> mode (the default), proper UTF-8 encoding is checked and
+bytes which are not proper UTF-8 sequences are acted on. If a proper
+multi-byte start sequence byte is detected but any of the following
+bytes is invalid, the whole sequence is replaced by the replacement
+method. This mode is most useful with non-US-ASCII character sets,
+which validly includes multibyte sequences. Note that in this mode
+control characters are NOT being replaced, because they are valid
+UTF-8.
+In <strong>controlcharacters</strong> mode, all bytes which do not represent a
+printable US-ASCII character (codes 32 to 126) are replaced. Note
+that this also mangles valid UTF-8 multi-byte sequences, as these are
+(deliberately) outside of that character range. This mode is most
+useful if it is known that no characters outside of the US-ASCII
+alphabet need to be processed.</p>
+</li>
+<li><p class="first"><strong>replacementChar</strong> - default ” ” (space), a single character</p>
+<p>This is the character that invalid sequences are replaced by.
+Currently, it MUST be a <strong>printable</strong> US-ASCII character.</p>
+</li>
+</ul>
+<p><strong>Caveats/Known Bugs:</strong></p>
+<ul class="simple">
+<li>overlong UTF-8 encodings are currently not detected in utf-8 mode.</li>
+</ul>
+<p><strong>Samples:</strong></p>
+<p>In this snippet, we write one file without fixing UTF-8 and another one
+with the message fixed. Note that once mmutf8fix has run, access to the
+original message is no longer possible.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">module</span><span class="p">(</span><span class="n">load</span><span class="o">=</span><span class="s2">&quot;mmutf8fix&quot;</span><span class="p">)</span> <span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span>
+<span class="n">file</span><span class="o">=</span><span class="s2">&quot;/path/to/non-fixed.log&quot;</span><span class="p">)</span> <span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;mmutf8fix&quot;</span><span class="p">)</span>
+<span class="n">action</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;omfile&quot;</span> <span class="n">file</span><span class="o">=</span><span class="s2">&quot;/path/to/fixed.log&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this sample, we fix only message originating from host 10.0.0.1.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>module(load=&quot;mmutf8fix&quot;) if $fromhost-ip == &quot;10.0.0.1&quot; then
+action(type=&quot;mmutf8fix&quot;) # all other actions here...
+</pre></div>
+</div>
+<p>This is mostly the same as the previous sample, but uses
+“controlcharacters” processing mode.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>module(load=&quot;mmutf8fix&quot;) if $fromhost-ip == &quot;10.0.0.1&quot; then
+action(type=&quot;mmutf8fix&quot; mode=&quot;controlcharacters&quot;) # all other actions here...
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mmsnmptrapd.html"
+                        title="previous chapter">mmsnmptrapd message modification module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="idx_stringgen.html"
+                        title="next chapter">String Generator Modules</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/mmutf8fix.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/mmutf8fix.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="idx_stringgen.html" title="String Generator Modules"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mmsnmptrapd.html" title="mmsnmptrapd message modification module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_messagemod.html" >Message Modification Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

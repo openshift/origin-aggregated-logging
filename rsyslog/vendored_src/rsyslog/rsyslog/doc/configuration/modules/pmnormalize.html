@@ -1,0 +1,296 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Log Message Normalization Parser Module (pmnormalize) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="pmnull: Syslog Null Parser Module" href="pmnull.html" />
+    <link rel="prev" title="pmlastmsg: last message repeated n times" href="pmlastmsg.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="pmnull.html" title="pmnull: Syslog Null Parser Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="pmlastmsg.html" title="pmlastmsg: last message repeated n times"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" accesskey="U">Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="log-message-normalization-parser-module-pmnormalize">
+<h1>Log Message Normalization Parser Module (pmnormalize)<a class="headerlink" href="#log-message-normalization-parser-module-pmnormalize" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>pmnormalize</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td>Pascal Withopf &lt;<a class="reference external" href="mailto:pascalwithopf1&#37;&#52;&#48;gmail&#46;com">pascalwithopf1<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</td>
+</tr>
+<tr class="row-odd"><td><strong>Available since:</strong></td>
+<td>8.27.0</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This parser normalizes messages with the specified rules and populates the
+properties for further use.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="action-parameters">
+<h3>Action Parameters<a class="headerlink" href="#action-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="rulebase">
+<h4>Rulebase<a class="headerlink" href="#rulebase" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>word</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Specifies which rulebase file is to use. If there are multiple
+pmnormalize instances, each one can use a different file. However, a
+single instance can use only a single file. This parameter or <strong>rule</strong>
+MUST be given, because normalization can only happen based on a rulebase.
+It is recommended that an absolute path name is given. Information on
+how to create the rulebase can be found in the <a class="reference external" href="http://www.liblognorm.com/files/manual/index.html">liblognorm
+manual</a>.</p>
+</div>
+<div class="section" id="rule">
+<h4>Rule<a class="headerlink" href="#rule" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>array</td>
+<td>none</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Contains an array of strings which will be put together as the rulebase.
+This parameter or <strong>rulebase</strong> MUST be given, because normalization can
+only happen based on a rulebase.</p>
+</div>
+<div class="section" id="undefinedpropertyerror">
+<h4>UndefinedPropertyError<a class="headerlink" href="#undefinedpropertyerror" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>With this parameter an error message is controlled, which will be put out
+every time pmnormalize can’t normalize a message.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="normalize-msgs-received-via-imtcp">
+<h3>Normalize msgs received via imtcp<a class="headerlink" href="#normalize-msgs-received-via-imtcp" title="Permalink to this headline">¶</a></h3>
+<p>In this sample messages are received via imtcp. Then they are normalized with
+the given rulebase and written to a file.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmnormalize&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;13514&quot; ruleset=&quot;ruleset&quot;)
+
+parser(name=&quot;custom.pmnormalize&quot; type=&quot;pmnormalize&quot; rulebase=&quot;/tmp/rules.rulebase&quot;)
+
+ruleset(name=&quot;ruleset&quot; parser=&quot;custom.pmnormalize&quot;) {
+     action(type=&quot;omfile&quot; file=&quot;/tmp/output&quot;)
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="write-normalized-messages-to-file">
+<h3>Write normalized messages to file<a class="headerlink" href="#write-normalized-messages-to-file" title="Permalink to this headline">¶</a></h3>
+<p>In this sample messages are received via imtcp. Then they are normalized with
+the given rule array. After that they are written in a file.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmnormalize&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;10514&quot; ruleset=&quot;outp&quot;)
+
+parser(name=&quot;custom.pmnormalize&quot; type=&quot;pmnormalize&quot; rule=[
+             &quot;rule=:&lt;%pri:number%&gt; %fromhost-ip:ipv4% %hostname:word% %syslogtag:char-to:\\x3a%: %msg:rest%&quot;,
+             &quot;rule=:&lt;%pri:number%&gt; %hostname:word% %fromhost-ip:ipv4% %syslogtag:char-to:\\x3a%: %msg:rest%&quot;])
+
+ruleset(name=&quot;outp&quot; parser=&quot;custom.pmnormalize&quot;) {
+     action(type=&quot;omfile&quot; File=&quot;/tmp/output&quot;)
+}
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Log Message Normalization Parser Module (pmnormalize)</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#action-parameters">Action Parameters</a><ul>
+<li><a class="reference internal" href="#rulebase">Rulebase</a></li>
+<li><a class="reference internal" href="#rule">Rule</a></li>
+<li><a class="reference internal" href="#undefinedpropertyerror">UndefinedPropertyError</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#normalize-msgs-received-via-imtcp">Normalize msgs received via imtcp</a></li>
+<li><a class="reference internal" href="#write-normalized-messages-to-file">Write normalized messages to file</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="pmlastmsg.html"
+                        title="previous chapter">pmlastmsg: last message repeated n times</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="pmnull.html"
+                        title="next chapter">pmnull: Syslog Null Parser Module</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/pmnormalize.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/pmnormalize.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="pmnull.html" title="pmnull: Syslog Null Parser Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="pmlastmsg.html" title="pmlastmsg: last message repeated n times"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" >Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

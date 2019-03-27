@@ -1,0 +1,318 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Legacy Format Samples for Multiple Rulesets &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="NetStream Drivers" href="../concepts/netstrm_drvr.html" />
+    <link rel="prev" title="Multiple Rulesets in rsyslog" href="../concepts/multi_ruleset.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../concepts/netstrm_drvr.html" title="NetStream Drivers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../concepts/multi_ruleset.html" title="Multiple Rulesets in rsyslog"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../concepts/index.html" >Concepts</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../concepts/multi_ruleset.html" accesskey="U">Multiple Rulesets in rsyslog</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="legacy-format-samples-for-multiple-rulesets">
+<h1>Legacy Format Samples for Multiple Rulesets<a class="headerlink" href="#legacy-format-samples-for-multiple-rulesets" title="Permalink to this headline">¶</a></h1>
+<p>This chapter complements rsyslog’s documentation of
+<a class="reference internal" href="../concepts/multi_ruleset.html"><span class="doc">rulesets</span></a>.
+While the base document focusses on RainerScript format, it
+does not provide samples in legacy format. These are included
+in this document.</p>
+<p><strong>Important:</strong> do <strong>not</strong> use legacy ruleset defintions for new
+configurations. Especially with rulesets, legacy format is extremely
+hard to get right. The information in this page is included in order
+to help you understand already existing configurations using the
+ruleset feature. We even recommend to convert any such configs
+to RainerScript format because of its increased robustness
+and simplicity.</p>
+<p>Legacy ruleset support was available starting with version 4.5.0
+and 5.1.1.</p>
+<div class="section" id="split-local-and-remote-logging">
+<h2>Split local and remote logging<a class="headerlink" href="#split-local-and-remote-logging" title="Permalink to this headline">¶</a></h2>
+<p>Let’s say you have a pretty standard system that logs its local messages
+to the usual bunch of files that are specified in the default
+rsyslog.conf. As an example, your rsyslog.conf might look like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># ... module loading ...</span>
+<span class="c1"># The authpriv file has restricted access.</span>
+<span class="n">authpriv</span><span class="o">.*</span>  <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">secure</span>
+<span class="c1"># Log all the mail messages in one place.</span>
+<span class="n">mail</span><span class="o">.*</span>      <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">maillog</span>
+<span class="c1"># Log cron stuff</span>
+<span class="n">cron</span><span class="o">.*</span>      <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">cron</span>
+<span class="c1"># Everybody gets emergency messages</span>
+<span class="o">*.</span><span class="n">emerg</span>     <span class="o">*</span>
+<span class="o">...</span> <span class="n">more</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Now, you want to add receive messages from a remote system and log these
+to a special file, but you do not want to have these messages written to
+the files specified above. The traditional approach is to add a rule in
+front of all others that filters on the message, processes it and then
+discards it:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># ... module loading ...</span>
+<span class="c1"># process remote messages</span>
+<span class="p">:</span><span class="n">fromhost</span><span class="o">-</span><span class="n">ip</span><span class="p">,</span> <span class="n">isequal</span><span class="p">,</span> <span class="s2">&quot;192.0.2.1&quot;</span>    <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">remotefile</span>
+<span class="o">&amp;</span> <span class="o">~</span>
+<span class="c1"># only messages not from 192.0.21 make it past this point</span>
+
+<span class="c1"># The authpriv file has restricted access.</span>
+<span class="n">authpriv</span><span class="o">.*</span>                            <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">secure</span>
+<span class="c1"># Log all the mail messages in one place.</span>
+<span class="n">mail</span><span class="o">.*</span>                                <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">maillog</span>
+<span class="c1"># Log cron stuff</span>
+<span class="n">cron</span><span class="o">.*</span>                                <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">cron</span>
+<span class="c1"># Everybody gets emergency messages</span>
+<span class="o">*.</span><span class="n">emerg</span>                               <span class="o">*</span>
+<span class="o">...</span> <span class="n">more</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p>Note the tilde character, which is the discard action!. Also note that
+we assume that 192.0.2.1 is the sole remote sender (to keep it simple).</p>
+<p>With multiple rulesets, we can simply define a dedicated ruleset for the
+remote reception case and bind it to the receiver. This may be written
+as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># ... module loading ...
+# process remote messages
+# define new ruleset and add rules to it:
+$RuleSet remote
+*.*           /var/log/remotefile
+# only messages not from 192.0.21 make it past this point
+
+# bind ruleset to tcp listener
+$InputTCPServerBindRuleset remote
+# and activate it:
+$InputTCPServerRun 10514
+
+# switch back to the default ruleset:
+$RuleSet RSYSLOG_DefaultRuleset
+# The authpriv file has restricted access.
+authpriv.*    /var/log/secure
+# Log all the mail messages in one place.
+mail.*        /var/log/maillog
+# Log cron stuff
+cron.*        /var/log/cron
+# Everybody gets emergency messages
+*.emerg       *
+... more ...
+</pre></div>
+</div>
+<p>Here, we need to switch back to the default ruleset after we have
+defined our custom one. This is why I recommend a different ordering,
+which I find more intuitive. The sample below has it, and it leads to
+the same results:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># ... module loading ...
+# at first, this is a copy of the unmodified rsyslog.conf
+# The authpriv file has restricted access.
+authpriv.*    /var/log/secure
+# Log all the mail messages in one place.
+mail.*        /var/log/maillog
+# Log cron stuff
+cron.*        /var/log/cron
+# Everybody gets emergency messages
+*.emerg       *
+... more ...
+# end of the &quot;regular&quot; rsyslog.conf. Now come the new definitions:
+
+# process remote messages
+# define new ruleset and add rules to it:
+$RuleSet remote
+*.*           /var/log/remotefile
+
+# bind ruleset to tcp listener
+$InputTCPServerBindRuleset remote
+# and activate it:
+$InputTCPServerRun 10514
+</pre></div>
+</div>
+<p>Here, we do not switch back to the default ruleset, because this is not
+needed as it is completely defined when we begin the “remote” ruleset.</p>
+<p>Now look at the examples and compare them to the single-ruleset
+solution. You will notice that we do <strong>not</strong> need a real filter in the
+multi-ruleset case: we can simply use “*.*” as all messages now means
+all messages that are being processed by this rule set and all of them
+come in via the TCP receiver! This is what makes using multiple rulesets
+so much easier.</p>
+</div>
+<div class="section" id="split-local-and-remote-logging-for-three-different-ports">
+<h2>Split local and remote logging for three different ports<a class="headerlink" href="#split-local-and-remote-logging-for-three-different-ports" title="Permalink to this headline">¶</a></h2>
+<p>This example is almost like the first one, but it extends it a little
+bit. While it is very similar, I hope it is different enough to provide
+a useful example why you may want to have more than two rulesets.</p>
+<p>Again, we would like to use the “regular” log files for local logging,
+only. But this time we set up three syslog/tcp listeners, each one
+listening to a different port (in this example 10514, 10515, and 10516).
+Logs received from these receivers shall go into different files. Also,
+logs received from 10516 (and only from that port!) with “mail.*”
+priority, shall be written into a specif file and <strong>not</strong> be written to
+10516’s general log file.</p>
+<p>This is the config:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># ... module loading ...
+# at first, this is a copy of the unmodified rsyslog.conf
+# The authpriv file has restricted access.
+authpriv.* /var/log/secure
+# Log all the mail messages in one place.
+mail.*  /var/log/maillog
+# Log cron stuff
+cron.*  /var/log/cron
+# Everybody gets emergency messages
+*.emerg       *
+... more ...
+# end of the &quot;regular&quot; rsyslog.conf. Now come the new definitions:
+
+# process remote messages
+
+#define rulesets first
+$RuleSet remote10514
+*.*     /var/log/remote10514
+
+$RuleSet remote10515
+*.*     /var/log/remote10515
+
+$RuleSet remote10516
+mail.*  /var/log/mail10516
+&amp;       ~
+# note that the discard-action will prevent this messag from
+# being written to the remote10516 file - as usual...
+*.*     /var/log/remote10516
+
+# and now define listeners bound to the relevant ruleset
+$InputTCPServerBindRuleset remote10514
+$InputTCPServerRun 10514
+
+$InputTCPServerBindRuleset remote10515
+$InputTCPServerRun 10515
+
+$InputTCPServerBindRuleset remote10516
+$InputTCPServerRun 10516
+</pre></div>
+</div>
+<p>Note that the “mail.*” rule inside the “remote10516” ruleset does not
+affect processing inside any other rule set, including the default rule
+set.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Legacy Format Samples for Multiple Rulesets</a><ul>
+<li><a class="reference internal" href="#split-local-and-remote-logging">Split local and remote logging</a></li>
+<li><a class="reference internal" href="#split-local-and-remote-logging-for-three-different-ports">Split local and remote logging for three different ports</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../concepts/multi_ruleset.html"
+                        title="previous chapter">Multiple Rulesets in rsyslog</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../concepts/netstrm_drvr.html"
+                        title="next chapter">NetStream Drivers</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/historical/multi_ruleset_legacy_format_samples.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/historical/multi_ruleset_legacy_format_samples.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../concepts/netstrm_drvr.html" title="NetStream Drivers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../concepts/multi_ruleset.html" title="Multiple Rulesets in rsyslog"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../concepts/index.html" >Concepts</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../concepts/multi_ruleset.html" >Multiple Rulesets in rsyslog</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

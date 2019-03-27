@@ -1,0 +1,344 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pmciscoios &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="pmlastmsg: last message repeated n times" href="pmlastmsg.html" />
+    <link rel="prev" title="Parser Modules" href="idx_parser.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="pmlastmsg.html" title="pmlastmsg: last message repeated n times"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="idx_parser.html" title="Parser Modules"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" accesskey="U">Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pmciscoios">
+<h1>pmciscoios<a class="headerlink" href="#pmciscoios" title="Permalink to this headline">¶</a></h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Module Name:</strong></td>
+<td><strong>pmciscoios</strong></td>
+</tr>
+<tr class="row-even"><td><strong>Author:</strong></td>
+<td><a class="reference external" href="http://rainer.gerhards.net/">Rainer Gerhards</a> &lt;<a class="reference external" href="mailto:rgerhards&#37;&#52;&#48;adiscon&#46;com">rgerhards<span>&#64;</span>adiscon<span>&#46;</span>com</a>&gt;</td>
+</tr>
+<tr class="row-odd"><td><strong>Available since:</strong></td>
+<td>8.3.4+</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this headline">¶</a></h2>
+<p>This is a parser that understands Cisco IOS “syslog” format. Note
+that this format is quite different from RFC syslog format, and
+so the default parser chain cannot deal with it.</p>
+<p>Note that due to large differences in IOS logging format, pmciscoios
+may currently not be able to handle all possible format variations.
+Nevertheless, it should be fairly easy to adapt it to additional
+requirements. So be sure to ask if you run into problems with
+format issues.</p>
+<p>Note that if your Cisco system emits timezone information in a supported
+format, rsyslog will pick it up. In order to apply proper timezone offsets,
+the timezone ids (e.g. “EST”) must be configured via the
+<a class="reference internal" href="../timezone.html"><span class="doc">timezone object</span></a>.</p>
+<p>Note if the clock on the Cisco device has not been set and cannot be
+verified the Cisco will prepend the timestamp field with an asterisk (*).
+If the clock has gone out of sync with its configured NTP server the
+timestamp field will be prepended with a dot (.). In both of these cases
+parsing the timestamp would fail, therefore any preceding asterisks (*) or
+dots (.) are ignored. This may lead to “incorrect” timestamps being logged.</p>
+</div>
+<div class="section" id="configuration-parameters">
+<h2>Configuration Parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameter names are case-insensitive.</p>
+</div>
+<div class="section" id="parser-parameters">
+<h3>Parser Parameters<a class="headerlink" href="#parser-parameters" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="present-origin">
+<h4>present.origin<a class="headerlink" href="#present-origin" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>This setting tell the parser if the origin field is present inside
+the message. Due to the nature of Cisco’s logging format, the parser
+cannot sufficiently correctly deduce if the origin field is present
+or not (at least not with reasonable performance). As such, the parser
+must be provided with that information. If the origin is present,
+its value is stored inside the HOSTNAME message property.</p>
+</div>
+<div class="section" id="present-xr">
+<h4>present.xr<a class="headerlink" href="#present-xr" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="colwidths-auto parameter-table docutils">
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">type</th>
+<th class="head">default</th>
+<th class="head">mandatory</th>
+<th class="head"><code class="docutils literal"><span class="pre">obsolete</span> <span class="pre">legacy</span></code> directive</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>binary</td>
+<td>off</td>
+<td>no</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>If syslog is recviced from an IOSXR device the syslog format will usually
+start with the RSP/LC/etc that produced the log, then the timestamp.
+It will also contain an additional syslog tag before the standard Cisco
+%TAG, this tag references the process that produced the log.
+In order to use this Cisco IOS parser module with XR format messages both
+of these additional fields must be ignored.</p>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="listening-multiple-devices-some-emitting-origin-information-and-some-not">
+<h3>Listening multiple devices, some emitting origin information and some not<a class="headerlink" href="#listening-multiple-devices-some-emitting-origin-information-and-some-not" title="Permalink to this headline">¶</a></h3>
+<p>We assume a scenario where we have some devices configured to emit origin
+information whereas some others do not. In order to differentiate between
+the two classes, rsyslog accepts input on different ports, one per class.
+For each port, an input() object is defined, which binds the port to a
+ruleset that uses the appropriately-configured parser. Except for the
+different parsers, processing shall be identical for both classes. In our
+first example we do this via a common ruleset which carries out the
+actual processing:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmciscoios&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;10514&quot; ruleset=&quot;withoutOrigin&quot;)
+input(type=&quot;imtcp&quot; port=&quot;10515&quot; ruleset=&quot;withOrigin&quot;)
+
+ruleset(name=&quot;common&quot;) {
+    ... do processing here ...
+}
+
+ruleset(name=&quot;withoutOrigin&quot; parser=&quot;rsyslog.ciscoios&quot;) {
+    /* this ruleset uses the default parser which was
+     * created during module load
+     */
+    call common
+}
+
+parser(name=&quot;custom.ciscoios.withOrigin&quot; type=&quot;pmciscoios&quot;
+       present.origin=&quot;on&quot;)
+ruleset(name=&quot;withOrigin&quot; parser=&quot;custom.ciscoios.withOrigin&quot;) {
+    /* this ruleset uses the parser defined immediately above */
+    call common
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="date-stamp-immediately-following-the-origin">
+<h3>Date stamp immediately following the origin<a class="headerlink" href="#date-stamp-immediately-following-the-origin" title="Permalink to this headline">¶</a></h3>
+<p>The example configuration above is a good solution. However, it is possible
+to do the same thing in a somewhat condensed way, but if and only if the date
+stamp immediately follows the origin. In that case, the parser has a chance to
+detect if the origin is present or not. The key point here is to make sure
+the parser checking for the origin is given before the default one, in which
+case the first on will detect it does not match an pass on to the next
+one inside the parser chain. However, this comes at the expense of additional
+runtime overhead. The example below is <strong>not</strong> good practice – it is given
+as a purely educational sample to show some fine details of how parser
+definitions interact. In this case, we can use a single listener.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imtcp&quot;)
+module(load=&quot;pmciscoios&quot;)
+
+input(type=&quot;imtcp&quot; port=&quot;10514&quot; ruleset=&quot;ciscoBoth&quot;)
+
+parser(name=&quot;custom.ciscoios.withOrigin&quot; type=&quot;pmciscoios&quot;
+       present.origin=&quot;on&quot;)
+ruleset(name=&quot;ciscoBoth&quot;
+        parser=[&quot;custom.ciscoios.withOrigin&quot;, &quot;rsyslog.ciscoios&quot;]) {
+    ... do processing here ...
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="handling-cisco-ios-and-iosxr-formats">
+<h3>Handling Cisco IOS and IOSXR formats<a class="headerlink" href="#handling-cisco-ios-and-iosxr-formats" title="Permalink to this headline">¶</a></h3>
+<p>The following sample demonstrates how to handle Cisco IOS and IOSXR formats</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>module(load=&quot;imudp&quot;)
+module(load=&quot;pmciscoios&quot;)
+
+input(type=&quot;imudp&quot; port=&quot;10514&quot; ruleset=&quot;ios&quot;)
+input(type=&quot;imudp&quot; port=&quot;10515&quot; ruleset=&quot;iosxr&quot;)
+
+ruleset(name=&quot;common&quot;) {
+    ... do processing here ...
+}
+
+ruleset(name=&quot;ios&quot; parser=&quot;rsyslog.ciscoios&quot;) {
+    call common
+}
+
+parser(name=&quot;custom.ciscoios.withXr&quot; type=&quot;pmciscoios&quot;
+       present.xr=&quot;on&quot;)
+ruleset(name=&quot;iosxr&quot; parser=&quot;custom.ciscoios.withXr&quot;] {
+    call common
+}
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">pmciscoios</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#configuration-parameters">Configuration Parameters</a><ul>
+<li><a class="reference internal" href="#parser-parameters">Parser Parameters</a><ul>
+<li><a class="reference internal" href="#present-origin">present.origin</a></li>
+<li><a class="reference internal" href="#present-xr">present.xr</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#listening-multiple-devices-some-emitting-origin-information-and-some-not">Listening multiple devices, some emitting origin information and some not</a></li>
+<li><a class="reference internal" href="#date-stamp-immediately-following-the-origin">Date stamp immediately following the origin</a></li>
+<li><a class="reference internal" href="#handling-cisco-ios-and-iosxr-formats">Handling Cisco IOS and IOSXR formats</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="idx_parser.html"
+                        title="previous chapter">Parser Modules</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="pmlastmsg.html"
+                        title="next chapter">pmlastmsg: last message repeated n times</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../../_sources/configuration/modules/pmciscoios.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/configuration/modules/pmciscoios.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="pmlastmsg.html" title="pmlastmsg: last message repeated n times"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="idx_parser.html" title="Parser Modules"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Configuration</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="index.html" >Modules</a> &#187;</li>
+          <li class="nav-item nav-item-3"><a href="idx_parser.html" >Parser Modules</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>

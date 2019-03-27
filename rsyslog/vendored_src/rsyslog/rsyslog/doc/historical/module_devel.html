@@ -1,0 +1,235 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Developing rsyslog modules (outdated) &#8212; rsyslog 8.37.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/rsyslog.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8.37.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="RSyslog - History" href="../history.html" />
+    <link rel="prev" title="SSL Encrypting Syslog with Stunnel" href="stunnel.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../history.html" title="RSyslog - History"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="stunnel.html" title="SSL Encrypting Syslog with Stunnel"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="developing-rsyslog-modules-outdated">
+<h1>Developing rsyslog modules (outdated)<a class="headerlink" href="#developing-rsyslog-modules-outdated" title="Permalink to this headline">¶</a></h1>
+<p><em>Written by `Rainer Gerhards</em> &lt;<a class="reference external" href="https://rainer.gerhards.net">https://rainer.gerhards.net</a>&gt;`_ <em>(2007-07-28)</em></p>
+<p><strong>This document is outdated and primarily contains historical
+information. Do not trust it to build code. It currently is under
+review.</strong></p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>In theory, modules provide input and output, among other functions, in
+rsyslog. In practice, modules are only utilized for output in the
+current release. The module interface is not yet completed and a moving
+target. We do not recommend to write a module based on the current
+specification. If you do, please be prepared that future released of
+rsyslog will probably break your module.</p>
+<p>A goal of modularization is to provide an easy to use plug-in interface.
+However, this goal is not yet reached and all modules must be statically
+linked.</p>
+</div>
+<div class="section" id="module-generation">
+<h2>Module “generation”<a class="headerlink" href="#module-generation" title="Permalink to this headline">¶</a></h2>
+<p>There is a lot of plumbing that is always the same in all modules. For
+example, the interface definitions, answering function pointer queries
+and such. To get rid of these laborious things, I generate most of them
+automatically from a single file. This file is named module-template.h.
+It also contains the current best description of the interface
+“specification”.</p>
+<p>One thing that can also be achieved with it is the capability to cope
+with a rapidly changing interface specification. The module interface is
+evolving. Currently, it is far from being finished. As I moved the
+monolithic code to modules, I needed (and still need) to make many
+“non-clean” code hacks, just to get it working. These things are now
+gradually being removed. However, this requires frequent changes to the
+interfaces, as things move in and out while working towards a clean
+interface. All the interim is necessary to reach the goal. This
+volatility of specifications is the number one reasons I currently
+advise against implementing your own modules (hint: if you do, be sure
+to use module-template.h and be prepared to fix newly appearing and
+disappearing data elements).</p>
+</div>
+<div class="section" id="naming-conventions">
+<h2>Naming Conventions<a class="headerlink" href="#naming-conventions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="source">
+<h3>Source<a class="headerlink" href="#source" title="Permalink to this headline">¶</a></h3>
+<p>Output modules, and only output modules, should start with a file name
+of “om” (e.g. “omfile.c”, “omshell.c”). Similarly, input modules will
+use “im” and filter modules “fm”. The third character shall not be a
+hyphen.</p>
+</div>
+</div>
+<div class="section" id="module-security">
+<h2>Module Security<a class="headerlink" href="#module-security" title="Permalink to this headline">¶</a></h2>
+<p>Modules are directly loaded into rsyslog’s address space. As such, any
+module is provided a big level of trust. Please note that further module
+interfaces might provide a way to load a module into an isolated address
+space. This, however, is far from being completed. So the number one
+rule about module security is to run only code that you know you can
+trust.</p>
+<p>To minimize the security risks associated with modules, rsyslog provides
+only the most minimalistic access to data structures to its modules. For
+that reason, the output modules do not receive any direct pointers to
+the selector_t structure, the syslogd action structures and - most
+importantly - the msg structure itself. Access to these structures would
+enable modules to access data that is none of their business, creating a
+potential security weakness.</p>
+<p>Not having access to these structures also simplifies further queueing
+and error handling cases. As we do not need to provide e.g. full access
+to the msg object itself, we do not need to serialize and cache it.
+Instead, strings needed by the module are created by syslogd and then
+the final result is provided to the module. That, for example, means
+that in a queued case $NOW is the actual timestamp of when the message
+was processed, which may be even days before it being dequeued. Think
+about it: If we wouldn’t cache the resulting string, $NOW would be the
+actual date if the action were suspended and messages queued for some
+time. That could potentially result in big confusion.</p>
+<p>It is thought that if an output module actually needs access to the
+while msg object, we will (then) introduce a way to serialize it (e.g.
+to XML) in the property replacer. Then, the output module can work with
+this serialized object. The key point is that output modules never deal
+directly with msg objects (and other internal structures). Besides
+security, this also greatly simplifies the job of the output module
+developer.</p>
+</div>
+<div class="section" id="action-selectors">
+<h2>Action Selectors<a class="headerlink" href="#action-selectors" title="Permalink to this headline">¶</a></h2>
+<p>Modules (and rsyslog) need to know when they are called. For this, there
+must a an action identification in selector lines. There are two
+syntaxes: the single-character syntax, where a single characters
+identifies a module (e.g. “*” for a wall message) and the modules
+designator syntax, where the module name is given between colons (e.g.
+“:ommysql:”). The single character syntax is depreciated and should not
+be used for new plugins.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Help with configuring/using <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://lists.adiscon.net/mailman/listinfo/rsyslog">Mailing list</a> - best route for general questions</li>
+<li>GitHub: <a class="reference external" href="https://github.com/rsyslog/rsyslog/">rsyslog source project</a> - detailed questions, reporting issues
+that are believed to be bugs with <code class="docutils literal"><span class="pre">Rsyslog</span></code></li>
+<li>Stack Exchange (<a class="reference external" href="https://stackexchange.com/filters/327462/rsyslog">View</a>, <a class="reference external" href="https://serverfault.com/questions/ask?tags=rsyslog">Ask</a>)
+- experimental support from rsyslog community</li>
+</ul>
+</div>
+<div class="admonition seealso">
+<p class="first admonition-title">See also</p>
+<p>Contributing to <code class="docutils literal"><span class="pre">Rsyslog</span></code>:</p>
+<ul class="last simple">
+<li>Source project: <a class="reference external" href="https://github.com/rsyslog/rsyslog/blob/master/README.md">rsyslog project README</a>.</li>
+<li>Documentation: <a class="reference external" href="https://github.com/rsyslog/rsyslog-doc/blob/master/README.md">rsyslog-doc project README</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Developing rsyslog modules (outdated)</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#module-generation">Module “generation”</a></li>
+<li><a class="reference internal" href="#naming-conventions">Naming Conventions</a><ul>
+<li><a class="reference internal" href="#source">Source</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-security">Module Security</a></li>
+<li><a class="reference internal" href="#action-selectors">Action Selectors</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="stunnel.html"
+                        title="previous chapter">SSL Encrypting Syslog with Stunnel</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../history.html"
+                        title="next chapter">RSyslog - History</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/historical/module_devel.rst.txt"
+           rel="nofollow">Show Source</a></li>
+    <li><a href="https://github.com/rsyslog/rsyslog-doc/edit/master/source/historical/module_devel.rst"
+           rel="nofollow">Edit on GitHub</a></li>
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../history.html" title="RSyslog - History"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="stunnel.html" title="SSL Encrypting Syslog with Stunnel"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">rsyslog 8.37.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Historical Documents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2017, Rainer Gerhards and Others.
+    </div>
+  </body>
+</html>
