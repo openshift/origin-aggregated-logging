@@ -8,14 +8,14 @@ USER 0
 
 ENV ES_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
-    ES_VER=5.6.13 \
+    ES_VER=6.6.2 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.13.3 \
-    PROMETHEUS_EXPORTER_VER=5.6.13.1 \
+    OSE_ES_VER=6.6.2.1 \
+    PROMETHEUS_EXPORTER_VER=6.6.2.0 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -23,8 +23,8 @@ ENV ES_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
 
-ARG OSE_ES_VER=5.6.13.3
-ARG SG_VER=5.6.13-19.2
+ARG OSE_ES_VER=6.6.2.1
+ARG SG_VER=6.6.2-24.2
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
       io.k8s.display-name="Elasticsearch ${ES_VER}" \
@@ -52,7 +52,7 @@ ADD probe/ ${ES_HOME}/probe/
 ADD init.sh run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
-ARG OSE_ES_URL
+ARG OSE_ES_URL=https://github.com/jcantrill/openshift-elasticsearch-plugin/releases/download/6.6.2.1-SNAPSHOT/openshift-elasticsearch-plugin-6.6.2.1-SNAPSHOT.zip
 ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 ARG SG_URL
 
