@@ -53,7 +53,7 @@ ADD init.sh run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
 ARG OSE_ES_URL=https://github.com/jcantrill/openshift-elasticsearch-plugin/releases/download/6.6.2.1-SNAPSHOT/openshift-elasticsearch-plugin-6.6.2.1-SNAPSHOT.zip
-ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/elasticsearch-prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 ARG SG_URL
 
 RUN ln -s /usr/local/bin/logging ${HOME}/logging && \
