@@ -7,5 +7,4 @@ spec:
   source: elasticsearch
   sourceNamespace: openshift-operators
   name: elasticsearch-operator
-  startingCSV: elasticsearch-operator.v0.0.1
   channel: preview
