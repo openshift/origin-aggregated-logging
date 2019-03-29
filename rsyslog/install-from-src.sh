@@ -12,16 +12,22 @@ for pkg in $packages ; do
     # remove %prep section from rpm spec
     sed -e '/^%prep/,/^%build/{/^%build/!d}' -i $pkg.spec
     # put RPMS in ../RPMS - use source code from $pkg dir and build in that dir as well
-    rpmbuild -bb --define "_topdir $rpmtopdir" --define "_builddir $(pwd)/$pkg" --define "_sourcedir $(pwd)" $pkg.spec
+    rpmbuild -bb --define "_topdir $rpmtopdir" --define "_builddir $(pwd)/$pkg" \
+        --define "_rpmdir $rpmtopdir/BUILDRPMS" --define "_sourcedir $(pwd)" $pkg.spec
     cd ..
-    # install rpms for next round of dependencies
-    yum -y install RPMS/*/*.rpm
+    # install devel rpms for next round of dependencies
+    yum -y install BUILDRPMS/*/*.rpm
+    # move runtime rpms to runtime dir
+    if [ ! -d /RPMS ] ; then
+        mkdir -p /RPMS
+    fi
+    find BUILDRPMS -type f -print | while read rpmfile ; do
+        case $rpmfile in
+        ${pkg}-devel-*.rpm) continue ;;
+        ${pkg}-doc-*.rpm) continue ;;
+        *.src.rpm) continue ;;
+        *) mv $rpmfile /RPMS/ ;;
+        esac
+    done
+    rm -rf BUILDRPMS/*
 done
-
-# remove all RPM files except those needed at runtime
-for pkg in $packages ; do
-    find RPMS -name ${pkg}-devel-\*.rpm -exec rm -f {} /dev/null \;
-    find RPMS -name ${pkg}-doc-\*.rpm -exec rm -f {} /dev/null \;
-    find RPMS -name \*.src.rpm -exec rm -f {} /dev/null \;
-done
-#ls -alrRtF RPMS
