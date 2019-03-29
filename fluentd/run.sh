@@ -4,6 +4,7 @@ export MERGE_JSON_LOG=${MERGE_JSON_LOG:-true}
 CFG_DIR=/etc/fluent/configs.d
 ENABLE_PROMETHEUS_ENDPOINT=${ENABLE_PROMETHEUS_ENDPOINT:-"true"}
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift- kube-"}
+LOGGING_FILE_PATH=${LOGGING_FILE_PATH:-"/var/log/fluentd/fluentd.log"}
 OCP_FLUENTD_TAGS=""
 for p in ${OCP_OPERATIONS_PROJECTS}; do
     if [[ "${p}" == *- ]] ; then
@@ -16,16 +17,19 @@ for file in ${ocp_fluentd_files} ; do
     sed -i -e "s/%OCP_FLUENTD_TAGS%/${OCP_FLUENTD_TAGS}/" $file
 done
 
-echo "============================="
-echo "Fluentd logs have been redirected to: $LOGGING_FILE_PATH"
-echo "If you want to print out the logs, use command:"
-echo "oc exec <pod_name> -- logs"
-echo "============================="
+if [ ${LOGGING_FILE_PATH} != "console" ] ; then
+    echo "============================="
+    echo "Fluentd logs have been redirected to: $LOGGING_FILE_PATH"
+    echo "If you want to print out the logs, use command:"
+    echo "oc exec <pod_name> -- logs"
+    echo "============================="
 
-if [ ! -d `dirname $LOGGING_FILE_PATH` ]; then
-  mkdir -p `dirname $LOGGING_FILE_PATH`
+    dirname=$( dirname $LOGGING_FILE_PATH )
+    if [ ! -d $dirname ] ; then
+        mkdir -p $dirname
+    fi
+    touch $LOGGING_FILE_PATH; exec >> $LOGGING_FILE_PATH 2>&1
 fi
-touch $LOGGING_FILE_PATH; exec >> $LOGGING_FILE_PATH 2>&1
 
 fluentdargs="--no-supervisor"
 if [[ $VERBOSE ]]; then
