@@ -7,5 +7,4 @@ spec:
   source: cluster-logging
   sourceNamespace: openshift-logging
   name: cluster-logging
-  startingCSV: clusterlogging.v0.0.1
   channel: preview

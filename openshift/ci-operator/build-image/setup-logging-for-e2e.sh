@@ -47,6 +47,10 @@ wait_for_condition()
 }
 
 TEST_OBJ_DIR=${TEST_OBJ_DIR:-openshift/ci-operator/build-image}
+ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
+if [ ! -d $ARTIFACT_DIR ] ; then
+    mkdir -p $ARTIFACT_DIR
+fi
 
 # Create the openshift-logging namespace:
 oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
