@@ -10,7 +10,7 @@ Following are the environment variables that can be modified to adjust the confi
 | `OCP_OPERATIONS_PROJECTS`| The list of project or patterns for which messages will be sent to the operations indices|`OCP_OPERATIONS_PROJECTS="default openshift openshift-"`|
 | `LOGGING_FILE_PATH` | The log file absolute path where Fluentd is writting its logs. If you want Fluentd to output its logs as Fluentd does by default (`STDOUT`) set this variable to `console` value. Default value is `/var/log/fluentd/fluentd.log`. | `LOGGING_FILE_PATH=console` |
 | `LOGGING_FILE_AGE` | Number of log files that Fluentd keeps before deleting the oldest file. Default value is `10`. | `LOGGING_FILE_AGE=30` |
-| `LOGGING_FILE_SIZE` | Maximum size of a Fluentd log file in bytes. If the size of the log file is bigger, the log file gets rotated. Default is 1MB | `LOGGING_FILE_PATH=1024000`
+| `LOGGING_FILE_SIZE` | Maximum size of a Fluentd log file in bytes. If the size of the log file is bigger, the log file gets rotated. Default is 1MB | `LOGGING_FILE_SIZE=1024000`
 | `CDM_UNDEFINED_TO_STRING` | When `MERGE_JSON_LOG=true` - see below (Default: false) | `CDM_UNDEFINED_TO_STRING=true` |
 | `CDM_UNDEFINED_DOT_REPLACE_CHAR` | When `MERGE_JSON_LOG=true` - see below (Default: UNUSED) | `CDM_UNDEFINED_DOT_REPLACE_CHAR=_` |
 | `CDM_UNDEFINED_MAX_NUM_FIELDS` | When `MERGE_JSON_LOG=true` - see below (Default: -1) | `CDM_UNDEFINED_MAX_NUM_FIELDS=500` |
