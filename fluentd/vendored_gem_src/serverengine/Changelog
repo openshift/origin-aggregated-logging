@@ -1,0 +1,156 @@
+2018-11-14 version 2.1.0:
+
+* Improve socket manager security
+
+2018-07-09 version 2.0.7:
+
+* Add disable_sigdump option
+
+2018-02-09 version 2.0.6:
+
+* Avoid thread error log in ruby 2.5
+
+2017-03-01 version 2.0.5:
+
+* Support SERVERENGINE_SOCKETMANAGER_SOCK_DIR environment variable to change
+  base directory of SocketManager's socket path
+
+2016-11-24 version 2.0.4:
+
+* Fix bug to crash Ruby VM when SocketManager fails to bind IPv6 addresses on Windows
+
+2016-11-22 version 2.0.3:
+
+* Fix bug about IPv6 handling on Windows
+
+2016-11-17 version 2.0.2:
+
+* Fix bug to make busy loop on Windows
+* Fix bug to execute unexpected "find" command on Windows
+
+2016-10-18 version 2.0.1:
+
+* Fix to set GID before UID, to make it sure to set GID with superuser privilege
+
+2016-08-23 version 2.0.0:
+
+* Add windows-pr gem dependency to get ruby_bin_path correctly
+* Add command sender feature to use pipe to control workers for Windows
+* Delete MultiprocessLogDevice implementation to use Ruby's one always. This
+  means removal of backward workaround code for Ruby < 2.1.
+* Refactor modules and methods to clean internal file dependency Internal
+  symbol `ServerEngine::Daemon::Signals` is moved to `ServerEngine::Signals`
+* Add example script to run servers
+* Fix required Ruby version to 2.1 or later
+
+2016-05-19 version 1.6.4:
+
+* Refactor to delete some warnings
+* Fix infinite self call bug in SignalTread
+* Add ruby 2.1 support for TravisCI
+
+2016-04-27 version 1.6.3:
+
+* Fix Socket Manager for UDP to adapt to ipv6
+* Fix Socket Manager not to join thread in Ruby 2.1
+* Fix Socket Manager to identify all localhost address
+* Fix ruby dll path on Ruby x64
+
+2016-04-14 version 1.6.2:
+
+* Fix to use Etc instead of id command in change_privilege for windows
+* Fix signal handler on Server class to be configurable
+* Fix to use spawn when damonize on windows
+
+2016-03-04 version 1.6.1:
+
+* Fix CloseHandle definition in winsock
+
+
+2015-01-07 version 1.6.0:
+
+* Added SocketManager, a utility class for multiprocess servers to listen on
+  the same TCP or UDP port dynamically.
+* Added a new attr_reader accessor at Daemon#server and Supervisor#server
+* Added ServerEngine.windows? method to check Windows platform
+* ProcessManager now considers Windows platform
+
+
+2015-09-28 version 1.5.11:
+
+* Fix unexpected logger option handling [#22]
+* Fix gem homepage link
+
+
+2014-10-27 version 1.5.10:
+
+* Added worker_type=spawn (experimental)
+* Fixed Worker#config to reference Server#config so that Worker#reload reads
+  the new config reloaded by Server#reload (=ConfigLoader#reload_config) in
+  worker_type=thread and embedded
+* Server#stop, #restart and #reload show a debug log message
+
+
+2014-07-24 version 1.5.9:
+
+* Fixed DaemonLogger#reoepen! on Ruby >= 2.1.0
+
+
+2014-06-27 version 1.5.8:
+
+* Use standard LogDevice on Ruby >= 2.1.0 imporoved at https://github.com/ruby/ruby/pull/428
+
+
+2013-10-31 version 1.5.7:
+
+* Fixed :log parameter handling
+
+
+2013-10-20 version 1.5.6:
+
+* Fixed log rotation in worker_type=process mode [#9]
+* DaemonLogger supports 'trace' level
+
+
+2013-09-17 version 1.5.5:
+
+* worker_type=thread and embedded show uncaught errors caused in Worker#stop
+  and Worker#reload interface
+* ProcessManager: enables child process heartbeat only if enable_heartbeat
+  option is true
+* ProcessManager: doesn't call fcntl on pipe pairs if F_SETFD or FD_CLOEXEC
+  is not defined
+* ProcessManager: added #spawn(*args) method
+
+
+2013-09-10 version 1.5.4:
+
+* SignalThread: fixed "Unexpected error can't be called from trap context"
+  error in Ruby 2.0 (Thanks to @jondot and @sonots)
+
+
+2013-06-30 version 1.5.3:
+
+* Daemon: uses Process::UID.from_name and Process::GID.from_name
+  instead of running id command
+* worker_type=thread calls before_fork
+* Added MultiWorkerServer#join_workers
+* DaemonLogger: fixed #initialize to use config[:log_level]
+
+
+2013-06-11 version 1.5.2:
+
+* Updated default parameters of ProcessManager to be more conservative
+* Daemon: added :daemonize_error_exit_code option
+* Fixed ServerEngine.create
+
+
+2013-06-04 version 1.5.1:
+
+* Changed #close callback to #after_start
+
+
+2013-06-01 version 1.5.0:
+
+* First release
+

@@ -1,0 +1,21 @@
+sudo: false
+language: ruby
+
+notifications:
+  webhooks:
+    urls:
+      secure: NhOBulc3nFAnJrCr9G0/3IGd1pOb/Zk0Wyk9Jqrf7PHnI4mZOIgttGnewZx1sG96NWrs0Braue5vXwFBTrJ60J6EW3+Q33XzhaZR+Q95jEb+5vcdIP69TYs0TgOIiOouo69Y4rIE1ANYuF/1cBfCKxGulpOIKUCW5LYPkyUEwQy+7VccULctCYCha2OYHQau5SUITCQQqZMfYCvZ+9FRubhR+OiiAnwduuzixKm5b2sa2K4lCKy2vsz3JZtjvQ6/7WM5JsipErtuUY2fDlrWSr/9SehRu8LCD119FjV/HcaAffFMokX+8vJm6RLGcyx/0mAejEqaBofqf9vi1KQJKsKuEe8N9IUpoLrl36RYVfDDRNDqm0pSkrz/KaNxSSe5sDNsCFY+uEFhtiPMHJiSlyEA+BVqnUeoM9pSWp3pcTsIHAjq5VGfQ6u9IooUODCASBlOsLuPu+FYEWG3dC3oiOLEIqQ+WywJg2P7I4dJNhyivti5j61czipTGj28ReFiydp5macKabkvAFBvOW8q07QBO4cvjixhr8hiUgMEVdo5y5dqNhLvS182by3OpmtaSQfpuI8QXytiN9629lWzB7qu0Q7Pji/5wSqEuCdaEHjF5uCVYLFE2LaGJdlTLBg9n0vFfFpJXnP1q0nehq2qRs30pNcgkcCKfEIPJgFgCac=
+    on_success: change
+    on_failure: always
+    on_start: never
+
+rvm:
+  - 2.1
+  - 2.2
+  - 2.3
+  - 2.4.3
+  - 2.5.0
+
+gemfile:
+  - Gemfile
+  - gemfiles/fluentd_v0.14.gemfile

@@ -3,7 +3,7 @@ FROM centos/ruby-25-centos7:latest
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.3.2 \
+    FLUENTD_VERSION=1.4.0 \
     GEM_HOME=/opt/app-root/src \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
@@ -18,6 +18,8 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
       make \
       bc \
+      git \
+      libffi-devel \
       iproute \
       autoconf automake libtool m4 \
       redhat-rpm-config && \
@@ -28,23 +30,10 @@ RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autoge
     make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
     cd .. && rm -rf jemalloc
 
-RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
-    scl enable rh-ruby25 -- \
-      gem install -N --conservative --minimal-deps --no-ri --no-doc \
-        'elasticsearch-transport:<6' \
-        'elasticsearch-api:<6' \
-        'elasticsearch:<6' \
-        fluentd:${FLUENTD_VERSION} \
-        fluent-plugin-concat \
-        fluent-plugin-elasticsearch \
-        fluent-plugin-kubernetes_metadata_filter \
-        fluent-plugin-multi-format-parser \
-        fluent-plugin-record-modifier \
-        fluent-plugin-rewrite-tag-filter \
-        fluent-plugin-systemd \
-        fluent-plugin-viaq_data_model \
-        fluent-plugin-remote-syslog \
-        fluent-plugin-prometheus
+ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
+ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
+
+RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
 
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/

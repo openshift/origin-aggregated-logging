@@ -1,0 +1,32 @@
+language: ruby
+sudo: false
+
+before_install:
+  - gem update --system
+  - gem --version
+  - gem install bundler --no-rdoc --no-ri
+  - bundle --version
+
+install: bundle install --without development doc
+
+script: bundle exec rake
+
+env: JRUBY_OPTS="$JRUBY_OPTS --debug"
+
+rvm:
+  # Include JRuby first because it takes the longest
+  - jruby-1.7.27
+  - jruby-9.1.8.0
+  - 1.9.3
+  - 2.0.0
+  - 2.1
+  - 2.2
+  - 2.3.4
+  - 2.4.1
+
+matrix:
+  fast_finish: true
+
+branches:
+  only:
+    - master

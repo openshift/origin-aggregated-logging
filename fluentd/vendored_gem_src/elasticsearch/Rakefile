@@ -1,0 +1,42 @@
+require "bundler/gem_tasks"
+
+desc "Run unit tests"
+task :test    => 'test:unit'
+
+# ----- Test tasks ------------------------------------------------------------
+
+require 'rake/testtask'
+namespace :test do
+
+  desc "Wait for Elasticsearch to be in a green state"
+  task :wait_for_green do
+    sh '../scripts/wait-cluster.sh'
+  end
+
+  Rake::TestTask.new(:unit) do |test|
+    test.libs << 'lib' << 'test'
+    test.test_files = FileList["test/unit/**/*_test.rb"]
+    test.verbose = false
+    test.warning = false
+  end
+
+  Rake::TestTask.new(:integration) do |test|
+    test.deps = [ :wait_for_green ]
+    test.libs << 'lib' << 'test'
+    test.test_files = FileList["test/integration/**/*_test.rb"]
+    test.verbose = false
+    test.warning = false
+  end
+
+  Rake::TestTask.new(:all) do |test|
+    test.deps = [ :unit, :integration ]
+  end
+
+end
+
+# ----- Documentation tasks ---------------------------------------------------
+
+require 'yard'
+YARD::Rake::YardocTask.new(:doc) do |t|
+  t.options = %w| --embed-mixins --markup=markdown |
+end
