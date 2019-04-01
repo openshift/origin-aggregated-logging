@@ -1008,6 +1008,16 @@
     - audio/telephone-event
   registered: true
 - !ruby/object:MIME::Type
+  content-type: audio/TETRA_ACELP
+  encoding: base64
+  xrefs:
+    person:
+    - ETSI
+    - Miguel_Angel_Reina_Ortega
+    template:
+    - audio/TETRA_ACELP
+  registered: true
+- !ruby/object:MIME::Type
   content-type: audio/tone
   encoding: base64
   xrefs:
@@ -1281,6 +1291,15 @@
     - William_Zou
     template:
     - audio/vnd.dts.hd
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: audio/vnd.dts.uhd
+  encoding: base64
+  xrefs:
+    person:
+    - Phillip_Maness
+    template:
+    - audio/vnd.dts.uhd
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/vnd.dvb.file

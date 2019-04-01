@@ -106,8 +106,8 @@
   content-type: text/ecmascript
   encoding: quoted-printable
   extensions:
-  - js
-  - mjs
+  - es
+  - ecma
   obsolete: true
   use-instead: application/ecmascript
   xrefs:
@@ -777,6 +777,15 @@
     - rfc5707
     template:
     - text/vnd.radisys.msml-basic-layout
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/vnd.senx.warpscript
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Pierre_Papin
+    template:
+    - text/vnd.senx.warpscript
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/vnd.si.uricatalogue

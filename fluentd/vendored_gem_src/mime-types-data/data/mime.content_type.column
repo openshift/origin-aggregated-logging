@@ -28,6 +28,9 @@ application/atomcat+xml atomcat
 application/atomdeleted+xml
 application/atomicmail
 application/atomsvc+xml atomsvc
+application/atsc-dwd+xml
+application/atsc-held+xml
+application/atsc-rsat+xml
 application/ATXML
 application/auth-policy+xml
 application/bacnet-xdd+zip
@@ -87,6 +90,7 @@ application/DII
 application/DIT
 application/dns
 application/dns+json
+application/dns-message
 application/docbook+xml dbk
 application/drafting
 application/dskpp+xml
@@ -94,7 +98,7 @@ application/dssc+der dssc
 application/dssc+xml xdssc
 application/dvcs
 application/dxf
-application/ecmascript ecma js mjs
+application/ecmascript ecma es
 application/EDI-consent
 application/EDI-X12
 application/EDIFACT
@@ -116,6 +120,7 @@ application/eshop
 application/example
 application/excel xls xlt
 application/exi exi
+application/expect-ct-report+json
 application/fastinfoset
 application/fastsoap
 application/fdt+xml
@@ -220,6 +225,7 @@ application/metalink4+xml meta4
 application/mets+xml mets
 application/MF4
 application/mikey
+application/mmt-aei+xml
 application/mmt-usd+xml
 application/mods+xml mods
 application/moss-keys
@@ -253,11 +259,13 @@ application/ocsp-request
 application/ocsp-response
 application/octet-stream bin dms lha lzh exe class ani pgp gpg so dll dylib bpk deploy dist distz dump elc lrf mar pkg ipa
 application/oda oda
+application/odm+xml
 application/ODX
 application/oebps-package+xml opf
 application/ogg ogx
 application/omdoc+xml omdoc
 application/onenote onepkg onetmp onetoc onetoc2
+application/oscore
 application/oxps oxps
 application/p2p-overlay+xml
 application/parityfec
@@ -265,6 +273,7 @@ application/passport
 application/patch-ops-error+xml xer
 application/pdf pdf
 application/PDX
+application/pem-certificate-chain
 application/pgp-encrypted pgp gpg
 application/pgp-keys
 application/pgp-signature asc sig
@@ -394,6 +403,7 @@ application/tamp-update
 application/tamp-update-confirm
 application/taxii+json
 application/tei+xml tei teicorpus
+application/TETRA_ISI
 application/thraud+xml tfi
 application/timestamp-query
 application/timestamp-reply
@@ -406,6 +416,8 @@ application/trickle-ice-sdpfrag
 application/trig
 application/ttml+xml
 application/tve-trigger
+application/tzif
+application/tzif-leap
 application/ulpfec
 application/urc-grpsheet+xml
 application/urc-ressheet+xml
@@ -424,14 +436,31 @@ application/vnd.3gpp.access-transfer-events+xml
 application/vnd.3gpp.bsf+xml
 application/vnd.3gpp.GMOP+xml
 application/vnd.3gpp.mc-signalling-ear
+application/vnd.3gpp.mcdata-affiliation-command+xml
+application/vnd.3gpp.mcdata-info+xml
 application/vnd.3gpp.mcdata-payload
+application/vnd.3gpp.mcdata-service-config+xml
 application/vnd.3gpp.mcdata-signalling
+application/vnd.3gpp.mcdata-ue-config+xml
+application/vnd.3gpp.mcdata-user-profile+xml
 application/vnd.3gpp.mcptt-affiliation-command+xml
 application/vnd.3gpp.mcptt-floor-request+xml
 application/vnd.3gpp.mcptt-info+xml
 application/vnd.3gpp.mcptt-location-info+xml
 application/vnd.3gpp.mcptt-mbms-usage-info+xml
+application/vnd.3gpp.mcptt-service-config+xml
 application/vnd.3gpp.mcptt-signed+xml
+application/vnd.3gpp.mcptt-ue-config+xml
+application/vnd.3gpp.mcptt-ue-init-config+xml
+application/vnd.3gpp.mcptt-user-profile+xml
+application/vnd.3gpp.mcvideo-affiliation-command+xml
+application/vnd.3gpp.mcvideo-affiliation-info+xml
+application/vnd.3gpp.mcvideo-location-info+xml
+application/vnd.3gpp.mcvideo-mbms-usage-info+xml
+application/vnd.3gpp.mcvideo-service-config+xml
+application/vnd.3gpp.mcvideo-transmission-request+xml
+application/vnd.3gpp.mcvideo-ue-config+xml
+application/vnd.3gpp.mcvideo-user-profile+xml
 application/vnd.3gpp.mid-call+xml
 application/vnd.3gpp.pic-bw-large plb
 application/vnd.3gpp.pic-bw-small psb
@@ -661,6 +690,8 @@ application/vnd.eudora.data
 application/vnd.evolv.ecig.profile
 application/vnd.evolv.ecig.settings
 application/vnd.evolv.ecig.theme
+application/vnd.exstream-empower+zip
+application/vnd.exstream-package
 application/vnd.ezpix-album ez2
 application/vnd.ezpix-package ez3
 application/vnd.f-secure.mobile
@@ -692,6 +723,7 @@ application/vnd.fujixerox.docuworks.binder xbd
 application/vnd.fujixerox.docuworks.container
 application/vnd.fujixerox.HBPL
 application/vnd.fut-misnet
+application/vnd.futoin+cbor
 application/vnd.futoin+json
 application/vnd.fuzzysheet fzs
 application/vnd.genomatix.tuxedo txd
@@ -1129,6 +1161,7 @@ application/vnd.palm prc pdb pqa oprc
 application/vnd.panoply
 application/vnd.paos.xml
 application/vnd.patentdive
+application/vnd.patientecommsdoc
 application/vnd.pawaafile paw
 application/vnd.pcos
 application/vnd.pg.format str
@@ -1298,6 +1331,7 @@ application/vnd.vd-study
 application/vnd.vectorworks
 application/vnd.vel+json
 application/vnd.verimatrix.vcas
+application/vnd.veryant.thin
 application/vnd.vidsoft.vidconference vsc
 application/vnd.visio vsd vst vsw vss
 application/vnd.visionary vis
@@ -1352,6 +1386,7 @@ application/vnd.zzazz.deck+xml zaz
 application/voicexml+xml vxml
 application/voucher-cms+json
 application/vq-rtcpxr
+application/wasm wasm
 application/watcherinfo+xml wif
 application/webpush-options+json
 application/whoispp-query
@@ -1682,6 +1717,7 @@ audio/speex
 audio/t140c
 audio/t38
 audio/telephone-event
+audio/TETRA_ACELP
 audio/tone
 audio/UEMCLIP
 audio/ulpfec
@@ -1710,6 +1746,7 @@ audio/vnd.dolby.pulse.1
 audio/vnd.dra dra
 audio/vnd.dts dts
 audio/vnd.dts.hd dtshd
+audio/vnd.dts.uhd
 audio/vnd.dvb.file
 audio/vnd.everad.plj plj
 audio/vnd.hns.audio
@@ -1781,6 +1818,7 @@ image/jp2 jp2 jpg2
 image/jpeg jpeg jpg jpe
 image/jpm jpm jpgm
 image/jpx jpx jpf
+image/jxr
 image/ktx ktx
 image/naplps
 image/pjpeg
@@ -1938,7 +1976,7 @@ text/csv csv
 text/csv-schema
 text/directory
 text/dns
-text/ecmascript js mjs
+text/ecmascript es ecma
 text/encaprtp
 text/enriched
 text/example
@@ -2000,6 +2038,7 @@ text/vnd.motorola.reflex
 text/vnd.ms-mediapackage
 text/vnd.net2phone.commcenter.command ccc
 text/vnd.radisys.msml-basic-layout
+text/vnd.senx.warpscript
 text/vnd.si.uricatalogue
 text/vnd.sun.j2me.app-descriptor jad
 text/vnd.trolltech.linguist
@@ -2073,6 +2112,7 @@ video/smpte291
 video/SMPTE292M
 video/ulpfec
 video/vc1
+video/vc2
 video/vnd.CCTV
 video/vnd.dece.hd uvh uvvh
 video/vnd.dece.mobile uvm uvvm

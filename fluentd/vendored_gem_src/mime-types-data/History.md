@@ -1,5 +1,13 @@
 # MIME Types Changes by Version
 
+## 3.2019.0331 / 2019-03-31
+
+*   Updated the IANA media registry entries as of release date.
+
+*   Added support for `application/wasm` with extension `.wasm`. [#21][]
+
+*   Fixed `application/ecmascript` extensions. [#20][]
+
 ## 3.2018.0812 / 2018-08-12
 
 *   Added `.xsd` extension to `text/xml`. [#10][]
@@ -375,5 +383,7 @@
 [#11]: https://github.com/mime-types/mime-types-data/pull/11
 [#12]: https://github.com/mime-types/mime-types-data/pull/12
 [#13]: https://github.com/mime-types/mime-types-data/pull/13
+[#20]: https://github.com/mime-types/mime-types-data/pull/20
+[#21]: https://github.com/mime-types/mime-types-data/pull/21
 [rmt]: https://github.com/mime-types/ruby-mime-types
 [Code of Conduct]: Code-of-Conduct.md
