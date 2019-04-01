@@ -2,6 +2,7 @@
 # Update the vendored-in fluentd gems
 # - get the latest fluentd gem and latest dependencies
 # - unpack the gems into the fluentd/vendor directory
+# - update the fluentd/manifest file with the new gems
 
 set -euxo pipefail
 
@@ -56,6 +57,6 @@ while read gemname gemver ; do
     rm -f $gemlink $gemfile
 done < $gemlist
 rm -f $gemlist
-# update fluentd sources
-sort -k 2 $sources > $fluentddir/sources
+# update fluentd manifest
+sort -k 2 $sources > $fluentddir/manifest
 rm -f $sources

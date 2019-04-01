@@ -494,6 +494,15 @@
     - video/vc1
   registered: true
 - !ruby/object:MIME::Type
+  content-type: video/vc2
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc8450
+    template:
+    - video/vc2
+  registered: true
+- !ruby/object:MIME::Type
   content-type: video/vnd.CCTV
   encoding: base64
   xrefs:

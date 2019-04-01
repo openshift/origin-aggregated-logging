@@ -42,6 +42,9 @@ en^Atom Publishing Protocol Service Document
 -
 -
 -
+-
+-
+-
 en^Voice Browser Call Control
 -
 en^Cloud Data Management Interface (CDMI) - Capability
@@ -90,6 +93,7 @@ en^Web Distributed Authoring and Versioning
 -
 -
 -
+-
 en^Data Structure for the Security Suitability of Cryptographic Algorithms
 en^Data Structure for the Security Suitability of Cryptographic Algorithms
 -
@@ -116,6 +120,7 @@ en^Electronic Publication
 -
 -
 en^Efficient XML Interchange
+-
 -
 -
 -
@@ -221,6 +226,7 @@ en^Metadata Encoding and Transmission Standard
 -
 -
 -
+-
 en^Metadata Object Description Schema
 -
 -
@@ -254,6 +260,7 @@ en^Material Exchange Format
 en^Binary Data
 en^Office Document Architecture
 -
+-
 en^Open eBook Publication Structure
 en^Ogg
 -
@@ -262,8 +269,10 @@ en^Microsoft OneNote
 -
 -
 -
+-
 en^XML Patch Framework
 en^Adobe Portable Document Format
+-
 -
 en^Pretty Good Privacy
 -
@@ -394,10 +403,30 @@ en^Speech Synthesis Markup Language
 -
 -
 en^Text Encoding and Interchange
+-
 en^Sharing Transaction Fraud Data
 -
 -
 en^Time Stamped Data Envelope
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
 -
 -
 -
@@ -661,6 +690,8 @@ en^MICROSEC e-Szign¢
 -
 -
 -
+-
+-
 en^EZPix Secure Photo Album
 en^EZPix Secure Photo Album
 -
@@ -689,6 +720,7 @@ en^Fujitsu Oasys
 en^Fujitsu - Xerox 2D CAD Data
 en^Fujitsu - Xerox DocuWorks
 en^Fujitsu - Xerox DocuWorks Binder
+-
 -
 -
 -
@@ -1129,6 +1161,7 @@ en^PalmOS Data
 -
 -
 -
+-
 en^PawaaFILE
 -
 en^Proprietary P&G Standard Reporting System
@@ -1299,6 +1332,7 @@ en^VirtualCatalog
 -
 -
 -
+-
 en^Microsoft Visio
 en^Visionary
 -
@@ -1352,6 +1386,7 @@ en^Zzazz Deck
 en^VoiceXML
 -
 -
+en^WebAssembly
 -
 -
 -
@@ -1696,6 +1731,7 @@ en^Ogg Audio
 -
 -
 -
+-
 en^DECE Audio
 en^Digital Winds Music
 -
@@ -1710,6 +1746,7 @@ en^Digital Winds Music
 en^DRA Audio
 en^DTS Audio
 en^DTS High Definition Audio
+-
 -
 -
 -
@@ -1779,6 +1816,7 @@ en^Image Exchange Format
 -
 -
 en^JPEG Image
+-
 -
 -
 en^OpenGL Textures (KTX)
@@ -2001,6 +2039,7 @@ en^In3D - 3DML
 -
 -
 -
+-
 en^J2ME App Descriptor
 -
 -
@@ -2064,6 +2103,7 @@ en^Ogg Video
 -
 -
 en^Quicktime Video
+-
 -
 -
 -

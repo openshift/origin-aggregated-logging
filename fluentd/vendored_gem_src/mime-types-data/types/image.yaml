@@ -237,6 +237,16 @@
     - image/jpx
   registered: true
 - !ruby/object:MIME::Type
+  content-type: image/jxr
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/jxr
+  registered: true
+- !ruby/object:MIME::Type
   content-type: image/ktx
   friendly:
     en: OpenGL Textures (KTX)
