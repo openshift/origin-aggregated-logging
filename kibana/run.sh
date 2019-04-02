@@ -31,7 +31,7 @@ set -euo pipefail
 # override styles for branding
 if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
   cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/plugins/origin-kibana/public/styles"
-  rm -rf "${KIBANA_HOME}/optimize/bundles/**"
+  rm -rf "${KIBANA_HOME}/optimize"
 fi
 
 # override images for branding
