@@ -22,3 +22,39 @@ Kibana must whitelist the following variables in order to integrate with the Ope
 
 ## Additional Customizations
 Additional customizations for Kibana are added to the Openshift logging stack in the [openshift-elasticsearch-plugin](https://github.com/fabric8io/openshift-elasticsearch-plugin).
+
+## Overriding the OKD logo
+It is possible to override the styles by defining a stylesheet and mounting it into the Kibana DeploymentConfig:
+
+Create an `overrides.css` file like:
+```
+.container-brand {
+  background-image: url('data:image/jpeg;base64,/.....');
+  margin-top: 3px;
+  height: 25px;
+  background-repeat: no-repeat;
+  background-position-y: 5px;
+  padding-bottom: 35px;
+}
+
+```
+Create a configmap:`oc create configmap kibana-styles --from-file=overrides.css=<YOURFILE>`
+
+Edit the deployment `oc edit dc/logging-kibana` and mount the configmap to the pod:
+```
+volumeMounts:
+- configMap:
+     name: logging-kibana
+  name: kibana-styles
+```
+and volume to the `kibana` container:
+```
+volumes:
+- mountPath: /etc/openshift/kibana/styles
+  name: kibana-styles
+  readOnly: true
+
+```
+Rollout a new version: `oc rollout latest dc/logging-kibana`
+
+**Note:** You may need to increase the memory to kibana in order for it to re-compile and optimize its assets.
