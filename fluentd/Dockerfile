@@ -3,7 +3,7 @@ FROM rhscl/ruby-25-rhel7:latest as builder
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.3.2 \
+    FLUENTD_VERSION=1.4.0 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -15,14 +15,10 @@ ARG TEST_REPO
 #ADD test.repo /etc/yum.repos.d
 
 USER 0
-RUN yum-config-manager --enable rhel-7-server-ose-4.0-rpms && \
-  INSTALL_PKGS="hostname \
-                bc \
-                iproute \
-                patch \
-                file \
-                gcc-c++ make autoconf automake libtool m4 \
-                redhat-rpm-config" && \
+RUN yum-config-manager --enable rhel-7-server-ose-4.1-rpms && \
+  INSTALL_PKGS="make gcc-c++ libffi-devel \
+      autoconf automake libtool m4 \
+      redhat-rpm-config" && \
   yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
   rpm -V $INSTALL_PKGS && \
   yum clean all
@@ -31,21 +27,20 @@ RUN yum-config-manager --enable rhel-7-server-ose-4.0-rpms && \
 #ADD *.rpm /tmp/
 #RUN yum -y install /tmp/*.rpm
 
-COPY *.gem *.tar.bz2 /
-
-RUN cd ${HOME} && tar xfj /jemalloc-5.1.0.tar.bz2 && cd ${HOME}/jemalloc-5.1.0 && \
-    EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
+ADD jemalloc/ ${HOME}/jemalloc/
+RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
     make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
-    cd .. && rm -rf jemalloc-5.1.0 && rm -f /jemalloc-5.1.0.tar.bz2
+    cd .. && rm -rf jemalloc
 
-RUN mkdir -p ${HOME}/build
-ADD install-gems.sh *.patch.sh *.patch ${HOME}/build/
-RUN cd ${HOME}/build/ && ./install-gems.sh && cd .. && rm -rf ${HOME}/build
+ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
+ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
+
+RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
 
 FROM rhel7:7-released
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.3.2 \
+    FLUENTD_VERSION=1.4.0 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -55,7 +50,7 @@ ENV DATA_VERSION=1.6.0 \
 
 #ADD test.repo /etc/yum.repos.d
 USER 0
-RUN yum-config-manager --enable rhel-7-server-ose-4.0-rpms \
+RUN yum-config-manager --enable rhel-7-server-ose-4.1-rpms \
     --enable rhscl-3.2-rh-ruby25-rhel-7> /dev/null && \
   INSTALL_PKGS="hostname \
                 bc \
@@ -89,10 +84,6 @@ COPY utils/** /usr/local/bin/
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
-
-RUN . /opt/rh/rh-ruby25/enable ; \
-    sniffer=$( gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
-    cp $sniffer /etc/fluent/plugin/
 
 WORKDIR ${HOME}
 CMD ["scl", "enable", "rh-ruby25", "--", "sh", "run.sh"]
