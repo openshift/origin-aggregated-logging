@@ -6,6 +6,8 @@
 # https://github.com/openshift/release/blob/master/ci-operator/templates/cluster-launch-installer-src.yaml
 # where the script will sourced
 
+set -eux
+
 logging_err_exit() {
     oc get deploy >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
@@ -132,8 +134,8 @@ if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${imageprefix}pipeline:logging-rsyslog
     testimage=${imageprefix}pipeline:src
     testroot=$( pwd )
-else
-    # running in a dev env
+elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
+    # running in a dev env with imagestream builds
     OPENSHIFT_BUILD_NAMESPACE=openshift
     registry=$( oc -n $OPENSHIFT_BUILD_NAMESPACE get is -l logging-infra=development -o jsonpath='{.items[0].status.dockerImageRepository}' | \
         sed 's,/[^/]*$,/,' )
@@ -145,6 +147,29 @@ else
     oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${registry}logging-rsyslog:latest
     testimage=${registry}logging-ci-test-runner:latest
     testroot=/go/src/github.com/openshift/origin-aggregated-logging
+else
+    # running in a dev env - pushed local builds
+    out=$( mktemp )
+    oc get is --all-namespaces | grep -E 'logging-|elasticsearch-operator' > $out
+    while read ns name reg_and_name tag rest ; do
+        img="${reg_and_name}:${tag}"
+        case "$name" in
+        *-cluster-logging-operator) cloimg="$img" ;;
+        *-elasticsearch-operator) eoimg="$img" ;;
+        *-elasticsearch*) oc set env deploy/cluster-logging-operator ELASTICSEARCH_IMAGE="$img" ;;
+        *-kibana*) oc set env deploy/cluster-logging-operator KIBANA_IMAGE="$img" ;;
+        *-curator*) oc set env deploy/cluster-logging-operator CURATOR_IMAGE="$img" ;;
+        *-fluentd) oc set env deploy/cluster-logging-operator FLUENTD_IMAGE="$img" ;;
+        *-rsyslog) oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE="$img" ;;
+        *logging-ci-test-runner) testimage="$img" ;;
+        esac
+    done < $out
+    rm -f $out
+    testroot=/go/src/github.com/openshift/origin-aggregated-logging
+    if [ "${USE_CLO_LATEST_IMAGE:-false}" = true ] ; then
+        oc patch deploy/cluster-logging-operator --type=json \
+            --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$cloimg"'"}]'
+    fi
 fi
 
 # doing the oc set env will restart clo - check to make sure it was restarted
@@ -189,7 +214,12 @@ if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output
     logging_err_exit
 fi
 
-# sometimes elasticsearch get stuck in a strange state - the pod is
+if [ "${USE_EO_LATEST_IMAGE:-false}" = true -a -n "${eoimg:-}" ] ; then
+    oc -n openshift-operators patch deploy/elasticsearch-operator --type=json \
+        --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$eoimg"'"}]'
+fi
+
+# sometimes elasticsearch gets stuck in a strange state - the pod is
 # running but the deployment status says paused - so kick it here
 for dp in $( oc get deploy -l component=elasticsearch -o name ) ; do
     if oc get $dp -o yaml | grep -q "reason: DeploymentPaused" ; then

@@ -2,12 +2,92 @@
 
 source "$(dirname "${BASH_SOURCE}")/lib/init.sh"
 
+set -x
+
+workdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
 function cleanup() {
-    return_code=$?
-    os::util::describe_return_code "${return_code}"
-    exit "${return_code}"
+  return_code=$?
+  set +x
+  os::util::describe_return_code "${return_code}"
+  if [ -z "${WORKDIR:-}" ] ; then
+    rm -rf "$workdir"
+  fi
+  if [ -n "${forwarding_pid:-}" ] ; then
+    kill -15 ${forwarding_pid}
+  fi
+  exit "${return_code}"
 }
 trap "cleanup" EXIT
+
+UBI_IMAGE=${UBI_IMAGE:-registry.svc.ci.openshift.org/ocp/4.0:base}
+
+function image_is_ubi() {
+  # dockerfile is arg $1
+  grep -q "^FROM $UBI_IMAGE" $1
+}
+
+function image_needs_private_repo() {
+  # dockerfile is arg $1
+  image_is_ubi $1 || \
+    grep -q "^FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base" $1
+}
+
+CI_REGISTRY=${CI_REGISTRY:-registry.svc.ci.openshift.org}
+CI_CLUSTER_NAME=${CI_CLUSTER_NAME:-api-ci-openshift-org:443}
+
+function get_context_for_cluster() {
+  set +o pipefail > /dev/null
+  oc config get-contexts | awk -F'[* ]+' -v clname="$1" '$3 == clname {print $2; exit}'
+  set -o pipefail > /dev/null
+}
+
+# get credentials needed to authenticate to $CI_REGISTRY
+# requires `oc` and requires user to have recently `oc login` to the $CI_CLUSTER_NAME cluster
+# NOTE: cluster name != cluster hostname!!
+function login_to_ci_registry() {
+  local savekc=""
+  local savectx=$( oc config current-context )
+  local cictx=$( get_context_for_cluster $CI_CLUSTER_NAME )
+  rc=0
+  if [ -z "$cictx" ] ; then
+    # try again without KUBECONFIG
+    savekc=${KUBECONFIG:-}
+    unset KUBECONFIG
+    savectx=$( oc config current-context )
+    cictx=$( get_context_for_cluster $CI_CLUSTER_NAME )
+  fi
+  if [ -z "$cictx" ] ; then
+    echo ERROR: login_to_ci_registry: you must oc login to the server for cluster $CI_CLUSTER_NAME
+    echo oc config get-contexts does not list cluster $CI_CLUSTER_NAME
+    rc=1
+  else
+    oc config use-context "$cictx"
+    local username=$( oc whoami )
+    local token=$( oc whoami -t 2> /dev/null || : )
+    if [ -z "$token" -o -z "$username" ] ; then
+      echo ERROR: no username or token for context "$cictx"
+      echo your credentials may have expired
+      echo please oc login to the server for cluster $CI_CLUSTER_NAME
+      rc=1
+    else
+      docker login -u "$username" -p "$token" $CI_REGISTRY
+    fi
+  fi
+  if [ -n "$savectx" ] ; then
+    oc config use-context "$savectx"
+  fi
+  if [ -n "$savekc" ] ; then
+    export KUBECONFIG=$savekc
+  fi
+  return $rc
+}
+
+function pull_ubi_if_needed() {
+  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${UBI_IMAGE}\$" ; then
+    login_to_ci_registry
+    docker pull $UBI_IMAGE
+  fi
+}
 
 # to build using internal/private yum repos, specify
 # INTERNAL_REPO_DIR=/path/to/dir/
@@ -15,12 +95,83 @@ trap "cleanup" EXIT
 # any private key pem files needed - this dir will be
 # mounted into the builder as /etc/yum.repos.d/
 INTERNAL_REPO_DIR=${INTERNAL_REPO_DIR:-}
-mountarg=""
-rsyslog_mountarg=""
-if [ "$INTERNAL_REPO_DIR" ] ; then
-    # none of the other images support this yet
-    rsyslog_mountarg="-mount $INTERNAL_REPO_DIR:/etc/yum.repos.d/"
-fi
+function get_private_repo_dir() {
+  if [ -z "${INTERNAL_REPO_DIR:-}" ] ; then
+    pushd $workdir > /dev/null
+    if [ ! -d repos ] ; then
+      mkdir repos
+      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/shared-secrets/mirror/ops-mirror.pem ] ; then
+        cp $GOPATH/src/github.com/openshift/shared-secrets/mirror/ops-mirror.pem repos
+      else
+        if [ ! -d shared-secrets ] ; then
+          git clone -q git@github.com:openshift/shared-secrets.git
+        fi
+        cp shared-secrets/mirror/ops-mirror.pem repos
+      fi
+      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo ]; then
+        cp $GOPATH/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo repos
+      else
+        if [ ! -d release ] ; then
+          git clone -q https://github.com/openshift/release
+        fi
+        cp release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo repos
+      fi
+      touch repos/redhat.repo
+      chmod 0444 repos/redhat.repo
+      sed -i 's,= ops-mirror.pem,= /etc/yum.repos.d/ops-mirror.pem,' repos/ocp-4.0-default.repo
+    fi
+    INTERNAL_REPO_DIR=$( pwd )/repos
+    popd > /dev/null
+  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem -o ! -f $INTERNAL_REPO_DIR/ocp-4.0-default.repo ] ; then
+    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.0-default.repo
+    exit 1
+  fi
+  echo $INTERNAL_REPO_DIR
+}
+
+function login_to_registry() {
+  local savectx=$( oc config current-context )
+  local token=""
+  local username=""
+  if [ -n "${PUSH_USER:-}" -a -n "${PUSH_PASSWORD:-}" ] ; then
+    username=$PUSH_USER
+    if [ "$username" = "kube:admin" ] ; then
+      username=kubeadmin
+    fi
+    oc login -u "$username" -p "$PUSH_PASSWORD" > /dev/null
+    token=$( oc whoami -t 2> /dev/null || : )
+    oc config use-context "$savectx"
+  else
+    # see if current context has a token
+    token=$( oc whoami -t 2> /dev/null || : )
+    if [ -n "$token" ] ; then
+      username=$( oc whoami )
+    else
+      # get the first user with a token
+      token=$( oc config view -o go-template='{{ range .users }}{{ if .user.token }}{{ print .user.token }}{{ end }}{{ end }}' )
+      if [ -n "$token" ] ; then
+        username=$( oc config view -o go-template='{{ range .users }}{{ if .user.token }}{{ print .name }}{{ end }}{{ end }}' )
+        # username is in form username/cluster - strip off the cluster part
+        username=$( echo "$username" | sed 's,/.*$,,' )
+      fi
+    fi
+    if [ -z "$token" ] ; then
+      echo ERROR: could not determine token to use to login to "$1"
+      echo please do `oc login -u username -p password` to create a context with a token
+      echo OR
+      echo set \$PUSH_USER and \$PUSH_PASSWORD and run this script again
+      return 1
+    fi
+    if [ "$username" = "kube:admin" ] ; then
+      username=kubeadmin
+    fi
+  fi
+  podman login --tls-verify=false -u "$username" -p "$token" "$1" > /dev/null
+}
+
+function push_image() {
+  skopeo copy --dest-tls-verify=false docker-daemon:"$1" docker://"$2"
+}
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
 docker_suffix='.centos7'
@@ -74,74 +225,110 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
 fi
 
 if [ "${PUSH_ONLY:-false}" = false ] ; then
-  OS_BUILD_IMAGE_ARGS="$mountarg -f fluentd/${dockerfile}" os::build::image "${tag_prefix}logging-fluentd"             fluentd
-  OS_BUILD_IMAGE_ARGS="$mountarg -f elasticsearch/${dockerfile}" os::build::image "${tag_prefix}logging-elasticsearch${name_suf:-}" elasticsearch
-  OS_BUILD_IMAGE_ARGS="$mountarg -f kibana/${dockerfile}" os::build::image "${tag_prefix}logging-kibana${name_suf:-}"               kibana
-  OS_BUILD_IMAGE_ARGS="$mountarg -f curator/${dockerfile}" os::build::image "${tag_prefix}logging-curator${name_suf:-}"             curator
-  OS_BUILD_IMAGE_ARGS="$mountarg -f eventrouter/${dockerfile}" os::build::image "${tag_prefix}logging-eventrouter"     eventrouter
-  OS_BUILD_IMAGE_ARGS="$rsyslog_mountarg -f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog"     rsyslog
+  dir=""
+  img=""
+  for item in fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
+    kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
+    eventrouter logging-eventrouter ; do
+    if [ -z "$dir" ] ; then dir=$item ; continue ; fi
+    img=$item
+    if image_is_ubi $dir/${dockerfile} ; then
+      pull_ubi_if_needed
+    fi
+    if image_needs_private_repo $dir/${dockerfile} ; then
+      repodir=$( get_private_repo_dir )
+      mountarg="-mount $repodir:/etc/yum.repos.d/"
+    else
+      mountarg=""
+    fi
+
+    set +x
+    echo building image $img - this may take a few minutes until you see any output . . .
+    OS_BUILD_IMAGE_ARGS="$mountarg -f $dir/${dockerfile}" os::build::image "${tag_prefix}$img" $dir
+    set -x
+    dir=""
+    img=""
+  done
+
+  if image_is_ubi rsyslog/${rsyslog_dockerfile} ; then
+    pull_ubi_if_needed
+  fi
+  if image_needs_private_repo rsyslog/${rsyslog_dockerfile} ; then
+    repodir=$( get_private_repo_dir )
+    mountarg="-mount $repodir:/etc/yum.repos.d/"
+  else
+    mountarg=""
+  fi
+  set +x
+  echo building image rsyslog - this may take a few minutes until you see any output . . .
+  OS_BUILD_IMAGE_ARGS="$mountarg -f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog" rsyslog
+  set -x
+
+  if image_is_ubi openshift/ci-operator/build-image/Dockerfile.full ; then
+    pull_ubi_if_needed
+  fi
+  if image_needs_private_repo openshift/ci-operator/build-image/Dockerfile.full ; then
+    repodir=$( get_private_repo_dir )
+    mountarg="-mount $repodir:/etc/yum.repos.d/"
+  else
+    mountarg=""
+  fi
+  set +x
+  echo building image logging-ci-test-runner - this may take a few minutes until you see any output . . .
+  OS_BUILD_IMAGE_ARGS="$mountarg -f openshift/ci-operator/build-image/Dockerfile.full" os::build::image "openshift/logging-ci-test-runner" .
+  set -x
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
-    exit 0
+  exit 0
 fi
 
 registry_namespace=openshift-image-registry
 registry_svc=image-registry
 registry_host=$registry_svc.$registry_namespace.svc
 if ! oc get namespace $registry_namespace ; then
-    registry_namespace=default
-    registry_svc=docker-registry
-    # use ip instead
-    registry_host=$(oc get svc $registry_svc -n $registry_namespace -o jsonpath={.spec.clusterIP})
+  registry_namespace=default
+  registry_svc=docker-registry
+  # use ip instead
+  registry_host=$(oc get svc $registry_svc -n $registry_namespace -o jsonpath={.spec.clusterIP})
 fi
 
 registry_port=$(oc get svc $registry_svc -n $registry_namespace -o jsonpath={.spec.ports[0].port})
 if [ $registry_namespace = openshift-image-registry ] ; then
-    # takes pod name in 4.0
-    port_fwd_obj=$( oc get pods -n $registry_namespace | awk '/^image-registry-/ {print $1}' )
+  # takes pod name in 4.0
+  port_fwd_obj=$( oc get pods -n $registry_namespace | awk '/^image-registry-/ {print $1}' )
 else
-    # takes service in 3.11
-    port_fwd_obj="service/$registry_svc"
+  # takes service in 3.11
+  port_fwd_obj="service/$registry_svc"
 fi
 
 LOCAL_PORT=${LOCAL_PORT:-5000}
 
 echo "Setting up port-forwarding to remote $registry_svc ..."
-oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > pf.log 2>&1 &
+oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $workdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
-trap "kill -15 ${forwarding_pid}" EXIT
 for ii in $(seq 1 10) ; do
-    if [ "$(curl -sk -w '%{response_code}\n' https://localhost:5000 || :)" = 200 ] ; then
-        break
-    fi
-    sleep 1
+  if [ "$(curl -sk -w '%{response_code}\n' https://localhost:5000 || :)" = 200 ] ; then
+    break
+  fi
+  sleep 1
 done
 if [ $ii = 10 ] ; then
-    echo ERROR: timeout waiting for port-forward to be available
-    exit 1
+  echo ERROR: timeout waiting for port-forward to be available
+  exit 1
 fi
 
-ADMIN_USER=${ADMIN_USER:-$( oc whoami )}
-if [ "$ADMIN_USER" = "kube:admin" ] ; then
-    ADMIN_USER=kubeadmin
-fi
-docker login 127.0.0.1:${LOCAL_PORT} -u "$ADMIN_USER" -p $(oc whoami -t)
-
-push_image() {
-    docker push "$2"
-}
-if type -p skopeo > /dev/null 2>&1 ; then
-    push_image() {
-        skopeo copy --dest-tls-verify=false docker-daemon:"$1" docker://"$2"
-    }
-fi
+login_to_registry "127.0.0.1:${LOCAL_PORT}"
 
 for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch${name_suf:-}" \
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
-  "${tag_prefix}logging-eventrouter" "${tag_prefix}logging-rsyslog" ; do
+  "${tag_prefix}logging-eventrouter" "${tag_prefix}logging-rsyslog" \
+  "openshift/logging-ci-test-runner" ; do
   remote_image="127.0.0.1:${registry_port}/$image"
+  # can't use podman here - imagebuilder stores the images in the local docker registry
+  # but podman cannot see them - so use docker for tagging for now
+  #podman tag ${image}:latest ${remote_image}:latest
   docker tag ${image} ${remote_image}
   echo "Pushing image ${image} to ${remote_image}..."
   rc=1
