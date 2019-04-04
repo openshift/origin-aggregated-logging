@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec ${OS_O_A_L_DIR}/test/0530-bz1667801-fix-kibana-replica-shards
