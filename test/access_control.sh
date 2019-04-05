@@ -23,6 +23,15 @@ es_ops_svc=${es_ops_svc:-$es_svc}
 delete_users=""
 REUSE=${REUSE:-false}
 
+function check_es_acls() {
+  local doc=""
+  local ts=$( date +%s )
+  for doc in roles rolesmapping actiongroups; do
+    artifact_log Checking that Elasticsearch pod ${espod} has expected acl definitions $ARTIFACT_DIR/$doc.$ts
+    oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
+  done
+}
+
 function cleanup() {
     local result_code="$?"
     set +e
@@ -31,10 +40,15 @@ function cleanup() {
             oc delete user $user 2>&1 | artifact_out
         done
     fi
+    if [ "$result_code" != 0 -a -n "${test_message:-}" ] ; then
+        os::log::error $test_message
+        cat $ARTIFACT_DIR/curl-raw.out $ARTIFACT_DIR/curl-verbose.out
+        if [ -f $ARTIFACT_DIR/curl-pretty.out ] ; then
+            cat $ARTIFACT_DIR/curl-pretty.out
+        fi
+    fi
     if [ -n "${espod:-}" ] ; then
-        oc exec -c elasticsearch $espod -- es_acl get --doc=roles > $ARTIFACT_DIR/roles
-        oc exec -c elasticsearch $espod -- es_acl get --doc=rolesmapping > $ARTIFACT_DIR/rolesmapping
-        oc exec -c elasticsearch $espod -- es_acl get --doc=actiongroups > $ARTIFACT_DIR/actiongroups
+        check_es_acls
         oc logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
         oc exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
         curl_es_pod $espod /project.access-control-* -XDELETE > /dev/null
@@ -78,15 +92,17 @@ function add_message_to_index() {
     local index="project.$1.$project_uuid.$(date -u +'%Y.%m.%d')"
     local espod=$3
     curl_es_pod "$espod" "/$index/access-control-test/" -XPOST -d '{"message":"'${2:-"access-control message"}'"}' | python -mjson.tool 2>&1 | artifact_out
+    curl_es_pod "$espod" /_cat/indices 2>&1 | artifact_out || :
+    curl_es_pod "$espod" "/$index/_search?pretty" 2>&1 | artifact_out || :
 }
 
-function check_es_acls() {
-  local doc=""
-  local ts=$( date +%s )
-  for doc in roles rolesmapping actiongroups; do
-    artifact_log Checking that Elasticsearch pod ${espod} has expected acl definitions $ARTIFACT_DIR/$doc.$ts
-    oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
-  done
+function run_curl_cmd() {
+    local expected_status="$1" ; shift
+    "$@" -v --connect-timeout 10 --max-time 10 1> $ARTIFACT_DIR/curl-raw.out 2> $ARTIFACT_DIR/curl-verbose.out
+    cat $ARTIFACT_DIR/curl-raw.out | python -mjson.tool > $ARTIFACT_DIR/curl-pretty.out 2>&1 || :
+    local status=$( awk '/^< HTTP[/]1.1 / {print $3}' $ARTIFACT_DIR/curl-verbose.out )
+    cat $ARTIFACT_DIR/curl-raw.out
+    test $status = $expected_status
 }
 
 # test the following
@@ -106,9 +122,9 @@ function test_user_has_proper_access() {
     # rest - indices to which access should be granted, followed by --,
     # followed by indices to which access should not be granted
     local expected=1
+    local expected_status=200
     local verb=cannot
     local negverb=can
-    local nrecs=0
     local kpod=$( get_running_pod kibana )
     local eshost=$( get_es_svc es )
     local esopshost=$( get_es_svc es-ops )
@@ -121,79 +137,77 @@ function test_user_has_proper_access() {
             expected=0
             verb=can
             negverb=cannot
+            expected_status=403
             continue
         fi
         os::log::info See if user $user $negverb read /project.$proj.*
         os::log::info Checking access directly against ES pod...
-        nrecs=$( curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_token | get_count_from_json )
-        check_es_acls
-        if ! os::cmd::expect_success "test $nrecs = $expected" ; then
-            os::log::error $user $verb access project.$proj.* indices from es
-            curl_es_pod_with_token $espod "/project.$proj.*/_count" $test_token | python -mjson.tool
-            exit 1
-        fi
+        test_message="$user $verb access project.$proj.* indices from es"
+        curl_es_pod $espod "/project.$proj.*/_count?pretty"
+        os::cmd::expect_success_and_text \
+            "run_curl_cmd $expected_status curl_es_pod_with_token $espod '/project.$proj.*/_count' $test_token | get_count_from_json" \
+            "^$expected\$"
+
         os::log::info Checking access from Kibana pod...
-        nrecs=$( curl_es_from_kibana "$kpod" $eshost "/project.$proj.*/_count" $test_token | get_count_from_json )
-        if ! os::cmd::expect_success "test $nrecs = $expected" ; then
-            os::log::error $user $verb access project.$proj.* indices from kibana
-            curl_es_from_kibana "$kpod" $eshost "/project.$proj.*/_count" $test_token | python -mjson.tool
-            exit 1
-        fi
+        test_message="$user $verb access project.$proj.* indices from kibana"
+        os::cmd::expect_success_and_text \
+            "run_curl_cmd $expected_status curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' $test_token | get_count_from_json" \
+            "^$expected\$"
 
         if [ "$expected" = 1 ] ; then
             # make sure no access with incorrect auth
             # bogus token
             os::log::info Checking access providing bogus token
-            if ! os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '401$'; then
-                os::log::error invalid access from es with BOGUS token
-                curl_es_pod_with_token $espod "/project.$proj.*/_count" BOGUS -v || :
-                exit 1
-            fi
-            if ! os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' BOGUS -w '%{response_code}\n'" '.*403$'; then
-                os::log::error invalid access from kibana with BOGUS token
-                curl_es_from_kibana $kpod $eshost "/project.$proj.*/_count" BOGUS -v || :
-                exit 1
-            fi
+            test_message="invalid access from es with BOGUS token"
+            os::cmd::expect_success "run_curl_cmd 401 curl_es_pod_with_token $espod '/project.$proj.*/_count' BOGUS"
+
+            test_message="invalid access from kibana with BOGUS token"
+            os::cmd::expect_success "run_curl_cmd 403 curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' BOGUS"
+
             # no token
             os::log::info Checking access providing no username or token
-            if ! os::cmd::expect_success_and_text "curl_es_pod_with_token $espod '/project.$proj.*/_count' '' -w '%{response_code}\n'" '401$'; then
-                os::log::error invalid access from es with empty token
-                curl_es_pod_with_token $espod "/project.$proj.*/_count" "" -v || :
-                exit 1
-            fi
-            if ! os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' '' -w '%{response_code}\n' -o /dev/null" '403$'; then
-                os::log::error invalid access from kibana with empty token
-                curl_es_from_kibana $kpod $eshost "/project.$proj.*/_count" "" -v || :
-                exit 1
-            fi
+            test_message="invalid access from es with no token"
+            os::cmd::expect_success "run_curl_cmd 401 curl_es_pod_with_token $espod '/project.$proj.*/_count' ''"
+
+            test_message="invalid access from kibana with no token"
+            os::cmd::expect_success "run_curl_cmd 403 curl_es_from_kibana $kpod $eshost '/project.$proj.*/_count' ''"
         fi
     done
 
-    os::log::info See if user $user is denied /.operations.*
-    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | get_count_from_json )
-    if ! os::cmd::expect_success "test $nrecs = 0" ; then
-        os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices from es
-        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | python -mjson.tool
-        exit 1
-    fi
+    test_message="$user has improper access to .operations.* indices from es"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 403 curl_es_pod_with_token $esopspod '/.operations.*/_count' $test_token | get_count_from_json" \
+        "^0\$"
+
     esopshost=$( get_es_svc es-ops )
     if [ "$espod" = "$esopspod" ] ; then
         esopshost=$( get_es_svc es )
     fi
-    nrecs=$( curl_es_from_kibana "$kpod" "$esopshost" "/.operations.*/_count" $test_token | get_count_from_json )
-    if ! os::cmd::expect_success "test $nrecs = 0" ; then
-        os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices from kibana
-        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | python -mjson.tool
-        exit 1
-    fi
+    test_message="$user has improper access to .operations.* indices from kibana"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 403 curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' $test_token | get_count_from_json" \
+        "^0\$"
 
-    os::log::info See if user $user is denied /.operations.* with no token
-    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' '' -w '%{response_code}\n'" '401$'
-    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' -w '%{response_code}\n'" '.*403$'
+    test_message="$user has improper access to .operations.* indices from es with no token"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 401 curl_es_pod_with_token $esopspod '/.operations.*/_count' '' | get_count_from_json" \
+        "^0\$"
 
-    os::log::info See if user $user is denied /.operations.* with a bogus token
-    os::cmd::expect_success_and_text "curl_es_pod_with_token $esopspod '/.operations.*/_count' BOGUS -w '%{response_code}\n'" '401$'
-    os::cmd::expect_success_and_text "curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' BOGUS -w '%{response_code}\n'" '.*403$'
+    test_message="$user has improper access to .operations.* indices from kibana with no token"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 403 curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' '' | get_count_from_json" \
+        "^0\$"
+
+    test_message="$user has improper access to .operations.* indices from es with BOGUS token"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 401 curl_es_pod_with_token $esopspod '/.operations.*/_count' BOGUS | get_count_from_json" \
+        "^0\$"
+
+    test_message="$user has improper access to .operations.* indices from kibana with BOGUS token"
+    os::cmd::expect_success_and_text \
+        "run_curl_cmd 403 curl_es_from_kibana $kpod $esopshost '/.operations.*/_count' BOGUS | get_count_from_json" \
+        "^0\$"
+    test_message=""
 }
 
 curl_es_pod $espod /project.access-control-* -XDELETE 2>&1 | artifact_out
@@ -239,17 +253,21 @@ test_user_has_proper_access $LOG_USER2 $LOG_PW2 access-control-2 access-control-
 
 logging_index=".operations.*"
 if [ ${LOGGING_NS} = "logging" ] ; then
-  logging_index="project.logging.*"
+    logging_index="project.logging.*"
 fi
 
 os::log::info now auth using admin + token
 get_test_user_token $LOG_ADMIN_USER $LOG_ADMIN_PW true
-if [ ${LOGGING_NS} = "logging" ] && [ $espod != $esopspod] ; then
-  nrecs=$( curl_es_pod_with_token $espod "/${logging_index}/_count" $test_token | get_count_from_json )
-  os::cmd::expect_success "test $nrecs -gt 1"
+if [ ${LOGGING_NS} = "logging" ] && [ $espod != $esopspod ] ; then
+    test_message="admin user can access ${logging_index} indices from es"
+    os::cmd::expect_success_and_not_text \
+        "run_curl_cmd 200 curl_es_pod_with_token $espod '/${logging_index}/_count' $test_token | get_count_from_json" \
+        "^0\$"
 fi
-nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | get_count_from_json )
-os::cmd::expect_success "test $nrecs -gt 1"
+test_message="admin user can access .operations.* indices from es"
+os::cmd::expect_success_and_not_text \
+    "run_curl_cmd 200 curl_es_pod_with_token $espod '/.operations.*/_count' $test_token | get_count_from_json" \
+    "^0\$"
 
 os::log::info now see if regular users have access
 

@@ -18,7 +18,7 @@ clear_and_restart_journal() {
     sudo systemctl restart systemd-journald 2>&1 | artifact_out
 }
 
-if oc get clusterlogging > /dev/null 2>&1 ; then
+if oc get clusterlogging instance > /dev/null 2>&1 ; then
     deployfunc=deploy_using_operators
     clear_and_restart_journal() { : ; }
 elif [ "${USE_RSYSLOG_RPMS:-false}" = true ] ; then
@@ -59,13 +59,12 @@ cleanup() {
         oc describe deploy cluster-logging-operator > $ARTIFACT_DIR/deploy.clo.yaml 2>&1
         oc describe ds rsyslog > $ARTIFACT_DIR/ds.rsyslog.yaml 2>&1
         oc patch clusterlogging instance --type=json \
-            --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"},
-                      {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
+            --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"}]' 2>&1 | artifact_out
+        enable_cluster_logging_operator
         oc label node --all logging-infra-rsyslog-
         os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
         start_fluentd true 2>&1 | artifact_out
-        oc patch clusterlogging instance --type=json \
-            --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
+        disable_cluster_logging_operator
         sleep 10
     fi
 
@@ -129,12 +128,11 @@ deploy_using_operators() {
     # edit the operator - change logcollector type to rsyslog
     oc label node -l logging-ci-test=true --overwrite logging-infra-rsyslog=true 2>&1 | artifact_out
     oc patch clusterlogging instance --type=json \
-        --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"rsyslog"},
-                  {"op":"replace","path":"/spec/managementState","value":"Managed"}]' 2>&1 | artifact_out
+        --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"rsyslog"}]' 2>&1 | artifact_out
+    enable_cluster_logging_operator
     os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
     rpod=$( get_running_pod rsyslog )
-    oc patch clusterlogging instance --type=json \
-        --patch '[{"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]' 2>&1 | artifact_out
+    disable_cluster_logging_operator
     sleep 10
     os::cmd::try_until_success "oc get cm rsyslog 2> /dev/null"
     # enable annotation_match

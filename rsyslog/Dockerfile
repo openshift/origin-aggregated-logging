@@ -14,7 +14,20 @@ RUN yum install -y --setopt=tsflags=nodocs \
 
 ADD vendored_src/ /vendored_src/
 ADD install-from-src.sh /vendored_src/
-RUN cd /vendored_src && ./install-from-src.sh
+# liblognorm configure is hardcoded with certain versions of
+# aclocal and automake - if certain files are out of date
+# with respect to certain other files, make will attempt to
+# reconfigure with versions that may not exist on the platform -
+# so make sure the file dependencies are such that aclocal.m4
+# is newer than its dependencies, and the other files are newer
+# than aclocal.m4, so that make will not attempt to
+# reconfigure anything
+RUN cd /vendored_src && \
+    touch liblognorm/liblognorm/aclocal.m4 && \
+    touch liblognorm/liblognorm/Makefile.in && \
+    touch liblognorm/liblognorm/configure && \
+    touch liblognorm/liblognorm/config.h.in && \
+    ./install-from-src.sh
 
 FROM registry.svc.ci.openshift.org/ocp/4.0:base
 

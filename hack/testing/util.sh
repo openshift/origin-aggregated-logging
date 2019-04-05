@@ -4,6 +4,21 @@ if ! type -t os::log::info > /dev/null ; then
     source "${OS_O_A_L_DIR:-..}/hack/lib/init.sh"
 fi
 
+OC_BINARY=$( type -p oc )
+
+# override the oc command so we can pass in some common options
+# we are getting some errors like
+# error: net/http: TLS handshake timeout
+# and I'm hoping request-timeout will help, and maybe increasing the loglevel
+# will give us some clues
+oc() {
+    local oclogdir=${OC_LOG_DIR:-${ARTIFACT_DIR:-/tmp}/oclogs}
+    if [ ! -d $oclogdir ] ; then
+        mkdir -p $oclogdir
+    fi
+    $OC_BINARY --request-timeout=15s --logtostderr=false --loglevel=2 --log_dir=$oclogdir "$@"
+}
+
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
 function get_es_dcs() {
@@ -368,12 +383,24 @@ function query_es_from_es() {
 }
 
 function get_count_from_json() {
-    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("count", 0)'
+    python -c 'import json, sys
+try:
+    print json.loads(sys.stdin.read()).get("count", 0)
+except:
+    # error reading or input not JSON
+    print 0
+'
 }
 
 # https://github.com/ViaQ/integration-tests/issues/8
 function get_count_from_json_from_search() {
-    python -c 'import json, sys; print json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0)'
+    python -c 'import json, sys
+try:
+    print json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0)
+except:
+    # error reading or input not JSON
+    print 0
+'
 }
 
 # $1 - unique value to search for in es
@@ -706,3 +733,31 @@ get_fluentd_cm_name() {
 }
 
 fluentd_cm=${fluentd_cm:-$(get_fluentd_cm_name)}
+
+enable_cluster_logging_operator() {
+    if oc -n ${LOGGING_NS} get deploy cluster-logging-operator > /dev/null 2>&1 ; then
+        oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
+            {"op":"replace","path":"/spec/managementState","value":"Managed"}]'
+        clopod=$( oc -n ${LOGGING_NS} get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
+        if [ -n "$clopod" ] ; then
+            oc delete --force pod $clopod
+            os::cmd::try_until_failure "oc -n ${LOGGING_NS} get pod $clopod > /dev/null 2>&1"
+        else
+            oc -n ${LOGGING_NS} scale --replicas=1 deploy/cluster-logging-operator
+        fi
+        os::cmd::try_until_success "oc -n ${LOGGING_NS} get pods | grep -q '^cluster-logging-operator-.* Running '"
+    fi
+}
+
+disable_cluster_logging_operator() {
+    if oc -n ${LOGGING_NS} get deploy cluster-logging-operator > /dev/null 2>&1 ; then
+        oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
+            {"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]'
+        clopod=$( oc -n ${LOGGING_NS} get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
+        oc -n ${LOGGING_NS} scale --replicas=0 deploy/cluster-logging-operator
+        if [ -n "$clopod" ] ; then
+            os::cmd::try_until_failure "oc -n ${LOGGING_NS} get pod $clopod > /dev/null 2>&1"
+        fi
+        os::cmd::try_until_failure "oc -n ${LOGGING_NS} get pods | grep -q '^cluster-logging-operator-.* Running '"
+    fi
+}
