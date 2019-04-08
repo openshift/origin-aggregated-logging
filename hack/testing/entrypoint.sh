@@ -34,11 +34,13 @@ if oc get project logging -o name > /dev/null 2>&1 && [ $(oc get dc -n logging -
 fi
 export LOGGING_NS
 
-# if using operators, turn off the managed state
-if oc get clusterlogging instance > /dev/null 2>&1 ; then
-    oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
-          {"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]'
+export OC_LOG_DIR=${OC_LOG_DIR:-${ARTIFACT_DIR:-/tmp}/oclogs}
+if [ ! -d $OC_LOG_DIR ] ; then
+    mkdir -p $OC_LOG_DIR
 fi
+
+# if using operators, turn off the managed state and shutdown the cluster-logging-operator
+disable_cluster_logging_operator
 
 fluentd_ds=$( get_fluentd_ds_name )
 oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
@@ -252,6 +254,13 @@ for suite_selector in ${SUITE:-".*"} ; do
 	run_suite "${test}"
   done
 done
+
+if [ -n "${OC_LOG_DIR}" -a -d "${OC_LOG_DIR}" ] ; then
+    pushd $OC_LOG_DIR > /dev/null
+    tar cfz oclogs.tgz oc.*.log.*
+    rm -f oc.*.log.*
+    popd > /dev/null
+fi
 
 if [[ -n "${failed:-}" ]]; then
     exit 1
