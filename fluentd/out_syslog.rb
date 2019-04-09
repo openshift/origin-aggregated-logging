@@ -123,7 +123,7 @@ module Fluent
             break
           }
         end
-        if @packet.tag.eql? random_string
+        if @packet.tag.eql? @random_string
           @packet.tag = tag[0..31] # tag is trimmed to 32 chars for syslog_protocol gem compatibility
         end
         packet = @packet.dup
