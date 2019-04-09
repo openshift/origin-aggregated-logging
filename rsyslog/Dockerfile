@@ -1,17 +1,8 @@
 FROM registry.svc.ci.openshift.org/ocp/4.0:base as builder
 
 # get pkg list from rpmspec -q --buildrequires vendored_src/*/*.spec | sort -u
-RUN yum install -y --setopt=tsflags=nodocs \
-      make redhat-rpm-config rpm-build \
-      autoconf automake bison chrpath cyrus-sasl-devel \
-      flex gcc gcc-c++ gnutls-devel krb5-devel libcurl-devel \
-      libgcrypt-devel libtool libuuid-devel lz4-devel \
-      mariadb-devel mariadb-connector-c-devel net-snmp-devel \
-      pcre-devel pkgconfig postgresql-devel python-sphinx \
-      python3 python3-docutils python3-sphinx \
-      systemd-devel zlib-devel && \
-    yum clean all
-
+ADD install-builder-packages.sh /tmp
+RUN cd /tmp && ./install-builder-packages.sh
 ADD vendored_src/ /vendored_src/
 ADD install-from-src.sh /vendored_src/
 # liblognorm configure is hardcoded with certain versions of
@@ -31,9 +22,9 @@ RUN cd /vendored_src && \
 
 FROM registry.svc.ci.openshift.org/ocp/4.0:base
 
-COPY --from=builder /vendored_src/RPMS/ /RPMS/
+COPY --from=builder /RPMS/ /RPMS/
 
-RUN yum -y install /RPMS/*/*.rpm && \
+RUN yum -y install /RPMS/*.rpm && \
     rm -rf /RPMS && \
     yum clean all
 
