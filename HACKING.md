@@ -1,49 +1,43 @@
 # Hacking on Origin Aggregated Logging
 
 ## Building on OpenShift
-Choose the project you want to hold your logging infrastructure.
 
-Instantiate the [dev-builds template](hack/templates/dev-builds.yaml)
-to define BuildConfigs.  The template has parameters to specify the repository and branch to use
-for the builds. The defaults are for origin master. To develop your own
-images, you can specify your own repos and branches as needed.
+Use the script `hack/build-images.sh`.  It has options for building using `imagebuilder`
+or `imagestreams/buildconfigs` with the [dev-builds template](hack/templates/dev-builds.yaml).
+Using `imagebuilder` is the default and preferred method.  `hack/build-images.sh` knows
+how to build images based on UBI.  If you use the `dev-builds template` you'll need an
+OpenShift cluster.  Also if you want to push images into a cluster (as opposed to pushing
+images into a public registry like `quay.io`).
 
-A word about the openshift-auth-proxy: it depends on the "node" base
-image, which is intended to be the DockerHub nodejs base image. If you
-have defined all the standard templates, they include a nodejs builder image
-that is also called "node", and this will be used instead of the intended
-base image, causing the build to fail. You can delete it to resolve this
-problem:
+## Deploying OpenShift
 
-```
-    oc delete is/node -n openshift
-```
+The script `hack/deploy-openshift-cluster.sh` can be used to deploy an OpenShift cluster.
+You will need an AWS account with proper privileges and a pull secret.  See the file for
+more details.
 
-The builds should start once defined; if any fail, you can retry them with:
+## Deploying Logging and Testing On OpenShift
 
-```
-    oc start-build <component>
-```
+The script `hack/get-cluster-run-tests.sh` will do all of the above plus deploy logging
+using the built images plus launch the logging CI tests.  It also depends on the
+[elasticsearch-operator](https://github.com/openshift/elasticsearch-operator) and the
+[cluster-logging-operator](https://github.com/openshift/cluster-logging-operator), and
+see the file `hack/get-cluster-run-tests.sh` for more information.
 
-e.g.
+## Updating Sources for Fluentd
 
-```
-    oc start-build openshift-auth-proxy
-```
+Use the script `hack/update-fluentd-vendor-gems.sh` to update the vendored source
+code for Fluentd.  Edit the file `fluentd/source.jemalloc` to also update the
+vendored jemalloc source.  You will have to use `git add` or `git rm` or otherwise
+fix any conflicts, then commit and submit a PR.  Be sure to add `fluentd/rh-manifest.txt`
+or add it to the commit if it was updated.
 
-This will start the builds in the background. Use oc logs -f build/<component> to 
-follow the build logs, or use oc start-build --follow <component> to run the build 
-in the foreground and follow the build logs.
+## Updating Sources for Rsyslog
 
-In order to deploy logging with these images, you set the 
-[openshift-installer](https://github.com/openshift/openshift-ansible/tree/master/roles/openshift_logging) 
-inventory variable `openshift_logging_image_prefix` to the cluster registry location (e.g `172.30.90.128:5000/logs/`).
-
-## Building locally
-
-The images can also be built locally by executing the following in the root
-directory of this repo:
-
-```
-    $PREFIX=docker.io/mynamespace/myloggingprefix- $OS_TAG=v1.x make
-```
+Check the file `rsyslog/rsyslog_exporter.source` to see if there are any new releases
+upstream, and update the file if so.
+Update `rsyslog/go/src/github.com/soundcloud/rsyslog_exporter/Gopkg.toml` to
+update any dependency versions if necessary before running the script below.
+Use the script `hack/update-rsyslog-vendor-src.sh` to update the `rsyslog-vendor`
+branch with the latest rsyslog sources, commit and push, then rebase or merge
+those changes in with your feature branch which you intend to use to submit a PR.
+Be sure to add `rsyslog/rh-manifest.txt` or add it to the commit if it was updated.
