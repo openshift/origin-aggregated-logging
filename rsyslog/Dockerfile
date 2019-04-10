@@ -26,6 +26,7 @@ RUN cd /go/src/github.com/soundcloud/rsyslog_exporter ; GOPATH=/go go build
 FROM registry.svc.ci.openshift.org/ocp/4.2:base
 
 COPY --from=builder /RPMS/ /RPMS/
+COPY --from=builder /contents /contents
 COPY --from=builder /go/src/github.com/soundcloud/rsyslog_exporter/rsyslog_exporter /usr/local/bin/
 
 RUN yum -y install /RPMS/*.rpm cronie && \

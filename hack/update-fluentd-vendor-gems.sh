@@ -2,7 +2,6 @@
 # Update the vendored-in fluentd gems
 # - get the latest fluentd gem and latest dependencies
 # - unpack the gems into the fluentd/vendor directory
-# - update the fluentd/manifest file with the new gems
 
 set -euxo pipefail
 
@@ -20,19 +19,19 @@ fi
 fluentddir=$basedir/fluentd
 
 gemlist=$( mktemp )
-sources=$( mktemp )
+manifest=$( mktemp )
+trap "rm -f $gemlist $manifest" EXIT
 # the format of gem install --explain is
 # name-of-gem-file-X.Y.Z - we assume everything
 # after the last '-' is the version, and split
 # the output into name version
 gem install --explain -g $fluentddir/Gemfile | \
-sed -e '/^Gems/d' -e 's,[-]\([^-][^-]*\)$, \1,' > $gemlist
+sed -e '/^Gems/d' -e 's,[-]\([^-][^-]*\)$, \1,' | sort > $gemlist
 while read gemname gemver ; do
     vendordir=$fluentddir/vendored_gem_src/$gemname
     gemfile=${gemname}-${gemver}.gem
     gemlink=$fluentddir/vendored_gem_src/${gemname}-${gemver}
     gem fetch $gemname --version $gemver
-    md5sum $gemfile >> $sources
     rm -rf $vendordir
     mkdir -p $vendordir
     # gem unpack always creates $gemname-$gemver
@@ -54,9 +53,44 @@ while read gemname gemver ; do
     if [ ! -f $vendordir/$gemname.gemspec ] ; then
         gem spec -l --ruby $gemfile > $vendordir/$gemname.gemspec
     fi
+    homepage=$( gem spec $gemfile homepage | awk '{print $2}' )
+    if [ -z "$homepage" ] ; then
+        echo ERROR: gem $gemfile has no homepage
+        grep github.com $vendordir/$gemname.gemspec
+        exit 1
+    fi
+    if type -p brew > /dev/null 2>&1 ; then
+        if [ $gemname = fluentd ] ; then
+            pkgname=fluentd
+        else
+            pkgname="rubygem-${gemname}"
+        fi
+        if foundname=$( brew search package --exact $pkgname ) && [ "$foundname" = "$pkgname" ] ; then
+            : # package exists in brew
+        else
+            pkgname=$gemname
+        fi
+    fi
+    echo $pkgname $gemver $homepage >> $manifest
     rm -f $gemlink $gemfile
 done < $gemlist
 rm -f $gemlist
-# update fluentd manifest
-sort -k 2 $sources > $fluentddir/manifest
-rm -f $sources
+# jemalloc
+. $fluentddir/source.jemalloc
+jemalloc=$( mktemp )
+trap "rm -f $jemalloc" EXIT
+curl -s -L -o $jemalloc $JEMALLOC_SOURCE
+sum=$( sha512sum $jemalloc | awk '{print $1}' )
+if [ "$sum" != "$JEMALLOC_SHA512SUM" ] ; then
+    echo ERROR: sha512sum of $jemalloc is not correct
+    echo expected $JEMALLOC_SHA512SUM
+    echo actual $sum
+fi
+pushd $fluentddir > /dev/null
+rm -rf jemalloc
+tar xfj $jemalloc
+mv jemalloc-$JEMALLOC_VER jemalloc
+popd > /dev/null
+rm -f $jemalloc
+echo jemalloc $JEMALLOC_VER $JEMALLOC_SOURCE >> $manifest
+sort $manifest > $fluentddir/rh-manifest.txt

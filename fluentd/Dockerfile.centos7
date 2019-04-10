@@ -30,6 +30,9 @@ RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autoge
     make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
     cd .. && rm -rf jemalloc
 
+ADD source.jemalloc /source.jemalloc
+RUN bash -c '. /source.jemalloc; echo jemalloc $JEMALLOC_VER >> /contents'
+
 ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
 ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
 
