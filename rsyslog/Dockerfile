@@ -24,12 +24,14 @@ FROM registry.svc.ci.openshift.org/ocp/4.0:base
 
 COPY --from=builder /RPMS/ /RPMS/
 
-RUN yum -y install /RPMS/*.rpm && \
+RUN yum -y install /RPMS/*.rpm cronie && \
     rm -rf /RPMS && \
     yum clean all
 
 ADD install.sh /bin/install.sh
 ADD rsyslog.sh /bin/rsyslog.sh
 ADD uninstall.sh /bin/uninstall.sh
+COPY utils/** /usr/local/bin/
+RUN sed -i -e 's,\(session[ 	]*required[ 	]*pam_loginuid.so\),\#\1,' /etc/pam.d/crond
 
 CMD [ "/bin/rsyslog.sh" ]
