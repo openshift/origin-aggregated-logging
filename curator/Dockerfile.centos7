@@ -25,7 +25,7 @@ RUN yum install -y epel-release && \
     rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
 RUN yum install -y --setopt=tsflags=nodocs \
         python-pip && \
-    pip install --no-cache-dir 'ruamel.yaml<=0.15' elasticsearch-curator==${CURATOR_VER} && \
+    pip install --no-cache-dir 'ruamel.yaml<=0.15' 'pyyaml<5.1' elasticsearch-curator==${CURATOR_VER}  && \
     yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
