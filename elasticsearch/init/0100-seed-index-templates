@@ -21,7 +21,12 @@ info Adding index templates
 shopt -s failglob
 for template_file in ${ES_HOME}/index_templates/*.json
 do
-    sed -i "s,\$REPLICA_SHARDS,$REPLICA_SHARDS," $template_file
+    if [ -f ${template_file}.bkup ]; then
+      rm ${template_file}
+      mv ${template_file}.bkup ${template_file}
+    fi
+
+    sed -i.bkup "s,\$REPLICA_SHARDS,$REPLICA_SHARDS," $template_file
     sed -i "s,\$PRIMARY_SHARDS,$PRIMARY_SHARDS," $template_file
     template=`basename $template_file`
     # Check if index template already exists
