@@ -49,22 +49,32 @@ else
     rc=1
     echo FAIL > ${SAVE_ARTIFACT_DIR:-/tmp}/logging-test-result
 fi
+echo logging tests finished at $( date --rfc-3339=sec )
 
 # caller will now get artifacts - wait until that is complete
+exithandler() {
+    local resultcode=$?
+    set +eu
+    echo in exithandler rc = $rc ii = $ii ts = $( date --rfc-3339=sec )
+    exit $resultcode
+}
+trap "exithandler" EXIT
+
 if [ -n "${SAVE_ARTIFACT_DIR:-}" ] ; then
     timeout=600
     set +x
     for ii in $( seq 1 $timeout ) ; do
         if [ -f $SAVE_ARTIFACT_DIR/artifacts-done ] ; then
-            set -x
             break
         fi
         sleep 1
     done
+    set -x
     if [ $ii = $timeout ] ; then
         echo ERROR: caller did not write $SAVE_ARTIFACT_DIR/artifacts-done and collect artifacts after $timeout seconds
         ls -alrtF $SAVE_ARTIFACT_DIR
+    else
+        echo INFO: artifact collection is done $SAVE_ARTIFACT_DIR/artifacts-done
     fi
-    set -x
 fi
 exit $rc

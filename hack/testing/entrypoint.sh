@@ -46,7 +46,7 @@ fluentd_ds=$( get_fluentd_ds_name )
 oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-orig.yaml"
 
 # patch fluentd and the node to make it easier to test in new environment
-if oc get clusterlogging instance > /dev/null 2>&1 ; then
+if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
     tolerations="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.tolerations}' )"
     if [ -n "$tolerations" ] ; then
         oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
