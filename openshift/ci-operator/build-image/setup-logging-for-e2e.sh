@@ -263,7 +263,14 @@ if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output
 fi
 
 # this will exit with error when the pod exits - ignore that error
-oc logs -f logging-ci-test-runner 2>&1 | tee $ARTIFACT_DIR/logging-test-output || : &
+get_test_logs() {
+    set +o pipefail
+    echo begin tailing logs at $( date --rfc-3339=sec )
+    oc logs -f logging-ci-test-runner 2>&1 | tee $ARTIFACT_DIR/logging-test-output || :
+    echo stop tailing logs at $( date --rfc-3339=sec )
+    set -o pipefail
+}
+get_test_logs &
 # wait for the file $ARTIFACT_DIR/logging-test-result to exist - the contents
 # will be PASS or FAIL
 timeout=240
@@ -278,15 +285,23 @@ fi
 result=$( oc exec logging-ci-test-runner -- cat $ARTIFACT_DIR/logging-test-result 2> /dev/null )
 
 # copy the artifacts out of the test runner pod
-oc rsync --strategy=tar logging-ci-test-runner:$ARTIFACT_DIR/ $ARTIFACT_DIR > ${ARTIFACT_DIR}/syncout 2>&1
+oc version
+echo starting artifact rsync at $( date --rfc-3339=sec )
+if ! oc --loglevel=3 rsync --strategy=rsync logging-ci-test-runner:$ARTIFACT_DIR/ $ARTIFACT_DIR > ${ARTIFACT_DIR}/syncout 2>&1 ; then
+    echo ERROR: failure in oc rsync --strategy=rsync logging-ci-test-runner:$ARTIFACT_DIR/ $ARTIFACT_DIR
+    echo see ${ARTIFACT_DIR}/syncout for details
+fi
+echo finished artifact rsync at $( date --rfc-3339=sec )
 
 # tell the logging test pod we are done copying artifacts
-if oc exec logging-ci-test-runner -- "touch $ARTIFACT_DIR/artifacts-done 2> /dev/null" ; then
+if oc exec logging-ci-test-runner -- touch $ARTIFACT_DIR/artifacts-done ; then
     echo notified logging-ci-test-runner - done with artifacts
 else
     echo error notifying logging-ci-test-runner - $? - ignoring
 fi
 
+wait || :
+echo finished $0 at $( date --rfc-3339=sec )
 if [ "$result" = PASS ] ; then
     exit 0
 else
