@@ -47,3 +47,5 @@ directory of this repo:
 ```
     $PREFIX=docker.io/mynamespace/myloggingprefix- $OS_TAG=v1.x make
 ```
+
+master-post-release
