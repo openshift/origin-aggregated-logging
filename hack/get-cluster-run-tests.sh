@@ -141,9 +141,16 @@ if [ "${PUSH_IMAGES:-true}" = true ] ; then
     done
 fi
 
+# deploy logging
+if [ "${DEPLOY_LOGGING:-true}" = true ] ; then
+    KUBECONFIG=$workdir/auth/kubeconfig ARTIFACT_DIR=$workdir/artifacts \
+    USE_EO_LATEST_IMAGE=true USE_CLO_LATEST_IMAGE=true \
+    $scriptdir/deploy-logging-marketplace.sh
+fi
+
 # run logging tests
 if [ "${TEST_LOGGING:-true}" = true ] ; then
     KUBECONFIG=$workdir/auth/kubeconfig ARTIFACT_DIR=$workdir/artifacts \
     USE_EO_LATEST_IMAGE=true USE_CLO_LATEST_IMAGE=true \
-    $scriptdir/../openshift/ci-operator/build-image/setup-logging-for-e2e.sh
+    $scriptdir/test-logging.sh
 fi
