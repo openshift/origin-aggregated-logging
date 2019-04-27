@@ -218,6 +218,19 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     oc set env deploy/cluster-logging-operator --list | grep _IMAGE=
 fi
 
+### HACK !!!
+# Once this pr/304 is applied, we should remove this HACK.
+# https://github.com/operator-framework/community-operators/pull/304
+clrole=$( oc get roles --selector olm.owner.kind=ClusterServiceVersion -o name )
+clroleyaml=$( mktemp )
+oc get $clrole -o yaml > $clroleyaml
+if ! grep -q -e "- prometheusrules" $clroleyaml ; then
+    sed -i -e "s/\(  - servicemonitors\)/\1\n  - prometheusrules/" $clroleyaml
+    oc apply -f $clroleyaml
+fi
+rm -f $clroleyaml
+### HACK !!!
+
 oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 
 wait_func() {
