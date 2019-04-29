@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/ocp/4.0:base as builder
+FROM registry.svc.ci.openshift.org/ocp/4.1:base as builder
 
 # get pkg list from rpmspec -q --buildrequires vendored_src/*/*.spec | sort -u
 ADD install-builder-packages.sh /tmp
@@ -20,9 +20,13 @@ RUN cd /vendored_src && \
     touch liblognorm/liblognorm/config.h.in && \
     ./install-from-src.sh
 
-FROM registry.svc.ci.openshift.org/ocp/4.0:base
+ADD go/ /go/
+RUN cd /go/src/github.com/soundcloud/rsyslog_exporter ; GOPATH=/go go build
+
+FROM registry.svc.ci.openshift.org/ocp/4.1:base
 
 COPY --from=builder /RPMS/ /RPMS/
+COPY --from=builder /go/src/github.com/soundcloud/rsyslog_exporter/rsyslog_exporter /usr/local/bin/
 
 RUN yum -y install /RPMS/*.rpm cronie && \
     rm -rf /RPMS && \

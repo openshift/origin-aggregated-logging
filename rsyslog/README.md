@@ -23,3 +23,12 @@ Print out the contents of Rsyslog log files.
 Contents of files stored in the directory where `LOGGING_FILE_PATH` is, are printed out. Starting with the oldest log. Using `-f` option you can follow what is being written into the logs.
 The default path where the logs are is `/var/log/rsyslog/`, default name of the log file is `rsyslog.log`.
 
+# Hacking
+
+## Updating rsyslog_exporter
+
+Once the source code has been updated, and the file `rsyslog/rsyslog_exporter.source`, update deps:
+```
+cd rsyslog/go/src/github.com/soundcloud/rsyslog_exporter
+GOPATH=/path/to/origin-aggregated-logging/rsyslog/go dep ensure -update
+```

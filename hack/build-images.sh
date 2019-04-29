@@ -19,17 +19,20 @@ function cleanup() {
 }
 trap "cleanup" EXIT
 
-UBI_IMAGE=${UBI_IMAGE:-registry.svc.ci.openshift.org/ocp/4.0:base}
-
 function image_is_ubi() {
-  # dockerfile is arg $1
-  grep -q "^FROM $UBI_IMAGE" $1
+  if [ -f $1 ] ; then
+    # if $1 is a file, assume a Dockerfile with a FROM - otherwise,
+    # it is an image name
+    grep -q "^FROM registry.svc.ci.openshift.org/ocp/[1-9].[1-9][0-9]*" $1
+  else
+    echo "$1" | grep -q "registry.svc.ci.openshift.org/ocp/[1-9].[1-9][0-9]*"
+  fi
 }
 
 function image_needs_private_repo() {
   # dockerfile is arg $1
   image_is_ubi $1 || \
-    grep -q "^FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base" $1
+    grep -q "^FROM registry.svc.ci.openshift.org/openshift/origin-v4.[1-9][0-9]*:base" $1
 }
 
 CI_REGISTRY=${CI_REGISTRY:-registry.svc.ci.openshift.org}
@@ -83,10 +86,15 @@ function login_to_ci_registry() {
 }
 
 function pull_ubi_if_needed() {
-  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${UBI_IMAGE}\$" ; then
-    login_to_ci_registry
-    docker pull $UBI_IMAGE
-  fi
+  # $1 is dockerfile - first, extract images
+  local images=$( awk '/^FROM / {print $2}' $1 | sort -u )
+  local image
+  for image in $images ; do
+    if image_is_ubi "$image" ; then
+      login_to_ci_registry
+    fi
+    docker pull "$image"
+  done
 }
 
 # to build using internal/private yum repos, specify
@@ -234,9 +242,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
     eventrouter logging-eventrouter ; do
     if [ -z "$dir" ] ; then dir=$item ; continue ; fi
     img=$item
-    if image_is_ubi $dir/${dockerfile} ; then
-      pull_ubi_if_needed
-    fi
+    pull_ubi_if_needed $dir/${dockerfile}
     if image_needs_private_repo $dir/${dockerfile} ; then
       repodir=$( get_private_repo_dir )
       mountarg="-mount $repodir:/etc/yum.repos.d/"
@@ -252,9 +258,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
     img=""
   done
 
-  if image_is_ubi rsyslog/${rsyslog_dockerfile} ; then
-    pull_ubi_if_needed
-  fi
+  pull_ubi_if_needed rsyslog/${rsyslog_dockerfile}
   if image_needs_private_repo rsyslog/${rsyslog_dockerfile} ; then
     repodir=$( get_private_repo_dir )
     mountarg="-mount $repodir:/etc/yum.repos.d/"
@@ -266,9 +270,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
   OS_BUILD_IMAGE_ARGS="$mountarg -f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog" rsyslog
   set -x
 
-  if image_is_ubi openshift/ci-operator/build-image/Dockerfile.full ; then
-    pull_ubi_if_needed
-  fi
+  pull_ubi_if_needed openshift/ci-operator/build-image/Dockerfile.full
   if image_needs_private_repo openshift/ci-operator/build-image/Dockerfile.full ; then
     repodir=$( get_private_repo_dir )
     mountarg="-mount $repodir:/etc/yum.repos.d/"

@@ -126,10 +126,13 @@ oc create secret generic logging-ci-test-kubeconfig \
 if [ -n "${ARTIFACT_DIR:-}" ] ; then
     artifact_dir_arg="-p ARTIFACT_DIR=$ARTIFACT_DIR"
 fi
+if [ -n "${TEST_SUITES:-}" ] ; then
+    test_suites_arg="-p TEST_SUITES=${TEST_SUITES}"
+fi
 oc process -p TEST_ROOT=$testroot \
     -p TEST_NAMESPACE_NAME=$( oc project -q ) \
     -p TEST_IMAGE=$testimage \
-    ${artifact_dir_arg:-} \
+    ${artifact_dir_arg:-} ${test_suites_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 
 wait_func() {

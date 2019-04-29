@@ -224,3 +224,10 @@ os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.lev
 os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.hostname" "^null$"
 ts=$( cat $ops | jq -r '.hits.hits[0]._source."@timestamp"' )
 os::cmd::expect_success "test ${ts} != null"
+
+# see if the prometheus exporter is working
+rpod="$( get_running_pod rsyslog )"
+rpod_ip="$( oc get pod ${rpod} -o jsonpath='{.status.podIP}' )"
+
+os::cmd::try_until_success "curl -s -k https://${rpod_ip}:24231/metrics"
+curl -s -k https://${rpod_ip}:24231/metrics >> $ARTIFACT_DIR/${rpod}-metrics-scrape 2>&1 || :

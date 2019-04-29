@@ -39,6 +39,7 @@ objects:
         # variable evaluation
         export ARTIFACT_DIR=${ARTIFACT_DIR}
         set -u
+        export SUITE="${TEST_SUITES}"
         . openshift/ci-operator/build-image/launch-e2e-test.sh
 
       volumeMounts:
@@ -128,5 +129,8 @@ parameters:
 - description: the directory where to write the test artifacts
   value: ''
   name: ARTIFACT_DIR
+- description: test suites to run
+  value: '.*'
+  name: TEST_SUITES
 labels:
   test: "true"
