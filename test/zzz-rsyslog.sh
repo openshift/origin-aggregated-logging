@@ -58,6 +58,9 @@ cleanup() {
         oc get clusterlogging instance -o yaml > $ARTIFACT_DIR/clinstance.yaml 2>&1
         oc describe deploy cluster-logging-operator > $ARTIFACT_DIR/deploy.clo.yaml 2>&1
         oc describe ds rsyslog > $ARTIFACT_DIR/ds.rsyslog.yaml 2>&1
+        oc get secret > $ARTIFACT_DIR/secrets 2>&1
+        oc get svc > $ARTIFACT_DIR/services 2>&1
+        oc get svc rsyslog -o yaml > $ARTIFACT_DIR/rsyslog.svc.yaml 2>&1 || :
         oc patch clusterlogging instance --type=json \
             --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"fluentd"}]' 2>&1 | artifact_out
         enable_cluster_logging_operator
@@ -66,6 +69,7 @@ cleanup() {
         start_fluentd true 2>&1 | artifact_out
         disable_cluster_logging_operator
         sleep 10
+        oc get secret > $ARTIFACT_DIR/secrets.after 2>&1
     fi
 
     # this will call declare_test_end, suite_end, etc.
@@ -130,7 +134,7 @@ deploy_using_operators() {
     oc patch clusterlogging instance --type=json \
         --patch '[{"op":"replace","path":"/spec/collection/logs/type","value":"rsyslog"}]' 2>&1 | artifact_out
     enable_cluster_logging_operator
-    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'" $(( 10 * minute ))
     rpod=$( get_running_pod rsyslog )
     disable_cluster_logging_operator
     sleep 10
@@ -224,3 +228,10 @@ os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.lev
 os::cmd::expect_success_and_not_text "cat $ops | jq -r .hits.hits[0]._source.hostname" "^null$"
 ts=$( cat $ops | jq -r '.hits.hits[0]._source."@timestamp"' )
 os::cmd::expect_success "test ${ts} != null"
+
+# see if the prometheus exporter is working
+rpod="$( get_running_pod rsyslog )"
+rpod_ip="$( oc get pod ${rpod} -o jsonpath='{.status.podIP}' )"
+
+os::cmd::try_until_success "curl -s -k https://${rpod_ip}:24231/metrics"
+curl -s -k https://${rpod_ip}:24231/metrics >> $ARTIFACT_DIR/${rpod}-metrics-scrape 2>&1 || :

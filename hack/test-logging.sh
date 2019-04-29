@@ -204,6 +204,7 @@ else
 fi
 
 wait || :
+oc delete --force pod logging-ci-test-runner || :
 echo finished $0 at $( date --rfc-3339=sec )
 if [ "$result" = PASS ] ; then
     exit 0
