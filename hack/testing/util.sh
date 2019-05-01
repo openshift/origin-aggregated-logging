@@ -713,6 +713,8 @@ get_all_logging_pod_logs() {
   local p
   local container
   for p in $(oc get pods -n ${LOGGING_NS} -o jsonpath='{.items[*].metadata.name}') ; do
+    oc -n ${LOGGING_NS} describe pod $p > $ARTIFACT_DIR/$p.describe 2>&1 || :
+    oc -n ${LOGGING_NS} get pod $p -o yaml > $ARTIFACT_DIR/$p.yaml 2>&1 || :
     for container in $(oc get po $p -o jsonpath='{.spec.containers[*].name}') ; do
       case "$p" in
         logging-fluentd-*|fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
