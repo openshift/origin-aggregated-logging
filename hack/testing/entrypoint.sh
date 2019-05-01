@@ -47,7 +47,18 @@ oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-o
 
 # patch fluentd and the node to make it easier to test in new environment
 if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
+    # wait for kibana to return a node value
+    os::cmd::try_until_text "oc get -n ${LOGGING_NS} pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}'" "."
     kibnode=$( oc get -n ${LOGGING_NS} pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
+    if [ -z "$kibnode" ] ; then
+        oc -n ${LOGGING_NS} get pods -o wide || :
+        for kpod in $( oc -n ${LOGGING_NS} get pods -l component=kibana -o jsonpath='{.items[*].metadata.name}' ) ; do
+            oc -n ${LOGGING_NS} describe pod $kpod > $ARTIFACT_DIR/$kpod.describe || :
+            oc -n ${LOGGING_NS} get pod $kpod -o yaml > $ARTIFACT_DIR/$kpod.yaml || :
+        done
+        oc describe node > $ARTIFACT_DIR/nodes || :
+        false
+    fi
     oc label node $kibnode --overwrite logging-infra-fluentd=true logging-infra-rsyslog=true
     oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
         {"op":"remove","path":"/spec/template/spec/tolerations"},

@@ -11,7 +11,7 @@ set -eux
 logging_err_exit() {
     oc get deploy >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
-    oc -n openshift-operators get elasticsearch >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc -n $ESO_NS get elasticsearch >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get clusterlogging >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get crds >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc describe pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
@@ -53,6 +53,7 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
+ESO_NS=${ESO_NS:-openshift-operators-redhat}
 
 # set elasticsearch to unmanaged - so that the elasticsearch-operator
 # won't try to do anything to elasticsearch when we shut it down
@@ -60,13 +61,13 @@ oc patch elasticsearch elasticsearch --type=json --patch '[
         {"op":"replace","path":"/spec/managementState","value":"Unmanaged"}]'
 
 # get the elasticsearch-operator pod
-esopod=$( oc -n openshift-operators get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
 
 # disable the elasticsearch-operator so that we can alter elasticsearch
-oc -n openshift-operators scale --replicas=0 deploy/elasticsearch-operator
+oc -n $ESO_NS scale --replicas=0 deploy/elasticsearch-operator
 
 wait_func() {
-    oc -n openshift-operators get pod $esopod > /dev/null 2>&1
+    oc -n $ESO_NS get pod $esopod > /dev/null 2>&1
 }
 if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: could not stop elasticsearch-operator pod $esopod

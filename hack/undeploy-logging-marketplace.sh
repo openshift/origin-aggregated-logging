@@ -24,17 +24,23 @@ wait_for_condition()
 
 set -euxo pipefail
 
+ESO_NS=${ESO_NS:-openshift-operators-redhat}
+
 oc delete project openshift-logging || :
 wait_func() { ! oc get project openshift-logging > /dev/null 2>&1 ; }
+wait_for_condition wait_func 600 10
+
+oc delete project $ESO_NS || :
+wait_func() { ! oc get project $ESO_NS > /dev/null 2>&1 ; }
 wait_for_condition wait_func 600 10
 
 oc -n openshift-marketplace delete CatalogSourceConfig cluster-logging || :
 wait_func() { ! oc -n openshift-marketplace get CatalogSourceConfig cluster-logging > /dev/null 2>&1 ; }
 wait_for_condition wait_func 600 10
 
-for sub in $( oc -n openshift-operators get subscriptions -o name | grep elasticsearch ) ; do
-    oc -n openshift-operators delete $sub || :
-    wait_func() { ! oc -n openshift-operators get $sub > /dev/null 2>&1 ; }
+for sub in $( oc -n $ESO_NS get subscriptions -o name | grep elasticsearch ) ; do
+    oc -n $ESO_NS delete $sub || :
+    wait_func() { ! oc -n $ESO_NS get $sub > /dev/null 2>&1 ; }
     wait_for_condition wait_func 600 10
 done
 
@@ -44,7 +50,7 @@ oc get clusterserviceversions --all-namespaces | \
         oc -n $ns delete clusterserviceversions $csv
     done
 
-oc -n openshift-operators delete deploy elasticsearch-operator || :
+oc -n $ESO_NS delete deploy elasticsearch-operator || :
 
 oc -n openshift-marketplace delete CatalogSourceConfig elasticsearch || :
 wait_func() { ! oc -n openshift-marketplace get CatalogSourceConfig elasticsearch > /dev/null 2>&1 ; }
