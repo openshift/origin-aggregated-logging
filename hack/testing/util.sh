@@ -26,10 +26,10 @@ if [ $(id -u) = 0 ] ; then
         case "$1" in
         \-[A-Za-z]) shift ;;
         esac
-        exec "$@"
+        "$@"
     }
 else
-    oal_sudo() { exec sudo "$@" ; }
+    oal_sudo() { sudo "$@" ; }
 fi
 export -f oal_sudo
 
