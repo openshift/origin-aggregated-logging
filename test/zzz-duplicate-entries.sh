@@ -14,8 +14,8 @@ cleanup() {
     set +e
 
     if [ -f /etc/systemd/journald.conf.bak ]; then
-      sudo mv /etc/systemd/journald.conf.bak /etc/systemd/journald.conf
-      sudo systemctl restart systemd-journald
+      oal_sudo mv /etc/systemd/journald.conf.bak /etc/systemd/journald.conf
+      oal_sudo systemctl restart systemd-journald
     fi
 
 #    stop_fluentd 2>&1 | artifact_out || :
@@ -32,9 +32,9 @@ trap "cleanup" EXIT
 get_fluentd_pid() {
     local pid
     artifact_log begin get_fluentd_pid
-    for pid in $( sudo pgrep fluentd ) ; do
+    for pid in $( oal_sudo pgrep fluentd ) ; do
         local environfile=$ARTIFACT_DIR/environ.$pid
-        sudo cat /proc/$pid/environ | tr '\0' '\n' > $environfile
+        oal_sudo cat /proc/$pid/environ | tr '\0' '\n' > $environfile
         if grep \^USE_MUX=true $environfile > $ARTIFACT_DIR/grep-out.$pid 2>&1 ; then
             artifact_log pid $pid is mux
             continue
@@ -50,18 +50,18 @@ get_fluentd_pid() {
 # turn off fluentd
 #stop_fluentd 2>&1 | artifact_out
 
-sudo sed -i.bak \
+oal_sudo sed -i.bak \
     -e "s/^.*SystemMaxUse=.*$/ SystemMaxUse=1M/" \
     -e "s/^.*SystemMaxFileSize=.*$/ SystemMaxFileSize=32K/" \
     /etc/systemd/journald.conf
-sudo systemctl restart systemd-journald
+oal_sudo systemctl restart systemd-journald
 
 sleep 10
 #start_fluentd true 2>&1 | artifact_out
 wait_for_fluentd_to_catch_up
 fluentd_pid=$( get_fluentd_pid )
 # get files open by fluentd
-sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-before 2>&1 || :
+oal_sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-before 2>&1 || :
 
 curl -s -L -o loader https://raw.githubusercontent.com/ViaQ/logging-load-driver/master/loader
 curl -s -L -o verify-loader https://raw.githubusercontent.com/ViaQ/logging-load-driver/master/verify-loader
@@ -78,7 +78,7 @@ logger -i -p local6.info -t $ident -f $logger_file
 
 os::log::info ${MESSAGE_COUNT} messages were generated...
 
-sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-during 2>&1 || :
+oal_sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-during 2>&1 || :
 
 es_svc=$( get_es_svc es )
 es_ops_svc=$( get_es_svc es-ops )
@@ -90,7 +90,7 @@ if os::cmd::try_until_text "curl_es ${es_ops_svc} /.operations.*/_count -X POST 
 else
     os::log::warning did not find exactly ${MESSAGE_COUNT} records
 fi
-sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-after 2>&1 || :
+oal_sudo ls -al /proc/$fluentd_pid/fd > $ARTIFACT_DIR/fluentd-files-after 2>&1 || :
 
 # fluentd should not have any deleted files open
 os::cmd::expect_failure "grep -q deleted $ARTIFACT_DIR/fluentd-files-after"

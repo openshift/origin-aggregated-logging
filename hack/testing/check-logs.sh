@@ -10,7 +10,7 @@ docker_uses_journal() {
     # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
     # authoritative
     # otherwise, look for /etc/sysconfig/docker
-    if type -p docker > /dev/null && sudo docker info | grep -q 'Logging Driver: journald' ; then
+    if type -p docker > /dev/null && oal_sudo docker info | grep -q 'Logging Driver: journald' ; then
         return 0
     elif grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
         if grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then

@@ -174,8 +174,8 @@ create_forwarding_fluentd() {
        --from-file=fluent.conf=$OS_O_A_L_DIR/hack/templates/forward-fluent.conf 2>&1 | artifact_out
 
     # create a directory for file buffering so as not to conflict with fluentd
-    if ! sudo test -d /var/lib/fluentd-forward${id} ; then
-        sudo mkdir -p /var/lib/fluentd-forward${id}
+    if ! oal_sudo test -d /var/lib/fluentd-forward${id} ; then
+        oal_sudo mkdir -p /var/lib/fluentd-forward${id}
     fi
 
     # create forwarding daemonset
