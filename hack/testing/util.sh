@@ -19,6 +19,20 @@ oc() {
     $OC_BINARY --request-timeout=15s --logtostderr=false --loglevel=2 --log_dir=$oclogdir "$@"
 }
 
+if [ $(id -u) = 0 ] ; then
+    # when running as root in a container, sudo hammers the journal and audit
+    # logs with a bunch of noise that we don't care about
+    oal_sudo() {
+        case "$1" in
+        \-[A-Za-z]) shift ;;
+        esac
+        exec "$@"
+    }
+else
+    oal_sudo() { exec sudo "$@" ; }
+fi
+export -f oal_sudo
+
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
 function get_es_dcs() {
@@ -411,17 +425,30 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    os::cmd::expect_success "sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
+    os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
 function get_journal_pos_cursor() {
-    if sudo test -s /var/log/journal.pos ; then
-        sudo cat /var/log/journal.pos
-    elif sudo test -s /var/log/journal_pos.json ; then
-        sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json
+    if oal_sudo test -s /var/log/journal.pos ; then
+        oal_sudo cat /var/log/journal.pos
+    elif oal_sudo test -s /var/log/journal_pos.json ; then
+        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json
     else
         echo ""
     fi
+}
+
+function wait_for_apps_log_message() {
+    local podprefix="$1" # this should match /var/log/containers/$podprefix*
+    local fullmsg="$2"
+    # first, wait for /var/log/containers/$podprefix* to show up in the position file
+    while ! oal_sudo grep -q "^/var/log/containers/$podprefix" /var/log/es-containers.log.pos ; do
+        sleep 1
+    done
+    # next, look for fullmsg in /var/log/containers/$podprefix*
+    while ! oal_sudo grep -b -n "$fullmsg" /var/log/containers/${podprefix}*.log > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
+        sleep 1
+    done
 }
 
 # $1 - command to call to pass the uuid_es
@@ -441,6 +468,7 @@ function wait_for_fluentd_to_catch_up() {
     local timeout=${TIMEOUT:-600}
     local appsproject=${4:-$LOGGING_NS}
     local priority=${TEST_REC_PRIORITY:-info}
+    local apps_pod_prefix="kibana"
 
     wait_for_fluentd_ready
 
@@ -448,7 +476,7 @@ function wait_for_fluentd_to_catch_up() {
     local fullmsg="GET /${uuid_es} 404 "
     local checkpids
     if docker_uses_journal ; then
-        sudo journalctl -m -f -o export | \
+        oal_sudo journalctl -m -f -o export | \
             awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
             -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
@@ -456,13 +484,11 @@ function wait_for_fluentd_to_catch_up() {
                 $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
                 ' 2>&1 | artifact_out & checkpids=$!
     else
-        sudo journalctl -m -f -o export | \
+        oal_sudo journalctl -m -f -o export | \
             awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
                 BEGIN{RS="";FS="\n"};
                 $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
-        while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} + > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
-            sleep 1
-        done & checkpids="$checkpids $!"
+        wait_for_apps_log_message "$apps_pod_prefix" "$fullmsg" & checkpids="$checkpids $!"
     fi
 
     add_test_message $uuid_es
@@ -472,7 +498,7 @@ function wait_for_fluentd_to_catch_up() {
 
     local errqs
     local rc=0
-    local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"kibana"}}}}}'
+    local qs='{"query":{"bool":{"filter":{"match_phrase":{"message":"'"${fullmsg}"'"}},"must":{"term":{"kubernetes.container_name":"'"$apps_pod_prefix"'"}}}}}'
     case "${appsproject}" in
     default|openshift|openshift-*) logging_index=".operations.*" ; es_svc=$es_ops_svc ;;
     *) logging_index="project.${appsproject}.*" ;;
@@ -497,15 +523,15 @@ function wait_for_fluentd_to_catch_up() {
         fi
         if docker_uses_journal ; then
             os::log::error here is the current fluentd journal cursor
-            sudo cat /var/log/journal.pos || :
-            sudo cat /var/log/journal_pos.json || :
+            oal_sudo cat /var/log/journal.pos || :
+            oal_sudo cat /var/log/journal_pos.json || :
             echo ""
             os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
             # first and last couple of records in the journal
-            sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_first.txt
-            sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
-        elif sudo test -f /var/log/es-containers.log.pos ; then
-            sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
+            oal_sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_first.txt
+            oal_sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
+        elif oal_sudo test -f /var/log/es-containers.log.pos ; then
+            oal_sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
         fi
         # records since start of function in ascending @timestamp order - see what records were added around
         # the time our record should have been added
@@ -534,13 +560,13 @@ function wait_for_fluentd_to_catch_up() {
             os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
         os::log::error here is the current fluentd journal cursor
-        sudo cat /var/log/journal.pos || :
-        sudo cat /var/log/journal_pos.json || :
+        oal_sudo cat /var/log/journal.pos || :
+        oal_sudo cat /var/log/journal_pos.json || :
         echo ""
         os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
         # first and last couple of records in the journal
-        sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_first.txt
-        sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_last.txt
+        oal_sudo journalctl -m -S "$startjournal" -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_first.txt
+        oal_sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/ops_err_journal_last.txt
         # records since start of function in ascending @timestamp order - see what records were added around
         # the time our record should have been added
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"asc"}}],"size":20}'
@@ -568,13 +594,13 @@ docker_uses_journal() {
     # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
     # authoritative
     # otherwise, look for /etc/sysconfig/docker
-    if type -p docker > /dev/null && sudo docker info 2>&1 | grep -q 'Logging Driver: journald' ; then
+    if type -p docker > /dev/null && oal_sudo docker info 2>&1 | grep -q 'Logging Driver: journald' ; then
         return 0
-    elif sudo grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
-        if sudo grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
+    elif oal_sudo grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
+        if oal_sudo grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
             return 0
         fi
-    elif sudo grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
+    elif oal_sudo grep -q "^OPTIONS='[^']*--log-driver=journald" /etc/sysconfig/docker 2> /dev/null ; then
         return 0
     fi
     return 1
@@ -583,11 +609,11 @@ docker_uses_journal() {
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
     # wait until fluentd is actively reading from the source (journal or files)
-    os::cmd::try_until_success "sudo test -s /var/log/journal.pos -o -s /var/log/journal_pos.json" $(( timeout * second ))
+    os::cmd::try_until_success "oal_sudo test -s /var/log/journal.pos -o -s /var/log/journal_pos.json" $(( timeout * second ))
     if docker_uses_journal ; then
         : # done
     else
-        os::cmd::try_until_success "sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
+        os::cmd::try_until_success "oal_sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
     fi
 }
 
@@ -650,9 +676,9 @@ get_fluentd_pod_log() {
     oc logs $pod 2>&1
     if oc exec $pod -- logs 2>&1 ; then
         : # done
-    elif sudo test -f $logfile ; then
+    elif oal_sudo test -f $logfile ; then
         # can't read from the pod directly - see if we can get the log file
-        sudo cat $logfile
+        oal_sudo cat $logfile
     fi
 }
 
@@ -705,9 +731,9 @@ start_fluentd() {
 
     if [ "$cleanfirst" != false ] ; then
         flush_fluentd_pos_files
-        sudo rm -rf /var/log/fluentd/fluentd.log
+        oal_sudo rm -rf /var/log/fluentd/fluentd.log
         if [ "${CLEANBUFFERS:-true}" = true ] ; then
-            sudo rm -rf /var/lib/fluentd/*
+            oal_sudo rm -rf /var/lib/fluentd/*
         fi
     fi
     oc label node -l logging-infra-fluentd=false --overwrite logging-infra-fluentd=true

@@ -33,8 +33,8 @@ function cleanup() {
         curl_es $esopssvc /bulkindextest -XDELETE | jq . | artifact_out
     fi
     fpod=$( get_running_pod fluentd )
-    if sudo test -f /var/log/fluentd/fluentd.log ; then
-        sudo cat /var/log/fluentd/fluentd.log > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
+    if oal_sudo test -f /var/log/fluentd/fluentd.log ; then
+        oal_sudo cat /var/log/fluentd/fluentd.log > $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
     fi
     if [ -f /var/log/fluentd.log ] ; then
         cat /var/log/fluentd.log >> $ARTIFACT_DIR/fluentd-with-bulk-index-rejections.log
@@ -209,15 +209,15 @@ fi
 
 # check the logs to see if there are bulk index rejection errors between starttime and endtime
 fluentdlogfile=/var/log/fluentd/fluentd.log
-if sudo test -f $fluentdlogfile ; then
+if oal_sudo test -f $fluentdlogfile ; then
     if [ ! -f $fluentdlogfile ] ; then
-        sudo chmod o+rx /var/log/fluentd
-        sudo chmod o+r $fluentdlogfile
+        oal_sudo chmod o+rx /var/log/fluentd
+        oal_sudo chmod o+r $fluentdlogfile
     fi
 else
     fluentdlogfile=/var/log/fluentd.log
     if [ ! -f $fluentdlogfile ] ; then
-        sudo chmod o+r $fluentdlogfile
+        oal_sudo chmod o+r $fluentdlogfile
     fi
 fi
 
@@ -266,9 +266,9 @@ else
     os::log::error not found $countops record project .operations for $uuid_es_ops after timeout
     os::log::debug "$( curl_es ${esopssvc} /.operations.*/_search -X POST -d "$qsops" )"
     os::log::error "Checking journal for $uuid_es_ops..."
-    if sudo journalctl -m | grep -q $uuid_es_ops ; then
+    if oal_sudo journalctl -m | grep -q $uuid_es_ops ; then
         os::log::error "Found $uuid_es_ops in journal"
-        os::log::debug "$( sudo journalctl -m | grep $uuid_es_ops )"
+        os::log::debug "$( oal_sudo journalctl -m | grep $uuid_es_ops )"
     else
         os::log::error "Unable to find $uuid_es_ops in journal"
     fi

@@ -89,7 +89,7 @@ timestamp=$( date --iso-8601=seconds )
 docker run --rm centos:7 echo "running test container"
 
 if ! os::cmd::try_until_success "logs_count_is_ge $esopssvc '/.operations.*/' 4 $timestamp" $((second * 60)) ; then
-    sudo grep VIRT_CONTROL /var/log/audit/audit.log | tail -40 > $ARTIFACT_DIR/docker_audit_audit.log
+    oal_sudo grep VIRT_CONTROL /var/log/audit/audit.log | tail -40 > $ARTIFACT_DIR/docker_audit_audit.log
     get_fluentd_pod_log $fpod > $ARTIFACT_DIR/docker_audit_fluentd.log
     ops_logs_after=$( get_logs_count $esopssvc '/.operations.*/' )
     logs_after=$( get_logs_count $essvc '/project.*/' )

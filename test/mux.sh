@@ -248,7 +248,7 @@ write_and_verify_logs() {
     oc get pods | grep fluentd | artifact_out
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     # get the cursor of this record - compare to the fluentd journal cursor position
-    local reccursor=$( sudo journalctl -m -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
+    local reccursor=$( oal_sudo journalctl -m -o export -t $uuid_es_ops | awk -F__CURSOR= '/^__CURSOR=/ {print $2}' )
     oc get pods | grep fluentd | artifact_out
     local fcursor_after=$( get_journal_pos_cursor )
     artifact_log Cursors:
@@ -297,12 +297,12 @@ write_and_verify_logs() {
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         if docker_uses_journal ; then
             artifact_log First matching record:
-            sudo journalctl -m | grep -m 1 "${mymessage}" | artifact_out || :
+            oal_sudo journalctl -m | grep -m 1 "${mymessage}" | artifact_out || :
             artifact_log Last matching record:
-            sudo journalctl -m -r | grep -m 1 "${mymessage}" | artifact_out || :
+            oal_sudo journalctl -m -r | grep -m 1 "${mymessage}" | artifact_out || :
         else
             artifact_log matching records:
-            sudo find /var/log/containers -name \*.log -exec grep "${mymessage}" {} /dev/null \; | artifact_out || :
+            oal_sudo find /var/log/containers -name \*.log -exec grep "${mymessage}" {} /dev/null \; | artifact_out || :
         fi
         exit 1
     fi
@@ -328,7 +328,7 @@ write_and_verify_logs() {
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:asc\&size=1 | python -mjson.tool | artifact_out
         curl_es $essvc /${myproject}.*/_search?sort=@timestamp:desc\&size=1 | python -mjson.tool | artifact_out
         # find the record in the journal
-        sudo journalctl -m -o export -t $uuid_es_ops | artifact_out || :
+        oal_sudo journalctl -m -o export -t $uuid_es_ops | artifact_out || :
         exit 1
     fi
     os::cmd::expect_success_and_not_text "curl_es $es_svc /_cat/indices" "project\.default"
