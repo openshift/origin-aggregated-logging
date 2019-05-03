@@ -426,7 +426,11 @@ function add_test_message() {
 
 function flush_fluentd_pos_files() {
     echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json
-    oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json || :
+    if oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json ; then
+        :
+    else
+        echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json failed $?
+    fi
     os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
