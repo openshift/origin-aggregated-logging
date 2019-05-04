@@ -14,8 +14,8 @@ es_ops_pod=$( get_es_pod es-ops )
 es_ops_pod=${es_ops_pod:-$es_pod}
 
 clear_and_restart_journal() {
-    sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
-    sudo systemctl restart systemd-journald 2>&1 | artifact_out
+    oal_sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+    oal_sudo systemctl restart systemd-journald 2>&1 | artifact_out
 }
 
 if oc get clusterlogging instance > /dev/null 2>&1 ; then
@@ -44,12 +44,12 @@ cleanup() {
         if [ -n "${tmpinv:-}" -a -f "${tmpinv:-}" ] ; then
             rm -f $tmpinv
         fi
-        sudo journalctl -m -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
+        oal_sudo journalctl -m -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
         if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
-            sudo rm -rf ${rsyslog__config_dir}/*
-            sudo cp -p ${rsyslog_save}/* ${rsyslog__config_dir} || :
+            oal_sudo rm -rf ${rsyslog__config_dir}/*
+            oal_sudo cp -p ${rsyslog_save}/* ${rsyslog__config_dir} || :
             rm -rf ${rsyslog_save}
-            sudo systemctl restart $rsyslog_service
+            oal_sudo systemctl restart $rsyslog_service
         fi
         # cleanup fluentd pos file and restart
         start_fluentd true 2>&1 | artifact_out
@@ -76,7 +76,7 @@ trap "cleanup" EXIT
 
 deploy_using_ansible() {
     rsyslog_save=$( mktemp -d )
-    sudo cp -p ${rsyslog__config_dir}/* ${rsyslog_save} || :
+    oal_sudo cp -p ${rsyslog__config_dir}/* ${rsyslog_save} || :
     pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
     tmpinv=$( mktemp )
     cat > $tmpinv <<EOF
@@ -116,12 +116,12 @@ EOF
     popd > /dev/null
 
     pushd /etc
-    sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
+    oal_sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
     popd > /dev/null
-    sudo systemctl stop $rsyslog_service
+    oal_sudo systemctl stop $rsyslog_service
     # make test run faster by resetting journal cursor to "now"
-    sudo journalctl -m -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
-    sudo systemctl start $rsyslog_service
+    oal_sudo journalctl -m -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | oal_sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
+    oal_sudo systemctl start $rsyslog_service
 }
 
 deploy_using_operators() {

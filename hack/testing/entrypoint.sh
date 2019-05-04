@@ -141,7 +141,7 @@ monitor_fluentd_pos() {
         local cursor=$( get_journal_pos_cursor )
         if [ -n "$cursor" ] ; then
             local startts=$( date +%s )
-            local count=$( sudo journalctl -m -c $cursor | wc -l )
+            local count=$( oal_sudo journalctl -m -c $cursor | wc -l )
             local endts=$( date +%s )
             echo $endts $( expr $endts - $startts ) $count
         else
@@ -154,7 +154,7 @@ monitor_fluentd_pos() {
 monitor_journal_lograte() {
     local interval=60
     while true ; do
-        count=$( sudo journalctl -m -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
+        count=$( oal_sudo journalctl -m -S "$( date +'%Y-%m-%d %H:%M:%S' --date="$interval seconds ago" )" | wc -l )
         echo $( date +%s ) $count
         sleep $interval
     done  > $ARTIFACT_DIR/monitor_journal_lograte.log 2>&1

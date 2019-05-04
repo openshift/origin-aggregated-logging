@@ -39,8 +39,8 @@ fi
 os::log::info Starting fluentd-plugin-remote-syslog tests at $( date )
 
 # clear the journal
-sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
-sudo systemctl restart systemd-journald 2>&1 | artifact_out
+oal_sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+oal_sudo systemctl restart systemd-journald 2>&1 | artifact_out
 
 cleanup() {
     local return_code="$?"
@@ -56,15 +56,15 @@ cleanup() {
             get_mux_pod_log $mpod > $ARTIFACT_DIR/remote-syslog-$mpod.log 2>&1
         fi
         oc get events > $ARTIFACT_DIR/remote-syslog-events.txt 2>&1
-        sudo journalctl -m | grep fluentd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-fluentd.log 2>&1
-        sudo grep rsyslog /var/log/audit/audit.log > $ARTIFACT_DIR/remote-syslog-audit-rsyslog.log 2>&1
+        oal_sudo journalctl -m | grep fluentd | tail -n 30 > $ARTIFACT_DIR/remote-syslog-journal-fluentd.log 2>&1
+        oal_sudo grep rsyslog /var/log/audit/audit.log > $ARTIFACT_DIR/remote-syslog-audit-rsyslog.log 2>&1
         artifact_log "/var/log/messages files"
-        sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out
-        sudo tail -n 200 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
+        oal_sudo ls -ltZ /var/log/messages* 2>&1 | artifact_out
+        oal_sudo tail -n 200 /var/log/messages > $ARTIFACT_DIR/remote-syslog-messages.log 2>&1
         if [ -n "${teststart-:}" ] ; then
-            sudo journalctl -m -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
-            sudo journalctl -m -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
-            sudo journalctl -m -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
+            oal_sudo journalctl -m -S "$teststart" -u rsyslog > $ARTIFACT_DIR/remote-syslog-journal-rsyslog.log 2>&1
+            oal_sudo journalctl -m -S "$teststart" -u systemd-journald > $ARTIFACT_DIR/remote-syslog-journal-journald.log 2>&1
+            oal_sudo journalctl -m -S "$teststart" > $ARTIFACT_DIR/remote-syslog-journal.log 2>&1
         fi
     fi
 
@@ -87,12 +87,12 @@ cleanup() {
     #   $ModLoad imtcp
     #   $InputTCPServerRun 514
     if [ -n "${rsyslogconfbakup:-}" -a -f "${rsyslogconfbakup:-}" ]; then
-        sudo cp $rsyslogconfbakup /etc/rsyslog.conf
+        oal_sudo cp $rsyslogconfbakup /etc/rsyslog.conf
     fi
     if [ -n "${rsyslogconfbakup2:-}" -a -f "${rsyslogconfbakup2:-}" ]; then
-        sudo mv $rsyslogconfbakup2 /etc/rsyslog.d
+        oal_sudo mv $rsyslogconfbakup2 /etc/rsyslog.d
     fi
-    sudo systemctl restart rsyslog 2>&1 | artifact_out
+    oal_sudo systemctl restart rsyslog 2>&1 | artifact_out
 
     os::test::junit::reconcile_output
     exit $return_code
@@ -280,43 +280,43 @@ title="Test 6, use rsyslogd on the node"
 os::log::info $title
 
 artifact_log iptables ACCEPT ${ALTPORT}
-sudo iptables -A INPUT -m tcp -p tcp --dport ${ALTPORT} -j ACCEPT > $ARTIFACT_DIR/remote-syslog-iptables-accept.txt 2>&1 || :
-sudo iptables -L > $ARTIFACT_DIR/remote-syslog-iptables-list.txt 2>&1 || :
+oal_sudo iptables -A INPUT -m tcp -p tcp --dport ${ALTPORT} -j ACCEPT > $ARTIFACT_DIR/remote-syslog-iptables-accept.txt 2>&1 || :
+oal_sudo iptables -L > $ARTIFACT_DIR/remote-syslog-iptables-list.txt 2>&1 || :
 
 # Make sure rsyslogd is listening on port 514 up and running
 #   Provides TCP syslog reception
 #   $ModLoad imtcp
 #   $InputTCPServerRun 514 -> 601
 rsyslogconfbakup=$( mktemp )
-sudo cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.orig
-sudo cp /etc/rsyslog.conf $rsyslogconfbakup
-sudo sed -i -e 's/^#*\(\$ModLoad imtcp\)/\1/' -e "s/^#*\(\$InputTCPServerRun\) 514/\1 ${ALTPORT}/" \
+oal_sudo cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.orig
+oal_sudo cp /etc/rsyslog.conf $rsyslogconfbakup
+oal_sudo sed -i -e 's/^#*\(\$ModLoad imtcp\)/\1/' -e "s/^#*\(\$InputTCPServerRun\) 514/\1 ${ALTPORT}/" \
          -e 's/\(\$ModLoad imuxsock\)/#\1/' -e 's/\(\$ModLoad imjournal\)/#\1/' -e 's/\(\$OmitLocalLogging\)/#\1/' \
          -e 's/\(\$IMJournalStateFile imjournal.state\)/#\1/' -e 's/\(\$ActionFileEnableSync\)/#\1/' \
          -e 's/\(#### RULES .*\)/\1\n\$template precise,"%syslogpriority%,%syslogfacility%,%timegenerated%,%HOSTNAME%,%syslogtag%,%msg%\\n"/' \
          -e 's/^*.info;mail.none;authpriv.none;cron.none *\(\/var\/log\/messages\)/*.* \1;precise/' \
          /etc/rsyslog.conf
-sudo ls -l /etc/rsyslog.d | artifact_out || :
+oal_sudo ls -l /etc/rsyslog.d | artifact_out || :
 rsyslogconfbakup2=/tmp/listen.conf
-if sudo test -f /etc/rsyslog.d/listen.conf ; then
-    sudo mv /etc/rsyslog.d/listen.conf $rsyslogconfbakup2
+if oal_sudo test -f /etc/rsyslog.d/listen.conf ; then
+    oal_sudo mv /etc/rsyslog.d/listen.conf $rsyslogconfbakup2
 fi
-sudo cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.modified
+oal_sudo cat /etc/rsyslog.conf > $ARTIFACT_DIR/remote-syslog-rsyslog.conf.modified
 
 # date in journalctl -S format
 teststart=$( date "+%Y-%m-%d %H:%M:%S" )
 artifact_log Before restarting rsyslog
-sudo systemctl status rsyslog 2>&1 | artifact_out || :
-os::cmd::expect_success "sudo systemctl stop rsyslog"
-sudo mv /var/log/messages /var/log/messages."$( date +%Y%m%d-%H%M%S )" || :
-sudo touch /var/log/messages || :
-sudo chmod 600 /var/log/messages || :
-sudo semanage fcontext -a -t var_log_t -s system_u /var/log/messages 2>&1 | artifact_out || :
-sudo restorecon -vF /var/log/messages 2>&1 | artifact_out || :
-os::cmd::expect_success "sudo systemctl start rsyslog"
+oal_sudo systemctl status rsyslog 2>&1 | artifact_out || :
+os::cmd::expect_success "oal_sudo systemctl stop rsyslog"
+oal_sudo mv /var/log/messages /var/log/messages."$( date +%Y%m%d-%H%M%S )" || :
+oal_sudo touch /var/log/messages || :
+oal_sudo chmod 600 /var/log/messages || :
+oal_sudo semanage fcontext -a -t var_log_t -s system_u /var/log/messages 2>&1 | artifact_out || :
+oal_sudo restorecon -vF /var/log/messages 2>&1 | artifact_out || :
+os::cmd::expect_success "oal_sudo systemctl start rsyslog"
 artifact_log After restarted rsyslog
-sudo systemctl status rsyslog 2>&1 | artifact_out || :
-sudo cat /etc/systemd/journald.conf > $ARTIFACT_DIR/remote-syslog-journald.conf
+oal_sudo systemctl status rsyslog 2>&1 | artifact_out || :
+oal_sudo cat /etc/systemd/journald.conf > $ARTIFACT_DIR/remote-syslog-journald.conf
 
 myhost=$( hostname )
 
@@ -364,11 +364,11 @@ artifact_log ping $myhost from $mypod
 oc exec $mypod -- ping $myhost -c 3 | artifact_out || :
 
 # wait for the precise formatted logs are found in /var/log/messages
-# os::cmd::try_until_text "sudo egrep \"^[0-6],[0-9]*,\" /var/log/messages" "[0-6],[0-9]*,.*" $MUX_WAIT_TIME
-# sudo egrep \"^[0-6],[0-9]*,\" /var/log/messages | tail -n 5 | artifact_out || :
+# os::cmd::try_until_text "oal_sudo egrep \"^[0-6],[0-9]*,\" /var/log/messages" "[0-6],[0-9]*,.*" $MUX_WAIT_TIME
+# oal_sudo egrep \"^[0-6],[0-9]*,\" /var/log/messages | tail -n 5 | artifact_out || :
 
 artifact_log docker info
-sudo docker info | artifact_out || :
+oal_sudo docker info | artifact_out || :
 
 getappsmsg() {
     appsmessage=$1
@@ -384,14 +384,14 @@ rc=0
 if ! wait_for_fluentd_to_catch_up getappsmsg getopsmsg ; then
     rc=1
 fi
-if ! os::cmd::try_until_success "sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
+if ! os::cmd::try_until_success "oal_sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
     rc=1
 fi
-sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
-if ! os::cmd::try_until_success "sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
+oal_sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "oal_sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
     rc=1
 fi
-sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
+oal_sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
 if [ $rc -eq 1 ] ; then
     exit 1
 fi
@@ -436,14 +436,14 @@ artifact_log $title $mypod
 if ! wait_for_fluentd_to_catch_up getappsmsg getopsmsg ; then
     rc=1
 fi
-if ! os::cmd::try_until_success "sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
+if ! os::cmd::try_until_success "oal_sudo egrep -q '${opsmessage}\$' /var/log/messages" $MUX_WAIT_TIME ; then
     rc=1
 fi
-sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
-if ! os::cmd::try_until_success "sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
+oal_sudo egrep "${opsmessage}$" /var/log/messages 2>&1 | artifact_out || :
+if ! os::cmd::try_until_success "oal_sudo egrep -q '${appsmessage}' /var/log/messages" $MUX_WAIT_TIME ; then
     rc=1
 fi
-sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
+oal_sudo egrep "/${appsmessage}" /var/log/messages 2>&1 | artifact_out || :
 if [ $rc -eq 1 ] ; then
     exit 1
 fi

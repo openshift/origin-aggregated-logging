@@ -32,9 +32,9 @@ cleanup() {
   get_all_logging_pod_logs
   oc get -n ${LOGGING_NS} --all 2>&1 | artifact_out
   if type -p docker > /dev/null 2>&1 ; then
-    sudo docker images|grep logging 2>&1 | artifact_out
-    sudo docker images|grep oauth 2>&1 | artifact_out
-    sudo docker images|grep eventrouter 2>&1 | artifact_out
+    oal_sudo docker images|grep logging 2>&1 | artifact_out
+    oal_sudo docker images|grep oauth 2>&1 | artifact_out
+    oal_sudo docker images|grep eventrouter 2>&1 | artifact_out
   fi
   oc get events > $ARTIFACT_DIR/events.txt 2>&1
 

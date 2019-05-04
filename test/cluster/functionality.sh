@@ -119,7 +119,7 @@ for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
 		for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}"  -o jsonpath='{ .items[*].metadata.name }' ); do
 			os::log::info "Checking for index ${index} with Kibana pod ${kibana_pod}..."
 			# As we're checking system log files, we need to use `sudo`
-			os::cmd::expect_success "sudo -E env PATH=$PATH VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
+			os::cmd::expect_success "oal_sudo -E env PATH=$PATH VERBOSE=true go run '${OS_O_A_L_DIR}/hack/testing/check-logs.go' '${kibana_pod}' '${elasticsearch_api}' '${index}' '${index_search_path}' '${query_size}' '${test_user}' '${test_token}' '${test_ip}'"
 		done
 	done
 
