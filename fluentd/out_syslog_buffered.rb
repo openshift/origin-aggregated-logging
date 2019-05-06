@@ -97,14 +97,14 @@ module Fluent
         @packet.hostname = record['hostname'] || hostname
         @packet.severity = (record['level'].eql? 'warning')? 'warn' : record['level'] || @severity
         if @use_record && record.key?('systemd') && (record['systemd']).key?('u') && (record['systemd']['u']).key?('SYSLOG_FACILITY')
-          fval = record['systemd']['u']['SYSLOG_FACILITY'].to_i
-          if (1..23).include?(fval)
-            @packet.facility = fval
-          else
-            if record['systemd']['u']['SYSLOG_FACILITY'].eql? '0'
-              @packet.facility = 0
-            else
-              @packet.facility = record['systemd']['u']['SYSLOG_FACILITY'] || @facility
+          begin
+            @packet.facility = record['systemd']['u']['SYSLOG_FACILITY']
+          rescue
+            begin
+              @packet.facility = Integer(record['systemd']['u']['SYSLOG_FACILITY'])
+            rescue
+              log.warn "out:syslog: invalid facility value #{record['systemd']['u']['SYSLOG_FACILITY']}; reset to default #{@facility}"
+              @packet.facility = @facility
             end
           end
         elsif record.key?('_KERNEL_DEVICE')
