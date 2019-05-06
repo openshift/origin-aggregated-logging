@@ -26,11 +26,13 @@ cleanup() {
   for r in dc ds cronjob deployment ; do
     for it in $( oc get -n ${LOGGING_NS} $r -o jsonpath='{.items[*].metadata.name}' ) ; do
       oc describe -n ${LOGGING_NS} $r $it > $ARTIFACT_DIR/$r.$it.describe 2>&1
+      oc get -n ${LOGGING_NS} $r $it -o yaml > $ARTIFACT_DIR/$r.$it.yaml 2>&1
     done
   done
 
   get_all_logging_pod_logs
-  oc get -n ${LOGGING_NS} --all 2>&1 | artifact_out
+  oc get -n ${LOGGING_NS} all --include-uninitialized=true 2>&1 | artifact_out
+  oc get -n ${LOGGING_NS} pods -o wide 2>&1 | artifact_out
   if type -p docker > /dev/null 2>&1 ; then
     oal_sudo docker images|grep logging 2>&1 | artifact_out
     oal_sudo docker images|grep oauth 2>&1 | artifact_out

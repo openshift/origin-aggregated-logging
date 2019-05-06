@@ -117,7 +117,7 @@ update_current_fluentd() {
 
     oc set env $fluentd_ds FILE_BUFFER_LIMIT=${MY_FILE_BUFFER_LIMIT} BUFFER_SIZE_LIMIT=${MY_BUFFER_SIZE_LIMIT} 2>&1 | artifact_out
     # redeploy fluentd
-    CLEANBUFFERS=false start_fluentd true 2>&1 | artifact_out
+    start_fluentd true 2>&1 | artifact_out
     artifact_log update_current_fluentd $cnt
     fpod=$( get_running_pod fluentd ) || :
     artifact_log update_current_fluentd $cnt
@@ -187,7 +187,6 @@ create_forwarding_fluentd() {
        --path=/var/lib/fluentd-forward${id} --mount-path=/var/lib/fluentd 2>&1 | artifact_out
     # make it use a different log file than fluentd
     oc set env daemonset/logging-forward-fluentd${id} LOGGING_FILE_PATH=/var/log/fluentd/forward.$id.log 2>&1 | artifact_out
-    flush_fluentd_pos_files 2>&1 | artifact_out
     oc label node -l logging-infra-fluentd=true logging-infra-forward-fluentd${id}=true 2>&1 | artifact_out
 
     # wait for forward-fluentd to start
