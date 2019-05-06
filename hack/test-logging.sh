@@ -89,9 +89,18 @@ for dp in $( oc get deploy -l component=elasticsearch -o name ) ; do
     fi
 done
 
+echo before patching kibana
+oc get pods -o wide
+
 # the ci test pod, kibana pod, and fluentd/rsyslog pod, all have to run on the same node
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
+
+# make sure nodeSelectors are set correctly if restarted later by CLO
+oc patch clusterlogging instance --type=json --patch '[
+    {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-ci-test":"true"}},
+    {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
+    {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
@@ -126,10 +135,13 @@ oc create secret generic logging-ci-test-kubeconfig \
 if [ -n "${ARTIFACT_DIR:-}" ] ; then
     artifact_dir_arg="-p ARTIFACT_DIR=$ARTIFACT_DIR"
 fi
+if [ -n "${TEST_SUITES:-}" ] ; then
+    test_suites_arg="-p TEST_SUITES=${TEST_SUITES}"
+fi
 oc process -p TEST_ROOT=$testroot \
     -p TEST_NAMESPACE_NAME=$( oc project -q ) \
     -p TEST_IMAGE=$testimage \
-    ${artifact_dir_arg:-} \
+    ${artifact_dir_arg:-} ${test_suites_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 
 wait_func() {
@@ -140,11 +152,14 @@ if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output
     logging_err_exit
 fi
 
+echo after starting logging-ci-test-runner
+oc get pods -o wide
+
 # this will exit with error when the pod exits - ignore that error
 get_test_logs() {
     set +o pipefail
     echo begin tailing logs at $( date --rfc-3339=sec )
-    oc logs -f logging-ci-test-runner 2>&1 | tee $ARTIFACT_DIR/logging-test-output || :
+    oc exec logging-ci-test-runner -- tail -F $ARTIFACT_DIR/logging-test-output 2>&1 | tee $ARTIFACT_DIR/logging-test-output || :
     echo stop tailing logs at $( date --rfc-3339=sec )
     set -o pipefail
 }

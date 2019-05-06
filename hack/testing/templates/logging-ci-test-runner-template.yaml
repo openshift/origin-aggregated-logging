@@ -24,6 +24,17 @@ objects:
       - bash
       - -c
       - |-
+        my_artifact_dir=${ARTIFACT_DIR}
+        if [ -n "$my_artifact_dir" ] ; then
+          logging_output=$my_artifact_dir/logging-test-output
+          if [ ! -d $my_artifact_dir ] ; then
+            mkdir -p $my_artifact_dir
+          fi
+        else
+          logging_output=$( mktemp )
+        fi
+        echo redirecting all logging test pod output to $logging_output
+        exec > $logging_output 2>&1
         set -euxo pipefail
         if [ -d /logging-test -a -f /logging-test/Makefile -a -d /logging-test/test ] ; then
           # user is hostmounting origin-aggregated-logging
@@ -39,6 +50,7 @@ objects:
         # variable evaluation
         export ARTIFACT_DIR=${ARTIFACT_DIR}
         set -u
+        export SUITE="${TEST_SUITES}"
         . openshift/ci-operator/build-image/launch-e2e-test.sh
 
       volumeMounts:
@@ -128,5 +140,8 @@ parameters:
 - description: the directory where to write the test artifacts
   value: ''
   name: ARTIFACT_DIR
+- description: test suites to run
+  value: '.*'
+  name: TEST_SUITES
 labels:
   test: "true"
