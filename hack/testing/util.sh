@@ -444,6 +444,26 @@ function get_journal_pos_cursor() {
     fi
 }
 
+function wait_for_journal_apps_ops_msg() {
+    local fullmsg="$1"
+    local uuid_es_ops="$2"
+    oal_sudo journalctl -m -f -o export 2>&1 | \
+        awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
+        -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+            BEGIN{RS="";FS="\n"};
+            $0 ~ es {print > es_out; app += 1; if (app && op) {exit 0}};
+            $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
+            '
+}
+
+function wait_for_ops_log_message() {
+    local uuid_es_ops="$1"
+    oal_sudo journalctl -m -f -o export 2>&1 | \
+        awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+            BEGIN{RS="";FS="\n"};
+            $0 ~ es_ops {print > es_ops_out; exit 0}'
+}
+
 function wait_for_apps_log_message() {
     local podprefix="$1" # this should match /var/log/containers/$podprefix*
     local fullmsg="$2"
@@ -480,22 +500,14 @@ function wait_for_fluentd_to_catch_up() {
 
     # look for the messages in the source
     local fullmsg="GET /${uuid_es} 404 "
-    local checkpids
+    local checkpids=""
     if docker_uses_journal ; then
-        oal_sudo journalctl -m -f -o export | \
-            awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
-            -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
-                BEGIN{RS="";FS="\n"};
-                $0 ~ es {print > es_out; app += 1; if (app && op) {exit 0}};
-                $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
-                ' 2>&1 | artifact_out & checkpids=$!
+        wait_for_journal_apps_ops_msg "$fullmsg" "$uuid_es_ops" 2>&1 | artifact_out & checkpids=$!
     else
-        oal_sudo journalctl -m -f -o export | \
-            awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
-                BEGIN{RS="";FS="\n"};
-                $0 ~ es_ops {print > es_ops_out; exit 0}' 2>&1 | artifact_out & checkpids=$!
-        wait_for_apps_log_message "$apps_pod_prefix" "$fullmsg" & checkpids="$checkpids $!"
+        wait_for_ops_log_message "$uuid_es_ops" 2>&1 | artifact_out & checkpids=$!
+        wait_for_apps_log_message "$apps_pod_prefix" "$fullmsg" 2>&1 | artifact_out & checkpids="$checkpids $!"
     fi
+    trap "kill $checkpids > /dev/null 2>&1 || : ; sleep 2; kill -9 $checkpids > /dev/null 2>&1 || :" RETURN
 
     add_test_message $uuid_es
     artifact_log added es message $uuid_es
@@ -582,9 +594,6 @@ function wait_for_fluentd_to_catch_up() {
         curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_desc.json 2>&1 || :
         rc=1
     fi
-
-    kill $checkpids > /dev/null 2>&1 || :
-    kill -9 $checkpids > /dev/null 2>&1 || :
 
     local endtime=$( date +%s.%9N )
     local endsecs=$( date --date=@${endtime} +%s )
