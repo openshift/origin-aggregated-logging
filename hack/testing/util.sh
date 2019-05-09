@@ -746,10 +746,8 @@ start_fluentd() {
 
     if [ "$cleanfirst" != false ] ; then
         flush_fluentd_pos_files
-        oal_sudo rm -rf /var/log/fluentd/fluentd.log
-        if [ "${CLEANBUFFERS:-true}" = true ] ; then
-            oal_sudo rm -rf /var/lib/fluentd/*
-        fi
+        oal_sudo rm -f /var/log/fluentd/fluentd.log
+        oal_sudo rm -rf /var/lib/fluentd/*
     fi
     oc label node -l logging-infra-fluentd=false --overwrite logging-infra-fluentd=true
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^(logging-)*fluentd-.* Running " $wait_time
