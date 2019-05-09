@@ -47,24 +47,21 @@ oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > "${ARTIFACT_DIR}/logging-fluentd-o
 
 # patch fluentd and the node to make it easier to test in new environment
 if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
-    tolerations="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.tolerations}' )"
-    if [ -n "$tolerations" ] ; then
-        oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
-            {"op":"remove","path":"/spec/template/spec/tolerations"}]'
-    fi
-    nodesel="$( oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{.spec.template.spec.nodeSelector}' )"
-    if [ -z "$nodesel" ] ; then
-        oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
-            {"op":"add","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
-        oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
-            {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-infra-fluentd":"true"}},
-            {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}}]'
-    fi
     kibnode=$( oc get -n ${LOGGING_NS} pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
-    oc label node $kibnode --overwrite logging-infra-fluentd=true
+    oc label node $kibnode --overwrite logging-infra-fluentd=true logging-infra-rsyslog=true
+    oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
+        {"op":"remove","path":"/spec/template/spec/tolerations"},
+        {"op":"replace","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
+    # make sure nodeSelectors are set correctly if restarted by clo
+    oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
+        {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-infra-fluentd":"true"}},
+        {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}}]'
     # wait until there is only 1 fluentd running on the kibana node
     os::cmd::try_until_text "oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{ .status.numberReady }'" '^1$' $(( 2 * minute ))
     os::cmd::try_until_text "oc get -n ${LOGGING_NS} pods -l component=fluentd -o jsonpath='{.items[0].spec.nodeName}'" "$kibnode" $(( 2 * minute ))
+    echo after patching fluentd
+    oc get -n ${LOGGING_NS} pods -o wide
+    oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > $ARTIFACT_DIR/fluentd_daemonset.yaml
     # richm 20190117
     # these tests need ability to create user with token
     # check-logs test-access-control test-kibana-dashboards test-multi-tenancy
@@ -242,14 +239,21 @@ function run_suite() {
 # done with entrypoint/boostrapping - begin main tests
 os::test::junit::declare_suite_end
 
+# disable pathname expansion for SUITE and EXCLUDE_SUITE
+# e.g. .* will expand to . .. .gitignore .travis.yml
+# we do not want that
+set -f
 EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
 for suite_selector in ${SUITE:-".*"} ; do
+  set +f
   for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'check-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
 	run_suite "${test}"
   done
 done
 
+set -f
 for suite_selector in ${SUITE:-".*"} ; do
+  set +f
   for test in $( find "${OS_O_A_L_DIR}/hack/testing" -type f -name 'test-*.sh' | grep -E "${suite_selector}" | grep -Ev "${EXCLUDE_SUITE}" | sort ); do
 	run_suite "${test}"
   done
