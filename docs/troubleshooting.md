@@ -98,6 +98,144 @@ for p in $(oc get pods -l component=es -o jsonpath={.items[*].metadata.name}); d
   oc exec -c elasticsearch $ES_POD -- touch /opt/app-root/src/init_failures;  \
 done
 ```
+### Elasticsearch performance degrades around 00:00 UTC
+This situation is a result of Elasticsearch processing bulk index requests from all the nodes in the OKD cluster for
+logs for the new day.  Creation of a significant number of new indices simultaneously can cause bulk index processing 
+to slow down as it waits for all members of the cluster to become aware of each new index.  This
+is likely to happen when there are many active projects (namespaces) in a cluster, since each projects has its own index.
+```
+apiVersion: v1
+kind: Template
+metadata:
+  name: indices-precreate
+objects:
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: precreate-indices
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    verbs:
+    - list
+    - get
+  - apiGroups:
+    - ""
+    resources:
+    - pods/exec
+    verbs:
+    - create
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: precreate-indices
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: precreate-indices
+  subjects:
+  - kind: ServiceAccount
+    name: ${CRON_SERVICE_ACCOUNT}
+    namespace: ${LOGGING_NAMESPACE}
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    name: precreate-indices
+    labels:
+       provider: openshift
+       logging-infra: indices-precreate
+  spec:
+    schedule: "${CRON_SCHEDULE}"
+    jobTemplate:
+      spec:
+        template:
+          metadata:
+            labels:
+              provider: openshift
+              logging-infra: indices-precreate
+          spec:
+            serviceAccount: ${CRON_SERVICE_ACCOUNT}
+            serviceAccountName: ${CRON_SERVICE_ACCOUNT}
+            containers:
+            - name: cli
+              image: ${CLI_IMAGE}
+              command: ["/bin/bash", "-c"]
+              args:
+              - echo "Starting pre-create of indices for Cluster Logging Elasticsearch...";
+                function finish {
+                  rm -rf $TMPDIR;
+                };
+                trap finish EXIT;
+                TMPDIR=$(mktemp -d);
+                function task_wait_time_millis() {
+                    oc exec -n ${LOGGING_NAMESPACE} -c elasticsearch $es_pod -- es_util --query="_cluster/health" < /dev/null | python -c 'import sys, json; print json.load(sys.stdin)["task_max_waiting_in_queue_millis"]';
+                };
+                TODAY=$(date "+%Y.%m.%d");
+                TODAYSED=$(date "+%Y\\.%m\\.%d");
+                TOMOR=$(date --date="12:00 tomorrow" "+%Y.%m.%d");
+                es_pod=$(basename $(oc get pods -n ${LOGGING_NAMESPACE} -l component=${ES_COMPONENT_NAME} -o name | head -n 1));
+                oc exec -n ${LOGGING_NAMESPACE} -c elasticsearch $es_pod -- indices | grep -E '^(green  open)' | grep -E 'project.|.operations.|.orphaned.' | sort -k 3 > $TMPDIR/all.lis;
+                grep -F "$TODAY" $TMPDIR/all.lis | awk '{if ($7 > 0) { print $3 }}' > $TMPDIR/today.lis;
+                grep -F "$TOMOR" $TMPDIR/all.lis | awk '{ print $3 }' > $TMPDIR/tomor.lis;
+                sed "s/\.${TODAYSED}/.${TOMOR}/" $TMPDIR/today.lis > $TMPDIR/tomor-new.lis;
+                cat $TMPDIR/tomor.lis $TMPDIR/tomor-new.lis | sort | uniq -c | grep -Ev "  2 (project\.|.operations.|.orphaned.)" | awk '{print $2}' | grep -F "$TOMOR" > $TMPDIR/create.lis;
+                let total=$(wc -l $TMPDIR/create.lis | awk '{ print $1 }');
+                if [ $total -eq 0 ]; then
+                    echo "Exiting early. There is no reason to precreate any indices";
+                    exit 0;
+                fi;
+                echo "Creating ${total} new indices...";
+                function wait_for_low_task_queue {
+                    mtwt=$(task_wait_time_millis);
+                    if [ $mtwt -gt ${PENDING_WAIT_TIME_THRESHOLD_MILLIS} ]; then
+                        while [ $mtwt -gt ${PENDING_WAIT_TIME_UPPER_LIMIT_MILLIS} ]; do
+                            echo "    Waiting for 'task_max_waiting_in_queue_millis' to drop to one second or under";
+                            sleep 5;
+                            mtwt=$(task_wait_time_millis);
+                        done
+                    fi;
+                };
+                let cnt=0;
+                while read idx; do
+                    wait_for_low_task_queue;
+                    let cnt=cnt+1;
+                    echo "  creating ($cnt of $total) $idx ...";
+                    oc exec -n ${LOGGING_NAMESPACE} -c elasticsearch $es_pod -- es_util --query=$idx -XPUT < /dev/null;
+                done < $TMPDIR/create.lis
+            restartPolicy: OnFailure
+parameters:
+- name: CLI_IMAGE
+  value: openshift/origin-cli:latest
+  description: "The image to use to execute the script"
+- name: CRON_SCHEDULE
+  value: "0 4,8,12,16,20 * * *"
+  description: "The schedule to to pre-create indices. Defaults to every 4 hours except midnight"
+- name: PENDING_WAIT_TIME_THRESHOLD_MILLIS
+  value: "30000"
+  description: "The lower threshold of pending task queue wait time before proceeding"
+- name: PENDING_WAIT_TIME_UPPER_LIMIT_MILLIS
+  value: "1000"
+  description: "The upper bound for pending tasks in millis"
+- name: LOGGING_NAMESPACE
+  value: openshift-logging
+  description: "The logging namespace"
+- name: CRON_SERVICE_ACCOUNT
+  value: aggregated-logging-elasticsearch
+  description: "The serviceaccount name"
+- name: ES_COMPONENT_NAME
+  value: es
+  description: "The component label for Elasticsearch"
+
+```
+Create the `CronJob` by processing and applying the template:
+```
+$ oc process -f precreate-indices.yml  | oc apply -f -
+```
+
+See the [Kubernetes documentation](https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/#suspend)  about how
+to suspend this job if necessary.
 
 ## Fluentd
 ### Fluentd is holding onto deleted journald files that have been rotated
