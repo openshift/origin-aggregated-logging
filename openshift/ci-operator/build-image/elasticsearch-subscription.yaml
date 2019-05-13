@@ -2,9 +2,9 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   generateName: elasticsearch-
-  namespace: openshift-operators
+  namespace: openshift-operators-redhat
 spec:
   source: elasticsearch
-  sourceNamespace: openshift-operators
+  sourceNamespace: openshift-operators-redhat
   name: elasticsearch-operator
   channel: preview

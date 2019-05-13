@@ -18,7 +18,7 @@ set -eux
 logging_err_exit() {
     oc get deploy >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
-    oc -n openshift-operators get elasticsearch >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc -n $ESO_NS get elasticsearch >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get clusterlogging >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get crds >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc describe pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
@@ -66,42 +66,55 @@ else
     USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-false}
 fi
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
+ESO_NS=${ESO_NS:-openshift-operators-redhat}
 TEST_OBJ_DIR=${TEST_OBJ_DIR:-openshift/ci-operator/build-image}
 ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
 if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
-# Create the openshift-logging namespace:
-oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
+# Create the $LOGGING_NS namespace:
+if oc get project $LOGGING_NS > /dev/null 2>&1 ; then
+    echo using existing project $LOGGING_NS
+else
+    oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
+fi
+# Create the $ESO_NS namespace:
+if oc get project $ESO_NS > /dev/null 2>&1 ; then
+    echo using existing project $ESO_NS
+else
+    oc create -f $TEST_OBJ_DIR/openshift-operators-redhat-namespace.yaml
+fi
 oc get projects | grep logging || :
 
-# Create an OperatorGroup for openshift-logging:
+# Create an OperatorGroup for $LOGGING_NS:
 oc -n ${LOGGING_NS} create -f $TEST_OBJ_DIR/openshift-logging-operatorgroup.yaml
+# Create an OperatorGroup for $ESO_NS:
+oc -n $ESO_NS create -f $TEST_OBJ_DIR/openshift-operators-redhat-operatorgroup.yaml
 
 # Create the CatalogSourceConfig for the elasticsearch-operator in the namespace openshift-marketplace:
 oc create -n openshift-marketplace -f $TEST_OBJ_DIR/elasticsearch-catalogsourceconfig.yaml
 oc get -n openshift-marketplace CatalogSourceConfig | grep elasticsearch || :
 
-# Create the subscription for elasticsearch in the namespace openshift-operators:
-oc create -n openshift-operators -f $TEST_OBJ_DIR/elasticsearch-subscription.yaml
-oc get -n openshift-operators subscriptions | grep elasticsearch || :
+# Create the subscription for elasticsearch in the namespace $ESO_NS:
+oc create -n $ESO_NS -f $TEST_OBJ_DIR/elasticsearch-subscription.yaml
+oc get -n $ESO_NS subscriptions | grep elasticsearch || :
 
 # Create the CatalogSourceConfig for cluster-logging in the namespace openshift-marketplace:
 oc create -n openshift-marketplace -f $TEST_OBJ_DIR/cluster-logging-catalogsourceconfig.yaml
 oc get -n openshift-marketplace CatalogSourceConfig | grep logging || :
 
-# create the subscription in the namespace openshift-logging:
+# create the subscription in the namespace $LOGGING_NS:
 oc create -n ${LOGGING_NS} -f $TEST_OBJ_DIR/cluster-logging-subscription.yaml
 oc get -n ${LOGGING_NS} subscriptions | grep logging || :
 
 # at this point, the cluster-logging-operator should be deployed in the
-# openshift-logging namespace
+# $LOGGING_NS namespace
 oc project ${LOGGING_NS}
 
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 wait_func() {
-    oc -n openshift-operators get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
+    oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
     oc get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
 }
 if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
@@ -125,7 +138,7 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     fi
 
     clopod=$( oc get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
-    eopod=$( oc -n openshift-operators get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+    eopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
 
     # update the images to use in the CLO
     if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
@@ -177,13 +190,13 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
                 --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$cloimg"'"}]'
         fi
         if [ "${USE_EO_LATEST_IMAGE:-false}" = true -a -n "${eoimg:-}" ] ; then
-            oc -n openshift-operators patch deploy/elasticsearch-operator --type=json \
+            oc -n $ESO_NS patch deploy/elasticsearch-operator --type=json \
                 --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$eoimg"'"}]'
             # doing the oc patch will restart eo - check to make sure it was restarted
             wait_func() {
                 # wait until the old eo pod is not running and a new one is
-                ! oc -n openshift-operators get pods $eopod > /dev/null 2>&1 && \
-                oc -n openshift-operators get pods | grep -q '^elasticsearch-operator-.* Running'
+                ! oc -n $ESO_NS get pods $eopod > /dev/null 2>&1 && \
+                oc -n $ESO_NS get pods | grep -q '^elasticsearch-operator-.* Running'
             }
             if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
                 echo ERROR: elasticsearch-operator pod was not restarted
@@ -205,7 +218,7 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     oc set env deploy/cluster-logging-operator --list | grep _IMAGE=
 fi
 
-oc -n openshift-logging create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
+oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 
 wait_func() {
     oc get pods 2> /dev/null | grep -q 'kibana.*Running' && \
