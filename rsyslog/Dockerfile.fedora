@@ -5,6 +5,7 @@ MAINTAINER https://github.com/ViaQ/rsyslog-container
 RUN dnf -y install rsyslog rsyslog-elasticsearch \
     rsyslog-mmkubernetes rsyslog-mmjsonparse rsyslog-kafka \
     rsyslog-mmnormalize rsyslog-relp rsyslog-gssapi \
+    cronie \
     && dnf clean all
 
 LABEL install="docker run --rm --privileged -v /:/host \
@@ -33,5 +34,6 @@ LABEL run="docker run -d --privileged --name NAME \
 ADD install.sh /bin/install.sh
 ADD rsyslog.sh /bin/rsyslog.sh
 ADD uninstall.sh /bin/uninstall.sh
+COPY utils/** /usr/local/bin/
 
 CMD [ "/bin/rsyslog.sh" ]

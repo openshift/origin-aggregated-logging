@@ -78,28 +78,17 @@ docker_uses_journal() {
     return 1
 }
 
-if [ -z "${USE_MUX:-}" -o "${USE_MUX:-}" = "false" ] ; then
-    if [ -z "${JOURNAL_SOURCE:-}" ] ; then
-        if [ -d /var/log/journal ] ; then
-            export JOURNAL_SOURCE=/var/log/journal
-        else
-            export JOURNAL_SOURCE=/run/log/journal
-        fi
-    fi
-    if docker_uses_journal ; then
-        export USE_JOURNAL=true
+if [ -z "${JOURNAL_SOURCE:-}" ] ; then
+    if [ -d /var/log/journal ] ; then
+        export JOURNAL_SOURCE=/var/log/journal
     else
-        export USE_JOURNAL=false
+        export JOURNAL_SOURCE=/run/log/journal
     fi
-    unset MUX_FILE_BUFFER_STORAGE_TYPE
-else
-    # mux requires USE_JOURNAL=true so that the k8s meta plugin will look
-    # for CONTAINER_NAME instead of the kubernetes.var.log.containers.* tag
-    export USE_JOURNAL=true
 fi
-
-if [ ! -d /etc/fluent/muxkeys ]; then
-    unset MUX_CLIENT_MODE
+if docker_uses_journal ; then
+    export USE_JOURNAL=true
+else
+    export USE_JOURNAL=false
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
@@ -113,68 +102,15 @@ BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 # If not, give up one output tag per plugin for now.
 output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
 
-if [ "${USE_MUX:-}" = "true" ] ; then
-    # copy our standard mux configs to the openshift dir
-    cp $CFG_DIR/input-*-mux.conf $CFG_DIR/filter-*-mux.conf $CFG_DIR/openshift
-    # copy any user defined files, possibly overwriting the standard ones
-    for file in $CFG_DIR/user/input-*-mux.conf $CFG_DIR/user/filter-*-mux.conf ; do
-        if [ -f "$file" ] ; then
-            cp -f $file $CFG_DIR/openshift
-        fi
-    done
-    rm -f $CFG_DIR/dynamic/input-docker-* $CFG_DIR/dynamic/input-syslog-*
-    # disable systemd input
-    rm -f $CFG_DIR/openshift/input-pre-systemd.conf
-    touch $CFG_DIR/openshift/input-pre-systemd.conf
-    # mux is a normalizer
-    export PIPELINE_TYPE=normalizer
-else
-    ruby generate_throttle_configs.rb
-    rm -f $CFG_DIR/openshift/*mux*.conf
-    # have output plugins handle back pressure
-    # if you want the old behavior to be forced anyway, set env
-    # BUFFER_QUEUE_FULL_ACTION=exception
-    export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
-fi
+ruby generate_throttle_configs.rb
+# have output plugins handle back pressure
+# if you want the old behavior to be forced anyway, set env
+# BUFFER_QUEUE_FULL_ACTION=exception
+export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
 
 # this is the list of keys to remove when the record is transformed from the raw systemd journald
 # output to the viaq data model format
 K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
-
-if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
-    if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
-        # do not remove the CONTAINER_ fields - pass them through to mux
-        # sed assumes CONTAINER_ fields are neither first nor last fields in list
-        K8S_FILTER_REMOVE_KEYS=$( echo $K8S_FILTER_REMOVE_KEYS | \
-                                  sed -e 's/,CONTAINER_NAME,/,/g' -e 's/,CONTAINER_ID_FULL,/,/g' )
-        # tell the viaq filter not to construct an elasticsearch index name
-        # for project because we have no kubernetes metadata yet
-    elif [ "${MUX_CLIENT_MODE:-}" = minimal ] ; then
-        # retag container logs with .raw suffix so mux server will know it has to process
-        cp -f $CFG_DIR/filter-pre-mux-client-retag-raw.conf $CFG_DIR/openshift/filter-pre-mux-client-retag-raw.conf
-        if [ -z "${output_label}" ] ; then
-            # the above relies on having an output label - if there is no output label, rely
-            # on the fact that the input plugins all send their input directly to the
-            # @INGRESS label, rather than simply falling through to the next line
-            # in fluent.conf - add an input-post-output.conf which has the @OUTPUT
-            # label
-            cp -f $CFG_DIR/input-post-output.conf $CFG_DIR/openshift/input-post-output.conf
-        fi
-    fi
-    cp $CFG_DIR/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
-    # copy any user defined files, possibly overwriting the standard ones
-    if [ -f $CFG_DIR/user/filter-pre-mux-client.conf ] ; then
-        cp -f $CFG_DIR/user/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
-    fi
-    # rm k8s meta plugin - do not hit the API server - just do json parsing
-    if [ "${MUX_CLIENT_MODE:-}" = maximal ] ; then
-        cp -f $CFG_DIR/filter-parse-json-field.conf $CFG_DIR/openshift/filter-k8s-meta.conf
-    fi
-    # mux clients do not create elasticsearch index names
-    ENABLE_ES_INDEX_NAME=false
-else
-    rm -f $CFG_DIR/openshift/filter-pre-mux-client.conf $CFG_DIR/openshift/output-pre-mux-client.conf
-fi
 export K8S_FILTER_REMOVE_KEYS ENABLE_ES_INDEX_NAME
 
 if [ -z $ES_HOST ]; then
@@ -187,39 +123,23 @@ if [ -z $ES_PORT ]; then
 fi
 
 # How many outputs?
-if [ -n "${MUX_CLIENT_MODE:-}" ] ; then
-    # A fluentd collector configured as a mux client has just one output: sending to a mux.
+# check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
+if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
+    # There is one output Elasticsearch
     NUM_OUTPUTS=1
-    rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf
-    if [ -n "$output_label" ]; then
-        cp $CFG_DIR/{,openshift}/filter-post-z-mux-client.conf
+    # Disable "output-operations.conf"
+    rm -f $CFG_DIR/openshift/output-operations.conf
+    touch $CFG_DIR/openshift/output-operations.conf
+    if [ -n "$output_label"  ]; then
+        cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
     fi
-    # Enable "output-es-ops-config.conf in output-operations.conf"
-    # we need something there so output-operations.conf won't have an empty @copy without a <store> block
-    # but it won't actually be used in this case - output-pre-mux-client.conf will match everything
-    # before we get here
-    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
 else
-    # check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
-    if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
-        # There is one output Elasticsearch
-        NUM_OUTPUTS=1
-        # Disable "output-operations.conf"
-        rm -f $CFG_DIR/openshift/output-operations.conf
-        touch $CFG_DIR/openshift/output-operations.conf
-        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
-        if [ -n "$output_label"  ]; then
-            cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
-        fi
-    else
-        NUM_OUTPUTS=2
-        # Enable "output-es-ops-config.conf in output-operations.conf"
-        cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
-        cp $CFG_DIR/{openshift,dynamic}/output-es-ops-retry.conf
-        rm -f $CFG_DIR/openshift/filter-post-z-retag-*.conf $CFG_DIR/openshift/filter-post-mux-client.conf
-        if [ -n "$output_label" ]; then
-            cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
-        fi
+    NUM_OUTPUTS=2
+    # Enable "output-es-ops-config.conf in output-operations.conf"
+    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
+    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-retry.conf
+    if [ -n "$output_label" ]; then
+        cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
     fi
 fi
 
@@ -230,10 +150,6 @@ mkdir -p $FILE_BUFFER_PATH
 # Get the available disk size.
 DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
 DF_LIMIT=${DF_LIMIT:-0}
-if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = "hostmount" ]; then
-    # Use 1/4 of the disk space for hostmount.
-    DF_LIMIT=$(expr $DF_LIMIT / 4) || :
-fi
 if [ $DF_LIMIT -eq 0 ]; then
     echo "ERROR: No disk space is available for file buffer in $FILE_BUFFER_PATH."
     exit 1
@@ -249,13 +165,11 @@ fi
 forward_files=$( grep -l "@type .*forward" ${CFG_DIR}/*/* 2> /dev/null || : )
 for afile in ${forward_files} ; do
     file=$( basename $afile )
-    if [ "$file" != "${mux_client_filename:-}" ]; then
-        grep "@type .*forward" $afile | while read -r line; do
-            if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
-                NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
-            fi
-        done
-    fi
+    grep "@type .*forward" $afile | while read -r line; do
+        if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
+            NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
+        fi
+    done
 done
 
 TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $NUM_OUTPUTS) || :
@@ -304,9 +218,7 @@ fi
 
 # bug https://bugzilla.redhat.com/show_bug.cgi?id=1437952
 # pods unable to be terminated because fluentd has them busy
-if [ "${USE_MUX:-}" = "true" ] ; then
-    : # skip umount
-elif [ -d /var/lib/docker/containers ] ; then
+if [ -d /var/lib/docker/containers ] ; then
     # If oci-umount is fixed, we can remove this.
     if [ -n "${VERBOSE:-}" ] ; then
         echo "umounts of dead containers will fail. Ignoring..."
@@ -340,8 +252,8 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     fi
 fi
 
-# Disable process_kubernetes_events if TRANSFORM_EVENTS is false or MUX client.
-if [ "${TRANSFORM_EVENTS:-}" != true -o -n "${MUX_CLIENT_MODE:-}" ] ; then
+# Disable process_kubernetes_events if TRANSFORM_EVENTS is false client.
+if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
     sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
 fi
 
