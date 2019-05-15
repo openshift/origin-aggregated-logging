@@ -108,7 +108,9 @@ function get_private_repo_dir() {
         fi
         cp shared-secrets/mirror/ops-mirror.pem repos
       fi
-      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo ]; then
+      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo ]; then
+        cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
+      elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo ]; then
         cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo repos
       elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo ]; then
         cp $GOPATH/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo repos
@@ -116,7 +118,7 @@ function get_private_repo_dir() {
         if [ ! -d release ] ; then
           git clone -q https://github.com/openshift/release
         fi
-        cp release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo repos
+        cp release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
       fi
       touch repos/redhat.repo
       chmod 0444 repos/redhat.repo
@@ -124,8 +126,8 @@ function get_private_repo_dir() {
     fi
     INTERNAL_REPO_DIR=$( pwd )/repos
     popd > /dev/null
-  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.0-default.repo ] ; then
-    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.1-default.repo and ocp-4.0-default.repo
+  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.2-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.0-default.repo ] ; then
+    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.2-default.repo and ocp-4.1-default.repo and ocp-4.0-default.repo
     exit 1
   fi
   echo $INTERNAL_REPO_DIR
