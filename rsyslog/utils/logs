@@ -35,7 +35,7 @@ case $1 in
 done
 
 if [ $cmd = "cat" ] ; then
-    for log_file in $( ls $log_dir | sort -Vr ); do
+    for log_file in $( ls $log_dir/rsyslog* | sort -Vr ); do
         cat $log_dir/$log_file
     done
 else
