@@ -90,7 +90,7 @@ static struct ln_parser_info parser_lookup_table[] = {
 	PARSER_ENTRY_NO_DATA("duration", Duration, 16),
 	PARSER_ENTRY_NO_DATA("cisco-interface-spec", CiscoInterfaceSpec, 4),
 	PARSER_ENTRY_NO_DATA("name-value-list", NameValue, 8),
-	PARSER_ENTRY_NO_DATA("json", JSON, 4),
+	PARSER_ENTRY("json", JSON, 4),
 	PARSER_ENTRY_NO_DATA("cee-syslog", CEESyslog, 4),
 	PARSER_ENTRY_NO_DATA("mac48", MAC48, 16),
 	PARSER_ENTRY_NO_DATA("cef", CEF, 4),

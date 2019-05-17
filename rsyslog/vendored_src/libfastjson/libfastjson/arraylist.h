@@ -41,6 +41,9 @@ array_list_put_idx(struct array_list *al, int i, void *data);
 extern int
 array_list_add(struct array_list *al, void *data);
 
+extern void
+array_list_del_idx(struct array_list *const arr, const int idx);
+
 extern int
 array_list_length(struct array_list *al);
 

@@ -2316,6 +2316,85 @@ done:
 	return r;
 }
 
+/*
+ * Delete children of the given object if it has children and they are empty.
+ *
+ * return 0 if object is not empty
+ * return 1 if object is empty
+ * return < 0 if error
+ *
+ * Caller should do this:
+ * if (jsonSkipEmpty(obj) > 0) {
+ *     json_object_put(obj);
+ *     obj = NULL;
+ * }
+ * or otherwise not use obj if jsonSkipEmpty returns > 0.
+ */
+static int
+jsonSkipEmpty(struct json_object *__restrict__ json)
+{
+	int rc = 0;
+	struct json_object *val = NULL;
+
+	if(json == NULL) {
+		rc = 1;
+		goto finalize_it;
+	}
+
+	switch (json_object_get_type(json)) {
+	case json_type_string:
+		rc = json_object_get_string_len(json) == 0;
+		break;
+	case json_type_array:
+	{
+		int i;
+		int arrayLen = json_object_array_length(json);
+		for (i = 0 ; i < arrayLen ; ++i) {
+			val = json_object_array_get_idx(json, i);
+			if ((rc = jsonSkipEmpty(val)) > 0) {
+				/* delete the empty item and reset the index and arrayLen */
+				json_object_array_del_idx(json, i--);
+				arrayLen = json_object_array_length(json);
+			} else if (rc < 0) {
+				goto finalize_it;
+			}
+		}
+		rc = json_object_array_length(json) == 0;
+		break;
+	}
+	case json_type_object:
+	{
+		struct json_object_iterator it = json_object_iter_begin(json);
+		struct json_object_iterator itEnd = json_object_iter_end(json);
+		while (!json_object_iter_equal(&it, &itEnd)) {
+			val = json_object_iter_peek_value(&it);
+			if ((rc = jsonSkipEmpty(val)) > 0) {
+				json_object_object_del(json, json_object_iter_peek_name(&it));
+			} else if (rc < 0) {
+				goto finalize_it;
+			}
+			json_object_iter_next(&it);
+		}
+		rc = json_object_object_length(json) == 0;
+	}
+	case json_type_null:
+	case json_type_boolean:
+	case json_type_double:
+	case json_type_int:
+	default: break;
+	}
+finalize_it:
+	return rc;
+}
+
+/* 
+ * Parameters for field type json
+ *   skipempty - skips empty json objects.
+ *             - %field_name:json:skipempty%
+ */
+struct data_JSON {
+	int skipempty;
+};
 /**
  * Parse JSON. This parser tries to find JSON data inside a message.
  * If it finds valid JSON, it will extract it. Extra data after the
@@ -2331,6 +2410,7 @@ done:
 PARSER_Parse(JSON)
 	const size_t i = *offs;
 	struct json_tokener *tokener = NULL;
+	struct data_JSON *const data = (struct data_JSON*) pdata;
 
 	if(npb->str[i] != '{' && npb->str[i] != ']') {
 		/* this can't be json, see RFC4627, Sect. 2
@@ -2359,6 +2439,20 @@ PARSER_Parse(JSON)
 	if(value == NULL) {
 		json_object_put(json);
 	} else {
+		if (data && data->skipempty) {
+			int rc = jsonSkipEmpty(json);
+			if (rc < 0) {
+				json_object_put(json);
+				FAIL(LN_WRONGPARSER);
+			} else if (rc > 0) {
+				/* 
+				 * json value is empty.
+				 * E.g., {"message":""}, {"message":[]}, {"message":{}}
+				 */
+				json_object_put(json);
+				FAIL(0);
+			}
+		}
 		*value = json;
 	}
 
@@ -2367,7 +2461,40 @@ done:
 		json_tokener_free(tokener);
 	return r;
 }
+PARSER_Construct(JSON)
+{
+	int r = 0;
+	struct json_object *ed;
+	struct data_JSON *data = NULL;
+	char *flag;
 
+	if(json == NULL)
+		goto done;
+
+	if(json_object_object_get_ex(json, "extradata", &ed) == 0) {
+		/* No JSON parameter */
+		goto done;
+	}
+	data = (struct data_JSON*) calloc(1, sizeof(struct data_JSON));
+	flag = json_object_get_string(ed);
+	if (strcasecmp(flag, "skipempty") == 0) {
+		data->skipempty = 1;
+	} else {
+		ln_errprintf(ctx, 0, "invalid flag for JSON parser: %s", flag);
+		r = LN_BADCONFIG;
+		goto done;
+	}
+	*pdata = data;
+done:
+	if(r != 0) {
+		free(data);
+	}
+	return r;
+}
+PARSER_Destruct(JSON)
+{
+	free(pdata);
+}
 
 /* check if a char is valid inside a name of a NameValue list
  * The set of valid characters may be extended if there is good
