@@ -26,6 +26,12 @@ set -euxo pipefail
 
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
 
+if [ -d ${GOPATH:-}/src/github.com/openshift/cluster-logging-operator ] ; then
+    pushd ${GOPATH:-}/src/github.com/openshift/cluster-logging-operator > /dev/null
+    make undeploy || :
+    popd > /dev/null
+fi
+
 oc delete project openshift-logging || :
 wait_func() { ! oc get project openshift-logging > /dev/null 2>&1 ; }
 wait_for_condition wait_func 600 10

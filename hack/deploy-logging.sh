@@ -55,6 +55,73 @@ wait_for_condition()
     return 0
 }
 
+deploy_logging_using_olm() {
+    # Create the $ESO_NS namespace:
+    if oc get project $ESO_NS > /dev/null 2>&1 ; then
+        echo using existing project $ESO_NS
+    else
+        oc create -f $TEST_OBJ_DIR/openshift-operators-redhat-namespace.yaml
+    fi
+    oc get projects | grep logging || :
+
+    # Create an OperatorGroup for $LOGGING_NS:
+    oc -n ${LOGGING_NS} create -f $TEST_OBJ_DIR/openshift-logging-operatorgroup.yaml
+    # Create an OperatorGroup for $ESO_NS:
+    oc -n $ESO_NS create -f $TEST_OBJ_DIR/openshift-operators-redhat-operatorgroup.yaml
+
+    # Create the CatalogSourceConfig for the elasticsearch-operator in the namespace openshift-marketplace:
+    oc create -n openshift-marketplace -f $TEST_OBJ_DIR/elasticsearch-catalogsourceconfig.yaml
+    oc get -n openshift-marketplace CatalogSourceConfig | grep elasticsearch || :
+
+    # Create the subscription for elasticsearch in the namespace $ESO_NS:
+    oc create -n $ESO_NS -f $TEST_OBJ_DIR/elasticsearch-subscription.yaml
+    oc get -n $ESO_NS subscriptions | grep elasticsearch || :
+
+    # Create the CatalogSourceConfig for cluster-logging in the namespace openshift-marketplace:
+    oc create -n openshift-marketplace -f $TEST_OBJ_DIR/cluster-logging-catalogsourceconfig.yaml
+    oc get -n openshift-marketplace CatalogSourceConfig | grep logging || :
+
+    # create the subscription in the namespace $LOGGING_NS:
+    oc create -n ${LOGGING_NS} -f $TEST_OBJ_DIR/cluster-logging-subscription.yaml
+    oc get -n ${LOGGING_NS} subscriptions | grep logging || :
+}
+
+deploy_logging_using_clo_make() {
+    if [ ! -d $GOPATH/src/github.com/openshift/elasticsearch-operator ] ; then
+        git clone https://github.com/${EO_REPO:-openshift}/elasticsearch-operator \
+            $GOPATH/src/github.com/openshift/elasticsearch-operator -b ${EO_BRANCH:-master}
+    fi
+    if [ ! -d $GOPATH/src/github.com/openshift/cluster-logging-operator ] ; then
+        git clone https://github.com/${CLO_REPO:-openshift}/cluster-logging-operator \
+            $GOPATH/src/github.com/openshift/cluster-logging-operator -b ${CLO_BRANCH:-master}
+    fi
+    # edit the deployment manifest - use the images provided by CI or from api.ci registry
+    # make deploy-no-build
+    # during CI, the env var IMAGE_FORMAT is present:
+    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # the EO image is registry.svc.ci.openshift.org/ci-op-xxx/stable:elasticsearch-operator
+    # the CLO image is registry.svc.ci.openshift.org/ci-op-xxx/stable:cluster-logging-operator
+    if [ -n "${IMAGE_FORMAT:-}" ] ; then
+        EO_IMAGE=$( echo "$IMAGE_FORMAT" | sed 's/\${component}/elasticsearch-operator/' )
+        CLO_IMAGE=$( echo "$IMAGE_FORMAT" | sed 's/\${component}/cluster-logging-operator/' )
+    else
+        EO_IMAGE=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:elasticsearch-operator
+        CLO_IMAGE=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:cluster-logging-operator
+    fi
+
+    pushd $GOPATH/src/github.com/openshift/cluster-logging-operator > /dev/null
+    REMOTE_CLUSTER=true REMOTE_REGISTRY=true NAMESPACE=openshift-logging \
+        IMAGE_OVERRIDE="$CLO_IMAGE" EO_IMAGE_OVERRIDE="$EO_IMAGE" make deploy-no-build
+    popd > /dev/null
+}
+
+# what numeric version does master correspond to?
+MASTER_VERSION=${MASTER_VERSION:-4.2}
+# what namespace to use for operator images?
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
+USE_OLM=${USE_OLM:-false}
+
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-true}
 elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
@@ -73,40 +140,19 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
+if [ "${USE_OLM:-false}" = true ] ; then
+    deploy_logging_using_olm
+else
+    ESO_NS=openshift-logging
+    deploy_logging_using_clo_make
+fi
+
 # Create the $LOGGING_NS namespace:
 if oc get project $LOGGING_NS > /dev/null 2>&1 ; then
     echo using existing project $LOGGING_NS
 else
     oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
 fi
-# Create the $ESO_NS namespace:
-if oc get project $ESO_NS > /dev/null 2>&1 ; then
-    echo using existing project $ESO_NS
-else
-    oc create -f $TEST_OBJ_DIR/openshift-operators-redhat-namespace.yaml
-fi
-oc get projects | grep logging || :
-
-# Create an OperatorGroup for $LOGGING_NS:
-oc -n ${LOGGING_NS} create -f $TEST_OBJ_DIR/openshift-logging-operatorgroup.yaml
-# Create an OperatorGroup for $ESO_NS:
-oc -n $ESO_NS create -f $TEST_OBJ_DIR/openshift-operators-redhat-operatorgroup.yaml
-
-# Create the CatalogSourceConfig for the elasticsearch-operator in the namespace openshift-marketplace:
-oc create -n openshift-marketplace -f $TEST_OBJ_DIR/elasticsearch-catalogsourceconfig.yaml
-oc get -n openshift-marketplace CatalogSourceConfig | grep elasticsearch || :
-
-# Create the subscription for elasticsearch in the namespace $ESO_NS:
-oc create -n $ESO_NS -f $TEST_OBJ_DIR/elasticsearch-subscription.yaml
-oc get -n $ESO_NS subscriptions | grep elasticsearch || :
-
-# Create the CatalogSourceConfig for cluster-logging in the namespace openshift-marketplace:
-oc create -n openshift-marketplace -f $TEST_OBJ_DIR/cluster-logging-catalogsourceconfig.yaml
-oc get -n openshift-marketplace CatalogSourceConfig | grep logging || :
-
-# create the subscription in the namespace $LOGGING_NS:
-oc create -n ${LOGGING_NS} -f $TEST_OBJ_DIR/cluster-logging-subscription.yaml
-oc get -n ${LOGGING_NS} subscriptions | grep logging || :
 
 # at this point, the cluster-logging-operator should be deployed in the
 # $LOGGING_NS namespace
@@ -123,18 +169,18 @@ if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output
 fi
 
 if [ "$USE_CUSTOM_IMAGES" = true ] ; then
-    # get the OLM pod
-    olmpod=$( oc -n openshift-operator-lifecycle-manager get pods | awk '/^olm-operator-.* Running / {print $1}' )
-
-    # disable the OLM so that we can change images in the cluster-logging-operator
-    oc -n openshift-operator-lifecycle-manager scale --replicas=0 deploy/olm-operator
-
-    wait_func() {
-        oc -n openshift-operator-lifecycle-manager get pod $olmpod > /dev/null 2>&1
-    }
-    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-        echo ERROR: could not stop olm pod $olmpod
-        logging_err_exit
+    if [ "${USE_OLM:-false}" = true ] ; then
+        # get the OLM pod
+        olmpod=$( oc -n openshift-operator-lifecycle-manager get pods | awk '/^olm-operator-.* Running / {print $1}' )
+        # disable the OLM so that we can change images in the cluster-logging-operator
+        oc -n openshift-operator-lifecycle-manager scale --replicas=0 deploy/olm-operator
+        wait_func() {
+            oc -n openshift-operator-lifecycle-manager get pod $olmpod > /dev/null 2>&1
+        }
+        if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+            echo ERROR: could not stop olm pod $olmpod
+            logging_err_exit
+        fi
     fi
 
     clopod=$( oc get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
@@ -171,20 +217,41 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     else
         # running in a dev env - pushed local builds
         out=$( mktemp )
-        oc get is --all-namespaces | grep -E 'logging-|elasticsearch-operator' > $out
+        oc get is --all-namespaces | grep -E 'logging-|elasticsearch-operator' > $out || :
+        found=""
         while read ns name reg_and_name tag rest ; do
             img="${reg_and_name}:${tag}"
             case "$name" in
-            *-cluster-logging-operator) cloimg="$img" ;;
-            *-elasticsearch-operator) eoimg="$img" ;;
-            *-elasticsearch*) oc set env deploy/cluster-logging-operator ELASTICSEARCH_IMAGE="$img" ;;
-            *-kibana*) oc set env deploy/cluster-logging-operator KIBANA_IMAGE="$img" ;;
-            *-curator*) oc set env deploy/cluster-logging-operator CURATOR_IMAGE="$img" ;;
-            *-fluentd) oc set env deploy/cluster-logging-operator FLUENTD_IMAGE="$img" ;;
-            *-rsyslog) oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE="$img" ;;
+            *-cluster-logging-operator) cloimg="$img" ; found="$found cluster-logging-operator" ;;
+            *-elasticsearch-operator) eoimg="$img" ; found="$found elasticsearch-operator" ;;
+            *-elasticsearch*) oc set env deploy/cluster-logging-operator ELASTICSEARCH_IMAGE="$img"
+                              found="$found elasticsearch5" ;;
+            *-kibana*) oc set env deploy/cluster-logging-operator KIBANA_IMAGE="$img"
+                       found="$found kibana5" ;;
+            *-curator*) oc set env deploy/cluster-logging-operator CURATOR_IMAGE="$img"
+                        found="$found curator5" ;;
+            *-fluentd) oc set env deploy/cluster-logging-operator FLUENTD_IMAGE="$img"
+                       found="$found fluentd" ;;
+            *-rsyslog) oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE="$img"
+                       found="$found rsyslog" ;;
             esac
         done < $out
         rm -f $out
+        for comp_and_name in curator5:CURATOR_IMAGE elasticsearch5:ELASTICSEARCH_IMAGE fluentd:FLUENTD_IMAGE \
+            kibana5:KIBANA_IMAGE logging-rsyslog:RSYSLOG_IMAGE ; do
+            comp=$( echo $comp_and_name | awk -F: '{print $1}' )
+            envname=$( echo $comp_and_name | awk -F: '{print $2}' )
+            for ff in $found ; do
+                if [ $ff = $comp ] ; then
+                    comp=""
+                    break
+                fi
+            done
+            if [ -n "$comp" ] ; then
+                img=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:logging-$comp
+                oc set env deploy/cluster-logging-operator ${envname}="$img"
+            fi
+        done
         if [ "${USE_CLO_LATEST_IMAGE:-false}" = true -a -n "${cloimg:-}" ] ; then
             oc patch deploy/cluster-logging-operator --type=json \
                 --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$cloimg"'"}]'

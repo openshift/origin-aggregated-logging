@@ -145,7 +145,7 @@ fi
 if [ "${DEPLOY_LOGGING:-true}" = true ] ; then
     KUBECONFIG=$workdir/auth/kubeconfig ARTIFACT_DIR=$workdir/artifacts \
     USE_EO_LATEST_IMAGE=true USE_CLO_LATEST_IMAGE=true \
-    $scriptdir/deploy-logging-marketplace.sh
+    $scriptdir/deploy-logging.sh
 fi
 
 # run logging tests

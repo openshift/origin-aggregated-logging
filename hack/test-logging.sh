@@ -54,6 +54,15 @@ if [ ! -d $ARTIFACT_DIR ] ; then
 fi
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
+esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+if [ -z "$esopod" ] ; then
+    ESO_NS=openshift-logging
+    esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+fi
+if [ -z "$esopod" ] ; then
+    echo ERROR: could not find elasticsearch-operator running in openshift-operators-redhat or openshift-logging
+    logging_err_exit
+fi
 
 # set elasticsearch to unmanaged - so that the elasticsearch-operator
 # won't try to do anything to elasticsearch when we shut it down

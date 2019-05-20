@@ -8,6 +8,6 @@
 
 set -eux
 
-. hack/deploy-logging-marketplace.sh
+. hack/deploy-logging.sh
 
 . hack/test-logging.sh
