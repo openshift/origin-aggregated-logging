@@ -86,6 +86,7 @@ TESTS_SHELLSCRIPTS = \
 	field_rest_jsoncnf.sh \
 	field_json.sh \
 	field_json_jsoncnf.sh \
+	field_json_skipempty.sh \
 	field_cee-syslog.sh \
 	field_cee-syslog_jsoncnf.sh \
 	field_ipv6.sh \

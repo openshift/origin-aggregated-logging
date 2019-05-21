@@ -1018,6 +1018,14 @@ struct fjson_object* fjson_object_array_get_idx(struct fjson_object *jso,
 	return (struct fjson_object*)array_list_get_idx(jso->o.c_array, idx);
 }
 
+/*
+ * Deleting the idx-th element in the array type object.
+ */
+void fjson_object_array_del_idx(struct fjson_object *jso, int idx)
+{
+	array_list_del_idx(jso->o.c_array, idx);
+}
+
 int fjson_object_get_member_count(struct fjson_object *jso)
 {
 	return jso->o.c_obj.nelem;
