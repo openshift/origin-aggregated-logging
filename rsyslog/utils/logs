@@ -36,8 +36,9 @@ done
 
 if [ $cmd = "cat" ] ; then
     for log_file in $( ls $log_dir/rsyslog* | sort -Vr ); do
-        cat $log_dir/$log_file
+        cat $log_file
     done
 else
-    exec tail "$tail_args" $log_dir/rsyslog.log
+    log_file=`basename ${LOGGING_FILE_PATH:-/var/log/rsyslog/rsyslog.log}`
+    exec tail "$tail_args" $log_dir/$log_file
 fi
