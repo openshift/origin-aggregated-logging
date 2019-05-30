@@ -11,6 +11,7 @@ objects:
     name: ${TEST_POD_NAME}
     namespace: ${TEST_NAMESPACE_NAME}
   spec:
+    restartPolicy: Never
     terminationGracePeriodSeconds: 0
     nodeSelector:
       logging-ci-test: "true"

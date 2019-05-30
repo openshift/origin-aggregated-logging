@@ -238,7 +238,7 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
         done < $out
         rm -f $out
         for comp_and_name in curator5:CURATOR_IMAGE elasticsearch5:ELASTICSEARCH_IMAGE fluentd:FLUENTD_IMAGE \
-            kibana5:KIBANA_IMAGE logging-rsyslog:RSYSLOG_IMAGE ; do
+            kibana5:KIBANA_IMAGE rsyslog:RSYSLOG_IMAGE ; do
             comp=$( echo $comp_and_name | awk -F: '{print $1}' )
             envname=$( echo $comp_and_name | awk -F: '{print $2}' )
             for ff in $found ; do
