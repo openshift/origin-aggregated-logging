@@ -1,0 +1,28 @@
+{
+  "name": "kibana",
+  "description": "Kibana is an open source (Apache Licensed), browser based analytics and search dashboard for Elasticsearch. Kibana is a snap to setup and start using. Kibana strives to be easy to get started with, while also being flexible and powerful, just like Elasticsearch.",
+  "keywords": [
+    "kibana",
+    "elasticsearch",
+    "logstash",
+    "analytics",
+    "visualizations",
+    "dashboards",
+    "dashboarding"
+  ],
+  "license": "Apache-2.0",
+  "version": "6.8.1",
+  "branch": "6.8",
+  "build": {
+    "number": 20385,
+    "sha": "6d53abe713ea55900cd683a7ffa2b2be402d08f8",
+    "distributable": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elastic/kibana.git"
+  },
+  "engines": {
+    "node": "10.15.2"
+  }
+}

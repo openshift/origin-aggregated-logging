@@ -1,0 +1,34 @@
+{
+  "name": "tinyqueue",
+  "version": "1.2.3",
+  "description": "The smallest and simplest JavaScript priority queue",
+  "main": "index.js",
+  "scripts": {
+    "pretest": "eslint index.js test.js bench.js",
+    "test": "tape test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mourner/tinyqueue.git"
+  },
+  "keywords": [
+    "queue",
+    "priority",
+    "binary heap",
+    "data structures"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mourner/tinyqueue/issues"
+  },
+  "homepage": "https://github.com/mourner/tinyqueue",
+  "devDependencies": {
+    "eslint": "^4.8.0",
+    "eslint-config-mourner": "^2.0.1",
+    "tape": "^4.6.3"
+  },
+  "eslintConfig": {
+    "extends": "mourner"
+  }
+}

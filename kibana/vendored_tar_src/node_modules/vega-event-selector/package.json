@@ -1,0 +1,46 @@
+{
+  "name": "vega-event-selector",
+  "version": "2.0.0",
+  "description": "A CSS-inspired language to select, sequence, and compose DOM events.",
+  "keywords": [
+    "vega",
+    "event",
+    "selector"
+  ],
+  "license": "BSD-3-Clause",
+  "author": {
+    "name": "UW Interactive Data Lab",
+    "url": "http://idl.cs.washington.edu"
+  },
+  "contributors": [
+    {
+      "name": "Jeffrey Heer",
+      "url": "http://idl.cs.washington.edu"
+    },
+    {
+      "name": "Arvind Satyanarayan",
+      "url": "http://arvindsatya.com"
+    }
+  ],
+  "main": "build/vega-event-selector.js",
+  "module": "index",
+  "jsnext:main": "index",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vega/vega-event-selector.git"
+  },
+  "scripts": {
+    "build": "npm run test && uglifyjs build/vega-event-selector.js -c -m -o build/vega-event-selector.min.js",
+    "rollup": "rollup -f umd -n vega -o build/vega-event-selector.js -- index.js",
+    "pretest": "rm -rf build && mkdir build && npm run rollup",
+    "test": "tape 'test/**/*-test.js' && eslint index.js src test",
+    "prepublish": "npm run build",
+    "postpublish": "git push && git push --tags && zip -j build/vega-event-selector.zip -- LICENSE README.md build/vega-event-selector.js build/vega-event-selector.min.js"
+  },
+  "devDependencies": {
+    "eslint": "4",
+    "rollup": "0.43",
+    "tape": "4",
+    "uglify-js": "3"
+  }
+}

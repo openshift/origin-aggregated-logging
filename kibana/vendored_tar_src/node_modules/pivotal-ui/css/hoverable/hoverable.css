@@ -1,0 +1,1 @@
+[hoverable]:hover,[hoverable].clicked{background-color:#ecefef}[hoverable]:hover .hovered,[hoverable].clicked .hovered{visibility:visible}[hoverable] .hovered{visibility:hidden;float:right}

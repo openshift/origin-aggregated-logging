@@ -1,0 +1,26 @@
+{
+    "name": "jclass",
+    "preferGlobal": false,
+    "version": "1.2.1",
+    "author": "Marcel Rieger <marcelrieger@icloud.com>",
+    "description": "Advanced but lightweight and fast Javascript inheritance model providing class members and prototype conversion.",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/riga/jclass.git"
+    },
+    "keywords": [
+        "javascript",
+        "inheritance",
+        "class",
+        "members",
+        "prototype conversion"
+    ],
+    "dependencies" : {},
+    "devDependencies": {
+        "eventemitter2": "0.4.14"
+    },
+    "license": "MIT",
+    "engines": {
+        "node": ">= 0.6"
+    }
+}

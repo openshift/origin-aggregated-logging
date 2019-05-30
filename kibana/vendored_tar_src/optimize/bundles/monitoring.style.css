@@ -1,0 +1,10 @@
+/*! Copyright Elasticsearch B.V. and/or license to Elasticsearch B.V. under one or more contributor license agreements
+ * Licensed under the Elastic License; you may not use this file except in compliance with the Elastic License. */
+/**
+ * [1] - We want the collapsed table (that shows the shard data) to be inline
+ *       with the columns from the main table so we need to remove the padding
+ */
+.monitoringElasticsearchCcrListingTable .euiTableRow-isExpandedRow > .euiTableRowCell > .euiTableCellContent {
+  padding: 0; /* [1] */
+}
+
