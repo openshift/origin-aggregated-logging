@@ -36,6 +36,13 @@ fi
 # clear the journal
 clear_and_restart_journal
 
+restart_rsyslog_pod() {
+    local rpod=${1:-$( get_running_pod rsyslog )}
+    oc delete --force pod $rpod
+    os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
+    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+}
+
 cleanup() {
     local return_code="$?"
     set +e
@@ -143,9 +150,7 @@ deploy_using_operators() {
     oc get cm rsyslog -o yaml | \
       sed -e 's/action(type="mmkubernetes"/action(type="mmkubernetes" annotation_match=["."]/' | \
       oc replace --force -f - 2>&1 | artifact_out
-    oc delete --force pod $rpod
-    os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
-    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    restart_rsyslog_pod $rpod
 }
 
 get_logmessage() {
@@ -235,3 +240,84 @@ rpod_ip="$( oc get pod ${rpod} -o jsonpath='{.status.podIP}' )"
 
 os::cmd::try_until_success "curl -s -k https://${rpod_ip}:24231/metrics"
 curl -s -k https://${rpod_ip}:24231/metrics >> $ARTIFACT_DIR/${rpod}-metrics-scrape 2>&1 || :
+
+# Test logrotation (LOG400) - OKD 4.2 and above
+# check rsyslog logs
+rpod=$( get_running_pod rsyslog )
+oc logs $rpod -c rsyslog > $ARTIFACT_DIR/rsyslog.log 2>&1
+oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/rsyslog.log > $ARTIFACT_DIR/rsyslog.exec.txt 2>&1
+oc exec $rpod -c rsyslog -- cat /var/log/rsyslog/rsyslog.log >> $ARTIFACT_DIR/rsyslog.exec.txt 2>&1
+os::cmd::expect_success_and_text "oc logs $rpod -c rsyslog | grep 'oc exec <pod_name> -- logs'" "^oc exec .pod_name. -- logs$"
+os::cmd::expect_success "oc exec $rpod -c rsyslog -- ls /var/log/rsyslog/rsyslog.log > /dev/null 2>&1"
+logsize=$( oc exec $rpod -c rsyslog -- wc -c /var/log/rsyslog/rsyslog.log | awk '{print $1}' )
+
+# Check if logrotate works as expected
+if [ $logsize -gt 0 ]; then
+    # set max log file count and max log size
+    maxcount=3
+    maxsize=$( expr $logsize / $maxcount )
+    oc set env daemonset/rsyslog LOGGING_FILE_SIZE=$maxsize LOGGING_FILE_AGE=$maxcount
+
+    # run logrotate every minute for testing
+    savecm=$( mktemp )
+    workcm=$( mktemp )
+    oc get configmap logrotate-crontab -o yaml > $savecm
+    cat $savecm | sed -e 's,\([ ]*\)[0-9]* .* \(root[ 	]*/usr/bin/bash[ 	]*/opt/app-root/bin/logrotate.*.sh\),\1* * * * *       \2,' > $workcm
+    cp $savecm $ARTIFACT_DIR/logrotate-crontab.orig.yaml
+    cp $workcm $ARTIFACT_DIR/logrotate-crontab.yaml
+    if [ -s $workcm ]; then
+        oc apply --force -f $workcm
+    else
+        artifact_log WARNING generated logrotate-crontab is empty.
+    fi
+    # wait longer than ($maxcount + 1) * 60 seconds.
+    sleep $( expr $( expr $maxcount + 1 ) \* 60 )
+
+    os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
+    os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    rpod=$( get_running_pod rsyslog )
+    filecount=$( oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ | grep rsyslog.log- | wc -l )
+    filesize=$( oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ | grep "rsyslog.log$" | awk '{print $5}' )
+    artifact_log "logrotate crontab"
+    oc exec $rpod -c logrotate -- /usr/bin/cat /etc/cron.d/logrotate 2>&1 | artifact_out
+    artifact_log "=========="
+    artifact_log "logrotate scripts"
+    oc exec $rpod -c logrotate -- /usr/bin/cat /opt/app-root/bin/logrotate.sh 2>&1 | artifact_out
+    artifact_log "=========="
+    oc exec $rpod -c logrotate -- /usr/bin/cat /opt/app-root/bin/logrotate_pod.sh 2>&1 | artifact_out
+    artifact_log "=========="
+    artifact_log "environment variables"
+    oc exec $rpod -c logrotate -- env | grep LOGGING_FILE_ 2>&1 | artifact_out
+    artifact_log "=========="
+    oc exec $rpod -c logrotate -- /usr/bin/cat /tmp/.logrotate 2>&1 | artifact_out
+    artifact_log "=========="
+    artifact_log "logrotate config files"
+    oc exec $rpod -c logrotate -- /usr/bin/cat /tmp/logrotate.conf 2>&1 | artifact_out
+    artifact_log "=========="
+    oc exec $rpod -c logrotate -- /usr/bin/cat /tmp/logrotate_pod.conf 2>&1 | artifact_out
+    artifact_log "=========="
+    artifact_log "rotated results"
+    oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ 2>&1 | artifact_out
+    artifact_log "=========="
+    oc exec $rpod -c rsyslog -- ls -l /var/lib/rsyslog.pod/ 2>&1 | artifact_out
+    artifact_log "=========="
+    artifact_log "logrotate logs"
+    oc exec $rpod -c logrotate -- /usr/bin/cat /var/log/rsyslog/logrotate.log 2>&1 | artifact_out
+    artifact_log "=========="
+    oc exec $rpod -c logrotate -- /usr/bin/cat /var/lib/rsyslog.pod/logrotate.log 2>&1 | artifact_out
+    artifact_log "=========="
+    os::cmd::expect_success "test $filecount -le $maxcount"
+    os::cmd::expect_success "test $filesize -le $maxsize"
+
+    oc apply --force -f $savecm
+else
+    artifact_log ERROR rsyslog log is empty.
+fi
+
+# switch LOGGING_FILE_PATH to console
+oc set env daemonset/rsyslog LOGGING_FILE_PATH=console
+os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
+os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+rpod=$( get_running_pod rsyslog )
+oc logs $rpod -c rsyslog > $ARTIFACT_DIR/rsyslog.console.log 2>&1
+os::cmd::expect_failure "grep 'oc exec <pod_name> -- logs' $ARTIFACT_DIR/rsyslog.console.log"
