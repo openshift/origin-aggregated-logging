@@ -256,7 +256,6 @@ if [ $logsize -gt 0 ]; then
     # set max log file count and max log size
     maxcount=3
     maxsize=$( expr $logsize / $maxcount )
-    oc set env daemonset/rsyslog LOGGING_FILE_SIZE=$maxsize LOGGING_FILE_AGE=$maxcount
 
     # run logrotate every minute for testing
     savecm=$( mktemp )
@@ -270,11 +269,17 @@ if [ $logsize -gt 0 ]; then
     else
         artifact_log WARNING generated logrotate-crontab is empty.
     fi
-    # wait longer than ($maxcount + 1) * 60 seconds.
-    sleep $( expr $( expr $maxcount + 1 ) \* 60 )
+    # see what the rsyslog file and log dir look like before rotation
+    artifact_log logs before rotation
+    oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ | artifact_out
+    oc exec $rpod -c rsyslog -- cat /var/log/rsyslog/rsyslog.log > $ARTIFACT_DIR/rsyslog-before-rotation.log
+    # this will restart the rsyslog pod
+    oc set env daemonset/rsyslog LOGGING_FILE_SIZE=$maxsize LOGGING_FILE_AGE=$maxcount
 
     os::cmd::try_until_failure "oc get pods $rpod > /dev/null 2>&1"
     os::cmd::try_until_success "oc get pods 2> /dev/null | grep -q 'rsyslog.*Running'"
+    # wait longer than ($maxcount + 1) * 60 seconds.
+    sleep $( expr $( expr $maxcount + 1 ) \* 60 )
     rpod=$( get_running_pod rsyslog )
     filecount=$( oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ | grep rsyslog.log- | wc -l )
     filesize=$( oc exec $rpod -c rsyslog -- ls -l /var/log/rsyslog/ | grep "rsyslog.log$" | awk '{print $5}' )
@@ -307,7 +312,7 @@ if [ $logsize -gt 0 ]; then
     oc exec $rpod -c logrotate -- /usr/bin/cat /var/lib/rsyslog.pod/logrotate.log 2>&1 | artifact_out
     artifact_log "=========="
     os::cmd::expect_success "test $filecount -le $maxcount"
-    os::cmd::expect_success "test $filesize -le $maxsize"
+    os::cmd::expect_success "test $filesize -le $(( maxsize + 1024 ))"
 
     oc apply --force -f $savecm
 else
