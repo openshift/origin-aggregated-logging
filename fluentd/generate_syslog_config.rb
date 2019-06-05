@@ -12,20 +12,25 @@ def init_environment_vars()
     # [0] = environment variable name
     # [1] = syslog plugin config name
     # [2] = default value, if any
+    # [3] = allowed values, if any
     vars = [
-      ['HOST', 'remote_syslog', nil],
-      ['PORT', 'port', "514"],
-      ['HOSTNAME', 'hostname', ENV['HOSTNAME']],
-      ['REMOVE_TAG_PREFIX', 'remove_tag_prefix', nil],
-      ['TAG_KEY', 'tag_key', nil],
-      ['FACILITY', 'facility', "local0"],
-      ['SEVERITY', 'severity', "debug"],
-      ['USE_RECORD', 'use_record', nil],
-      ['PAYLOAD_KEY', 'payload_key', nil]
+      ['HOST', 'remote_syslog', nil, nil],
+      ['PORT', 'port', "514", nil],
+      ['HOSTNAME', 'hostname', ENV['HOSTNAME'], nil],
+      ['REMOVE_TAG_PREFIX', 'remove_tag_prefix', nil, nil],
+      ['TAG_KEY', 'tag_key', nil, nil],
+      ['FACILITY', 'facility', "local0", nil],
+      ['SEVERITY', 'severity', "debug", nil],
+      ['USE_RECORD', 'use_record', nil, nil],
+      ['PAYLOAD_KEY', 'payload_key', nil, nil],
+      # TYPE must be vars[-1]
+      ['TYPE', 'type', "syslog_buffered", ['syslog_buffered', 'syslog']]
     ]
     t = k.dup
     t.slice! group
-    vars.each { |r| r[2] = ENV[prefix + r[0] + t] unless !ENV[prefix + r[0] + t] }
+    vars.each { |r|
+      r[2] = if (r[3].nil? && ENV[prefix + r[0] + t]) || (!r[3].nil? && ENV[prefix + r[0] + t] && r[3].include?(ENV[prefix + r[0] + t])) then ENV[prefix + r[0] + t] else r[2] end
+    }
     @env_vars.push(vars)
   end
 end
@@ -44,10 +49,11 @@ def create_default_file()
   # We'll have to generate two completely separate files each with a
   # unique id e.g. remote-syslog-input-apps or -infra
   @env_vars.each do |r|
+  type = r.pop
   c <<
 "
 <store>
-@type syslog_buffered
+@type #{type[2]}
 "
      r.each { |v|  c << "#{v[1]} #{v[2]}\n" unless !v[2] }
   c <<
