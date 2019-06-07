@@ -425,22 +425,27 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json
-    if oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json ; then
-        :
-    else
-        echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json failed $?
-    fi
     os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
+# return 0 if given file has size ge given size, otherwise, return 1
+function file_has_size() {
+    local f=$1
+    local gesize=$2
+    local size=$( oal_sudo stat -c '%s' $f 2> /dev/null )
+    test ${size:-0} -ge $gesize
+}
+
 function get_journal_pos_cursor() {
-    if oal_sudo test -s /var/log/journal.pos ; then
+    if file_has_size /var/log/journal.pos 100 ; then
         oal_sudo cat /var/log/journal.pos
-    elif oal_sudo test -s /var/log/journal_pos.json ; then
-        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json
+        return 0
+    elif file_has_size /var/log/journal_pos.json 100 ; then
+        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json 2> /dev/null
+        return 0
     else
         echo ""
+        return 1
     fi
 }
 
@@ -577,6 +582,8 @@ function wait_for_fluentd_to_catch_up() {
         else
             os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
+        os::log::error here is the starting fluentd journal cursor
+        echo $journalstartcursor
         os::log::error here is the current fluentd journal cursor
         oal_sudo cat /var/log/journal.pos || :
         oal_sudo cat /var/log/journal_pos.json || :
@@ -592,6 +599,7 @@ function wait_for_fluentd_to_catch_up() {
         # last records in descending @timestamp order - see what records have been added recently
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"desc"}}],"size":20}'
         curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_desc.json 2>&1 || :
+        oc get pods -o wide
         rc=1
     fi
 
@@ -623,12 +631,13 @@ docker_uses_journal() {
 
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
-    # wait until fluentd is actively reading from the source (journal or files)
-    os::cmd::try_until_success "oal_sudo test -s /var/log/journal.pos -o -s /var/log/journal_pos.json" $(( timeout * second ))
+    # wait until fluentd is actively reading from the source (journal and/or files)
+    os::cmd::try_until_text "get_journal_pos_cursor" "x="  $(( timeout * second ))
     if docker_uses_journal ; then
         : # done
     else
-        os::cmd::try_until_success "oal_sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
+        # size of /var/log/containers/*.log >= 25
+        os::cmd::try_until_success "file_has_size /var/log/es-containers.log.pos 25" $(( timeout * second ))
     fi
 }
 

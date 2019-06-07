@@ -37,11 +37,19 @@ if [ $OPENSHIFT_INSTALL_PLATFORM = aws ] ; then
     export AWS_PROFILE=${AWS_PROFILE:-default}
 fi
 
-if [ -n "${OPENSHIFT_INSTALL_VERSION:-}" ] ; then
+if [ -n "${OPENSHIFT_INSTALLER:-}" -a -x "${OPENSHIFT_INSTALLER:-}" ] ; then
+    INSTALLER=$OPENSHIFT_INSTALLER
+elif [ -n "${OPENSHIFT_INSTALL_VERSION:-}" ] ; then
     # download and use specific version
     INSTALLER=$installdir/openshift-install
-    url=https://github.com/openshift/installer/releases/download/${OPENSHIFT_INSTALL_VERSION}/openshift-install-${OPENSHIFT_INSTALL_PLATFORM_ARCH}
-    curl -s -L -o $INSTALLER $url
+    case $OPENSHIFT_INSTALL_VERSION in
+        4.*) pushd $WORKDIR > /dev/null
+             curl -s -L -o openshift-install-linux-${OPENSHIFT_INSTALL_VERSION}.tar.gz https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux-${OPENSHIFT_INSTALL_VERSION}.tar.gz
+             tar xfz openshift-install-linux-${OPENSHIFT_INSTALL_VERSION}.tar.gz
+             mv openshift-install $INSTALLER
+             popd > /dev/null ;;
+        *) curl -s -L -o $INSTALLER https://github.com/openshift/installer/releases/download/${OPENSHIFT_INSTALL_VERSION}/openshift-install-${OPENSHIFT_INSTALL_PLATFORM_ARCH} ;;
+    esac
 else
     pkgstoinstall=""
     for pkg in golang-bin gcc-c++ libvirt-devel ; do
@@ -60,7 +68,7 @@ else
         git clone https://github.com/openshift/installer
         cd installer
     fi
-    hack/build.sh
+    hack/build.sh > $WORKDIR/installer-build.log 2>&1
     INSTALLER=$( pwd )/bin/openshift-install
     popd > /dev/null
 fi
@@ -69,25 +77,30 @@ pushd $installdir > /dev/null
 
 if [ $OPENSHIFT_INSTALL_PLATFORM = aws ] ; then
     cat > install-config.yaml <<EOF
-apiVersion: v1beta3
+apiVersion: v1
 baseDomain: $OPENSHIFT_INSTALL_BASE_DOMAIN
-clusterID: $( uuidgen )
-machines:
-- name: master
-  platform: {}
-  replicas: $OPENSHIFT_INSTALL_NUM_MASTERS
-- name: worker
-  platform: {}
+compute:
+- hyperthreading: Enabled
+  name: worker
   replicas: $OPENSHIFT_INSTALL_NUM_WORKERS
+  platform:
+    aws:
+      type: ${OPENSHIFT_INSTALL_WORKER_TYPE:-m4.xlarge}
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: $OPENSHIFT_INSTALL_NUM_MASTERS
+  platform: {}
 metadata:
   name: ${OPENSHIFT_INSTALL_CLUSTER_NAME}
 networking:
   clusterNetworks:
   - cidr: 10.128.0.0/14
-    hostSubnetLength: 9
+    hostPrefix: 23
   machineCIDR: 10.0.0.0/16
-  serviceCIDR: 172.30.0.0/16
-  type: OpenshiftSDN
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
 platform:
   aws:
     region: $OPENSHIFT_INSTALL_AWS_REGION

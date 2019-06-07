@@ -13,6 +13,9 @@
 # It will deploy logging using the CI cr.yaml - if you want to use
 # another CR, specify the file in CLUSTERLOGGING_CR_FILE
 
+# If you are using a publicly released version and want to use the released
+# images, then set USE_CUSTOM_IMAGES=false and USE_OLM=true
+
 set -eux
 
 logging_err_exit() {
@@ -122,15 +125,17 @@ EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 USE_OLM=${USE_OLM:-false}
 
-if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
-    USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-true}
-elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
-    USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-true}
-elif [ "${USE_CLO_LATEST_IMAGE:-false}" = true -o "${USE_EO_LATEST_IMAGE:-false}" = true ] ; then
-    USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-true}
-else
-    # default to false
-    USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-false}
+if [ -z "${USE_CUSTOM_IMAGES:-}" ] ; then
+    if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
+        USE_CUSTOM_IMAGES=true
+    elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
+        USE_CUSTOM_IMAGES=true
+    elif [ "${USE_CLO_LATEST_IMAGE:-false}" = true -o "${USE_EO_LATEST_IMAGE:-false}" = true ] ; then
+        USE_CUSTOM_IMAGES=true
+    else
+        # default to false
+        USE_CUSTOM_IMAGES=false
+    fi
 fi
 LOGGING_NS=${LOGGING_NS:-openshift-logging}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
@@ -140,18 +145,18 @@ if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 
-if [ "${USE_OLM:-false}" = true ] ; then
-    deploy_logging_using_olm
-else
-    ESO_NS=openshift-logging
-    deploy_logging_using_clo_make
-fi
-
 # Create the $LOGGING_NS namespace:
 if oc get project $LOGGING_NS > /dev/null 2>&1 ; then
     echo using existing project $LOGGING_NS
 else
     oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
+fi
+
+if [ "${USE_OLM:-false}" = true ] ; then
+    deploy_logging_using_olm
+else
+    ESO_NS=openshift-logging
+    deploy_logging_using_clo_make
 fi
 
 # at this point, the cluster-logging-operator should be deployed in the
