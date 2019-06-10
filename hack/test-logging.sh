@@ -9,19 +9,21 @@
 set -eux
 
 logging_err_exit() {
-    oc get deploy >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
-    oc get pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
-    oc -n $ESO_NS get elasticsearch >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
-    oc get clusterlogging >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc get deploy -o yaml >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc get pods -o wide >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc -n $ESO_NS get elasticsearch -o yaml >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc get clusterlogging -o yaml >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc get crds >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     oc describe pods >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     for p in $( oc get pods -o jsonpath='{.items[*].metadata.name}' ) ; do
         for container in $( oc get po $p -o jsonpath='{.spec.containers[*].name}' ) ; do
             echo pod $p container $container >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
             oc logs -c $container $p >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+            oc exec -c $container $p -- logs >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
         done
     done
     oc get events >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc get nodes >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     cat ${ARTIFACT_DIR}/test_output
     exit 1
 }
@@ -99,18 +101,9 @@ for dp in $( oc get deploy -l component=elasticsearch -o name ) ; do
     fi
 done
 
-echo before patching kibana
-oc get pods -o wide
-
 # the ci test pod, kibana pod, and fluentd/rsyslog pod, all have to run on the same node
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
-
-# make sure nodeSelectors are set correctly if restarted later by CLO
-oc patch clusterlogging instance --type=json --patch '[
-    {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-ci-test":"true"}},
-    {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
-    {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
@@ -154,16 +147,17 @@ oc process -p TEST_ROOT=$testroot \
     ${artifact_dir_arg:-} ${test_suites_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 
+# wait until logging-ci-test-runner is running on the kibana node
 wait_func() {
     oc logs logging-ci-test-runner > /dev/null 2>&1
+    local lnode=$( oc get pods logging-ci-test-runner -o jsonpath='{.spec.nodeName}' )
+    local knode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
+    test "${lnode:-l}" = "${knode:-k}"
 }
 if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: failed to start logging-ci-test-runner after $DEFAULT_TIMEOUT seconds
     logging_err_exit
 fi
-
-echo after starting logging-ci-test-runner
-oc get pods -o wide
 
 # this will exit with error when the pod exits - ignore that error
 get_test_logs() {

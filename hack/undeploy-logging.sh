@@ -50,10 +50,10 @@ for sub in $( oc -n $ESO_NS get subscriptions -o name | grep elasticsearch ) ; d
     wait_for_condition wait_func 600 10
 done
 
-oc get clusterserviceversions --all-namespaces | \
+{ oc get clusterserviceversions --all-namespaces || : ; } | \
     awk '/elasticsearch-operator/ {print $1, $2}' | \
     while read ns csv ; do
-        oc -n $ns delete clusterserviceversions $csv
+        oc -n $ns delete clusterserviceversions $csv || :
     done
 
 oc -n $ESO_NS delete deploy elasticsearch-operator || :

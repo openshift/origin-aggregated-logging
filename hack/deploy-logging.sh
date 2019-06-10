@@ -29,6 +29,7 @@ logging_err_exit() {
         done
     done
     oc get events >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
+    oc describe nodes >> ${ARTIFACT_DIR}/logging_err_exit.log 2>&1 || :
     cat ${ARTIFACT_DIR}/test_output
     exit 1
 }
@@ -290,7 +291,8 @@ oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 wait_func() {
     oc get pods 2> /dev/null | grep -q 'kibana.*Running' && \
     oc get pods 2> /dev/null | grep -v 'elasticsearch-operator' | grep -q 'elasticsearch.*Running' && \
-    oc get pods 2> /dev/null | egrep -q '(fluentd|rsyslog).*Running'
+    oc get pods 2> /dev/null | egrep -q '(fluentd|rsyslog).*Running' && \
+    oc get pods 2> /dev/null | grep -v -q 'kibana.*Pending'
 }
 if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: operator did not start pods after 300 seconds
