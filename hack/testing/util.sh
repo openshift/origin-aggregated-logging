@@ -550,6 +550,8 @@ function wait_for_fluentd_to_catch_up() {
             oal_sudo journalctl -m -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
         elif oal_sudo test -f /var/log/es-containers.log.pos ; then
             oal_sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
+            oal_sudo ls -alrtF /var/log/containers/*.log > $ARTIFACT_DIR/containerlogfiles 2>&1 || :
+            oc get pods -o wide 2>&1 | artifact_out || :
         fi
         # records since start of function in ascending @timestamp order - see what records were added around
         # the time our record should have been added
@@ -592,6 +594,7 @@ function wait_for_fluentd_to_catch_up() {
         # last records in descending @timestamp order - see what records have been added recently
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"desc"}}],"size":20}'
         curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_desc.json 2>&1 || :
+        oc get pods -o wide 2>&1 | artifact_out || :
         rc=1
     fi
 
