@@ -63,10 +63,13 @@ if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
     oc patch -n ${LOGGING_NS} $fluentd_ds --type=json --patch '[
         {"op":"remove","path":"/spec/template/spec/tolerations"},
         {"op":"replace","path":"/spec/template/spec/nodeSelector","value":{"logging-infra-fluentd":"true"}}]'
+    oc patch -n ${LOGGING_NS} deploy kibana --type=json --patch '[
+        {"op":"replace","path":"/spec/template/spec/nodeSelector","value":{"logging-ci-test":"true"}}]'
     # make sure nodeSelectors are set correctly if restarted by clo
     oc patch -n ${LOGGING_NS} clusterlogging instance --type=json --patch '[
         {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-infra-fluentd":"true"}},
-        {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}}]'
+        {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-infra-rsyslog":"true"}},
+        {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
     # wait until there is only 1 fluentd running on the kibana node
     os::cmd::try_until_text "oc get -n ${LOGGING_NS} $fluentd_ds -o jsonpath='{ .status.numberReady }'" '^1$' $(( 2 * minute ))
     os::cmd::try_until_text "oc get -n ${LOGGING_NS} pods -l component=fluentd -o jsonpath='{.items[0].spec.nodeName}'" "$kibnode" $(( 2 * minute ))
