@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 # = Public Suffix
 #
 # Domain name parser based on the Public Suffix List.
 #
-# Copyright (c) 2009-2018 Simone Carletti <weppos@weppos.net>
+# Copyright (c) 2009-2019 Simone Carletti <weppos@weppos.net>
 
 require_relative "public_suffix/domain"
 require_relative "public_suffix/version"
@@ -20,9 +22,9 @@ require_relative "public_suffix/list"
 # but was originally created to meet the needs of browser manufacturers.
 module PublicSuffix
 
-  DOT   = ".".freeze
-  BANG  = "!".freeze
-  STAR  = "*".freeze
+  DOT   = "."
+  BANG  = "!"
+  STAR  = "*"
 
   # Parses +name+ and returns the {PublicSuffix::Domain} instance.
   #
@@ -77,6 +79,7 @@ module PublicSuffix
     if rule.decompose(what).last.nil?
       raise DomainNotAllowed, "`#{what}` is not allowed according to Registry policy"
     end
+
     # rubocop:enable Style/IfUnlessModifier
 
     decompose(what, rule)
@@ -169,6 +172,7 @@ module PublicSuffix
     return DomainInvalid.new("Name is blank") if name.empty?
     return DomainInvalid.new("Name starts with a dot") if name.start_with?(DOT)
     return DomainInvalid.new("%s is not expected to contain a scheme" % name) if name.include?("://")
+
     name
   end
 

@@ -1,16 +1,15 @@
 language: ruby
 
 rvm:
-  - 2.1
-  - 2.2
   - 2.3
   - 2.4
   - 2.5
+  - 2.6
   - jruby-9.1.5.0
   - ruby-head
 
 env:
-  - COVERALL=1
+  - COVERAGE=1
 
 cache:
   - bundler
@@ -18,8 +17,8 @@ cache:
 matrix:
   allow_failures:
     - rvm: ruby-head
-    - rvm: jruby-9.1.0.0
+    - rvm: jruby-9.1.5.0
 
 before_install:
-  - rvm get latest
+  - gem update --system
   - gem install bundler

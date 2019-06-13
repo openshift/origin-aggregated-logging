@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.files = ["CHANGELOG".freeze, "LICENSE.txt".freeze, "README.md".freeze, "Rakefile".freeze, "lib/compat/securerandom.rb".freeze, "lib/uuidtools.rb".freeze, "lib/uuidtools/version.rb".freeze, "spec/spec.opts".freeze, "spec/spec_helper.rb".freeze, "spec/uuidtools/mac_address_spec.rb".freeze, "spec/uuidtools/utility_spec.rb".freeze, "spec/uuidtools/uuid_creation_spec.rb".freeze, "spec/uuidtools/uuid_parsing_spec.rb".freeze, "tasks/benchmark.rake".freeze, "tasks/gem.rake".freeze, "tasks/git.rake".freeze, "tasks/metrics.rake".freeze, "tasks/rspec.rake".freeze, "tasks/yard.rake".freeze, "website/index.html".freeze]
   s.homepage = "https://github.com/sporkmonger/uuidtools".freeze
   s.rdoc_options = ["--main".freeze, "README.md".freeze]
-  s.rubygems_version = "2.7.6".freeze
+  s.rubygems_version = "3.0.3".freeze
   s.summary = "UUID generator".freeze
 
   if s.respond_to? :specification_version then
