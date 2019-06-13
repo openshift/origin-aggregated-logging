@@ -1,3 +1,36 @@
+1.11.1 / 2019-05-20
+-------------------
+
+Changed:
+* Raise required ruby version to >=2.0. #699, #700
+* Fix a possible linker error on ruby < 2.3 on Linux.
+
+
+1.11.0 / 2019-05-17
+-------------------
+
+Added:
+* Add ability to disable or force use of system libffi. #669
+  Use like `gem inst ffi -- --enable-system-libffi` .
+* Add ability to call FFI callbacks from outside of FFI call frame. #584
+* Add proper documentation to FFI::Generator and ::Task
+* Add gemspec metadata. #696, #698
+
+Changed:
+* Fix stdcall on Win32. #649, #669
+* Fix load paths for FFI::Generator::Task
+* Fix FFI::Pointer#read_string(0) to return a binary String. #692
+* Fix benchmark suite so that it runs on ruby-2.x
+* Move FFI::Platform::CPU from C to Ruby. #663
+* Move FFI::StructByReference to Ruby. #681
+* Move FFI::DataConverter to Ruby (#661)
+* Various cleanups and improvements of specs and benchmarks
+
+Removed:
+* Remove ruby-1.8 and 1.9 compatibility code. #683
+* Remove unused spec files. #684
+
+
 1.10.0 / 2019-01-06
 -------------------
 

@@ -1,4 +1,85 @@
+# v1.5
+
+## Release v1.5.1 - 2019/06/05
+
+### Enhancement
+
+* in_tail: Increase read block size to reduce IO call
+  https://github.com/fluent/fluentd/pull/2418
+* in_monitor_agent: Refactor code
+  https://github.com/fluent/fluentd/pull/2422
+
+### Bug fixes
+
+* out_forward: Fix socket handling of keepalive
+  https://github.com/fluent/fluentd/pull/2434
+* parser: Fix the use of name based timezone
+  https://github.com/fluent/fluentd/pull/2421
+* in_monitor_agent: Fix debug parameter handling
+  https://github.com/fluent/fluentd/pull/2423
+* command: Fix error handling of log rotation age option
+  https://github.com/fluent/fluentd/pull/2427
+* command: Fix ERB warning for ruby 2.6 or later
+  https://github.com/fluent/fluentd/pull/2430
+
+## Release v1.5.0 - 2019/05/18
+
+### New feature
+
+* out_forward: Support keepalive feature
+  https://github.com/fluent/fluentd/pull/2393
+* in_http: Support TLS via server helper
+  https://github.com/fluent/fluentd/pull/2395
+* in_syslog: Support TLS via server helper
+  https://github.com/fluent/fluentd/pull/2399
+
+### Enhancement
+
+* in_syslog: Add delimiter parameter
+  https://github.com/fluent/fluentd/pull/2378
+* in_forward: Add tag/add_tag_prefix parameters
+  https://github.com/fluent/fluentd/pull/2396
+* parser_json: Add stream_buffer_size parameter for yajl
+  https://github.com/fluent/fluentd/pull/2381
+* command: Add deprecated message to show-plugin-config option
+  https://github.com/fluent/fluentd/pull/2401
+* storage_local: Ignore empty file. Call sync after write for XFS.
+  https://github.com/fluent/fluentd/pull/2409
+
+### Bug fixes
+
+* out_forward: Don't use SO_LINGER on SSL/TLS WinSock
+  https://github.com/fluent/fluentd/pull/2398
+* server helper: Fix recursive lock issue in TLSServer
+  https://github.com/fluent/fluentd/pull/2341
+* Fix typo
+  https://github.com/fluent/fluentd/pull/2369
+
 # v1.4
+
+## Release v1.4.2 - 2019/04/02
+
+### Enhancements
+
+* in_http: subdomain support in CORS domain
+  https://github.com/fluent/fluentd/pull/2337
+* in_monitor_agent: Expose current timekey list as a buffer metrics
+  https://github.com/fluent/fluentd/pull/2343
+* in_tcp/in_udp: Add source_address_key parameter
+  https://github.com/fluent/fluentd/pull/2347
+* in_forward: Add send_keepalive_packet parameter to check the remote connection is available or not
+  https://github.com/fluent/fluentd/pull/2352
+
+### Bug fixes
+
+* out_exec_filter: Fix typo of child_respawn description
+  https://github.com/fluent/fluentd/pull/2341
+* in_tail: Create parent directories for symlink
+  https://github.com/fluent/fluentd/pull/2353
+* in_tail: Fix encoding duplication check for non-specified case
+  https://github.com/fluent/fluentd/pull/2361
+* log: Fix time format handling of plugin logger when log format is JSON
+  https://github.com/fluent/fluentd/pull/2356
 
 ## Release v1.4.1 - 2019/03/18
 
@@ -6,8 +87,6 @@
 
 * system: Add worker_id to process_name when workers is larger than 1
   https://github.com/fluent/fluentd/pull/2321
-* in_syslog: Check message length when read from buffer in octet counting
-  https://github.com/fluent/fluentd/pull/2323
 * parser_regexp: Check named captures. When no named captures, configuration error is raised
   https://github.com/fluent/fluentd/pull/2331
 
@@ -15,6 +94,8 @@
 
 * out_forward: Make tls_client_private_key_passphrase secret
   https://github.com/fluent/fluentd/pull/2324
+* in_syslog: Check message length when read from buffer in octet counting
+  https://github.com/fluent/fluentd/pull/2323
 
 ## Release v1.4.0 - 2019/02/24
 

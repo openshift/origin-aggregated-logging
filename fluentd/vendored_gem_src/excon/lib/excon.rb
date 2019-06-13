@@ -23,11 +23,11 @@ require 'excon/middlewares/instrumentor'
 require 'excon/middlewares/mock'
 require 'excon/middlewares/response_parser'
 
+require 'excon/error'
 require 'excon/constants'
 require 'excon/utils'
 
 require 'excon/connection'
-require 'excon/error'
 require 'excon/headers'
 require 'excon/response'
 require 'excon/middlewares/decompress'
@@ -61,6 +61,14 @@ module Excon
       if $VERBOSE || ENV['EXCON_DEBUG']
         $stderr.puts "[excon][WARNING] #{warning}\n#{ caller.join("\n") }"
       end
+
+      if @raise_on_warnings
+        raise Error::Warning.new(warning)
+      end
+    end
+
+    def set_raise_on_warnings!(should_raise)
+      @raise_on_warnings = should_raise
     end
 
     # Status of mocking

@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module API
     module Actions
@@ -5,10 +22,10 @@ module Elasticsearch
       # Return documents matching a query, as well as aggregations (facets), highlighted snippets, suggestions, etc.
       #
       # The search API is used to query one or more indices either using simple
-      # [query string queries](http://www.elasticsearch.org/guide/reference/api/search/uri-request/)
+      # [query string queries](https://www.elastic.co/guide/reference/api/search/uri-request/)
       # as the `:q` argument , or by passing the
-      # [full request definition](http://www.elasticsearch.org/guide/reference/api/search/request-body/)
-      # in the [Query DSL](http://www.elasticsearch.org/guide/reference/query-dsl/) as the `:body` argument.
+      # [full request definition](https://www.elastic.co/guide/reference/api/search/request-body/)
+      # in the [Query DSL](https://www.elastic.co/guide/reference/query-dsl/) as the `:body` argument.
       #
       # @example Search with a simple query string query
       #
@@ -82,6 +99,7 @@ module Elasticsearch
       #                                           representation of a field for each hit
       # @option arguments [List] :stored_fields A comma-separated list of stored fields to return as part of a hit
       # @option arguments [Number] :from Starting offset (default: 0)
+      # @option arguments [Boolean] :include_type_name Whether a type should be expected in the body of the mappings.
       # @option arguments [String] :ignore_indices When performed on multiple indices, allows to ignore `missing` ones
       #                                            (options: none, missing)
       # @option arguments [Boolean] :lenient Specify whether format-based query failures
@@ -121,8 +139,8 @@ module Elasticsearch
       #
       # @return [Hash]
       #
-      # @see http://www.elasticsearch.org/guide/reference/api/search/
-      # @see http://www.elasticsearch.org/guide/reference/api/search/request-body/
+      # @see https://www.elastic.co/guide/reference/api/search/
+      # @see https://www.elastic.co/guide/reference/api/search/request-body/
       #
       def search(arguments={})
         arguments[:index] = UNDERSCORE_ALL if ! arguments[:index] && arguments[:type]
@@ -144,7 +162,7 @@ module Elasticsearch
 
       # Register this action with its valid params when the module is loaded.
       #
-      # @since 6.2.0
+      # @since 6.1.1
       ParamsRegistry.register(:search, [
           :analyzer,
           :analyze_wildcard,
@@ -152,6 +170,7 @@ module Elasticsearch
           :df,
           :explain,
           :fielddata_fields,
+          :include_type_name,
           :docvalue_fields,
           :stored_fields,
           :fields,
@@ -173,9 +192,7 @@ module Elasticsearch
           :sort,
           :source,
           :_source,
-          :_source_include,
           :_source_includes,
-          :_source_exclude,
           :_source_excludes,
           :stored_fields,
           :stats,
@@ -190,8 +207,11 @@ module Elasticsearch
           :batched_reduce_size,
           :max_concurrent_shard_requests,
           :pre_filter_shard_size,
+          :allow_partial_search_results,
           :rest_total_hits_as_int,
-          :ignore_throttled ].freeze)
+          :track_total_hits,
+          :ignore_throttled,
+          :seq_no_primary_term ].freeze)
     end
   end
 end

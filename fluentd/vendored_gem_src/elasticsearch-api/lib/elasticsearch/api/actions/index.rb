@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module API
     module Actions
@@ -40,7 +57,7 @@ module Elasticsearch
       #     client.cluster.put_settings body: { transient: { 'indices.ttl.interval' => '1s' } }
       #
       #     # Enable the `_ttl` property for all types within the index
-      #     client.indices.create index: 'myindex', body: { mappings: { mytype: { _ttl: { enabled: true } }  } }
+      #     client.indices.create index: 'myindex', body: { mappings: { properties: { _ttl: { enabled: true } }  } }
       #
       #     client.index index: 'myindex', type: 'mytype', id: '1', body: { title: 'TEST' }, ttl: '5s'
       #
@@ -56,6 +73,7 @@ module Elasticsearch
       # @option arguments [Hash] :body The document
       # @option arguments [String] :consistency Explicit write consistency setting for the operation
       #                                         (options: one, quorum, all)
+      # @option arguments [Boolean] :include_type_name Whether a type should be expected in the body of the mappings.
       # @option arguments [String] :op_type Explicit operation type (options: index, create)
       # @option arguments [String] :parent ID of the parent document
       # @option arguments [String] :percolate Percolator queries to execute while indexing the document
@@ -72,7 +90,7 @@ module Elasticsearch
       #
       def index(arguments={})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
-        raise ArgumentError, "Required argument 'type' missing"  unless arguments[:type]
+        arguments[:type] ||= DEFAULT_DOC
         method = arguments[:id] ? HTTP_PUT : HTTP_POST
         path   = Utils.__pathify Utils.__escape(arguments[:index]),
                                  Utils.__escape(arguments[:type]),
@@ -80,15 +98,15 @@ module Elasticsearch
 
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
         body   = arguments[:body]
-
         perform_request(method, path, params, body).body
       end
 
       # Register this action with its valid params when the module is loaded.
       #
-      # @since 6.2.0
+      # @since 6.1.1
       ParamsRegistry.register(:index, [
           :consistency,
+          :include_type_name,
           :op_type,
           :parent,
           :percolate,

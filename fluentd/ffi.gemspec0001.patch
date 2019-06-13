@@ -1,7 +1,17 @@
---- ffi/ffi.gemspec.orig	2019-02-21 16:45:07.610070097 -0700
-+++ ffi/ffi.gemspec	2019-02-21 16:45:54.216086109 -0700
-@@ -11,18 +11,8 @@
-   s.files = `git ls-files -z`.split("\x0").reject do |f|
+From 5689612a944e0b08e84cf3fc9f5aaa4d4efd47c9 Mon Sep 17 00:00:00 2001
+From: Rich Megginson <rmeggins@redhat.com>
+Date: Thu, 13 Jun 2019 14:58:59 -0600
+Subject: [PATCH] remove libffi files from gemspec
+
+---
+ ffi.gemspec | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+diff --git a/ffi.gemspec b/ffi.gemspec
+index 49a565f..b51795b 100644
+--- a/ffi.gemspec
++++ b/ffi.gemspec
+@@ -20,16 +20,6 @@ Gem::Specification.new do |s|
      f =~ /^(bench|gen|libtest|nbproject|spec)/
    end
  
@@ -16,6 +26,8 @@
 -  end
 -
    s.extensions << 'ext/ffi_c/extconf.rb'
-   s.has_rdoc = false
    s.rdoc_options = %w[--exclude=ext/ffi_c/.*\.o$ --exclude=ffi_c\.(bundle|so)$]
    s.license = 'BSD-3-Clause'
+-- 
+2.21.0
+

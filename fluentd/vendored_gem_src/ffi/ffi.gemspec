@@ -8,6 +8,14 @@ Gem::Specification.new do |s|
   s.homepage = 'http://wiki.github.com/ffi/ffi'
   s.summary = 'Ruby FFI'
   s.description = 'Ruby FFI library'
+  if s.respond_to?(:metadata)
+    s.metadata['bug_tracker_uri'] = 'https://github.com/ffi/ffi/issues'
+    s.metadata['changelog_uri'] = 'https://github.com/ffi/ffi/blob/master/CHANGELOG.md'
+    s.metadata['documentation_uri'] = 'https://github.com/ffi/ffi/wiki'
+    s.metadata['wiki_uri'] = 'https://github.com/ffi/ffi/wiki'
+    s.metadata['source_code_uri'] = 'https://github.com/ffi/ffi/'
+    s.metadata['mailing_list_uri'] = 'http://groups.google.com/group/ruby-ffi'
+  end
   s.files = `git ls-files -z`.split("\x0").reject do |f|
     f =~ /^(bench|gen|libtest|nbproject|spec)/
   end
@@ -23,14 +31,13 @@ Gem::Specification.new do |s|
   end
 
   s.extensions << 'ext/ffi_c/extconf.rb'
-  s.has_rdoc = false
   s.rdoc_options = %w[--exclude=ext/ffi_c/.*\.o$ --exclude=ffi_c\.(bundle|so)$]
   s.license = 'BSD-3-Clause'
   s.require_paths << 'ext/ffi_c'
-  s.required_ruby_version = '>= 1.9'
-  s.add_development_dependency 'rake', '~> 10.1'
+  s.required_ruby_version = '>= 2.0'
+  s.add_development_dependency 'rake', '~> 12.1'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
-  s.add_development_dependency 'rake-compiler-dock', '~> 0.6.2'
+  s.add_development_dependency 'rake-compiler-dock', '~> 0.7.0'
   s.add_development_dependency 'rspec', '~> 2.14.1'
   s.add_development_dependency 'rubygems-tasks', "~> 0.2.4"
 end
