@@ -32,6 +32,9 @@ RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autoge
     make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
     cd .. && rm -rf jemalloc
 
+ADD source.jemalloc /source.jemalloc
+RUN bash -c '. /source.jemalloc; echo jemalloc $JEMALLOC_VER >> /contents'
+
 ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
 ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
 
@@ -70,6 +73,7 @@ COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/lib/** /opt/rh/rh-ruby25/ro
 COPY --from=builder /opt/rh/rh-ruby25/root/usr/local/bin/** /opt/rh/rh-ruby25/root/usr/local/bin/
 COPY --from=builder /usr/local/lib/** /usr/local/lib/
 COPY --from=builder /usr/local/bin/** /usr/local/bin/
+COPY --from=builder /contents /contents
 
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
