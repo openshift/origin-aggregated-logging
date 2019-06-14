@@ -1,9 +1,14 @@
 Fluentd: Open-Source Log Collector
 ===================================
+Travis CI:
 
 [<img src="https://travis-ci.org/fluent/fluentd.svg" />](https://travis-ci.org/fluent/fluentd) [![Code Climate](https://codeclimate.com/github/fluent/fluentd/badges/gpa.svg)](https://codeclimate.com/github/fluent/fluentd)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1189/badge)](https://bestpractices.coreinfrastructure.org/projects/1189)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd?ref=badge_shield)
+
+GitLab CI:
+
+[![pipeline status](https://gitlab.com/fluent/fluentd/badges/master/pipeline.svg)](https://gitlab.com/fluent/fluentd/commits/master)
 
 [Fluentd](https://www.fluentd.org/) collects events from various data sources and writes them to files, RDBMS, NoSQL, IaaS, SaaS, Hadoop and so on. Fluentd helps you unify your logging infrastructure (Learn more about the [Unified Logging Layer](https://www.fluentd.org/blog/unified-logging-layer)).
 
@@ -30,6 +35,11 @@ Mobile/Web Application Logging | Fluentd can function as middleware to enable as
 
 ## Development
 
+### Branch
+
+- master: For v1 development.
+- v0.12: For v0.12. This is security maintenance mode. Only security fix is accepted.
+
 ### Prerequisites
 
 - Ruby 2.1 or later
@@ -52,11 +62,6 @@ You can run specified test via `TEST` environment variable:
 
     $ bundle exec rake test TEST=test/test_specified_path.rb
     $ bundle exec rake test TEST=test/test_*.rb
-
-## Running in Production
-
-Many enterprises run Fluentd in production to handle all of their logging needs. For enterprises requiring Security tested binaries, SLA-based support, architectural guidance, and enhanced plugin connectors see [Fluentd Enterprise](https://www.fluentd.org/enterprise).
-
 
 ## Fluentd UI: Admin GUI
 

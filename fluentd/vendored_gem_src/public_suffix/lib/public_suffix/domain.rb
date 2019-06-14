@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 # = Public Suffix
 #
 # Domain name parser based on the Public Suffix List.
 #
-# Copyright (c) 2009-2018 Simone Carletti <weppos@weppos.net>
+# Copyright (c) 2009-2019 Simone Carletti <weppos@weppos.net>
 
 module PublicSuffix
 
@@ -43,7 +45,7 @@ module PublicSuffix
     #   Initializes with a +tld+, +sld+ and +trd+.
     #   @param [String] tld The TLD (extension)
     #   @param [String] sld The SLD (domain)
-    #   @param [String] tld The TRD (subdomain)
+    #   @param [String] trd The TRD (subdomain)
     #
     # @yield [self] Yields on self.
     # @yieldparam [PublicSuffix::Domain] self The newly creates instance

@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 # = Public Suffix
 #
 # Domain name parser based on the Public Suffix List.
 #
-# Copyright (c) 2009-2018 Simone Carletti <weppos@weppos.net>
+# Copyright (c) 2009-2019 Simone Carletti <weppos@weppos.net>
 
 module PublicSuffix
 
@@ -65,8 +67,8 @@ module PublicSuffix
     # @param  private_domains [Boolean] whether to ignore the private domains section
     # @return [PublicSuffix::List]
     def self.parse(input, private_domains: true)
-      comment_token = "//".freeze
-      private_token = "===BEGIN PRIVATE DOMAINS===".freeze
+      comment_token = "//"
+      private_token = "===BEGIN PRIVATE DOMAINS==="
       section = nil # 1 == ICANN, 2 == PRIVATE
 
       new do |list|
@@ -81,6 +83,7 @@ module PublicSuffix
           # include private domains or stop scanner
           when line.include?(private_token)
             break if !private_domains
+
             section = 2
 
           # skip comments
@@ -116,6 +119,7 @@ module PublicSuffix
     # @return [Boolean]
     def ==(other)
       return false unless other.is_a?(List)
+
       equal?(other) || @rules == other.rules
     end
     alias eql? ==
@@ -170,6 +174,7 @@ module PublicSuffix
     def find(name, default: default_rule, **options)
       rule = select(name, **options).inject do |l, r|
         return r if r.class == Rule::Exception
+
         l.length > r.length ? l : r
       end
       rule || default
@@ -201,12 +206,11 @@ module PublicSuffix
 
       loop do
         match = @rules[query]
-        if !match.nil? && (ignore_private == false || match.private == false)
-          rules << entry_to_rule(match, query)
-        end
+        rules << entry_to_rule(match, query) if !match.nil? && (ignore_private == false || match.private == false)
 
         index += 1
         break if index >= parts.size
+
         query = parts[index] + DOT + query
       end
 

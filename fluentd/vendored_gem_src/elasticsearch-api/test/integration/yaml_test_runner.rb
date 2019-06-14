@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 RUBY_1_8 = defined?(RUBY_VERSION) && RUBY_VERSION < '1.9'
 JRUBY    = defined?(JRUBY_VERSION)
 
@@ -6,7 +23,6 @@ require 'logger'
 require 'yaml'
 require 'active_support/inflector'
 require 'ansi'
-require 'turn'
 
 require 'elasticsearch'
 require 'elasticsearch/extensions/test/cluster'
@@ -16,10 +32,7 @@ require 'elasticsearch/extensions/test/profiling' unless JRUBY
 # Skip features
 skip_features = 'stash_in_path,requires_replica,headers,warnings,default_shards'
 SKIP_FEATURES = ENV.fetch('TEST_SKIP_FEATURES', skip_features)
-
-# Turn configuration
-ENV['ansi'] = 'false' if ENV['CI']
-Turn.config.format = :pretty
+SKIPPED_TESTS = [ '/nodes.stats/30_discovery.yml' ]
 
 # Launch test cluster
 #
@@ -84,7 +97,7 @@ $client ||= Elasticsearch::Client.new url: url
 $helper_client ||= Elasticsearch::Client.new url: url
 
 $client.transport.logger = logger unless ENV['QUIET'] || ENV['CI']
-# $client.transport.tracer = tracer if ENV['CI']
+$client.transport.tracer = tracer if ENV['TRACE']
 
 # Store Elasticsearch version
 #
@@ -96,39 +109,57 @@ puts '-'*80,
      '-'*80
 
 require 'test_helper'
-require 'test/unit'
-require 'shoulda/context'
 
-# Monkeypatch shoulda to remove "should" from test name
-#
-module Shoulda
-  module Context
-    class Context
-      def create_test_from_should_hash(should)
-        test_name = ["test:", full_name, "|", "#{should[:name]}"].flatten.join(' ').to_sym
+class Elasticsearch::Test::YAMLTestReporter < ::MiniTest::Reporters::SpecReporter
+  def before_suite(suite)
+    puts ">>>>> #{suite.to_s} #{''.ljust(73-suite.to_s.size, '>')}" unless ENV['QUIET']
+  end
 
-        if test_methods[test_unit_class][test_name.to_s] then
-          raise DuplicateTestError, "'#{test_name}' is defined more than once."
+  def after_suite(suite)
+    super unless ENV['QUIET']
+  end
+
+  def after_suites(suites, type)
+    time = Time.now - runner.suites_start_time
+
+    color = ( runner.errors > 0 || runner.failures > 0 ) ? :red : :green
+    status_line = "Finished in %.6fs, %.4f tests/s, %.4f assertions/s.\n".ansi(color) %
+      [time, runner.test_count / time, runner.assertion_count / time]
+    status_line += "#{runner.test_count} tests: #{runner.skips} skipped, #{runner.errors} errored, #{runner.failures} failed.".ansi(:bold, color)
+
+    puts '=' * 80
+    puts status_line
+    puts '-' * 80, ''
+
+    runner.test_results.each do |suite, tests|
+      tests.each do |test, test_runner|
+        next unless test_runner.result.to_s =~ /error|failure/
+
+        test_name = test_runner.test.to_s
+                      .gsub(/^test_: /, '')
+                      .gsub(/ should /, ' ')
+                      .gsub(/\| .*$/, '')
+                      .gsub(/\.\s*$/, '')
+        yaml_filename = test_runner.test.to_s.gsub(/.*\| (.*)\.\s*$/, '\1')
+
+        status = case test_runner.result
+          when :failure
+            "FAILURE"
+          when :error
+            "ERROR"
         end
 
-        test_methods[test_unit_class][test_name.to_s] = true
-
-        context = self
-        test_unit_class.send(:define_method, test_name) do
-          @shoulda_context = context
-          begin
-            context.run_parent_setup_blocks(self)
-            should[:before].bind(self).call if should[:before]
-            context.run_current_setup_blocks(self)
-            should[:block].bind(self).call
-          ensure
-            context.run_all_teardown_blocks(self)
-          end
-        end
+        puts status.ansi(:red) +
+               " [#{test_runner.suite.to_s}] ".ansi(:red, :bold) +
+               test_name,
+               "<https://github.com/elastic/elasticsearch/blob/master/rest-api-spec/src/main/resources/rest-api-spec/test/#{yaml_filename}>".ansi(:underscore),
+               test_runner.exception.message.ansi(:faint), ''
       end
     end
   end
 end
+
+Minitest::Reporters.use! Elasticsearch::Test::YAMLTestReporter.new
 
 module Elasticsearch
   module YamlTestSuite
@@ -143,7 +174,7 @@ module Elasticsearch
 
       def symbolize_keys(object)
         if object.is_a? Hash
-          object.reduce({}) { |memo,(k,v)| memo[k.to_sym] = symbolize_keys(v); memo }
+          object.reduce({}) { |memo,(k,v)| memo[k.to_s.to_sym] = symbolize_keys(v); memo }
         else
           object
         end
@@ -214,7 +245,7 @@ module Elasticsearch
       def in_context(name, &block)
         klass = Class.new(YamlTestCase)
         Object::const_set "%sTest" % name.split(/\s/).map { |d| d.capitalize }.join('').gsub(/[^\w]+/, ''), klass
-        klass.context name, &block
+        klass.context "[#{name.ansi(:bold)}]", &block
       end
 
       def fetch_or_return(var)
@@ -276,13 +307,13 @@ module Elasticsearch
       extend self
     end
 
-    class YamlTestCase < ::Test::Unit::TestCase; end
+    class YamlTestCase < ::Minitest::Test; end
   end
 end
 
 include Elasticsearch::YamlTestSuite
 
-rest_api_test_source = $client.info['version']['number'] < '2' ? '../../../../tmp/elasticsearch/rest-api-spec/test' : '../../../../tmp/elasticsearch/rest-api-spec/src/main/resources/rest-api-spec/test'
+rest_api_test_source = '../../../../tmp/elasticsearch/rest-api-spec/src/main/resources/rest-api-spec/test'
 PATH    = Pathname(ENV.fetch('TEST_REST_API_SPEC', File.expand_path(rest_api_test_source, __FILE__)))
 
 suites  = Dir.glob(PATH.join('*')).map { |d| Pathname(d) }
@@ -297,9 +328,14 @@ suites.each do |suite|
     #
     setup do
       $helper_client.indices.delete index: '_all', ignore: 404
+      $helper_client.indices.delete index: 'test-weird-index*', ignore: 404
+      $helper_client.indices.delete_template name: 'nomatch', ignore: 404
       $helper_client.indices.delete_template name: 'test_2', ignore: 404
+      $helper_client.indices.delete_template name: 'test2', ignore: 404
       $helper_client.indices.delete_template name: 'test', ignore: 404
       $helper_client.indices.delete_template name: 'index_template', ignore: 404
+      $helper_client.indices.delete_template name: 'test_no_mappings', ignore: 404
+      $helper_client.indices.delete_template name: 'test_template', ignore: 404
       $helper_client.snapshot.delete repository: 'test_repo_create_1',  snapshot: 'test_snapshot', ignore: 404
       $helper_client.snapshot.delete repository: 'test_repo_restore_1', snapshot: 'test_snapshot', ignore: 404
       $helper_client.snapshot.delete repository: 'test_cat_snapshots_1', snapshot: 'snap1', ignore: 404
@@ -331,13 +367,18 @@ suites.each do |suite|
     #
     teardown do
       $helper_client.indices.delete index: '_all', ignore: 404
+
+      # Wipe out cluster "transient" settings
+      settings = $helper_client.cluster.get_settings(flat_settings: true)['transient'].keys.reduce({}) {|s,i| s[i] = nil; s}
+      $helper_client.cluster.put_settings body: { transient: settings } unless settings.empty?
     end
 
     files = Dir[suite.join('*.{yml,yaml}')]
     files.each do |file|
+      next if SKIPPED_TESTS.any? { |test| file =~ /#{test}/ }
       begin
         tests = YAML.load_stream File.new(file)
-      rescue Exception => e
+      rescue RuntimeError => e
         $stderr.puts "ERROR [#{e.class}] while loading [#{file}] file".ansi(:red)
         # raise e
         next
@@ -360,7 +401,10 @@ suites.each do |suite|
 
       tests.each do |test|
         context '' do
-          test_name = test.keys.first.to_s + (ENV['QUIET'] ? '' : " | #{file.gsub(PATH.to_s, '').ansi(:bold)}")
+          yaml_file_line = File.read(file).force_encoding("UTF-8").split("\n").index {|l| l.include? test.keys.first.to_s }
+
+          l = yaml_file_line ? "#L#{yaml_file_line.to_i + 1}" : ''
+          test_name = test.keys.first.to_s + " | #{file.gsub(PATH.to_s, '').gsub(/^\//, '')}" + l
           actions   = test.values.first
 
           if reason = Runner.skip?(actions)
@@ -431,7 +475,7 @@ suites.each do |suite|
 
                   begin
                     $results[test.hash] = Runner.perform_api_call(test, api, arguments)
-                  rescue Exception => e
+                  rescue StandardError => e
                     begin
                       $results[test.hash] = MultiJson.load(e.message.match(/{.+}/, 1).to_s)
                     rescue MultiJson::ParseError

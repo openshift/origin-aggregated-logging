@@ -43,6 +43,7 @@ Current maintainers: @cosmo0920
   + [index_prefix](#index_prefix)
   + [templates](#templates)
   + [max_retry_putting_template](#max_retry_putting_template)
+  + [fail_on_putting_template_retry_exceed](#fail_on_putting_template_retry_exceed)
   + [max_retry_get_es_version](#max_retry_get_es_version)
   + [request_timeout](#request_timeout)
   + [reload_connections](#reload_connections)
@@ -84,6 +85,7 @@ Current maintainers: @cosmo0920
   + [suppress_doc_wrap](#suppress_doc_wrap)
   + [ignore_exceptions](#ignore_exceptions)
   + [exception_backup](#exception_backup)
+  + [bulk_message_request_threshold](#bulk_message_request_threshold)
 * [Troubleshooting](#troubleshooting)
   + [Cannot send events to elasticsearch](#cannot-send-events-to-elasticsearch)
   + [Cannot see detailed failure log](#cannot-see-detailed-failure-log)
@@ -161,6 +163,7 @@ hosts host1:port1,host2:port2,host3:port3
 You can specify multiple Elasticsearch hosts with separator ",".
 
 If you specify multiple hosts, this plugin will load balance updates to Elasticsearch. This is an [elasticsearch-ruby](https://github.com/elasticsearch/elasticsearch-ruby) feature, the default strategy is round-robin.
+
 **Note:** If you will use scheme https, do not include "https://" in your hosts ie. host "https://domain", this will cause ES cluster to be unreachable and you will receive an error "Can not reach Elasticsearch cluster"
 
 **Note:** Up until v2.8.5, it was allowed to embed the username/password in the URL. However, this syntax is deprecated as of v2.8.6 because it was found to cause serious connection problems (See #394). Please migrate your settings to use the `user` and `password` field (described below) instead.
@@ -309,7 +312,7 @@ By default, the records inserted into index `logstash-YYMMDD` with UTC (Coordina
 
 Tell this plugin to find the index name to write to in the record under this key in preference to other mechanisms. Key can be specified as path to nested record using dot ('.') as a separator.
 
-If it is present in the record (and the value is non falsey) the value will be used as the index name to write to and then removed from the record before output; if it is not found then it will use logstash_format or index_name settings as configured.
+If it is present in the record (and the value is non falsy) the value will be used as the index name to write to and then removed from the record before output; if it is not found then it will use logstash_format or index_name settings as configured.
 
 Suppose you have the following settings
 
@@ -403,7 +406,7 @@ If [customize_template](#customize_template) is set, then this parameter will be
 
 ### deflector_alias
 
-Specify the deflector alias which would be assigned to the rollover index created. This is useful in case of using the Elasticsearch rollover API 
+Specify the deflector alias which would be assigned to the rollover index created. This is useful in case of using the Elasticsearch rollover API
 ```
 deflector_alias test-current
 ```
@@ -447,6 +450,15 @@ Usually, booting up clustered Elasticsearch containers are much slower than laun
 
 ```
 max_retry_putting_template 15 # defaults to 10
+```
+
+### fail_on_putting_template_retry_exceed
+
+Indicates whether to fail when `max_retry_putting_template` is exceeded.
+If you have multiple output plugin, you could use this property to do not fail on fluentd statup.
+
+```
+fail_on_putting_template_retry_exceed false # defaults to true
 ```
 
 ### max_retry_get_es_version
@@ -1053,6 +1065,14 @@ Indicates whether to backup chunk when ignore exception occurs.
 
 Default value is `true`.
 
+## bulk_message_request_threshold
+
+Configure `bulk_message` request splitting threshold size.
+
+Default value is `20MB`. (20 * 1024 * 1024)
+
+If you specify this size as negative number, `bulk_message` request splitting feature will be disabled.
+
 ## Troubleshooting
 
 ### Cannot send events to Elasticsearch
@@ -1335,7 +1355,7 @@ In more detail, please refer to [the official plugin management document](https:
 
 fluent-plugin-elasticsearch reloads connection after 10000 requests. (Not correspond to events counts because ES plugin uses bulk API.)
 
-This functionality which is originated from elasticsaearch-ruby gem is enabled by default.
+This functionality which is originated from elasticsearch-ruby gem is enabled by default.
 
 Sometimes this reloading functionality bothers users to send events with ES plugin.
 

@@ -1,6 +1,23 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require 'test_helper'
 
-class Elasticsearch::Transport::Transport::BaseTest < Test::Unit::TestCase
+class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
 
   class EmptyTransport
     include Elasticsearch::Transport::Transport::Base
@@ -239,7 +256,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Test::Unit::TestCase
       @transport.expects(:get_connection).returns(stub_everything :failures => 1)
 
       # `block.expects(:call).raises(::Errno::ECONNREFUSED)` fails on Ruby 1.8
-      block = lambda { |a, b| raise ::Errno::ECONNREFUSED }
+      block = lambda { |a,b| raise ::Errno::ECONNREFUSED }
 
       assert_raise ::Errno::ECONNREFUSED do
         @transport.perform_request 'GET', '/', &block
@@ -424,7 +441,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Test::Unit::TestCase
       @block = Proc.new { |c, u| puts "ERROR" }
       @block.expects(:call).returns(Elasticsearch::Transport::Transport::Response.new 500, 'ERROR')
 
-      @transport.expects(:__log)
+      @transport.expects(:__log_response)
       @transport.logger.expects(:fatal)
 
       assert_raise Elasticsearch::Transport::Transport::Errors::InternalServerError do
@@ -436,7 +453,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Test::Unit::TestCase
       @block = Proc.new { |c, u| puts "ERROR" }
       @block.expects(:call).returns(Elasticsearch::Transport::Transport::Response.new 500, 'ERROR')
 
-      @transport.expects(:__log).once
+      @transport.expects(:__log_response).once
       @transport.logger.expects(:fatal).never
 
       # No `BadRequest` error
@@ -447,7 +464,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Test::Unit::TestCase
       @block = Proc.new { |c, u| puts "ERROR" }
       @block.expects(:call).raises(Exception)
 
-      @transport.expects(:__log).never
+      @transport.expects(:__log_response).never
       @transport.logger.expects(:fatal)
 
       assert_raise(Exception) { @transport.perform_request('POST', '_search', &@block) }
