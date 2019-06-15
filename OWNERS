@@ -5,7 +5,6 @@ approvers:
   - richm
   - lukas-vlcek
   - nhosoi
-  - josefkarasek
 reviewers:
   - bparees
   - jcantrill
@@ -13,4 +12,3 @@ reviewers:
   - richm
   - nhosoi
   - lukas-vlcek
-  - josefkarasek
