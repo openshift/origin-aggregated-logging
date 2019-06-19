@@ -12,7 +12,8 @@ set -euxo pipefail
 
 gem --version
 
-tmpgi=$( mktemp )
+contents=$( mktemp )
+trap "rm -f $contents" EXIT
 
 for dir in * ; do
     if [ ! -f $dir/$dir.gemspec ] ; then
@@ -51,6 +52,8 @@ for dir in * ; do
         gem build -V $gem_name.gemspec
         exit 1
     }
+    gem_ver=$( gem spec --ruby *.gem | ruby -e 'gemspec=eval($stdin.read); puts gemspec.version.version' )
+    echo $gem_name $gem_ver >> $contents
     mv *.gem ..
     popd > /dev/null
 done
@@ -73,4 +76,5 @@ else
     done
     rc=1
 fi
+sort $contents >> /contents
 exit $rc
