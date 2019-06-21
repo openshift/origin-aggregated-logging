@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec ${OS_O_A_L_DIR}/test/0540-bz1710868-fix-access-to-root-endpoint
