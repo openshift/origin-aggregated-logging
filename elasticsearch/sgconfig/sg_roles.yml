@@ -10,7 +10,10 @@ sg_role_kibana:
 sg_role_prometheus:
   cluster:
     - METRICS
-  indices: {}
+  indices:
+    '*':
+      '*':
+        - indices:monitor*
 
 sg_role_fluentd:
   cluster:
