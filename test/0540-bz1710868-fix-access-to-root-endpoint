@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# test access to root endpoint
+#https://bugzilla.redhat.com/show_bug.cgi?id=1710868
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
+source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
+source "${OS_O_A_L_DIR}/hack/testing/util.sh"
+os::util::environment::use_sudo
+
+test_name=$(basename $0)
+os::test::junit::declare_suite_start ${test_name}
+
+if [ -n "${DEBUG:-}" ] ; then
+    set -x
+fi
+
+cleanup() {
+    local return_code="$?"
+    set +e
+    if [ $return_code = 0 ] ; then
+        mycmd=os::log::info
+    else
+        mycmd=os::log::error
+    fi
+    $mycmd ${test_name} test finished at $( date )
+    # this will call declare_test_end, suite_end, etc.
+    os::test::junit::reconcile_output
+    exit $return_code
+}
+trap "cleanup" EXIT
+
+os::log::info Starting ${test_name} test at $( date )
+
+LOG_ADMIN_USER=${LOG_ADMIN_USER:-admin}
+LOG_ADMIN_PW=${LOG_ADMIN_PW:-admin}
+LOG_NORMAL_USER=${LOG_NORMAL_USER:-loguser1-$RANDOM}
+LOG_NORMAL_PW=${LOG_NORMAL_PW:-loguser1-$RANDOM}
+
+oc login -u system:admin > /dev/null
+kibna_pod=$(oc -n ${LOGGING_NS} get pod -l component=kibana -o jsonpath={.items[0].metadata.name})
+os::cmd::expect_success "oc adm policy add-role-to-user admin ${LOG_NORMAL_USER} -n ${LOGGING_NS}"
+
+oc login -u $LOG_ADMIN_USER -p $LOG_ADMIN_PW > /dev/null
+test_token=$(oc whoami -t)
+os::log::info Checking user "$(oc whoami --token $test_token)"
+os::cmd::expect_success_and_text "oc exec -c kibana -n ${LOGGING_NS} $kibna_pod -- curl -k https://elasticsearch:9200 -H\"Authorization: Bearer $test_token\" -s -o /dev/null -w \"%{http_code}\"" "200"
+
+oc login -u $LOG_NORMAL_USER -p $LOG_NORMAL_PW > /dev/null
+test_token=$(oc whoami -t)
+os::log::info Checking user "$(oc whoami --token $test_token)"
+os::cmd::expect_success_and_text "oc exec -c kibana -n ${LOGGING_NS} $kibna_pod -- curl -k https://elasticsearch:9200 -H\"Authorization: Bearer $test_token\" -s -o /dev/null -w \"%{http_code}\"" "200"
