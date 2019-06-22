@@ -38,8 +38,8 @@ module Excon
       end
     end
     def logger=(logger)
-      Excon::LoggingInstrumentor.logger = logger
       @data[:instrumentor] = Excon::LoggingInstrumentor
+      @data[:logger] = logger
     end
 
     # Initializes a new Connection instance
@@ -67,8 +67,13 @@ module Excon
       # the same goes for :middlewares
       @data[:middlewares] = @data[:middlewares].dup
 
-      params = validate_params(:connection, params)
       @data.merge!(params)
+      validate_params(:connection, @data, @data[:middlewares])
+
+      if @data.key?(:host) && !@data.key?(:hostname)
+        Excon.display_warning('hostname is missing! For IPv6 support, provide both host and hostname: Excon::Connection#new(:host => uri.host, :hostname => uri.hostname, ...).')
+        @data[:hostname] = @data[:host]
+      end
 
       setup_proxy
 
@@ -138,7 +143,13 @@ module Excon
 
           # add headers to request
           datum[:headers].each do |key, values|
+            if key.to_s.match(/[\r\n]/)
+              raise Excon::Errors::InvalidHeaderKey.new(key.to_s.inspect + ' contains forbidden "\r" or "\n"')
+            end
             [values].flatten.each do |value|
+              if value.to_s.match(/[\r\n]/)
+                raise Excon::Errors::InvalidHeaderValue.new(value.to_s.inspect + ' contains forbidden "\r" or "\n"')
+              end
               request << key.to_s << ': ' << value.to_s << CR_NL
             end
           end
@@ -150,9 +161,7 @@ module Excon
             socket.write(request) # write out request + headers
             while true # write out body with chunked encoding
               chunk = datum[:request_block].call
-              if FORCE_ENC
-                chunk.force_encoding('BINARY')
-              end
+              binary_encode(chunk)
               if chunk.length > 0
                 socket.write(chunk.length.to_s(16) << CR_NL << chunk << CR_NL)
               else
@@ -171,14 +180,10 @@ module Excon
             end
 
             # if request + headers is less than chunk size, fill with body
-            if FORCE_ENC
-              request.force_encoding('BINARY')
-            end
+            binary_encode(request)
             chunk = body.read([datum[:chunk_size] - request.length, 0].max)
             if chunk
-              if FORCE_ENC
-                chunk.force_encoding('BINARY')
-              end
+              binary_encode(chunk)
               socket.write(request << chunk)
             else
               socket.write(request) # write out request + headers
@@ -191,7 +196,7 @@ module Excon
         end
       rescue => error
         case error
-        when Excon::Errors::StubNotFound, Excon::Errors::Timeout
+        when Excon::Errors::InvalidHeaderKey, Excon::Errors::InvalidHeaderValue, Excon::Errors::StubNotFound, Excon::Errors::Timeout
           raise(error)
         else
           raise_socket_error(error)
@@ -223,10 +228,16 @@ module Excon
     #     @option params [String] :path appears after 'scheme://host:port/'
     #     @option params [Hash]   :query appended to the 'scheme://host:port/path/' in the form of '?key=value'
     def request(params={}, &block)
-      params = validate_params(:request, params)
       # @data has defaults, merge in new params to override
       datum = @data.merge(params)
       datum[:headers] = @data[:headers].merge(datum[:headers] || {})
+
+      validate_params(:request, params, datum[:middlewares])
+      # If the user passed in new middleware, we want to validate that the original connection parameters
+      # are still valid with the provided middleware.
+      if params[:middlewares]
+        validate_params(:connection, @data, datum[:middlewares])
+      end
 
       if datum[:user] || datum[:password]
         user, pass = Utils.unescape_uri(datum[:user].to_s), Utils.unescape_uri(datum[:password].to_s)
@@ -238,7 +249,6 @@ module Excon
       else
         datum[:headers]['Host']   ||= datum[:host] + port_string(datum)
       end
-      datum[:retries_remaining] ||= datum[:retry_limit]
 
       # if path is empty or doesn't start with '/', insert one
       unless datum[:path][0, 1] == '/'
@@ -278,6 +288,10 @@ module Excon
       end
     rescue => error
       reset
+
+      # If we didn't get far enough to initialize datum and the middleware stack, just raise
+      raise error if !datum
+
       datum[:error] = error
       if datum[:stack]
         datum[:stack].error_call(datum)
@@ -355,15 +369,7 @@ module Excon
       vars = instance_variables.inject({}) do |accum, var|
         accum.merge!(var.to_sym => instance_variable_get(var))
       end
-      if vars[:'@data'][:headers].has_key?('Authorization')
-        vars[:'@data'] = vars[:'@data'].dup
-        vars[:'@data'][:headers] = vars[:'@data'][:headers].dup
-        vars[:'@data'][:headers]['Authorization'] = REDACTED
-      end
-      if vars[:'@data'][:password]
-        vars[:'@data'] = vars[:'@data'].dup
-        vars[:'@data'][:password] = REDACTED
-      end
+      vars[:'@data'] = Utils.redact(vars[:'@data'])
       inspection = '#<Excon::Connection:'
       inspection += (object_id << 1).to_s(16)
       vars.each do |key, value|
@@ -371,6 +377,10 @@ module Excon
       end
       inspection += '>'
       inspection
+    end
+
+    def valid_request_keys(middlewares)
+      valid_middleware_keys(middlewares) + Excon::VALID_REQUEST_KEYS
     end
 
     private
@@ -387,27 +397,43 @@ module Excon
       end
     end
 
-    def validate_params(validation, params)
+    def valid_middleware_keys(middlewares)
+      middlewares.flat_map do |middleware|
+        if middleware.respond_to?(:valid_parameter_keys)
+          middleware.valid_parameter_keys
+        else
+          Excon.display_warning(
+            "Excon middleware #{middleware} does not define #valid_parameter_keys"
+          )
+          []
+        end
+      end
+    end
+
+    def validate_params(validation, params, middlewares)
       valid_keys = case validation
       when :connection
-        Excon::VALID_CONNECTION_KEYS
+        valid_middleware_keys(middlewares) + Excon::VALID_CONNECTION_KEYS
       when :request
-        Excon::VALID_REQUEST_KEYS
+        valid_request_keys(middlewares)
+      else
+        raise ArgumentError.new("Invalid validation type '#{validation}'")
       end
+
       invalid_keys = params.keys - valid_keys
       unless invalid_keys.empty?
         Excon.display_warning("Invalid Excon #{validation} keys: #{invalid_keys.map(&:inspect).join(', ')}")
-        # FIXME: for now, just warn, don't mutate, give things (ie fog) a chance to catch up
-        #params = params.dup
-        #invalid_keys.each {|key| params.delete(key) }
-      end
 
-      if validation == :connection && params.key?(:host) && !params.key?(:hostname)
-        Excon.display_warning('hostname is missing! For IPv6 support, provide both host and hostname: Excon::Connection#new(:host => uri.host, :hostname => uri.hostname, ...).')
-        params[:hostname] = params[:host]
+        if validation == :request
+          deprecated_keys = invalid_keys & Excon::DEPRECATED_VALID_REQUEST_KEYS.keys
+          mw_msg = deprecated_keys.map do |k|
+            "#{k}: #{Excon::DEPRECATED_VALID_REQUEST_KEYS[k]}"
+          end.join(', ')
+          Excon.display_warning(
+            "The following request keys are only valid with the associated middleware: #{mw_msg}"
+          )
+        end
       end
-
-      params
     end
 
     def response(datum={})

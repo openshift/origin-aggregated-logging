@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require 'test_helper'
 
 unless JRUBY
@@ -7,7 +24,7 @@ else
   require 'elasticsearch/transport/transport/http/manticore'
   require 'manticore'
 
-  class Elasticsearch::Transport::Transport::HTTP::ManticoreTest < Test::Unit::TestCase
+  class Elasticsearch::Transport::Transport::HTTP::ManticoreTest < Minitest::Test
     include Elasticsearch::Transport::Transport::HTTP
 
     context "Manticore transport" do
@@ -110,8 +127,13 @@ else
       should "allow to set options for Manticore" do
         options = { :headers => {"User-Agent" => "myapp-0.0" }}
         transport = Manticore.new :hosts => [ { :host => 'foobar', :port => 1234 } ], :options => options
-        transport.connections.first.connection.expects(:get).
-          with('http://foobar:1234//', options).returns(stub_everything)
+        transport.connections.first.connection
+          .expects(:get)
+          .with do |host, options|
+            assert_equal 'myapp-0.0', options[:headers]['User-Agent']
+            true
+          end
+          .returns(stub_everything)
 
         transport.perform_request 'GET', '/', {}
       end

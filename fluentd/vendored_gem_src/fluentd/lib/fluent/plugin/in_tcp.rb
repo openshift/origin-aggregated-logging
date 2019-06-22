@@ -33,6 +33,8 @@ module Fluent::Plugin
     config_param :source_host_key, :string, default: nil, deprecated: "use source_hostname_key instead."
     desc "The field name of the client's hostname."
     config_param :source_hostname_key, :string, default: nil
+    desc "The field name of the client's address."
+    config_param :source_address_key, :string, default: nil
 
     config_param :blocking_timeout, :time, default: 0.5
 
@@ -69,13 +71,14 @@ module Fluent::Plugin
 
             @parser.parse(msg) do |time, record|
               unless time && record
-                log.warn "pattern not match", message: msg
+                log.warn "pattern not matched", message: msg
                 next
               end
 
               tag = extract_tag_from_record(record)
               tag ||= @tag
               time ||= extract_time_from_record(record) || Fluent::EventTime.now
+              record[@source_address_key] = conn.remote_addr if @source_address_key
               record[@source_hostname_key] = conn.remote_host if @source_hostname_key
               router.emit(tag, time, record)
             end

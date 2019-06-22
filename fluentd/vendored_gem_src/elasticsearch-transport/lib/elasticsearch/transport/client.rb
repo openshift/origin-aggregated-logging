@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module Transport
 
@@ -88,8 +105,8 @@ module Elasticsearch
       # @yield [faraday] Access and configure the `Faraday::Connection` instance directly with a block
       #
       def initialize(arguments={}, &block)
-        @options = arguments
-        @arguments = arguments
+        @options = arguments.each_with_object({}){ |(k,v), args| args[k.to_sym] = v }
+        @arguments = @options
         @arguments[:logger] ||= @arguments[:log]   ? DEFAULT_LOGGER.call() : nil
         @arguments[:tracer] ||= @arguments[:trace] ? DEFAULT_TRACER.call() : nil
         @arguments[:reload_connections] ||= false
@@ -159,15 +176,15 @@ module Elasticsearch
       #
       def __extract_hosts(hosts_config)
         hosts = case hosts_config
-                when String
-                  hosts_config.split(',').map { |h| h.strip! || h }
-                when Array
-                  hosts_config
-                when Hash, URI
-                  [ hosts_config ]
-                else
-                  Array(hosts_config)
-                end
+        when String
+          hosts_config.split(',').map { |h| h.strip! || h }
+        when Array
+          hosts_config
+        when Hash, URI
+          [ hosts_config ]
+        else
+          Array(hosts_config)
+        end
 
         host_list = hosts.map { |host| __parse_host(host) }
         @options[:randomize_hosts] ? host_list.shuffle! : host_list
@@ -175,32 +192,35 @@ module Elasticsearch
 
       def __parse_host(host)
         host_parts = case host
-                     when String
-                       if host =~ /^[a-z]+\:\/\//
-                         uri = URI.parse(host)
-                         { :scheme => uri.scheme,
-                           :user => uri.user,
-                           :password => uri.password,
-                           :host => uri.host,
-                           :path => uri.path,
-                           :port => uri.port }
-                       else
-                         host, port = host.split(':')
-                         { :host => host,
-                           :port => port }
-                       end
-                     when URI
-                       { :scheme => host.scheme,
-                         :user => host.user,
-                         :password => host.password,
-                         :host => host.host,
-                         :path => host.path,
-                         :port => host.port }
-                     when Hash
-                       host
-                     else
-                       raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
-                     end
+        when String
+          if host =~ /^[a-z]+\:\/\//
+            # Construct a new `URI::Generic` directly from the array returned by URI::split.
+            # This avoids `URI::HTTP` and `URI::HTTPS`, which supply default ports.
+            uri = URI::Generic.new(*URI.split(host))
+
+            { :scheme => uri.scheme,
+              :user => uri.user,
+              :password => uri.password,
+              :host => uri.host,
+              :path => uri.path,
+              :port => uri.port }
+          else
+            host, port = host.split(':')
+            { :host => host,
+              :port => port }
+          end
+        when URI
+          { :scheme => host.scheme,
+            :user => host.user,
+            :password => host.password,
+            :host => host.host,
+            :path => host.path,
+            :port => host.port }
+        when Hash
+          host
+        else
+          raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
+        end
 
         @options[:http][:user] ||= host_parts[:user]
         @options[:http][:password] ||= host_parts[:password]

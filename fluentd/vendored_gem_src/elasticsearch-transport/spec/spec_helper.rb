@@ -14,6 +14,8 @@ ELASTICSEARCH_HOSTS = if hosts = ENV['TEST_ES_SERVER'] || ENV['ELASTICSEARCH_HOS
                         end
                       end.freeze
 
+TEST_HOST, TEST_PORT = ELASTICSEARCH_HOSTS.first.split(':') if ELASTICSEARCH_HOSTS
+
 # Are we testing on JRuby?
 #
 # @return [ true, false ] Whether JRuby is being used.

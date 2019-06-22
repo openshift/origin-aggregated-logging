@@ -50,7 +50,7 @@ module Fluent::Plugin
 
       def do_GET(req, res)
         begin
-          code, header, body = process(req, res)
+          code, header, body = process(req)
         rescue
           code, header, body = render_json_error(500, {
               'message '=> 'Internal Server Error',
@@ -67,85 +67,35 @@ module Fluent::Plugin
         res.body = body
       end
 
-      def build_object(req, res)
+      def build_object(req, opts)
         unless req.path_info == ""
           return render_json_error(404, "Not found")
         end
 
-        # parse ?=query string
-        if req.query_string
-          begin
-            qs = CGI.parse(req.query_string)
-          rescue
-            return render_json_error(400, "Invalid query string")
-          end
-        else
-          qs = Hash.new {|h,k| [] }
-        end
-
-        # if ?debug=1 is set, set :with_debug_info for get_monitor_info
-        # and :pretty_json for render_json_error
-        opts = {with_config: @agent.include_config, with_retry: @agent.include_retry}
-        if s = qs['debug'] and s[0]
-          opts[:with_debug_info] = true
-          opts[:pretty_json] = true
-        end
-
-        if ivars = (qs['with_ivars'] || []).first
-          opts[:ivars] = ivars.split(',')
-        end
-
-        if with_config = get_search_parameter(qs, 'with_config'.freeze)
-          opts[:with_config] = Fluent::Config.bool_value(with_config)
-        end
-
-        if with_retry = get_search_parameter(qs, 'with_retry'.freeze)
-          opts[:with_retry] = Fluent::Config.bool_value(with_retry)
-        end
-
-        if tag = get_search_parameter(qs, 'tag'.freeze)
+        qs = opts[:query]
+        if tag = qs['tag'.freeze].first
           # ?tag= to search an output plugin by match pattern
           if obj = @agent.plugin_info_by_tag(tag, opts)
             list = [obj]
           else
             list = []
           end
-
-        elsif plugin_id = get_search_parameter(qs, '@id'.freeze)
+        elsif plugin_id = (qs['@id'.freeze].first || qs['id'.freeze].first)
           # ?@id= to search a plugin by 'id <plugin_id>' config param
           if obj = @agent.plugin_info_by_id(plugin_id, opts)
             list = [obj]
           else
             list = []
           end
-
-        elsif plugin_id = get_search_parameter(qs, 'id'.freeze)
-          # Without @ version of ?@id= for backward compatibility
-          if obj = @agent.plugin_info_by_id(plugin_id, opts)
-            list = [obj]
-          else
-            list = []
-          end
-
-        elsif plugin_type = get_search_parameter(qs, '@type'.freeze)
+        elsif plugin_type = (qs['@type'.freeze].first || qs['type'.freeze].first)
           # ?@type= to search plugins by 'type <type>' config param
           list = @agent.plugins_info_by_type(plugin_type, opts)
-
-        elsif plugin_type = get_search_parameter(qs, 'type'.freeze)
-          # Without @ version of ?@type= for backward compatibility
-          list = @agent.plugins_info_by_type(plugin_type, opts)
-
         else
           # otherwise show all plugins
           list = @agent.plugins_info_all(opts)
         end
 
-        return list, opts
-      end
-
-      def get_search_parameter(qs, param_name)
-        return nil unless qs.has_key?(param_name)
-        qs[param_name].first
+        list
       end
 
       def render_json(obj, opts={})
@@ -160,11 +110,52 @@ module Fluent::Plugin
         end
         [code, {'Content-Type'=>'application/json'}, js]
       end
+
+      private
+
+      def build_option(req)
+        qs = Hash.new { |_, _| [] }
+        # parse ?=query string
+        if req.query_string
+          begin
+            qs.merge!(CGI.parse(req.query_string))
+          rescue
+            return render_json_error(400, "Invalid query string")
+          end
+        end
+
+        # if ?debug=1 is set, set :with_debug_info for get_monitor_info
+        # and :pretty_json for render_json_error
+        opts = { query: qs }
+        if qs['debug'.freeze].first
+          opts[:with_debug_info] = true
+          opts[:pretty_json] = true
+        end
+
+        if ivars = qs['with_ivars'.freeze].first
+          opts[:ivars] = ivars.split(',')
+        end
+
+        if with_config = qs['with_config'.freeze].first
+          opts[:with_config] = Fluent::Config.bool_value(with_config)
+        else
+          opts[:with_config] = @agent.include_config
+        end
+
+        if with_retry = qs['with_retry'.freeze].first
+          opts[:with_retry] = Fluent::Config.bool_value(with_retry)
+        else
+          opts[:with_retry] = @agent.include_retry
+        end
+
+        opts
+      end
     end
 
     class LTSVMonitorServlet < MonitorServlet
-      def process(req, res)
-        list, _opts = build_object(req, res)
+      def process(req)
+        opts = build_option(req)
+        list = build_object(req, opts)
         return unless list
 
         normalized = JSON.parse(list.to_json)
@@ -186,8 +177,9 @@ module Fluent::Plugin
     end
 
     class JSONMonitorServlet < MonitorServlet
-      def process(req, res)
-        list, opts = build_object(req, res)
+      def process(req)
+        opts = build_option(req)
+        list = build_object(req, opts)
         return unless list
 
         render_json({
@@ -197,7 +189,7 @@ module Fluent::Plugin
     end
 
     class ConfigMonitorServlet < MonitorServlet
-      def build_object(req, res)
+      def build_object(req, _opt)
         {
           'pid' => Process.pid,
           'ppid' => Process.ppid
@@ -206,8 +198,9 @@ module Fluent::Plugin
     end
 
     class LTSVConfigMonitorServlet < ConfigMonitorServlet
-      def process(req, res)
-        result = build_object(req, res)
+      def process(req)
+        opts = build_option(req)
+        result = build_object(req, opts)
 
         row = []
         JSON.parse(result.to_json).each_pair { |k, v|
@@ -220,9 +213,10 @@ module Fluent::Plugin
     end
 
     class JSONConfigMonitorServlet < ConfigMonitorServlet
-      def process(req, res)
-        result = build_object(req, res)
-        render_json(result)
+      def process(req)
+        opts = build_option(req)
+        result = build_object(req, opts)
+        render_json(result, opts)
       end
     end
 
@@ -285,6 +279,7 @@ module Fluent::Plugin
     MONITOR_INFO = {
       'output_plugin' => ->(){ is_a?(::Fluent::Plugin::Output) },
       'buffer_queue_length' => ->(){ throw(:skip) unless instance_variable_defined?(:@buffer) && !@buffer.nil? && @buffer.is_a?(::Fluent::Plugin::Buffer); @buffer.queue.size },
+      'buffer_timekeys' => ->(){ throw(:skip) unless instance_variable_defined?(:@buffer) && !@buffer.nil? && @buffer.is_a?(::Fluent::Plugin::Buffer); @buffer.timekeys },
       'buffer_total_queued_size' => ->(){ throw(:skip) unless instance_variable_defined?(:@buffer) && !@buffer.nil? && @buffer.is_a?(::Fluent::Plugin::Buffer); @buffer.stage_size + @buffer.queue_size },
       'retry_count' => ->(){ instance_variable_defined?(:@num_errors) ? @num_errors : nil },
     }
