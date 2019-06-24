@@ -60,35 +60,12 @@ issue_deprecation_warnings() {
     : # none at the moment
 }
 
-docker_uses_journal() {
-    # need to be able to handle cases like
-    # OPTIONS='--log-driver=json-file ....' # or use --log-driver=journald
-    # if "log-driver" is set in /etc/docker/daemon.json, assume that it is
-    # authoritative
-    # otherwise, look for /etc/sysconfig/docker
-    # also note the unintuitive logic - in this case, a 0 return means true, and a 1
-    # return means false
-    if grep -q '^[^#].*"log-driver":' /etc/docker/daemon.json 2> /dev/null ; then
-        if grep -q '^[^#].*"log-driver":.*journald' /etc/docker/daemon.json 2> /dev/null ; then
-            return 0
-        fi
-    elif grep -q "^OPTIONS='[^']*--log-driver[   =][     ]*journald" /etc/sysconfig/docker 2> /dev/null ; then
-        return 0
-    fi
-    return 1
-}
-
 if [ -z "${JOURNAL_SOURCE:-}" ] ; then
     if [ -d /var/log/journal ] ; then
         export JOURNAL_SOURCE=/var/log/journal
     else
         export JOURNAL_SOURCE=/run/log/journal
     fi
-fi
-if docker_uses_journal ; then
-    export USE_JOURNAL=true
-else
-    export USE_JOURNAL=false
 fi
 
 IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
