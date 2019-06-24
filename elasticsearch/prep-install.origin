@@ -5,4 +5,4 @@ fi
 if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
     PROMETHEUS_EXPORTER_URL=https://github.com/lukas-vlcek/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 fi
-es_plugins=($OSE_ES_URL $PROMETHEUS_EXPORTER_URL)
+es_plugins=($OSE_ES_URL $PROMETHEUS_EXPORTER_URL x-pack)
