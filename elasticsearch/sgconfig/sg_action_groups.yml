@@ -24,6 +24,7 @@ MANAGE_ALIASES:
 # for backward compatibility
 MONITOR:
   - INDICES_MONITOR
+  - cluster:monitor/main
 
 INDICES_MONITOR:
   - "indices:monitor/*"
