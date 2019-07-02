@@ -1,4 +1,4 @@
-FROM elasticsearch:5.6.12
+FROM elasticsearch:5.6.13
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -13,7 +13,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.13.5-redhat-1 \
+    OSE_ES_VER=5.6.13.6-redhat-1 \
     PROMETHEUS_EXPORTER_VER=5.6.13.2-redhat-3 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
@@ -23,7 +23,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     container=oci
 
-ARG OSE_ES_VER=5.6.13.5-redhat-1
+ARG OSE_ES_VER=5.6.13.6-redhat-1
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_VER=5.6.13.2-redhat-3
 ARG PROMETHEUS_EXPORTER_URL
