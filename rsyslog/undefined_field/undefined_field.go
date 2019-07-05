@@ -54,6 +54,9 @@
  *    - Debug flag used in undefined_field as well as the config file calling the plugin.
  *      default to "false".
  *
+ * Note: the default values are defined in cluster-logging-operator/files/rsyslog/rsyslog.sh.
+ *       The startup script generates the config file undefined.json explaned next.
+ *
  * undefined_field expects a config file undefined.json in /var/lib/rsyslog.pod.
  * example undefined.json with default settings
  * {
@@ -75,27 +78,30 @@ package main
 import (
 	"encoding/json"
 	"bufio"
-	"strconv"
 	"strings"
 	"fmt"
+	"io/ioutil"
 	"os"
 )
 
 const (
-	initial_undefined_debug            = false
-	initial_merge_json_log             = false
-	initial_use_undefined              = false
-	initial_undefined_name             = "undefined"
-	initial_undefined_to_string        = false
-	initial_default_keep_fields        = "CEE,time,@timestamp,aushape,ci_job,collectd,docker,fedora-ci,file,foreman,geoip,hostname,ipaddr4,ipaddr6,kubernetes,level,message,namespace_name,namespace_uuid,offset,openstack,ovirt,pid,pipeline_metadata,rsyslog,service,systemd,tags,testcase,tlog,viaq_msg_id"
-	initial_extra_keep_fields          = ""
-	initial_keep_empty_fields          = ""
-	initial_undefined_max_num_fields   = -1
-	initial_undefined_dot_replace_char = "UNUSED"
 	initial_logging_file_path          = "/var/log/rsyslog/rsyslog.log"
 	undefined_config                   = "/var/lib/rsyslog.pod/undefined.json"
 	noChanges                          = "{}"
 )
+
+type UndefinedConfig struct {
+  Debug bool `json:"UNDEFINED_DEBUG"`
+  Merge_json_log bool `json:"MERGE_JSON_LOG"`
+  Use_undefined bool `json:"CDM_USE_UNDEFINED"`
+  Undefined_to_string bool `json:"CDM_UNDEFINED_TO_STRING"`
+  Default_keep_fields string `json:"CDM_DEFAULT_KEEP_FIELDS"`
+  Extra_keep_fields string `json:"CDM_EXTRA_KEEP_FIELDS"`
+  Undefined_name string `json:"CDM_UNDEFINED_NAME"`
+  Keep_empty_fields string `json:"CDM_KEEP_EMPTY_FIELDS"`
+  Undefined_dot_replace_char string `json:"CDM_UNDEFINED_DOT_REPLACE_CHAR"`
+  Undefined_max_num_fields int64 `json:"CDM_UNDEFINED_MAX_NUM_FIELDS"`
+}
 
 var (
 	undefined_debug bool
@@ -107,6 +113,7 @@ var (
 	undefined_to_string bool
 	undefined_dot_replace_char string
 	undefined_max_num_fields int64
+	undefined_cur_num_fields int64
 	logfile *os.File
 	noaction		  = false
 	replacer		  = &strings.Replacer{}
@@ -132,92 +139,26 @@ func onInit() {
 		panic(fmt.Errorf("Could not open file [%s]: [%v]", logging_file_path, err))
 	}
 
-	// initializing
-	undefined_debug = initial_undefined_debug
-	merge_json_log = initial_merge_json_log
-	use_undefined = initial_use_undefined
-	default_keep_fields := initial_default_keep_fields
-	extra_keep_fields := initial_extra_keep_fields
-	undefined_name = initial_undefined_name
-	tmp_keep_empty_fields := initial_keep_empty_fields
-	undefined_to_string = initial_undefined_to_string
-	undefined_dot_replace_char = initial_undefined_dot_replace_char
-	undefined_max_num_fields = initial_undefined_max_num_fields
-
+	var undefined_config_obj UndefinedConfig
+	var default_keep_fields string
+	var extra_keep_fields string
+	var tmp_keep_empty_fields string
 	if config, err := os.Open(undefined_config); err == nil {
-		reader := bufio.NewReader(config)
-		scanner := bufio.NewScanner(reader)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			rawStr := scanner.Text()
-			// skip comments
-			if strings.HasPrefix(rawStr, "#") {
-				continue
-			}
-			configMap := make(map[string]interface{})
-			if err := json.Unmarshal([]byte(rawStr), &configMap); err != nil {
-				fmt.Fprintln(logfile, "ERROR: Failed to parse config file [%s]: [%v]", undefined_config, err)
-				panic(fmt.Errorf("Failed to parse config file [%s]: [%v]", undefined_config, err))
-			}
-
-			if val, ok := getMapStringValue(configMap, "UNDEFINED_DEBUG"); ok {
-				if rval, err := strconv.ParseBool(val); err == nil {
-					undefined_debug = rval
-				} else {
-					fmt.Fprintln(logfile, "ERROR: Invalid UNDEFINED_DEBUG value [%s]: [%v]", val, err)
-					panic(fmt.Errorf("Invalid UNDEFINED_DEBUG value [%s]: [%v]", val, err))
-				}
-			}
-			if val, ok := getMapStringValue(configMap, "MERGE_JSON_LOG"); ok {
-				if rval, err := strconv.ParseBool(val); err == nil {
-					merge_json_log = rval
-				} else {
-					fmt.Fprintln(logfile, "ERROR: Invalid MERGE_JSON_LOG value [%s]: [%v]", val, err)
-					panic(fmt.Errorf("Invalid MERGE_JSON_LOG value [%s]: [%v]", val, err))
-				}
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_USE_UNDEFINED"); ok {
-				if rval, err := strconv.ParseBool(val); err == nil {
-					use_undefined = rval
-				} else {
-					fmt.Fprintln(logfile, "ERROR: Invalid CDM_USE_UNDEFINED value [%s]: [%v]", val, err)
-					panic(fmt.Errorf("Invalid CDM_USE_UNDEFINED value [%s]: [%v]", val, err))
-				}
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_DEFAULT_KEEP_FIELDS"); ok {
-				default_keep_fields = val
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_EXTRA_KEEP_FIELDS"); ok {
-				extra_keep_fields = val
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_UNDEFINED_NAME"); ok {
-				undefined_name = val
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_KEEP_EMPTY_FIELDS"); ok {
-				tmp_keep_empty_fields = val
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_UNDEFINED_TO_STRING"); ok {
-				if rval, err := strconv.ParseBool(val); err == nil {
-					undefined_to_string = rval
-				} else {
-					fmt.Fprintln(logfile, "ERROR: Invalid CDM_UNDEFINED_TO_STRING value [%s]: [%v]", val, err)
-					panic(fmt.Errorf("Invalid CDM_UNDEFINED_TO_STRING value [%s]: [%v]", val, err))
-				}
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_UNDEFINED_DOT_REPLACE_CHAR"); ok {
-				undefined_dot_replace_char = val
-			}
-			if val, ok := getMapStringValue(configMap, "CDM_UNDEFINED_MAX_NUM_FIELDS"); ok {
-				var rval64 int64
-				if rval64, err = strconv.ParseInt(val, 10, 64); err == nil {
-					undefined_max_num_fields = rval64
-				} else {
-					fmt.Fprintln(logfile, "ERROR: Invalid CDM_UNDEFINED_MAX_NUM_FIELDS value [%s]: [%v]", val, err)
-					panic(fmt.Errorf("Invalid CDM_UNDEFINED_MAX_NUM_FIELDS value [%s]: [%v]", val, err))
-				}
-			}
-		}
 		defer config.Close()
+
+		config_read, _ := ioutil.ReadAll(config)
+		json.Unmarshal(config_read, &undefined_config_obj)
+
+		undefined_debug = undefined_config_obj.Debug
+		merge_json_log = undefined_config_obj.Merge_json_log
+		use_undefined = undefined_config_obj.Use_undefined
+		default_keep_fields = undefined_config_obj.Default_keep_fields
+		extra_keep_fields = undefined_config_obj.Extra_keep_fields
+		undefined_name = undefined_config_obj.Undefined_name
+		tmp_keep_empty_fields = undefined_config_obj.Keep_empty_fields
+		undefined_to_string = undefined_config_obj.Undefined_to_string
+		undefined_dot_replace_char = undefined_config_obj.Undefined_dot_replace_char
+		undefined_max_num_fields = undefined_config_obj.Undefined_max_num_fields
 	} else if !strings.Contains(err.Error(), "no such file or directory") {
 		fmt.Fprintln(logfile, "ERROR: Could not open config file [%s]: [%v]", undefined_config, err)
 		panic(fmt.Errorf("Could not open config file [%s]: [%v]", undefined_config, err))
@@ -262,11 +203,11 @@ func onInit() {
 	fmt.Fprintln(logfile, "mmexternal: noaction: ", noaction)
 }
 
-func replaceDotMoveUndefined(jsonMap map[string]interface{}, topPropLevel bool) (map[string]interface{},bool,bool) {
+func replaceDotMoveUndefined(input map[string]interface{}, topPropLevel bool) (map[string]interface{},bool,bool) {
 	replace_me := false
 	has_undefined := false
 	cp := make(map[string]interface{})
-	for origkey, value := range jsonMap {
+	for origkey, value := range input {
 		key := origkey
 		if topPropLevel && merge_json_log && undefined_dot_replace_char != "UNUSED" {
 			// replace '.' with specified char (e.g., '_')
@@ -277,7 +218,7 @@ func replaceDotMoveUndefined(jsonMap map[string]interface{}, topPropLevel bool) 
 		}
 		// skip empty or not?
 		valuemap, ismap := value.(map[string]interface{})
-		valuearraymap, isarraymap := value.([]map[string]interface{})
+		valuearraymap, isarraymap := value.([]interface{})
 		if _, exists := keep_empty_fields[origkey]; !exists {
 			if !ismap && (value == nil || len(value.(string)) == 0) ||
 				isarraymap && len(valuearraymap) == 0 ||
@@ -290,12 +231,17 @@ func replaceDotMoveUndefined(jsonMap map[string]interface{}, topPropLevel bool) 
 		_, keepit := keep_fields[origkey]
 		if topPropLevel && use_undefined && !keepit {
 			// if unmdefined_max_num_fields > 0, move the undefined item to undefined_name
-			if undefined_max_num_fields > 0 {
+			if undefined_cur_num_fields > 0 {
 				if cp[undefined_name] == nil {
 					subcp := make(map[string]interface{})
 					cp[undefined_name] = subcp
 				}
-				if ismap {
+				if isarraymap {
+					rval := replaceDotMoveUndefinedArray(valuearraymap)
+					if len(rval) > 0 {
+						cp[undefined_name].(map[string]interface{})[key] = rval
+					}
+				} else if ismap {
 					rval, _, _ := replaceDotMoveUndefined(valuemap, false)
 					if len(rval) > 0 {
 						cp[undefined_name].(map[string]interface{})[key] = rval
@@ -303,10 +249,13 @@ func replaceDotMoveUndefined(jsonMap map[string]interface{}, topPropLevel bool) 
 				} else {
 					cp[undefined_name].(map[string]interface{})[key] = value
 				}
-				undefined_max_num_fields--
+				undefined_cur_num_fields--
 				replace_me = true
 				has_undefined = true
 			}
+		} else if isarraymap {
+			rval := replaceDotMoveUndefinedArray(valuearraymap)
+			cp[key] = rval
 		} else if ismap {
 			rval, _, _ := replaceDotMoveUndefined(valuemap, false)
 			cp[key] = rval
@@ -315,6 +264,24 @@ func replaceDotMoveUndefined(jsonMap map[string]interface{}, topPropLevel bool) 
 		}
 	}
 	return cp, replace_me, has_undefined
+}
+
+func replaceDotMoveUndefinedArray(inputs []interface{}) []interface{} {
+	cp := make([]interface{}, 0)
+	for _, input := range inputs {
+		valuemap, ismap := input.(map[string]interface{})
+		valuearraymap, isarraymap := input.([]interface{})
+		if ismap {
+			rval, _, _ := replaceDotMoveUndefined(valuemap, false)
+			cp = append(cp, rval)
+		} else if isarraymap {
+			rval := replaceDotMoveUndefinedArray(valuearraymap)
+			cp = append(cp, rval)
+		} else {
+			fmt.Fprintln(logfile, "Error:", input, " is not a map.  Ignoring...")
+		}
+	}
+	return cp
 }
 
 func main() {
@@ -331,7 +298,7 @@ func main() {
 		jsonMap := make(map[string]interface{})
 		rawStr := scanner.Text()
 		if noaction {
-			fmt.Fprintln(logfile, "No Action Needed: ", rawStr, "(", string(noChanges), ")")
+			fmt.Fprintln(logfile, "No Action Needed for ", rawStr)
 			fmt.Println(noChanges)
 			continue
 		}
@@ -348,16 +315,17 @@ func main() {
 		}
 		topval, ismap := jsonMap["$!"].(map[string]interface{})
 		if !ismap {
-			fmt.Fprintln(logfile, "Result is String: ", rawStr, "(", string(noChanges), ")")
+			fmt.Fprintln(logfile, "Result is String: ", rawStr)
 			fmt.Println(noChanges)
 			continue
 		}
 		if jsonCopyMap["$!"] == nil {
 			jsonCopyMap["$!"] = make(map[string]interface{})
 		}
+		undefined_cur_num_fields = undefined_max_num_fields
 		all, replace_me, has_undefined := replaceDotMoveUndefined(topval, true)
 		if !replace_me {
-			fmt.Fprintln(logfile, "No Need to Replace: ", rawStr, "(", string(noChanges), ")")
+			fmt.Fprintln(logfile, "No Need to Replace for ", rawStr)
 			fmt.Println(noChanges)
 			continue
 		}
