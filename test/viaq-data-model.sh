@@ -85,6 +85,7 @@ cat > $cfg <<EOF
     undefined3 {"emptyvalue":""}
     undefined4 undefined4
     undefined5 undefined5
+    undefined.6 undefined6
   </record>
   remove_keys CONTAINER_TAG,logtag
 </filter>
@@ -176,6 +177,47 @@ os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
 os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
                          python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test5 allow_empty"
+
+# TEST 6
+# replace dot with underscore
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 MERGE_JSON_LOG=true CDM_UNDEFINED_DOT_REPLACE_CHAR=_ 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+# if using MUX_CLIENT_MODE=maximal, also have to tell mux to replace the dots
+is_maximal=$( oc set env $fluentd_ds --list | grep ^MUX_CLIENT_MODE=maximal ) || :
+if [ -n "$is_maximal" ] ; then
+    muxpod=$( get_running_pod mux )
+    oc set env dc/logging-mux MERGE_JSON_LOG=true CDM_UNDEFINED_DOT_REPLACE_CHAR=_
+    os::cmd::try_until_failure "oc get pod $muxpod"
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
+fi
+fpod=$( get_running_pod fluentd )
+wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
+                         python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test6 allow_empty"
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
+                         python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test6 allow_empty"
+
+# TEST 7
+# set CDM_UNDEFINED_MAX_NUM_FIELDS to 3
+stop_fluentd "${fpod:-}" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluent_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 CMERGE_JSON_LOG=true DM_UNDEFINED_DOT_REPLACE_CHAR=_ CDM_UNDEFINED_MAX_NUM_FIELDS=3 CDM_UNDEFINED_NAME=undefString 2>&1 | artifact_out
+
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+# if using MUX_CLIENT_MODE=maximal, also have to tell mux to replace the dots
+is_maximal=$( oc set env $fluentd_ds --list | grep ^MUX_CLIENT_MODE=maximal ) || :
+if [ -n "$is_maximal" ] ; then
+    muxpod=$( get_running_pod mux )
+    oc set env dc/logging-mux CDM_UNDEFINED_MAX_NUM_FIELDS=3
+    os::cmd::try_until_failure "oc get pod $muxpod"
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
+fi
+fpod=$( get_running_pod fluentd )
+wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test.json | \
+                         python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test7 allow_empty"
+os::cmd::expect_success "cat $ARTIFACT_DIR/viaq-data-model-test-ops.json | \
+                         python $OS_O_A_L_DIR/hack/testing/test-viaq-data-model.py test7 allow_empty"
 
 if [ -n "$is_maximal" ] ; then
     muxpod=$( get_running_pod mux )
