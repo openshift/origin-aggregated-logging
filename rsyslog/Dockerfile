@@ -22,12 +22,15 @@ RUN cd /vendored_src && \
 
 ADD go/ /go/
 RUN cd /go/src/github.com/soundcloud/rsyslog_exporter ; GOPATH=/go go build
+ADD undefined_field/ /undefined_field/
+RUN cd /undefined_field/ ; go build
 
 FROM registry.svc.ci.openshift.org/ocp/4.2:base
 
 COPY --from=builder /RPMS/ /RPMS/
 COPY --from=builder /contents /contents
 COPY --from=builder /go/src/github.com/soundcloud/rsyslog_exporter/rsyslog_exporter /usr/local/bin/
+COPY --from=builder /undefined_field/ /usr/local/bin/
 
 RUN yum -y install /RPMS/*.rpm cronie && \
     rm -rf /RPMS && \

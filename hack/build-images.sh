@@ -51,6 +51,10 @@ function login_to_ci_registry() {
   local savekc=""
   local savectx=$( oc config current-context )
   local cictx=$( get_context_for_cluster $CI_CLUSTER_NAME )
+  if [ "$savectx" == "$cictx" ]; then
+    echo WARNING: cluster context and ci context are identical "$cictx"
+    oc config get-contexts
+  fi
   rc=0
   if [ -z "$cictx" ] ; then
     # try again without KUBECONFIG
