@@ -35,6 +35,21 @@ Example:
 ```
 $ oc exec -c elasticsearch $POD -- allocate-stale-primary .kibana.02c55f18a892b365bcd1802db9e5c9df39c04674
 ```
+### export-kibana-objects
+Export kibana objects for a given user from their kibana index as a JSON search response
+
+Example:
+```
+$ oc exec -c elasticsearch $POD -- export-kibana-objects admin2 > kib.json
+```
+### import-kibana-objects
+Import kibana objects from a JSON search response produced by `export-kibana-objects` to the kibana index in the
+input file.
+
+Example:
+```
+$ cat kib.json | oc exec -i  -c elasticsearch $pod -- import-kibana-objects
+```
 
 ### logs
 Retrieve Elasticsearch logs from the log directory. This command defaults to retrieving
