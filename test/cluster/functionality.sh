@@ -76,7 +76,7 @@ for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}" 
 	os::cmd::try_until_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
 done
 
-for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
+for elasticsearch_pod in $( get_es_pod_all ${OAL_ELASTICSEARCH_COMPONENT} ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "curl_es_pod '${elasticsearch_pod}' '/' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::try_until_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"

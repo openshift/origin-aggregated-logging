@@ -89,12 +89,15 @@ if [ -n "${esopsdc:-}" ] ; then
     oc rollout latest $esopsdc 2>&1 | artifact_out
     oc rollout status -w $esopsdc 2>&1 | artifact_out
 else
-    esopspod=$( get_es_pod es-ops )
+    estype=es-ops
+    esopspod=$( get_es_pod $estype )
     if [ -n "${esopspod:-}" ] ; then
-        esopspod=$( get_es_pod es )
+        estype=es
     fi
-    oc delete pod $esopspod
-    os::cmd::try_until_failure "oc get pod $esopspod > /dev/null 2>&1"
+    for pod in $( get_es_pod_all $estype ) ; do
+        oc delete pod $pod
+        os::cmd::try_until_failure "oc get pod $pod > /dev/null 2>&1"
+    done
     os::cmd::try_until_success "oc get pods | grep -q 'elasticsearch.*Running'"
 fi
 essvc=$( get_es_svc es )

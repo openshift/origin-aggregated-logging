@@ -292,10 +292,30 @@ fi
 
 oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 
+# we expect a fluentd or rsyslog running on each node
+expectedcollectors=$( oc get nodes | grep -c " Ready " )
+if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
+    collector=rsyslog
+else
+    collector=fluentd
+fi
+# we expect $nodeCount elasticsearch pods
+expectedes=$( awk '/nodeCount:/ {print $2}' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} )
+
 wait_func() {
-    oc get pods 2> /dev/null | grep -q 'kibana.*Running' && \
-    oc get pods 2> /dev/null | grep -v 'elasticsearch-operator' | grep -q 'elasticsearch.*Running' && \
-    oc get pods 2> /dev/null | egrep -q '(fluentd|rsyslog).*Running'
+    if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.*Running' ; then
+        return 1
+    fi
+    local actualcollectors=$( oc get pods -l component=$collector 2> /dev/null | grep -c "${collector}.*Running" )
+    if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
+        return 1
+    fi
+    local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
+    if [ $expectedes -ne ${actuales:-0} ] ; then
+        return 1
+    fi
+    # if we got here, everything is as it should be
+    return 0
 }
 if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
     echo ERROR: operator did not start pods after 300 seconds
