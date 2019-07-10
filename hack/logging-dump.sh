@@ -110,7 +110,7 @@ check_project_info() {
   echo -- Secrets
   oc describe secrets > $project_folder/secrets
 
-  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods)
+  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods cronjobs)
   for resource_type in ${resource_types[@]}
   do
     echo -- Extracting $resource_type ...
