@@ -13,6 +13,13 @@ searchguard:
         http_authenticator:
           challenge: false
           type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
+          config:
+             subjectAccessReviews:
+               prometheus:
+                 namespace: openshift-logging
+                 verb: view
+                 resource: prometheus
+                 resourceAPIGroup: metrics.openshift.io
         authentication_backend:
           type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
           config:
