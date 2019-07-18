@@ -16,6 +16,7 @@
 
 require 'fluent/error'
 require 'fluent/plugin/base'
+require 'fluent/plugin/buffer'
 require 'fluent/plugin_helper/record_accessor'
 require 'fluent/log'
 require 'fluent/plugin_id'
@@ -184,6 +185,8 @@ module Fluent
         @emit_records = 0
         @write_count = 0
         @rollback_count = 0
+        @flush_time_count = 0
+        @slow_flush_count = 0
 
         # How to process events is decided here at once, but it will be decided in delayed way on #configure & #start
         if implement?(:synchronous)
@@ -1173,7 +1176,10 @@ module Fluent
               @dequeued_chunks.delete_if{|d| d.chunk_id == chunk.unique_id }
             end
           end
-          @buffer.takeback_chunk(chunk.unique_id)
+
+          if @buffer.takeback_chunk(chunk.unique_id)
+            @counters_monitor.synchronize { @rollback_count += 1 }
+          end
 
           update_retry_state(chunk.unique_id, using_secondary, e)
 
@@ -1202,7 +1208,10 @@ module Fluent
 
       def check_slow_flush(start)
         elapsed_time = Fluent::Clock.now - start
+        elapsed_millsec = (elapsed_time * 1000).to_i
+        @counters_monitor.synchronize { @flush_time_count += elapsed_millsec }
         if elapsed_time > @slow_flush_log_threshold
+          @counters_monitor.synchronize { @slow_flush_count += 1 }
           log.warn "buffer flush took longer time than slow_flush_log_threshold:",
                    elapsed_time: elapsed_time, slow_flush_log_threshold: @slow_flush_log_threshold, plugin_id: self.plugin_id
         end
@@ -1456,6 +1465,33 @@ module Fluent
         ensure
           state.mutex.unlock
         end
+      end
+
+      BUFFER_STATS_KEYS = {}
+      Fluent::Plugin::Buffer::STATS_KEYS.each { |key|
+        BUFFER_STATS_KEYS[key] = "buffer_#{key}"
+      }
+
+      def statistics
+        stats = {
+          'emit_records' => @emit_records,
+          # Respect original name
+          # https://github.com/fluent/fluentd/blob/45c7b75ba77763eaf87136864d4942c4e0c5bfcd/lib/fluent/plugin/in_monitor_agent.rb#L284
+          'retry_count' => @num_errors,
+          'emit_count' => @emit_count,
+          'write_count' => @write_count,
+          'rollback_count' => @rollback_count,
+          'slow_flush_count' => @slow_flush_count,
+          'flush_time_count' => @flush_time_count,
+        }
+
+        if @buffer && @buffer.respond_to?(:statistics)
+          (@buffer.statistics['buffer'] || {}).each do |k, v|
+            stats[BUFFER_STATS_KEYS[k]] = v
+          end
+        end
+
+        { 'output' => stats }
       end
     end
   end

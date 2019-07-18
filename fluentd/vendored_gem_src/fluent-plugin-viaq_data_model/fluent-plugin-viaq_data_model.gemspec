@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |gem|
   gem.name          = "fluent-plugin-viaq_data_model"
-  gem.version       = "0.0.18"
+  gem.version       = "0.0.19"
   gem.authors       = ["Rich Megginson"]
   gem.email         = ["rmeggins@redhat.com"]
   gem.description   = %q{Filter plugin to ensure data is in the ViaQ common data model}

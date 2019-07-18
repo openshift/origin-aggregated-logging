@@ -280,7 +280,7 @@ module Fluent
       '8' => 'trace',
       '9' => 'unknown',
     }
-    def normalize_level(level, newlevel, stream=nil, priority=nil)
+    def normalize_level(level, newlevel, priority=nil)
       # if the record already has a level field, and it looks like one of our well
       # known values, convert it to the canonical normalized form - otherwise,
       # preserve the value in string format
@@ -290,10 +290,6 @@ module Fluent
                (level.respond_to?(:downcase) && (retlevel = NORMAL_LEVELS[level.downcase]))
           retlevel = level.to_s # don't know what it is - just convert to string
         end
-      elsif stream == 'stdout'
-        retlevel = 'info'
-      elsif stream == 'stderr'
-        retlevel = 'err'
       elsif !priority.nil?
         retlevel = PRIORITY_LEVELS[priority]
       else
@@ -321,7 +317,7 @@ module Fluent
 
     def process_k8s_json_file_fields(tag, time, record, fmtr_type = nil)
       record['message'] = record['message'] || record['log']
-      record['level'] = normalize_level(record['level'], nil, record['stream'])
+      record['level'] = normalize_level(record['level'], nil)
       if record.key?('kubernetes') && record['kubernetes'].respond_to?(:fetch) && \
          (k8shost = record['kubernetes'].fetch('host', nil))
         record['hostname'] = k8shost

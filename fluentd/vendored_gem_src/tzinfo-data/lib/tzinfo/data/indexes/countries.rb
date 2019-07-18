@@ -843,6 +843,7 @@ module TZInfo
           c.timezone 'Europe/Kiev', 1513, 30, 1831, 60, 'Ukraine (most areas)'
           c.timezone 'Europe/Uzhgorod', 2917, 60, 223, 10, 'Ruthenia'
           c.timezone 'Europe/Zaporozhye', 287, 6, 211, 6, 'Zaporozh\'ye/Zaporizhia; Lugansk/Luhansk (east)'
+          c.timezone 'Europe/Simferopol', 899, 20, 341, 10, 'MSK+00 - Crimea'
         end
         country 'UG', 'Uganda' do |c|
           c.timezone 'Africa/Nairobi', -77, 60, 2209, 60

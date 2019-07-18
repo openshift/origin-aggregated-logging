@@ -162,10 +162,10 @@ See `filter-viaq_data_model.conf` for an example filter configuration.
     create the full index name.
 * `elasticsearch_index_name_field` - name of the field in the record which stores
   the index name - you should remove this field in the elasticsearch output
-  plugin using the `remove_keys` config parameter - default is `viaq_idnex_name`
+  plugin using the `remove_keys` config parameter - default is `viaq_index_name`
 * `elasticsearch_index_prefix_field` - name of the field in the record which stores
   the index prefix - you should remove this field in the elasticsearch output
-  plugin using the `remove_keys` config parameter - default is `viaq_idnex_prefix`
+  plugin using the `remove_keys` config parameter - default is `viaq_index_prefix`
 
 **NOTE** The `formatter` blocks are matched in the given order in the file.
   This means, don't use `tag "**"` as the first formatter or none of your

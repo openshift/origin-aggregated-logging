@@ -55,8 +55,14 @@ module Fluent
         end
       end
 
-      def socket_create_tcp(host, port, resolve_name: false, **kwargs, &block)
-        sock = WrappedSocket::TCP.new(host, port)
+      def socket_create_tcp(host, port, resolve_name: false, connect_timeout: nil, **kwargs, &block)
+        sock = if connect_timeout
+                 s = ::Socket.tcp(host, port, connect_timeout: connect_timeout)
+                 s.autoclose = false # avoid GC triggered close
+                 WrappedSocket::TCP.for_fd(s.fileno)
+               else
+                 WrappedSocket::TCP.new(host, port)
+               end
         socket_option_set(sock, resolve_name: resolve_name, **kwargs)
         if block
           begin
@@ -133,7 +139,7 @@ module Fluent
           context.cert_store = cert_store
           context.verify_hostname = true if verify_fqdn && fqdn && context.respond_to?(:verify_hostname=)
           context.cert = OpenSSL::X509::Certificate.new(File.read(cert_path)) if cert_path
-          context.key = OpenSSL::PKey::RSA.new(File.read(private_key_path), private_key_passphrase) if private_key_path
+          context.key = OpenSSL::PKey::read(File.read(private_key_path), private_key_passphrase) if private_key_path
         end
 
         tcpsock = socket_create_tcp(host, port, **kwargs)
