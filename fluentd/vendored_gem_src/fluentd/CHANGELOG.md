@@ -1,4 +1,63 @@
+# v1.6
+
+## Release v1.6.2 - 2019/07/11
+
+### Bug fixes
+
+* http_server helper: Add title argument to support multiple servers
+  https://github.com/fluent/fluentd/pull/2493
+
+## Release v1.6.1 - 2019/07/10
+
+### Enhancement
+
+* socket/cert: Support all private keys OpenSSL supports, not only RSA.
+  https://github.com/fluent/fluentd/pull/2487
+* output/buffer: Improve statistics method performance
+  https://github.com/fluent/fluentd/pull/2491
+
+### Bug fixes
+
+* plugin_config_formatter: update new doc URL
+  https://github.com/fluent/fluentd/pull/2481
+* out_forward: Avoid zero division error when there are no available nodes
+  https://github.com/fluent/fluentd/pull/2482
+
+## Release v1.6.0 - 2019/07/01
+
+### New feature
+
+* plugin: Add http_server helper and in_monitor_agent use it
+  https://github.com/fluent/fluentd/pull/2447
+
+### Enhancement
+
+* in_monitor_agent: Add more metrics for buffer/output
+  https://github.com/fluent/fluentd/pull/2450
+* time/plugin: Add `EventTime#to_time` method for fast conversion
+  https://github.com/fluent/fluentd/pull/2469
+* socket helper/out_forward: Add connect_timeout parameter
+  https://github.com/fluent/fluentd/pull/2467
+* command: Add `--conf-encoding` option
+  https://github.com/fluent/fluentd/pull/2453
+* parser_none: Small performance optimization
+  https://github.com/fluent/fluentd/pull/2455
+
+### Bug fixes
+
+* cert: Fix cert match pattern
+  https://github.com/fluent/fluentd/pull/2466
+* output: Fix forget to increment rollback count
+  https://github.com/fluent/fluentd/pull/2462
+
 # v1.5
+
+## Release v1.5.2 - 2019/06/13
+
+### Bug fixes
+
+* out_forward: Fix duplicated handshake bug in keepalive
+  https://github.com/fluent/fluentd/pull/2456
 
 ## Release v1.5.1 - 2019/06/05
 

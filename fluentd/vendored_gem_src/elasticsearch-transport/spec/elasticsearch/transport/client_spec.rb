@@ -33,16 +33,159 @@ describe Elasticsearch::Transport::Client do
     expect(client.transport).to be_a(Elasticsearch::Transport::Client::DEFAULT_TRANSPORT_CLASS)
   end
 
-  it 'uses Faraday as the default transport' do
+  it 'preserves the Faraday default user agent header' do
     expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/Faraday/)
   end
 
+  it 'identifies the Ruby client in the User-Agent header' do
+    expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/elasticsearch-ruby\/#{Elasticsearch::Transport::VERSION}/)
+  end
+
+  it 'identifies the Ruby version in the User-Agent header' do
+    expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RUBY_VERSION}/)
+  end
+
+  it 'identifies the host_os in the User-Agent header' do
+    expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RbConfig::CONFIG['host_os'].split('_').first[/[a-z]+/i].downcase}/)
+  end
+
+  it 'identifies the target_cpu in the User-Agent header' do
+    expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RbConfig::CONFIG['target_cpu']}/)
+  end
+
   it 'sets the \'Content-Type\' header to \'application/json\' by default' do
-    expect(client.transport.options[:transport_options][:headers]['Content-Type']).to eq('application/json')
+    expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
   end
 
   it 'uses localhost by default' do
     expect(client.transport.hosts[0][:host]).to eq('localhost')
+  end
+
+  context 'when a User-Agent header is specified as client option' do
+
+    let(:client) do
+      described_class.new(transport_options: { headers: { 'User-Agent' => 'testing' } })
+    end
+
+    it 'sets the specified User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to eq('testing')
+    end
+  end
+
+  context 'when a user-agent header is specified as client option in lower-case' do
+
+    let(:client) do
+      described_class.new(transport_options: { headers: { 'user-agent' => 'testing' } })
+    end
+
+    it 'sets the specified User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to eq('testing')
+    end
+  end
+
+  context 'when a Content-Type header is specified as client option' do
+
+    let(:client) do
+      described_class.new(transport_options: { headers: { 'Content-Type' => 'testing' } })
+    end
+
+    it 'sets the specified Content-Type header' do
+      expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('testing')
+    end
+  end
+
+  context 'when a content-type header is specified as client option in lower-case' do
+
+    let(:client) do
+      described_class.new(transport_options: { headers: { 'content-type' => 'testing' } })
+    end
+
+    it 'sets the specified Content-Type header' do
+      expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('testing')
+    end
+  end
+
+  context 'when the Curb transport class is used', unless: jruby? do
+
+    let(:client) do
+      described_class.new(transport_class: Elasticsearch::Transport::Transport::HTTP::Curb)
+    end
+
+    it 'preserves the Curb default user agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/Curb/)
+    end
+
+    it 'identifies the Ruby client in the User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/elasticsearch-ruby\/#{Elasticsearch::Transport::VERSION}/)
+    end
+
+    it 'identifies the Ruby version in the User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RUBY_VERSION}/)
+    end
+
+    it 'identifies the host_os in the User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RbConfig::CONFIG['host_os'].split('_').first[/[a-z]+/i].downcase}/)
+    end
+
+    it 'identifies the target_cpu in the User-Agent header' do
+      expect(client.transport.connections.first.connection.headers['User-Agent']).to match(/#{RbConfig::CONFIG['target_cpu']}/)
+    end
+
+    it 'sets the \'Content-Type\' header to \'application/json\' by default' do
+      expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
+    end
+
+    it 'uses localhost by default' do
+      expect(client.transport.hosts[0][:host]).to eq('localhost')
+    end
+
+    context 'when a User-Agent header is specified as a client option' do
+
+      let(:client) do
+        described_class.new(transport_class: Elasticsearch::Transport::Transport::HTTP::Curb,
+                            transport_options: { headers: { 'User-Agent' => 'testing' } })
+      end
+
+      it 'sets the specified User-Agent header' do
+        expect(client.transport.connections.first.connection.headers['User-Agent']).to eq('testing')
+      end
+    end
+
+    context 'when a user-agent header is specified as a client option as lower-case' do
+
+      let(:client) do
+        described_class.new(transport_class: Elasticsearch::Transport::Transport::HTTP::Curb,
+                            transport_options: { headers: { 'user-agent' => 'testing' } })
+      end
+
+      it 'sets the specified User-Agent header' do
+        expect(client.transport.connections.first.connection.headers['User-Agent']).to eq('testing')
+      end
+    end
+
+    context 'when a Content-Type header is specified as client option' do
+
+      let(:client) do
+        described_class.new(transport_class: Elasticsearch::Transport::Transport::HTTP::Curb,
+                            transport_options: { headers: { 'Content-Type' => 'testing' } })
+      end
+
+      it 'sets the specified Content-Type header' do
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('testing')
+      end
+    end
+
+    context 'when a content-type header is specified as client option in lower-case' do
+
+      let(:client) do
+        described_class.new(transport_class: Elasticsearch::Transport::Transport::HTTP::Curb,
+                            transport_options: { headers: { 'content-type' => 'testing' } })
+      end
+
+      it 'sets the specified Content-Type header' do
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('testing')
+      end
+    end
   end
 
   describe 'adapter' do
@@ -123,6 +266,48 @@ describe Elasticsearch::Transport::Client do
 
       it 'sets the logger' do
         expect(handlers).to include(Faraday::Response::Logger)
+      end
+    end
+  end
+
+  context 'when cloud credentials are provided' do
+
+    let(:client) do
+      described_class.new(cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elastic', password: 'changeme')
+    end
+
+    let(:hosts) do
+      client.transport.hosts
+    end
+
+    it 'extracts the cloud credentials' do
+      expect(hosts[0][:host]).to eq('abcd.localhost')
+      expect(hosts[0][:protocol]).to eq('https')
+      expect(hosts[0][:user]).to eq('elastic')
+      expect(hosts[0][:password]).to eq('changeme')
+      expect(hosts[0][:port]).to eq(9243)
+    end
+
+    it 'creates the correct full url' do
+      expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elastic:changeme@abcd.localhost:9243')
+    end
+
+    context 'when a port is specified' do
+
+      let(:client) do
+        described_class.new(cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elastic', password: 'changeme', port: 9200 )
+      end
+
+      it 'sets the specified port along with the cloud credentials' do
+        expect(hosts[0][:host]).to eq('abcd.localhost')
+        expect(hosts[0][:protocol]).to eq('https')
+        expect(hosts[0][:user]).to eq('elastic')
+        expect(hosts[0][:password]).to eq('changeme')
+        expect(hosts[0][:port]).to eq(9200)
+      end
+
+      it 'creates the correct full url' do
+        expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elastic:changeme@abcd.localhost:9200')
       end
     end
   end
@@ -1053,6 +1238,141 @@ describe Elasticsearch::Transport::Client do
           }.to raise_exception(Elasticsearch::Transport::Transport::Errors::BadRequest)
         end
       end
+
+      context 'when the \'compression\' option is set to true' do
+
+        context 'when using Faraday as the transport' do
+
+          context 'when using the Net::HTTP adapter' do
+
+            let(:client) do
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :net_http)
+            end
+
+            it 'compresses the request and decompresses the response' do
+              expect(client.perform_request('GET', '/').body).to be_a(Hash)
+            end
+
+            it 'sets the Accept-Encoding header' do
+              expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+            end
+
+            it 'preserves the other headers' do
+              expect(client.transport.connections[0].connection.headers['User-Agent'])
+            end
+          end
+
+          context 'when using the HTTPClient adapter' do
+
+            let(:client) do
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :httpclient)
+            end
+
+            it 'compresses the request and decompresses the response' do
+              expect(client.perform_request('GET', '/').body).to be_a(Hash)
+            end
+
+            it 'sets the Accept-Encoding header' do
+              expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+            end
+
+            it 'preserves the other headers' do
+              expect(client.transport.connections[0].connection.headers['User-Agent'])
+            end
+          end
+
+          context 'when using the Patron adapter', unless: jruby? do
+
+            let(:client) do
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :patron)
+            end
+
+            it 'compresses the request and decompresses the response' do
+              expect(client.perform_request('GET', '/').body).to be_a(Hash)
+            end
+
+            it 'sets the Accept-Encoding header' do
+              expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+            end
+
+            it 'preserves the other headers' do
+              expect(client.transport.connections[0].connection.headers['User-Agent'])
+            end
+          end
+
+          context 'when using the Net::HTTP::Persistent adapter' do
+
+            let(:client) do
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :net_http_persistent)
+            end
+
+            it 'compresses the request and decompresses the response' do
+              expect(client.perform_request('GET', '/').body).to be_a(Hash)
+            end
+
+            it 'sets the Accept-Encoding header' do
+              expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+            end
+
+            it 'preserves the other headers' do
+              expect(client.transport.connections[0].connection.headers['User-Agent'])
+            end
+          end
+
+          context 'when using the Typhoeus adapter' do
+
+            let(:client) do
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :typhoeus)
+            end
+
+            it 'compresses the request and decompresses the response' do
+              expect(client.perform_request('GET', '/').body).to be_a(Hash)
+            end
+
+            it 'sets the Accept-Encoding header' do
+              expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+            end
+
+            it 'preserves the other headers' do
+              expect(client.transport.connections[0].connection.headers['User-Agent'])
+            end
+          end
+        end
+      end
+
+      context 'when using Curb as the transport', unless: jruby? do
+
+        let(:client) do
+          described_class.new(hosts: ELASTICSEARCH_HOSTS,
+                              compression: true,
+                              transport_class: Elasticsearch::Transport::Transport::HTTP::Curb)
+        end
+
+        it 'compresses the request and decompresses the response' do
+          expect(client.perform_request('GET', '/').body).to be_a(Hash)
+        end
+
+        it 'sets the Accept-Encoding header' do
+          expect(client.transport.connections[0].connection.headers['Accept-Encoding'])
+        end
+
+        it 'preserves the other headers' do
+          expect(client.transport.connections[0].connection.headers['User-Agent'])
+        end
+      end
+
+      context 'when using Manticore as the transport', if: jruby? do
+
+        let(:client) do
+          described_class.new(hosts: ELASTICSEARCH_HOSTS,
+                              compression: true,
+                              transport_class: Elasticsearch::Transport::Transport::HTTP::Manticore)
+        end
+
+        it 'compresses the request and decompresses the response' do
+          expect(client.perform_request('GET', '/').body).to be_a(Hash)
+        end
+      end
     end
 
     describe '#perform_request' do
@@ -1064,7 +1384,7 @@ describe Elasticsearch::Transport::Client do
           client.perform_request('DELETE', 'myindex') rescue
           client.perform_request('PUT', 'myindex', {}, { settings: { number_of_shards: 2, number_of_replicas: 0 } })
           client.perform_request('PUT', 'myindex/mydoc/1', { routing: 'XYZ', timeout: '1s' }, { foo: 'bar' })
-          client.perform_request('GET', '_cluster/health?wait_for_status=green', {})
+          client.perform_request('GET', '_cluster/health?wait_for_status=green&timeout=2s', {})
         end
 
         let(:response) do

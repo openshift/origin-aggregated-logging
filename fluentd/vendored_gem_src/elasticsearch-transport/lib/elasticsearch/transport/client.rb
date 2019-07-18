@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+require 'base64'
+
 module Elasticsearch
   module Transport
 
@@ -45,6 +47,11 @@ module Elasticsearch
       #
       # @since 7.0.0
       DEFAULT_HOST = 'localhost:9200'.freeze
+
+      # The default port to use if connecting using a Cloud ID.
+      #
+      # @since 7.2.0
+      DEFAULT_CLOUD_PORT = 9243
 
       # Returns the transport object.
       #
@@ -101,6 +108,9 @@ module Elasticsearch
       #
       # @option arguments [String] :send_get_body_as Specify the HTTP method to use for GET requests with a body.
       #                                              (Default: GET)
+      # @option arguments [true, false] :compression Whether to compress requests. Gzip compression will be used.
+      #   The default is false. Responses will automatically be inflated if they are compressed.
+      #   If a custom transport object is used, it must handle the request compression and response inflation.
       #
       # @yield [faraday] Access and configure the `Faraday::Connection` instance directly with a block
       #
@@ -117,7 +127,8 @@ module Elasticsearch
         @arguments[:http]               ||= {}
         @options[:http]               ||= {}
 
-        @seeds = __extract_hosts(@arguments[:hosts] ||
+        @seeds = extract_cloud_creds(@arguments)
+        @seeds ||= __extract_hosts(@arguments[:hosts] ||
                                      @arguments[:host] ||
                                      @arguments[:url] ||
                                      @arguments[:urls] ||
@@ -128,12 +139,6 @@ module Elasticsearch
 
         if @arguments[:request_timeout]
           @arguments[:transport_options][:request] = { :timeout => @arguments[:request_timeout] }
-        end
-
-        @arguments[:transport_options][:headers] ||= {}
-
-        unless @arguments[:transport_options][:headers].keys.any? {|k| k.to_s.downcase =~ /content\-?\_?type/}
-          @arguments[:transport_options][:headers]['Content-Type'] = 'application/json'
         end
 
         if @arguments[:transport]
@@ -161,6 +166,16 @@ module Elasticsearch
       end
 
       private
+
+      def extract_cloud_creds(arguments)
+        return unless arguments[:cloud_id]
+        cloud_url, elasticsearch_instance = Base64.decode64(arguments[:cloud_id].gsub('name:', '')).split('$')
+        [ { scheme: 'https',
+            user: arguments[:user],
+            password: arguments[:password],
+            host: "#{elasticsearch_instance}.#{cloud_url}",
+            port: arguments[:port] || DEFAULT_CLOUD_PORT } ]
+      end
 
       # Normalizes and returns hosts configuration.
       #

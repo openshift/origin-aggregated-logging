@@ -28,7 +28,7 @@ module Fluent::Plugin
   class MonitorAgentInput < Input
     Fluent::Plugin.register_input('monitor_agent', self)
 
-    helpers :timer, :thread
+    helpers :timer, :thread, :http_server
 
     desc 'The address to bind to.'
     config_param :bind, :string, default: '0.0.0.0'
@@ -43,35 +43,83 @@ module Fluent::Plugin
     desc 'Determine whether to include the retry information.'
     config_param :include_retry, :bool, default: true
 
-    class MonitorServlet < WEBrick::HTTPServlet::AbstractServlet
-      def initialize(server, agent)
+    class APIHandler
+      def initialize(agent)
         @agent = agent
       end
 
-      def do_GET(req, res)
-        begin
-          code, header, body = process(req)
-        rescue
-          code, header, body = render_json_error(500, {
-              'message '=> 'Internal Server Error',
-              'error' => "#{$!}",
-              'backgrace'=> $!.backtrace,
-            })
-        end
+      def plugins_ltsv(req)
+        list = build_object(build_option(req))
 
-        # set response code, header and body
-        res.status = code
-        header.each_pair {|k,v|
-          res[k] = v
-        }
-        res.body = body
+        render_ltsv(list)
       end
 
-      def build_object(req, opts)
-        unless req.path_info == ""
-          return render_json_error(404, "Not found")
+      def plugins_json(req)
+        opts = build_option(req)
+        obj = build_object(opts)
+
+        render_json({ 'plugins' => obj }, pretty_json: opts[:pretty_json])
+      end
+
+      def config_ltsv(_req)
+        obj = {
+          'pid' => Process.pid,
+          'ppid' => Process.ppid
+        }.merge(@agent.fluentd_opts)
+
+        render_ltsv([obj])
+      end
+
+      def config_json(req)
+        obj = {
+          'pid' => Process.pid,
+          'ppid' => Process.ppid
+        }.merge(@agent.fluentd_opts)
+        opts = build_option(req)
+
+        render_json(obj, pretty_json: opts[:pretty_json])
+      end
+
+      private
+
+      def render_error_json(code:, msg:, pretty_json: nil, **additional_params)
+        resp = additional_params.merge('message' => msg)
+        render_json(resp, code: code, pretty_json: pretty_json)
+      end
+
+      def render_json(obj, code: 200, pretty_json: nil)
+        body =
+          if pretty_json
+            JSON.pretty_generate(obj)
+          else
+            obj.to_json
+          end
+
+        [code, { 'Content-Type' => 'application/json' }, body]
+      end
+
+      def render_ltsv(obj, code: 200)
+        normalized = JSON.parse(obj.to_json)
+        text = ''
+        normalized.each do |hash|
+          row = []
+          hash.each do |k, v|
+            if v.is_a?(Array)
+              row << "#{k}:#{v.join(',')}"
+            elsif v.is_a?(Hash)
+              next
+            else
+              row << "#{k}:#{v}"
+            end
+          end
+
+          text << row.join("\t") << "\n"
         end
 
+        [code, { 'Content-Type' => 'text/plain' }, text]
+      end
+
+      def build_object(opts)
         qs = opts[:query]
         if tag = qs['tag'.freeze].first
           # ?tag= to search an output plugin by match pattern
@@ -98,30 +146,11 @@ module Fluent::Plugin
         list
       end
 
-      def render_json(obj, opts={})
-        render_json_error(200, obj, opts)
-      end
-
-      def render_json_error(code, obj, opts={})
-        if opts[:pretty_json]
-          js = JSON.pretty_generate(obj)
-        else
-          js = obj.to_json
-        end
-        [code, {'Content-Type'=>'application/json'}, js]
-      end
-
-      private
-
       def build_option(req)
         qs = Hash.new { |_, _| [] }
         # parse ?=query string
         if req.query_string
-          begin
-            qs.merge!(CGI.parse(req.query_string))
-          rescue
-            return render_json_error(400, "Invalid query string")
-          end
+          qs.merge!(CGI.parse(req.query_string))
         end
 
         # if ?debug=1 is set, set :with_debug_info for get_monitor_info
@@ -152,74 +181,6 @@ module Fluent::Plugin
       end
     end
 
-    class LTSVMonitorServlet < MonitorServlet
-      def process(req)
-        opts = build_option(req)
-        list = build_object(req, opts)
-        return unless list
-
-        normalized = JSON.parse(list.to_json)
-
-        text = ''
-
-        normalized.map {|hash|
-          row = []
-          hash.each_pair {|k,v|
-            unless v.is_a?(Hash) || v.is_a?(Array)
-              row << "#{k}:#{v}"
-            end
-          }
-          text << row.join("\t") << "\n"
-        }
-
-        [200, {'Content-Type'=>'text/plain'}, text]
-      end
-    end
-
-    class JSONMonitorServlet < MonitorServlet
-      def process(req)
-        opts = build_option(req)
-        list = build_object(req, opts)
-        return unless list
-
-        render_json({
-            'plugins' => list
-          }, opts)
-      end
-    end
-
-    class ConfigMonitorServlet < MonitorServlet
-      def build_object(req, _opt)
-        {
-          'pid' => Process.pid,
-          'ppid' => Process.ppid
-        }.merge(@agent.fluentd_opts)
-      end
-    end
-
-    class LTSVConfigMonitorServlet < ConfigMonitorServlet
-      def process(req)
-        opts = build_option(req)
-        result = build_object(req, opts)
-
-        row = []
-        JSON.parse(result.to_json).each_pair { |k, v|
-          row << "#{k}:#{v}"
-        }
-        text = row.join("\t")
-
-        [200, {'Content-Type'=>'text/plain'}, text]
-      end
-    end
-
-    class JSONConfigMonitorServlet < ConfigMonitorServlet
-      def process(req)
-        opts = build_option(req)
-        result = build_object(req, opts)
-        render_json(result, opts)
-      end
-    end
-
     def initialize
       super
 
@@ -235,23 +196,25 @@ module Fluent::Plugin
       true
     end
 
+    class NotFoundJson
+      BODY = { 'message' => 'Not found' }.to_json
+      def self.call(_req)
+        [404, { 'Content-Type' => 'application/json' }, BODY]
+      end
+    end
+
     def start
       super
 
       log.debug "listening monitoring http server on http://#{@bind}:#{@port}/api/plugins for worker#{fluentd_worker_id}"
-      @srv = WEBrick::HTTPServer.new({
-          BindAddress: @bind,
-          Port: @port,
-          Logger: WEBrick::Log.new(STDERR, WEBrick::Log::FATAL),
-          AccessLog: [],
-        })
-      @srv.mount('/api/plugins', LTSVMonitorServlet, self)
-      @srv.mount('/api/plugins.json', JSONMonitorServlet, self)
-      @srv.mount('/api/config', LTSVConfigMonitorServlet, self)
-      @srv.mount('/api/config.json', JSONConfigMonitorServlet, self)
-      thread_create :in_monitor_agent_servlet do
-        @srv.start
+      api_handler = APIHandler.new(self)
+      create_http_server(:in_monitor_http_server_helper, addr: @bind, port: @port, logger: log, default_app: NotFoundJson) do |serv|
+        serv.get('/api/plugins') { |req| api_handler.plugins_ltsv(req) }
+        serv.get('/api/plugins.json') { |req| api_handler.plugins_json(req) }
+        serv.get('/api/config') { |req| api_handler.config_ltsv(req) }
+        serv.get('/api/config.json') { |req| api_handler.config_json(req) }
       end
+
       if @tag
         log.debug "tag parameter is specified. Emit plugins info to '#{@tag}'"
 
@@ -267,15 +230,7 @@ module Fluent::Plugin
       end
     end
 
-    def shutdown
-      if @srv
-        @srv.shutdown
-        @srv = nil
-      end
-
-      super
-    end
-
+    # They are deprecated but remain for compatibility
     MONITOR_INFO = {
       'output_plugin' => ->(){ is_a?(::Fluent::Plugin::Output) },
       'buffer_queue_length' => ->(){ throw(:skip) unless instance_variable_defined?(:@buffer) && !@buffer.nil? && @buffer.is_a?(::Fluent::Plugin::Buffer); @buffer.queue.size },
@@ -376,6 +331,10 @@ module Fluent::Plugin
           log.warn "unexpected error in monitoring plugins", key: key, plugin: pe.class, error: e
         end
       }
+
+      if pe.respond_to?(:statistics)
+        obj.merge!(pe.statistics['output'] || {})
+      end
 
       obj['retry'] = get_retry_info(pe.retry) if opts[:with_retry] and pe.instance_variable_defined?(:@retry)
 

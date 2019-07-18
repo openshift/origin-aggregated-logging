@@ -78,6 +78,7 @@ class ForwardOutputTest < Test::Unit::TestCase
     assert_equal 60, d.instance.send_timeout
     assert_equal :transport, d.instance.heartbeat_type
     assert_equal 1, nodes.length
+    assert_nil d.instance.connect_timeout
     node = nodes.first
     assert_equal "test", node.name
     assert_equal '127.0.0.1', node.host
@@ -100,6 +101,23 @@ EOL
     assert_equal [], instance.chunk_keys
     assert{ instance.buffer.is_a?(Fluent::Plugin::MemoryBuffer) }
     assert_equal( 10*1024*1024, instance.buffer.chunk_limit_size )
+  end
+
+  test 'configure timeouts' do
+    @d = d = create_driver(%[
+      send_timeout 30
+      connect_timeout 10
+      hard_timeout 15
+      ack_response_timeout 20
+      <server>
+        host #{TARGET_HOST}
+        port #{TARGET_PORT}
+      </server>
+    ])
+    assert_equal 30, d.instance.send_timeout
+    assert_equal 10, d.instance.connect_timeout
+    assert_equal 15, d.instance.hard_timeout
+    assert_equal 20, d.instance.ack_response_timeout
   end
 
   test 'configure_udp_heartbeat' do
@@ -649,7 +667,55 @@ EOL
     assert_equal(['test', time, records[1]], events[1])
   end
 
-  test 'authentication_with_user_auth' do
+  test 'keepalive + shared_key' do
+    input_conf = TARGET_CONFIG + %[
+                   <security>
+                     self_hostname in.localhost
+                     shared_key fluentd-sharedkey
+                   </security>
+                 ]
+    target_input_driver = create_target_input_driver(conf: input_conf)
+
+    output_conf = %[
+      send_timeout 51
+      keepalive true
+      <security>
+        self_hostname localhost
+        shared_key fluentd-sharedkey
+      </security>
+      <server>
+        name test
+        host #{TARGET_HOST}
+        port #{TARGET_PORT}
+      </server>
+    ]
+    @d = d = create_driver(output_conf)
+
+    time = event_time('2011-01-02 13:14:15 UTC')
+    records = [{ 'a' => 1 }, { 'a' => 2 }]
+    records2 = [{ 'b' => 1}, { 'b' => 2}]
+    target_input_driver.run(expect_records: 4, timeout: 15) do
+      d.run(default_tag: 'test') do
+        records.each do |record|
+          d.feed(time, record)
+        end
+
+        d.flush # emit buffer to reuse same socket later
+        records2.each do |record|
+          d.feed(time, record)
+        end
+      end
+    end
+
+    events = target_input_driver.events
+    assert{ events != [] }
+    assert_equal(['test', time, records[0]], events[0])
+    assert_equal(['test', time, records[1]], events[1])
+    assert_equal(['test', time, records2[0]], events[2])
+    assert_equal(['test', time, records2[1]], events[3])
+  end
+
+   test 'authentication_with_user_auth' do
     input_conf = TARGET_CONFIG + %[
                    <security>
                      self_hostname in.localhost
@@ -942,6 +1008,20 @@ EOL
     ensure
       d.instance_shutdown
     end
+  end
+
+  test 'if no available node' do
+    # do not create output driver
+    d = create_driver(%[
+    <server>
+      name test
+      standby
+      host #{TARGET_HOST}
+      port #{TARGET_PORT}
+    </server>
+    ])
+    d.instance_start
+    assert_nothing_raised { d.run }
   end
 
   sub_test_case 'keepalive' do
