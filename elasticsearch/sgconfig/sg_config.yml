@@ -13,6 +13,21 @@ searchguard:
         http_authenticator:
           challenge: false
           type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
+          config:
+             subjectAccessReviews:
+               prometheus:
+                 verb: get
+                 resource: /metrics
+               jaeger:
+                 verb: get
+                 resource: jaeger
+                 namespace: set-in-run-script
+                 resourceAPIGroup: elasticsearch.jaegertracing.io
+               elasticsearch-operator:
+                 verb: '*'
+                 resource: '*'
+                 namespace: '*'
+                 resourceAPIGroup: logging.openshift.io
         authentication_backend:
           type: io.fabric8.elasticsearch.plugin.auth.OpenShiftTokenAuthentication
           config:
