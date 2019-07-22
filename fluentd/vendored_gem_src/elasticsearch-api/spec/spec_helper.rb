@@ -16,25 +16,25 @@
 # under the License.
 
 require 'pry-nav'
+require 'yaml'
+require 'jbuilder'
+require 'jsonify'
+require 'elasticsearch'
 require 'elasticsearch-transport'
 require 'elasticsearch-api'
-
-require 'jbuilder' if defined?(RUBY_VERSION) && RUBY_VERSION > '1.9'
-require 'jsonify'
 
 require 'ansi'
 tracer = ::Logger.new(STDERR)
 tracer.formatter = lambda { |s, d, p, m| "#{m.gsub(/^.*$/) { |n| '   ' + n }.ansi(:faint)}\n" }
 
-RUBY_1_8 = defined?(RUBY_VERSION) && RUBY_VERSION < '1.9'
-JRUBY    = defined?(JRUBY_VERSION)
-
 unless defined?(ELASTICSEARCH_URL)
-  ELASTICSEARCH_URL = ENV['ELASTICSEARCH_URL'] || ENV['TEST_ES_SERVER'] || "localhost:#{(ENV['TEST_CLUSTER_PORT'] || 9200)}"
+  ELASTICSEARCH_URL = ENV['ELASTICSEARCH_URL'] ||
+                        ENV['TEST_ES_SERVER'] ||
+                        "localhost:#{(ENV['TEST_CLUSTER_PORT'] || 9200)}"
 end
 
-DEFAULT_CLIENT = Elasticsearch::Client.new host: ELASTICSEARCH_URL,
-                                           tracer: (ENV['QUIET'] ? nil : tracer)
+DEFAULT_CLIENT = Elasticsearch::Client.new(host: ELASTICSEARCH_URL,
+                                           tracer: (tracer unless ENV['QUIET']))
 
 module HelperModule
   def self.included(context)
@@ -63,17 +63,4 @@ RSpec.configure do |config|
   config.color = true
 end
 
-if ENV['COVERAGE'] && ENV['CI'].nil? && !RUBY_1_8
-  require 'simplecov'
-  SimpleCov.start { add_filter "/test|test_/" }
-end
-
-if ENV['CI'] && !RUBY_1_8
-  require 'simplecov'
-  require 'simplecov-rcov'
-  SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
-  SimpleCov.start { add_filter "/test|test_" }
-end
-
 class NotFound < StandardError; end
-

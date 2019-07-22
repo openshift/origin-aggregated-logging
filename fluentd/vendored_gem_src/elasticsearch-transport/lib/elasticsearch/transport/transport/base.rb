@@ -56,6 +56,7 @@ module Elasticsearch
           @options[:retry_on_status] ||= []
 
           @block       = block
+          @compression = !!@options[:compression]
           @connections = __build_connections
 
           @serializer  = options[:serializer] || ( options[:serializer_class] ? options[:serializer_class].new(self) : DEFAULT_SERIALIZER_CLASS.new(self) )
@@ -202,7 +203,7 @@ module Elasticsearch
               ( params.empty? ? '' : "&#{::Faraday::Utils::ParamsHash[params].to_query}" )
           trace_body = body ? " -d '#{__convert_to_json(body, :pretty => true)}'" : ''
           trace_command = "curl -X #{method.to_s.upcase}"
-          trace_command += " -H '#{headers.inject('') { |memo,item| memo << item[0] + ': ' + item[1] }}'" if headers && !headers.empty?
+          trace_command += " -H '#{headers.collect { |k,v| "#{k}: #{v}" }.join(", ")}'" if headers && !headers.empty?
           trace_command += " '#{trace_url}'#{trace_body}\n"
           tracer.info trace_command
           tracer.debug "# #{Time.now.iso8601} [#{response.status}] (#{format('%.3f', duration)}s)\n#"
@@ -234,7 +235,8 @@ module Elasticsearch
         def __full_url(host)
           url  = "#{host[:protocol]}://"
           url += "#{CGI.escape(host[:user])}:#{CGI.escape(host[:password])}@" if host[:user]
-          url += "#{host[:host]}:#{host[:port]}"
+          url += "#{host[:host]}"
+          url += ":#{host[:port]}" if host[:port]
           url += "#{host[:path]}" if host[:path]
           url
         end
@@ -328,7 +330,7 @@ module Elasticsearch
 
           if response.status.to_i >= 300
             __log_response    method, path, params, body, url, response, nil, 'N/A', duration
-            __trace  method, path, params, headers, body, url, response, nil, 'N/A', duration if tracer
+            __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
 
             # Log the failure only when `ignore` doesn't match the response status
             unless ignore.include?(response.status.to_i)
@@ -345,7 +347,7 @@ module Elasticsearch
             __log_response   method, path, params, body, url, response, json, took, duration
           end
 
-          __trace method, path, params, headers, body, url, response, json, took, duration if tracer
+          __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
 
           Response.new response.status, json || response.body, response.headers
         ensure
@@ -359,6 +361,66 @@ module Elasticsearch
         #
         def host_unreachable_exceptions
           [Errno::ECONNREFUSED]
+        end
+
+        private
+
+        USER_AGENT_STR = 'User-Agent'.freeze
+        USER_AGENT_REGEX = /user\-?\_?agent/
+        CONTENT_TYPE_STR = 'Content-Type'.freeze
+        CONTENT_TYPE_REGEX = /content\-?\_?type/
+        DEFAULT_CONTENT_TYPE = 'application/json'.freeze
+        GZIP = 'gzip'.freeze
+        ACCEPT_ENCODING = 'Accept-Encoding'.freeze
+        GZIP_FIRST_TWO_BYTES = '1f8b'.freeze
+        HEX_STRING_DIRECTIVE = 'H*'.freeze
+        RUBY_ENCODING = '1.9'.respond_to?(:force_encoding)
+
+        def decompress_response(body)
+          return body unless use_compression?
+          return body unless gzipped?(body)
+
+          io = StringIO.new(body)
+          gzip_reader = if RUBY_ENCODING
+                          Zlib::GzipReader.new(io, :encoding => 'ASCII-8BIT')
+                        else
+                          Zlib::GzipReader.new(io)
+                        end
+          gzip_reader.read
+        end
+
+        def gzipped?(body)
+          body[0..1].unpack(HEX_STRING_DIRECTIVE)[0] == GZIP_FIRST_TWO_BYTES
+        end
+
+        def use_compression?
+          @compression
+        end
+
+        def apply_headers(client, options)
+          headers = options[:headers] || {}
+          headers[CONTENT_TYPE_STR] = find_value(headers, CONTENT_TYPE_REGEX) || DEFAULT_CONTENT_TYPE
+          headers[USER_AGENT_STR] = find_value(headers, USER_AGENT_REGEX) || user_agent_header(client)
+          client.headers[ACCEPT_ENCODING] = GZIP if use_compression?
+          client.headers.merge!(headers)
+        end
+
+        def find_value(hash, regex)
+          key_value = hash.find { |k,v| k.to_s.downcase =~ regex }
+          if key_value
+            hash.delete(key_value[0])
+            key_value[1]
+          end
+        end
+
+        def user_agent_header(client)
+          @user_agent ||= begin
+            meta = ["RUBY_VERSION: #{RUBY_VERSION}"]
+            if RbConfig::CONFIG && RbConfig::CONFIG['host_os']
+              meta << "#{RbConfig::CONFIG['host_os'].split('_').first[/[a-z]+/i].downcase} #{RbConfig::CONFIG['target_cpu']}"
+            end
+            "elasticsearch-ruby/#{VERSION} (#{meta.join('; ')})"
+          end
         end
       end
     end

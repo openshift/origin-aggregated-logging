@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--main".freeze, "README.rdoc".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 2.0".freeze)
-  s.rubygems_version = "3.0.3".freeze
+  s.rubygems_version = "2.6.12".freeze
   s.summary = "The mime-types library provides a library and registry for information about MIME content type definitions".freeze
 
   if s.respond_to? :specification_version then
@@ -35,11 +35,11 @@ Gem::Specification.new do |s|
       s.add_development_dependency(%q<minitest-focus>.freeze, ["~> 1.0"])
       s.add_development_dependency(%q<minitest-bonus-assertions>.freeze, ["~> 3.0"])
       s.add_development_dependency(%q<minitest-hooks>.freeze, ["~> 1.4"])
-      s.add_development_dependency(%q<rake>.freeze, [">= 10.0", "< 13.0"])
+      s.add_development_dependency(%q<rake>.freeze, ["< 13.0", ">= 10.0"])
       s.add_development_dependency(%q<fivemat>.freeze, ["~> 1.3"])
       s.add_development_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_development_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-      s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
+      s.add_development_dependency(%q<rdoc>.freeze, ["< 6", ">= 4.0"])
       s.add_development_dependency(%q<hoe>.freeze, ["~> 3.17"])
     else
       s.add_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
@@ -53,11 +53,11 @@ Gem::Specification.new do |s|
       s.add_dependency(%q<minitest-focus>.freeze, ["~> 1.0"])
       s.add_dependency(%q<minitest-bonus-assertions>.freeze, ["~> 3.0"])
       s.add_dependency(%q<minitest-hooks>.freeze, ["~> 1.4"])
-      s.add_dependency(%q<rake>.freeze, [">= 10.0", "< 13.0"])
+      s.add_dependency(%q<rake>.freeze, ["< 13.0", ">= 10.0"])
       s.add_dependency(%q<fivemat>.freeze, ["~> 1.3"])
       s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-      s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
+      s.add_dependency(%q<rdoc>.freeze, ["< 6", ">= 4.0"])
       s.add_dependency(%q<hoe>.freeze, ["~> 3.17"])
     end
   else
@@ -72,11 +72,11 @@ Gem::Specification.new do |s|
     s.add_dependency(%q<minitest-focus>.freeze, ["~> 1.0"])
     s.add_dependency(%q<minitest-bonus-assertions>.freeze, ["~> 3.0"])
     s.add_dependency(%q<minitest-hooks>.freeze, ["~> 1.4"])
-    s.add_dependency(%q<rake>.freeze, [">= 10.0", "< 13.0"])
+    s.add_dependency(%q<rake>.freeze, ["< 13.0", ">= 10.0"])
     s.add_dependency(%q<fivemat>.freeze, ["~> 1.3"])
     s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
     s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-    s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
+    s.add_dependency(%q<rdoc>.freeze, ["< 6", ">= 4.0"])
     s.add_dependency(%q<hoe>.freeze, ["~> 3.17"])
   end
 end
