@@ -58,6 +58,33 @@ wait_for_condition()
     return 0
 }
 
+switch_to_admin_user() {
+    # make sure we are using the admin credentials for the remote repo
+    if [ -z "${KUBECONFIG:-}" ] ; then
+        echo WARNING: KUBECONFIG is not set - assuming you have set credentials
+        echo via ~/.kube/config or otherwise
+    fi
+
+    if ! oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+        local adminname
+        local oldcontext=$( oc config current-context )
+        # see if there is already an admin context in the kubeconfig
+        for adminname in admin system:admin kube:admin ; do
+            if oc config use-context $adminname > /dev/null 2>&1 ; then
+                break
+            fi
+        done
+        if oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+            echo INFO: switched from context [$oldcontext] to [$(oc config current-context)]
+        else
+            echo ERROR: could not get an admin context to use - make sure you have
+            echo set KUBECONFIG or ~/.kube/config correctly
+            oc config use-context $oldcontext
+            exit 1
+        fi
+    fi
+}
+
 deploy_logging_using_olm() {
     # Create the $ESO_NS namespace:
     if oc get project $ESO_NS > /dev/null 2>&1 ; then
@@ -117,6 +144,8 @@ deploy_logging_using_clo_make() {
         IMAGE_OVERRIDE="$CLO_IMAGE" EO_IMAGE_OVERRIDE="$EO_IMAGE" make deploy-no-build
     popd > /dev/null
 }
+
+switch_to_admin_user
 
 # what numeric version does master correspond to?
 MASTER_VERSION=${MASTER_VERSION:-4.2}
@@ -290,8 +319,6 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     oc set env deploy/cluster-logging-operator --list | grep _IMAGE=
 fi
 
-oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
-
 # we expect a fluentd or rsyslog running on each node
 expectedcollectors=$( oc get nodes | grep -c " Ready " )
 if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
@@ -301,6 +328,48 @@ else
 fi
 # we expect $nodeCount elasticsearch pods
 expectedes=$( awk '/nodeCount:/ {print $2}' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} )
+
+oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
+
+if [ -n "${LOGGING_IMAGE_PULL_POLICY:-}" ] ; then
+    wait_func() {
+        esdeploys=$( oc get deploy -l component=elasticsearch -o name 2> /dev/null | wc -l )
+        if [ "${esdeploys:-0}" -lt $expectedes ] ; then
+            return 1
+        fi
+        if ! oc get deploy/kibana > /dev/null 2>&1 ; then
+            return 1
+        fi
+        if ! oc get ds/fluentd > /dev/null 2>&1 && ! oc get ds/rsyslog > /dev/null 2>&1 ; then
+            return 1
+        fi
+        if ! oc get cronjob/curator > /dev/null 2>&1 ; then
+            return 1
+        fi
+        # if we got here, everything is as it should be
+        return 0
+    }
+    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: operator did not create deployments after 300 seconds
+        logging_err_exit
+    fi
+    # we have all of the deployment objects - change them all to use the given image pull policy
+    for deploy in $( oc get deploy,ds -o name ) ; do
+        ncontainers=$( oc get $deploy -o template='{{len .spec.template.spec.containers | println}}' )
+        for ii in $( seq 0 $(( ncontainers - 1 )) ) ; do
+            oc patch $deploy --type=json \
+                    --patch '[{"op":"replace","path":"/spec/template/spec/containers/'$ii'/imagePullPolicy","value":"'"${LOGGING_IMAGE_PULL_POLICY}"'"}]'
+        done
+    done
+    for deploy in $( oc get cronjob -o name ) ; do
+        ncontainers=$( oc get $deploy -o template='{{len .spec.jobTemplate.spec.template.spec.containers | println}}' )
+        for ii in $( seq 0 $(( ncontainers - 1 )) ) ; do
+            oc patch $deploy --type=json \
+                    --patch '[{"op":"replace","path":"/spec/jobTemplate/spec/template/spec/containers/'$ii'/imagePullPolicy","value":"'"${LOGGING_IMAGE_PULL_POLICY}"'"}]'
+        done
+    done
+    # then fall through to the wait below to wait for the pods to come up
+fi
 
 wait_func() {
     if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.*Running' ; then
