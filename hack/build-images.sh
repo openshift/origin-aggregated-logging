@@ -173,7 +173,7 @@ function login_to_registry() {
     fi
     if [ -z "$token" ] ; then
       echo ERROR: could not determine token to use to login to "$1"
-      echo please do `oc login -u username -p password` to create a context with a token
+      echo please do \`oc login -u username -p password\` to create a context with a token
       echo OR
       echo set \$PUSH_USER and \$PUSH_PASSWORD and run this script again
       return 1
@@ -187,6 +187,33 @@ function login_to_registry() {
 
 function push_image() {
   skopeo copy --dest-tls-verify=false docker-daemon:"$1" docker://"$2"
+}
+
+function switch_to_admin_user() {
+  # make sure we are using the admin credentials for the remote repo
+  if [ -z "${KUBECONFIG:-}" ] ; then
+    echo WARNING: KUBECONFIG is not set - assuming you have set credentials
+    echo via ~/.kube/config or otherwise
+  fi
+
+  if ! oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+    local adminname
+    local oldcontext=$( oc config current-context )
+    # see if there is already an admin context in the kubeconfig
+    for adminname in admin system:admin kube:admin ; do
+      if oc config use-context $adminname > /dev/null 2>&1 ; then
+        break
+      fi
+    done
+    if oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+      echo INFO: switched from context [$oldcontext] to [$(oc config current-context)]
+    else
+      echo ERROR: could not get an admin context to use - make sure you have
+      echo set KUBECONFIG or ~/.kube/config correctly
+      oc config use-context $oldcontext
+      exit 1
+    fi
+  fi
 }
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
@@ -292,6 +319,9 @@ fi
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
   exit 0
 fi
+
+# we have to be an admin user to proceed from here
+switch_to_admin_user
 
 registry_namespace=openshift-image-registry
 registry_svc=image-registry
