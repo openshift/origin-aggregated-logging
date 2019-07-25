@@ -41,7 +41,8 @@ test2match = {
                   "undefined23": False
               },
               "undefined4": "undefined4",
-              "undefined5": "undefined5"
+              "undefined5": "undefined5",
+              "undefined.6": "undefined6"
     },
     "test2": {"undefined":
               {"undefined1": "undefined1",
@@ -53,7 +54,8 @@ test2match = {
                    "undefined23": False
                },
                "undefined4": "undefined4",
-               "undefined5": "undefined5"
+               "undefined5": "undefined5",
+               "undefined.6": "undefined6"
               }
     },
     "test3": {"undefined":
@@ -64,7 +66,8 @@ test2match = {
                    "undefined2": "undefined2",
                    "undefined22": 2222,
                    "undefined23": False
-               }
+               },
+               "undefined.6": "undefined6"
               },
               "undefined4": "undefined4",
               "undefined5": "undefined5"
@@ -77,7 +80,8 @@ test2match = {
                    "undefined2": "undefined2",
                    "undefined22": 2222,
                    "undefined23": False
-               }
+               },
+               "undefined.6": "undefined6"
               },
               "undefined4": "undefined4",
               "undefined5": "undefined5"
@@ -90,8 +94,32 @@ test2match = {
                    "undefined2": "undefined2",
                    "undefined22": 2222,
                    "undefined23": False
-               }
+               },
+               "undefined.6": "undefined6"
               },
+              "undefined4": "undefined4",
+              "undefined5": "undefined5",
+              "empty1": "",
+              "undefined3": {"emptyvalue": ""}
+    },
+    "test6": {"myname":
+              {"undefined1": "undefined1",
+               "undefined11": 1111,
+               "undefined12": True,
+               "undefined2": {
+                   "undefined2": "undefined2",
+                   "undefined22": 2222,
+                   "undefined23": False
+               },
+               "undefined_6": "undefined6"
+              },
+              "undefined4": "undefined4",
+              "undefined5": "undefined5",
+              "empty1": "",
+              "undefined3": {"emptyvalue": ""}
+    },
+    "test7": {"undefString":
+              "{\"undefined.6\":\"undefined6\",\"undefined1\":\"undefined1\",\"undefined11\":1111,\"undefined12\":true,\"undefined2\":{\"\":\"\",\"undefined2\":\"undefined2\",\"undefined22\":2222,\"undefined23\":false}}",
               "undefined4": "undefined4",
               "undefined5": "undefined5",
               "empty1": "",
@@ -111,7 +139,7 @@ for dd in obj['hits']['hits']:
         if xx not in dd['_source']:
             print "Error: input does not have the field [%s]" % xx
             sys.exit(1)
-        if not match[xx] == dd['_source'][xx]:
+        if not match[xx] == dd['_source'][xx] and not json.loads(match[xx]) == json.loads(dd['_source'][xx]):
             print "Error: input field [%s] expected value [%s] does not match actual value [%s]" % (xx, match[xx], dd['_source'][xx])
             sys.exit(1)
 

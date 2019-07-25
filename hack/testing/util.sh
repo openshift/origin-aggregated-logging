@@ -433,6 +433,10 @@ function flush_fluentd_pos_files() {
     os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
+function flush_rsyslog_pos_files() {
+    os::cmd::expect_success "oal_sudo rm -f /var/lib/rsyslog.pod/imfile-state* /var/lib/rsyslog.pod/imjournal.state"
+}
+
 # return 0 if given file has size ge given size, otherwise, return 1
 function file_has_size() {
     local f=$1
@@ -457,21 +461,29 @@ function get_journal_pos_cursor() {
 function wait_for_journal_apps_ops_msg() {
     local fullmsg="$1"
     local uuid_es_ops="$2"
+    # ingore pipe failure
+    trap "" PIPE
     oal_sudo journalctl -m -f -o export 2>&1 | \
-        awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
-        -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+        awk -v "journal=MESSAGE=.*$fullmsg" -v "journal_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
+        -v journal_out=$ARTIFACT_DIR/journal_out.txt -v journal_ops_out=$ARTIFACT_DIR/journal_ops_out.txt '
             BEGIN{RS="";FS="\n"};
-            $0 ~ es {print > es_out; app += 1; if (app && op) {exit 0}};
-            $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
+            $0 ~ journal {print > journal_out; app += 1; if (app && op) {exit 0}};
+            $0 ~ journal_ops {print > journal_ops_out; op += 1; if (app && op) {exit 0}};
             '
+    # reset PIPE trap
+    trap - PIPE
 }
 
 function wait_for_ops_log_message() {
     local uuid_es_ops="$1"
+    # ingore pipe failure
+    trap "" PIPE
     oal_sudo journalctl -m -f -o export 2>&1 | \
-        awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+        awk -v "journal_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v journal_ops_out=$ARTIFACT_DIR/journal_ops_out.txt '
             BEGIN{RS="";FS="\n"};
-            $0 ~ es_ops {print > es_ops_out; exit 0}'
+            $0 ~ journal_ops {print > journal_ops_out; exit 0}'
+    # reset PIPE trap
+    trap - PIPE
 }
 
 function wait_for_apps_log_message() {
@@ -755,7 +767,7 @@ get_all_logging_pod_logs() {
            oc exec -n ${LOGGING_NS} -c $container $p -- logs >> $ARTIFACT_DIR/$p.$container.log 2>&1 || :
            ;;
       esac
-	done
+    done
   done
 }
 
@@ -786,6 +798,32 @@ start_fluentd() {
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^(logging-)*fluentd-.* Running " $wait_time
 }
 
+stop_rsyslog() {
+    local rpod=${1:-$( get_running_pod rsyslog )}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    oc label node -l logging-infra-rsyslog=true --overwrite logging-infra-rsyslog=false
+    os::cmd::try_until_text "oc get $rsyslog_ds -o jsonpath='{ .status.numberReady }'" "0" $wait_time
+    # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the rsyslog pod hangs around
+    # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
+    # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
+    if [ -n "${rpod:-}" ] ; then
+        os::cmd::try_until_failure "oc get pod $rpod > /dev/null 2>&1" $wait_time
+    fi
+}
+
+start_rsyslog() {
+    local cleanfirst=${1:-false}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    if [ "$cleanfirst" != false ] ; then
+        flush_rsyslog_pos_files
+        oal_sudo rm -f /var/log/rsyslog/* /var/lib/rsyslog.pod/*
+    fi
+    oc label node -l logging-infra-rsyslog=false --overwrite logging-infra-rsyslog=true
+    os::cmd::try_until_text "oc get pods -l component=rsyslog" "^(logging-)*rsyslog-.* Running " $wait_time
+}
+
 get_fluentd_ds_name() {
     if oc -n ${LOGGING_NS} get daemonset fluentd -o name > /dev/null 2>&1 ; then
         echo daemonset/fluentd
@@ -805,6 +843,9 @@ get_fluentd_cm_name() {
 }
 
 fluentd_cm=${fluentd_cm:-$(get_fluentd_cm_name)}
+
+# Hardcode daemonset/rsyslog for the case the rsyslog pod does not exist.
+rsyslog_ds=${rsyslog_ds:-daemonset/rsyslog}
 
 enable_cluster_logging_operator() {
     if oc -n ${LOGGING_NS} get deploy cluster-logging-operator > /dev/null 2>&1 ; then
