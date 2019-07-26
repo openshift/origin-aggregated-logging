@@ -6,12 +6,13 @@ ENV FLUENTD_VERSION=1.0 \
 
 WORKDIR ${WORKDIR}
 
-COPY fluentd/lib ${WORKDIR}
+ENTRYPOINT /tmp/run.sh
 RUN scl enable rh-ruby25 -- gem install bundler --no-ri --no-doc
-RUN for d in $(ls $WORKDIR); do \
-      pushd ${d}; \
-        export GEM_HOME=vendor ;\
-        scl enable rh-ruby25 -- bundle install ;\
-        scl enable rh-ruby25 -- bundle exec rake test ; \
-      popd ; \
+COPY test/unit/run.sh /tmp/
+COPY fluentd/lib ${WORKDIR}
+RUN for d in $(ls $WORKDIR) ; do \
+    pushd ${d} ; \
+        export GEM_HOME=vendor ; \
+        scl enable rh-ruby25 -- bundle install ; \
+    popd ; \
     done
