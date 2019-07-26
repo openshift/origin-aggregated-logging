@@ -42,7 +42,7 @@ done
 
 if [ $cmd = "cat" ] ; then
     if [ "$include_logrotation" = "true" ] ; then
-        if ls $pod_dir/rsyslog.* > /dev/null 2>&1 ; then
+        if ls $log_dir/rsyslog.* > /dev/null 2>&1 ; then
             echo "===== rsyslog logs ====="
             for log_file in $( ls $log_dir/rsyslog.* | sort -Vr ); do
                 cat $log_file
@@ -70,7 +70,7 @@ if [ $cmd = "cat" ] ; then
             done
         fi
     else
-        if ls $pod_dir/rsyslog.* > /dev/null 2>&1 ; then
+        if ls $log_dir/rsyslog.* > /dev/null 2>&1 ; then
             for log_file in $( ls $log_dir/rsyslog.* | sort -Vr ); do
                 cat $log_file
             done

@@ -369,7 +369,7 @@ oc exec $rpod -c rsyslog -- cat /etc/rsyslog.d/66-debug.conf | artifact_out
 
 # UNDEFINED_DEBUG needs to be enabled for checking configs in the following tests.
 stop_rsyslog $rpod
-oc set env $rsyslog_ds UNDEFINED_DEBUG=true
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 os::cmd::try_until_success "oc exec $rpod -c rsyslog -- grep 'use_undefined:' /var/log/rsyslog/rsyslog.log"
@@ -389,7 +389,7 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 artifact_log "2. enable use_undefined - undefined fields are stored in 'undefined' field"
 keep_fields="method,statusCode,type,@timestamp,req,res,CONTAINER_NAME,CONTAINER_ID_FULL"
 stop_rsyslog $rpod
-oc set env $rsyslog_ds CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=$keep_fields 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=$keep_fields 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 os::cmd::try_until_success "oc exec $rpod -c rsyslog -- grep 'use_undefined:' /var/log/rsyslog/rsyslog.log"
@@ -404,7 +404,7 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 
 artifact_log "3. user specifies extra fields to keep"
 stop_rsyslog $rpod
-oc set env $rsyslog_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 os::cmd::expect_success_and_text "oc exec $rpod -c rsyslog -- grep 'extra_keep_fields:' /var/log/rsyslog/rsyslog.log | tail -n 1 | awk '{print \$3}' | sed -e 's/.*\(undefined4\).*/\1/'" "undefined4"
@@ -418,10 +418,10 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 
 artifact_log "4. user specifies alternate undefined name to use"
 stop_rsyslog $rpod
-oc set env $rsyslog_ds CDM_UNDEFINED_NAME=myname 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,$keep_fields CDM_UNDEFINED_NAME=myname 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
-os::cmd::expect_success_and_text "oc exec $rpod -c rsyslog -- grep 'undefined_name:' /var/log/rsyslog/rsyslog.log | tail -n 1 | awk '{print \$3}'" "myname"
+os::cmd::try_until_success "oc exec $rpod -c rsyslog -- grep 'undefined_name:' /var/log/rsyslog/rsyslog.log | tail -n 1 | awk '{print \$3}' | grep myname"
 oc exec $rpod -c rsyslog -- cat /var/lib/rsyslog.pod/undefined.json | artifact_out
 
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
@@ -432,10 +432,10 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 
 artifact_log "5. reserve specified empty field as empty"
 stop_rsyslog
-oc set env $rsyslog_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_UNDEFINED_NAME=myname CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
-os::cmd::expect_success_and_text "oc exec $rpod -c rsyslog -- grep 'keep_empty_fields:' /var/log/rsyslog/rsyslog.log | tail -n 1 | awk '{print \$3}' | sed -e 's/.*\(empty1\).*/\1/'" "empty1"
+os::cmd::try_until_success "oc exec $rpod -c rsyslog -- grep 'keep_empty_fields:' /var/log/rsyslog/rsyslog.log | tail -n 1 | awk '{print \$3}' | sed -e 's/.*\(empty1\).*/\1/' | grep empty1"
 oc exec $rpod -c rsyslog -- cat /var/lib/rsyslog.pod/undefined.json | artifact_out
 
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
@@ -446,7 +446,7 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 
 artifact_log "6. replace dot with underscore"
 stop_rsyslog $rpod
-oc set env $rsyslog_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 MERGE_JSON_LOG=true CDM_UNDEFINED_DOT_REPLACE_CHAR=_ 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_UNDEFINED_NAME=myname CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 CDM_UNDEFINED_DOT_REPLACE_CHAR=_ 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 oc exec $rpod -c rsyslog -- cat /var/lib/rsyslog.pod/undefined.json | artifact_out
@@ -459,7 +459,7 @@ os::cmd::expect_success "cat $ops | python $OS_O_A_L_DIR/hack/testing/test-viaq-
 
 artifact_log "7. set CDM_UNDEFINED_MAX_NUM_FIELDS to 3"
 stop_rsyslog $rpod
-oc set env $rsyslog_ds CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 MERGE_JSON_LOG=true CDM_UNDEFINED_DOT_REPLACE_CHAR=_ CDM_UNDEFINED_MAX_NUM_FIELDS=3 CDM_UNDEFINED_NAME=undefString 2>&1 | artifact_out
+oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true CDM_USE_UNDEFINED=true CDM_EXTRA_KEEP_FIELDS=undefined4,undefined5,empty1,undefined3,$keep_fields CDM_KEEP_EMPTY_FIELDS=undefined4,undefined5,empty1,undefined3 CDM_UNDEFINED_DOT_REPLACE_CHAR=_ CDM_UNDEFINED_MAX_NUM_FIELDS=3 CDM_UNDEFINED_NAME=undefString 2>&1 | artifact_out
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 oc exec $rpod -c rsyslog -- cat /var/lib/rsyslog.pod/undefined.json | artifact_out
