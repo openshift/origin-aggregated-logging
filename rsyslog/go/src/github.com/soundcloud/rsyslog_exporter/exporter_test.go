@@ -240,3 +240,216 @@ func TestHandleUnknown(t *testing.T) {
 		t.Errorf("want '%d', got '%d'", want, got)
 	}
 }
+
+func TestHandleLineWithImjournal(t *testing.T) {
+	tests := []*testUnit{
+		&testUnit{
+			Name:       "imjournal_submitted",
+			Val:        1994,
+			LabelValue: "test_imjournal",
+		},
+		&testUnit{
+			Name:       "imjournal_read",
+			Val:        1996,
+			LabelValue: "test_imjournal",
+		},
+		&testUnit{
+			Name:       "imjournal_discarded",
+			Val:        1,
+			LabelValue: "test_imjournal",
+		},
+		&testUnit{
+			Name:       "imjournal_failed",
+			Val:        1,
+			LabelValue: "test_imjournal",
+		},
+		// &testUnit{
+		// 	Name:       "imjournal_poll_failed",
+		// 	Val:        0,
+		// 	LabelValue: "test_imjournal",
+		// },
+		&testUnit{
+			Name:       "imjournal_rotations",
+			Val:        32,
+			LabelValue: "test_imjournal",
+		},
+		&testUnit{
+			Name:       "imjournal_recovery_attempts",
+			Val:        5,
+			LabelValue: "test_imjournal",
+		},
+		// &testUnit{
+		// 	Name:       "imjournal_ratelimit_discarded_in_interval",
+		// 	Val:        0,
+		// 	LabelValue: "test_imjournal",
+		// },
+		&testUnit{
+			Name:       "imjournal_disk_usage_bytes",
+			Val:        75501568,
+			LabelValue: "test_imjournal",
+		},
+	}
+
+	imjournalLog := []byte(`2017-08-30T08:10:04.786350+00:00 some-node.example.org rsyslogd-pstats: { "name": "test_imjournal", "origin": "imjournal", "submitted": 1994, "read": 1996, "discarded": 1, "failed": 1, "poll_failed": 0, "rotations": 32, "recovery_attempts": 5, "ratelimit_discarded_in_interval": 0, "disk_usage_bytes": 75501568 }`)
+	testHelper(t, imjournalLog, tests)
+}
+
+func TestHandleLineWithOmelasticsearch(t *testing.T) {
+	tests := []*testUnit{
+		&testUnit{
+			Name:       "omelasticsearch_submitted",
+			Val:        772,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_failedhttp",
+			Val:        10,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_failedhttprequests",
+			Val:        11,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_failedcheckconn",
+			Val:        12,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_failedes",
+			Val:        13,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responsesuccess",
+			Val:        700,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responsebad",
+			Val:        1,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responseduplicate",
+			Val:        2,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responsebadargument",
+			Val:        3,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responsebulkrejection",
+			Val:        4,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_responseother",
+			Val:        5,
+			LabelValue: "test_omelasticsearch",
+		},
+		&testUnit{
+			Name:       "omelasticsearch_rebinds",
+			Val:        6,
+			LabelValue: "test_omelasticsearch",
+		},
+	}
+
+	omelasticsearchLog := []byte(`2017-08-30T08:10:04.786350+00:00 some-node.example.org rsyslogd-pstats: {
+		"name": "test_omelasticsearch", "origin": "omelasticsearch", "submitted": 772, "failed.http": 10,
+		"failed.httprequests": 11, "failed.checkConn": 12, "failed.es": 13, "response.success": 700,
+		"response.bad": 1, "response.duplicate": 2, "response.badargument": 3, "response.bulkrejection": 4,
+		"response.other": 5, "rebinds": 6 }`)
+	testHelper(t, omelasticsearchLog, tests)
+}
+
+func TestHandleLineWithMmkubernetes(t *testing.T) {
+	tests := []*testUnit{
+		&testUnit{
+			Name:       "mmkubernetes_recordseen",
+			Val:        9876,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacemetadatasuccess",
+			Val:        11,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacemetadatanotfound",
+			Val:        1,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacemetadatabusy",
+			Val:        2,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacemetadataerror",
+			Val:        3,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podmetadatasuccess",
+			Val:        12,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podmetadatanotfound",
+			Val:        4,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podmetadatabusy",
+			Val:        5,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podmetadataerror",
+			Val:        6,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacecachenumentries",
+			Val:        13,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podcachenumentries",
+			Val:        14,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacecachehits",
+			Val:        15,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podcachehits",
+			Val:        16,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_namespacecachemisses",
+			Val:        17,
+			LabelValue: "test_mmkubernetes",
+		},
+		&testUnit{
+			Name:       "mmkubernetes_podcachemisses",
+			Val:        18,
+			LabelValue: "test_mmkubernetes",
+		},
+	}
+
+	mmkubernetesLog := []byte(`2017-08-30T08:10:04.786350+00:00 some-node.example.org rsyslogd-pstats: {
+		"name": "test_mmkubernetes",
+		"origin": "mmkubernetes", "recordseen": 9876, "namespacemetadatasuccess": 11, "namespacemetadatanotfound": 1,
+		"namespacemetadatabusy": 2, "namespacemetadataerror": 3, "podmetadatasuccess": 12, "podmetadatanotfound": 4,
+		"podmetadatabusy": 5, "podmetadataerror": 6, "namespacecachenumentries": 13, "podcachenumentries": 14,
+		"namespacecachehits": 15, "podcachehits": 16, "namespacecachemisses": 17, "podcachemisses": 18 }`)
+	testHelper(t, mmkubernetesLog, tests)
+}
