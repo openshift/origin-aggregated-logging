@@ -9,9 +9,14 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/zzz-rsyslog"
 
+artifact_log Unit tests for undefined_field
 pushd ${OS_O_A_L_DIR}/rsyslog/undefined_field > /dev/null
 cp undefined_field.go $ARTIFACT_DIR || :
 cp undefined_field_test.go $ARTIFACT_DIR || :
+go test -v 2>&1 | artifact_out
+popd > /dev/null
+artifact_log Unit tests for rsyslog_exporter
+pushd ${OS_O_A_L_DIR}/rsyslog/go/src/github.com/soundcloud/rsyslog_exporter > /dev/null
 go test -v 2>&1 | artifact_out
 popd > /dev/null
 
@@ -254,7 +259,7 @@ rpod="$( get_running_pod rsyslog )"
 rpod_ip="$( oc get pod ${rpod} -o jsonpath='{.status.podIP}' )"
 
 os::cmd::try_until_success "curl -s -k https://${rpod_ip}:24231/metrics"
-curl -s -k https://${rpod_ip}:24231/metrics >> $ARTIFACT_DIR/${rpod}-metrics-scrape 2>&1 || :
+curl -s -k https://${rpod_ip}:24231/metrics > $ARTIFACT_DIR/${rpod}-metrics-scrape 2>&1
 
 # Test logrotation (LOG400) - OKD 4.2 and above
 # check rsyslog logs

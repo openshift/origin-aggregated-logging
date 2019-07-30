@@ -20,6 +20,9 @@ const (
 	rsyslogQueue
 	rsyslogResource
 	rsyslogDynStat
+	rsyslogImjournal
+	rsyslogOmelasticsearch
+	rsyslogMmkubernetes
 )
 
 type rsyslogExporter struct {
@@ -87,6 +90,33 @@ func (re *rsyslogExporter) handleStatLine(rawbuf []byte) error {
 		}
 	case rsyslogDynStat:
 		s, err := newDynStatFromJSON(buf)
+		if err != nil {
+			return err
+		}
+		for _, p := range s.toPoints() {
+			re.set(p)
+		}
+
+	case rsyslogImjournal:
+		s, err := newImjournalFromJSON(buf)
+		if err != nil {
+			return err
+		}
+		for _, p := range s.toPoints() {
+			re.set(p)
+		}
+
+	case rsyslogOmelasticsearch:
+		s, err := newOmelasticsearchFromJSON(buf)
+		if err != nil {
+			return err
+		}
+		for _, p := range s.toPoints() {
+			re.set(p)
+		}
+
+	case rsyslogMmkubernetes:
+		s, err := newMmkubernetesFromJSON(buf)
 		if err != nil {
 			return err
 		}
