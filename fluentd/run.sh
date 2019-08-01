@@ -3,6 +3,7 @@
 export MERGE_JSON_LOG=${MERGE_JSON_LOG:-true}
 CFG_DIR=/etc/fluent/configs.d
 ENABLE_PROMETHEUS_ENDPOINT=${ENABLE_PROMETHEUS_ENDPOINT:-"true"}
+ENABLE_PIPELINES=${ENABLE_PIPELINES:-"true"}
 OCP_OPERATIONS_PROJECTS=${OCP_OPERATIONS_PROJECTS:-"default openshift openshift- kube-"}
 LOGGING_FILE_PATH=${LOGGING_FILE_PATH:-"/var/log/fluentd/fluentd.log"}
 OCP_FLUENTD_TAGS=""
@@ -74,11 +75,7 @@ export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
 
-# Check the existing main fluent.conf has the @OUTPUT label
-# If it exists, we could use the label and take advantage.
-# If not, give up one output tag per plugin for now.
-output_label=$( egrep "<label @OUTPUT>" $CFG_DIR/../fluent.conf || : )
-
+# Generate throttle configs and outputs
 ruby generate_throttle_configs.rb
 # have output plugins handle back pressure
 # if you want the old behavior to be forced anyway, set env
@@ -105,26 +102,42 @@ if [ ! -s /var/run/secrets/kubernetes.io/serviceaccount/token ] ; then
     exit 1
 fi
 
-# How many outputs?
-# check ES_HOST vs. OPS_HOST; ES_PORT vs. OPS_PORT
-if [ "$ES_HOST" = ${OPS_HOST:-""} -a $ES_PORT -eq ${OPS_PORT:-0} ]; then
-    # There is one output Elasticsearch
-    NUM_OUTPUTS=1
-    # Disable "output-operations.conf"
-    rm -f $CFG_DIR/openshift/output-operations.conf
-    touch $CFG_DIR/openshift/output-operations.conf
-    if [ -n "$output_label"  ]; then
-        cp $CFG_DIR/{,openshift}/filter-post-z-retag-one.conf
+if [ "${ENABLE_PIPELINES}" = "true" ] ; then
+    # pipeline-output-labels.conf is the 'matches' included in @OUTPUT label
+    # pipeline-output-endpoints.conf is the individual conf for each source->destination
+    if [ ! -f /var/run/ocp-collector/pipelines ]; then
+        mkdir -p '/var/run/ocp-collector'
+        cat > /var/run/ocp-collector/pipelines <<- EOF 
+logs.app:
+  targets:
+  - type: elasticsearch
+    endpoint: '$ES_HOST:$ES_PORT'
+    tls_key: '$ES_CLIENT_KEY'
+    tls_cert: '$ES_CLIENT_CERT'
+    tls_cacert: '$ES_CA'
+logs.infra:
+  targets:
+  - type: elasticsearch
+    endpoint: '$ES_HOST:$ES_PORT'
+    tls_key: '$ES_CLIENT_KEY'
+    tls_cert: '$ES_CLIENT_CERT'
+    tls_cacert: '$ES_CA'
+EOF
     fi
+
+    #use built-in fluent.conf
+    ln -sf $HOME/fluent-pipeline.conf /etc/fluent/fluent.conf
+
+    #generate pipeline configs
+    fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines --tags logs.infra="$OCP_FLUENTD_TAGS" -o $CFG_DIR/openshift/pipeline-output-labels.conf -t $CFG_DIR/openshift/pipeline-output-endpoints.conf
+
+    # calculate the number of buffers - which should be 2 * OUTPUTS because we have retrys
+    NUM_OUTPUTS=$(fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines |  grep '<buffer>' | wc -l)
+
 else
+    #There is only one allowed destination for initial release of 4.2
     NUM_OUTPUTS=2
-    # Enable "output-es-ops-config.conf in output-operations.conf"
-    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-config.conf
-    cp $CFG_DIR/{openshift,dynamic}/output-es-ops-retry.conf
-    if [ -n "$output_label" ]; then
-        cp $CFG_DIR/{,openshift}/filter-post-z-retag-two.conf
-    fi
-fi
+fi 
 
 # If FILE_BUFFER_PATH exists and it is not a directory, mkdir fails with the error.
 FILE_BUFFER_PATH=/var/lib/fluentd
@@ -143,17 +156,6 @@ if [ $TOTAL_LIMIT -le 0 ]; then
     echo "ERROR: Invalid file buffer limit ($FILE_BUFFER_LIMIT) is given.  Failed to convert to bytes."
     exit 1
 fi
-
-# If forward and secure-forward outputs are configured, add them to NUM_OUTPUTS.
-forward_files=$( grep -l "@type .*forward" ${CFG_DIR}/*/* 2> /dev/null || : )
-for afile in ${forward_files} ; do
-    file=$( basename $afile )
-    grep "@type .*forward" $afile | while read -r line; do
-        if [ $( expr "$line" : "^ *#" ) -eq 0 ]; then
-            NUM_OUTPUTS=$( expr $NUM_OUTPUTS + 1 )
-        fi
-    done
-done
 
 TOTAL_LIMIT=$(expr $TOTAL_LIMIT \* $NUM_OUTPUTS) || :
 if [ $DF_LIMIT -lt $TOTAL_LIMIT ]; then
