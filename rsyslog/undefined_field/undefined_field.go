@@ -143,7 +143,7 @@ func onInit() {
 	} else {
 		checkMaxNumFields = true
 	}
-	if cfg.UseUndefined {
+	if cfg.UseUndefined || checkMaxNumFields {
 		tmpDefault := strings.Split(cfg.DefaultKeepFields, ",")
 		tmpExtra := strings.Split(cfg.ExtraKeepFields, ",")
 		keepFields = make(map[string]string)
