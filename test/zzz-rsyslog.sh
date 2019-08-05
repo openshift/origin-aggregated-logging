@@ -346,9 +346,9 @@ rpod=$( get_running_pod rsyslog )
 oc logs $rpod -c rsyslog > $ARTIFACT_DIR/rsyslog.console.log 2>&1
 os::cmd::expect_failure "grep 'oc exec <pod_name> -- logs' $ARTIFACT_DIR/rsyslog.console.log"
 
-# switch back LOGGING_FILE_PATH to default
+# switch back LOGGING_FILE_PATH SIZE and AGE to default
 stop_rsyslog $rpod
-oc set env $rsyslog_ds LOGGING_FILE_PATH-
+oc set env $rsyslog_ds LOGGING_FILE_PATH- LOGGING_FILE_SIZE- LOGGING_FILE_AGE-
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
 
@@ -372,19 +372,14 @@ rpod=$( get_running_pod rsyslog )
 oc exec $rpod -c rsyslog -- ls -l /etc/rsyslog.d/66-debug.conf | artifact_out
 oc exec $rpod -c rsyslog -- cat /etc/rsyslog.d/66-debug.conf | artifact_out
 
-# UNDEFINED_DEBUG needs to be enabled for checking configs in the following tests.
+# MERGE_JSON_LOG=true needs to be enabled in the following tests.
 stop_rsyslog $rpod
-oc set env $rsyslog_ds UNDEFINED_DEBUG=true MERGE_JSON_LOG=true
+oc set env $rsyslog_ds MERGE_JSON_LOG=true
 start_rsyslog
 rpod=$( get_running_pod rsyslog )
-os::cmd::try_until_success "oc exec $rpod -c rsyslog -- grep 'use_undefined:' /var/log/rsyslog/rsyslog.log"
 
 artifact_log "1. default values"
-rpod=$( get_running_pod rsyslog )
 # skipped empty by mmnormalize/parse_json_skip_empty; mmexternal won't be executed.
-oc exec $rpod -c rsyslog -- env | artifact_out
-oc exec $rpod -c rsyslog -- ls -l /var/lib/rsyslog.pod/undefined.json 2>&1 | artifact_out || :
-oc exec $rpod -c rsyslog -- cat /var/lib/rsyslog.pod/undefined.json 2>&1 | artifact_out || :
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 cat $proj > $ARTIFACT_DIR/undef1.proj.json 2>&1 || :
 cat $ops > $ARTIFACT_DIR/undef1.ops.json 2>&1 || :
