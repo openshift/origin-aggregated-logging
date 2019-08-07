@@ -58,6 +58,7 @@ sg_role_jaeger:
     - indices:data/write/bulk
     - SEARCH
     - CLUSTER_MONITOR
+    - MANAGE
   indices:
     '*jaeger-span-*':
       '*':
