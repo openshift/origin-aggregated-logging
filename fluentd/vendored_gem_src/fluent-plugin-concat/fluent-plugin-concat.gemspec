@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-concat"
-  spec.version       = "2.3.0"
+  spec.version       = "2.4.0"
   spec.authors       = ["Kenji Okimoto"]
   spec.email         = ["okimoto@clear-code.com"]
 
@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_runtime_dependency "fluentd", ">= 0.14.0", "< 2"
-  spec.add_development_dependency "bundler", "~> 1.11"
+  spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake", "~> 12.0"
   spec.add_development_dependency "test-unit", ">= 3.1.0"
   spec.add_development_dependency "test-unit-rr"

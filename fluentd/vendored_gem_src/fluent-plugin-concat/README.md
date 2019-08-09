@@ -33,58 +33,69 @@ Or install it yourself as:
 
 The key for part of multiline log.
 
-**separator** (string)
+**separator** (string) (optional)
 
 The separator of lines.
 Default value is `"\n"`.
 
-**n\_lines** (integer)
+**n\_lines** (integer) (optional)
 
 The number of lines.
 This is exclusive with `multiline_start_regex`.
 
-**multiline\_start\_regexp**
+**multiline\_start\_regexp** (string) (optional)
 
 The regexp to match beginning of multiline.
 This is exclusive with `n_lines.`
 
-**multiline\_end\_regexp**
+**multiline\_end\_regexp** (string) (optional)
 
 The regexp to match ending of multiline.
 This is exclusive with `n_lines.`
 
-**continuous\_line\_regexp**
+**continuous\_line\_regexp** (string) (optional)
 
 The regexp to match continuous lines.
 This is exclusive with `n_lines.`
 
-**stream\_identity\_key** (string)
+**stream\_identity\_key** (string) (optional)
 
 The key to determine which stream an event belongs to.
 
-**flush\_interval** (integer)
+**flush\_interval** (integer) (optional)
 
 The number of seconds after which the last received event log will be flushed.
 If specified 0, wait for next line forever.
 
-**use\_first\_timestamp** (bool)
+**timeout\_label** (string) (optional)
+
+The label name to handle events caused by timeout.
+
+**use\_first\_timestamp** (bool) (optional)
 
 Use timestamp of first record when buffer is flushed.
 Default value is `false`.
 
-**partial\_key** (string)
+**partial\_key** (string) (optional)
 
 The field name that is the reference to concatenate records
 
-**partial\_value** (string)
+**partial\_value** (string) (optional)
 
 The value stored in the field specified by partial_key that represent partial log
 
-**keep\_partial\_key** (bool)
+**keep\_partial\_key** (bool) (optional)
 
 If true, keep partial_key in concatenated records
 Default value is `false`.
 
+**use\_partial\_metadata** (bool) (optional)
+
+Use partial metadata to concatenate multiple records
+
+**keep\_partial\_metadata** (bool) (optional)
+
+If true, keep partial metadata
 
 ## Usage
 
@@ -152,7 +163,7 @@ Handle single line JSON from Docker containers.
 </filter>
 ```
 
-Handle Docker's `partial_message`.
+Handle Docker logs splitted in several parts (using `partial_message`), and do not add new line between parts.
 
 ```aconf
 <filter>
@@ -160,6 +171,18 @@ Handle Docker's `partial_message`.
   key message
   partial_key partial_message
   partial_value true
+  separator ""
+</filter>
+```
+
+Handle Docker logs splitted in several parts (using newline detection), and do not add new line between parts (prior to Docker 18.06).
+
+```aconf
+<filter **>
+  @type concat
+  key log
+  multiline_end_regexp /\\n$/
+  separator ""
 </filter>
 ```
 

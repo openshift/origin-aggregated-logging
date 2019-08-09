@@ -203,7 +203,12 @@ module Fluent
         @docker_hostname = nil
       end
       @ipaddr4 = ENV['IPADDR4'] || '127.0.0.1'
-      @ipaddr6 = ENV['IPADDR6'] || '::1'
+      @ipaddr6 = nil
+
+      if ENV['IPADDR6'] && ENV['IPADDR6'].length > 0
+        @ipaddr6 = ENV['IPADDR6']
+      end
+      
       @pipeline_version = (ENV['FLUENTD_VERSION'] || 'unknown fluentd version') + ' ' + (ENV['DATA_VERSION'] || 'unknown data version')
       # create the elasticsearch index name tag matchers
       unless @elasticsearch_index_names.empty?
@@ -367,7 +372,9 @@ module Fluent
       # this will catch the case where pipeline_type doesn't exist, or is not a Hash
       record['pipeline_metadata'][pipeline_type] = {} unless record['pipeline_metadata'][pipeline_type].respond_to?(:fetch)
       record['pipeline_metadata'][pipeline_type]['ipaddr4'] = @ipaddr4
-      record['pipeline_metadata'][pipeline_type]['ipaddr6'] = @ipaddr6
+      if @ipaddr6
+        record['pipeline_metadata'][pipeline_type]['ipaddr6'] = @ipaddr6
+      end
       record['pipeline_metadata'][pipeline_type]['inputname'] = 'fluent-plugin-systemd'
       record['pipeline_metadata'][pipeline_type]['name'] = 'fluentd'
       record['pipeline_metadata'][pipeline_type]['received_at'] = Time.now.utc.to_datetime.rfc3339(6)
