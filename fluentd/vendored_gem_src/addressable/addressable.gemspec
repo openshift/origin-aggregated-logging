@@ -17,22 +17,22 @@ Gem::Specification.new do |s|
   s.licenses = ["Apache-2.0".freeze]
   s.rdoc_options = ["--main".freeze, "README.md".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 2.0".freeze)
-  s.rubygems_version = "2.6.12".freeze
+  s.rubygems_version = "3.0.3".freeze
   s.summary = "URI Implementation".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<public_suffix>.freeze, ["< 4.0", ">= 2.0.2"])
-      s.add_development_dependency(%q<bundler>.freeze, ["< 3.0", ">= 1.0"])
+      s.add_runtime_dependency(%q<public_suffix>.freeze, [">= 2.0.2", "< 4.0"])
+      s.add_development_dependency(%q<bundler>.freeze, [">= 1.0", "< 3.0"])
     else
-      s.add_dependency(%q<public_suffix>.freeze, ["< 4.0", ">= 2.0.2"])
-      s.add_dependency(%q<bundler>.freeze, ["< 3.0", ">= 1.0"])
+      s.add_dependency(%q<public_suffix>.freeze, [">= 2.0.2", "< 4.0"])
+      s.add_dependency(%q<bundler>.freeze, [">= 1.0", "< 3.0"])
     end
   else
-    s.add_dependency(%q<public_suffix>.freeze, ["< 4.0", ">= 2.0.2"])
-    s.add_dependency(%q<bundler>.freeze, ["< 3.0", ">= 1.0"])
+    s.add_dependency(%q<public_suffix>.freeze, [">= 2.0.2", "< 4.0"])
+    s.add_dependency(%q<bundler>.freeze, [">= 1.0", "< 3.0"])
   end
 end
 

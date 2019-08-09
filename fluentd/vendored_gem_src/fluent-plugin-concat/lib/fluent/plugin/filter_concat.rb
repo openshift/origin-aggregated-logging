@@ -32,6 +32,10 @@ module Fluent::Plugin
     config_param :partial_value, :string, default: nil
     desc "If true, keep partial_key in concatenated records"
     config_param :keep_partial_key, :bool, default: false
+    desc "Use partial metadata to concatenate multiple records"
+    config_param :use_partial_metadata, :bool, default: false
+    desc "If true, keep partial metadata"
+    config_param :keep_partial_metadata, :bool, default: false
 
     class TimeoutError < StandardError
     end
@@ -49,11 +53,11 @@ module Fluent::Plugin
     def configure(conf)
       super
 
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata
+        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required"
+      end
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
         raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
-      end
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil?
-        raise Fluent::ConfigError, "Either n_lines or multiline_start_regexp or multiline_end_regexp is required"
       end
       if @partial_key && @n_lines
         raise Fluent::ConfigError, "partial_key and n_lines are exclusive"
@@ -64,6 +68,15 @@ module Fluent::Plugin
       if @partial_key && @partial_value.nil?
         raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
       end
+      if @use_partial_metadata && @n_lines
+        raise Fluent::ConfigError, "user_partial_metadata and n_lines are exclusive"
+      end
+      if @use_partial_metadata && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "user_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
+      if @use_partial_metadata && @partial_key
+        raise Fluent::ConfigError, "user_partial_metadata and partial_key are exclusive"
+      end
 
       @mode = nil
       case
@@ -71,6 +84,8 @@ module Fluent::Plugin
         @mode = :line
       when @partial_key
         @mode = :partial
+      when @use_partial_metadata
+        @mode = :partial_metadata
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -108,13 +123,35 @@ module Fluent::Plugin
           new_es.add(time, record)
           next
         end
+        if @mode == :partial
+          unless record.key?(@partial_key)
+            new_es.add(time, record)
+            next
+          end
+        end
+        if @mode == :partial_metadata
+          unless record.key?("partial_message")
+            new_es.add(time, record)
+            next
+          end
+        end
         begin
           flushed_es = process(tag, time, record)
           unless flushed_es.empty?
             flushed_es.each do |_time, new_record|
               time = _time if @use_first_timestamp
               merged_record = record.merge(new_record)
-              merged_record.delete(@partial_key) unless @keep_partial_key
+              case @mode
+              when :partial
+                merged_record.delete(@partial_key) unless @keep_partial_key
+              when :partial_metadata
+                unless @keep_partial_metadata
+                  merged_record.delete("partial_message")
+                  merged_record.delete("partial_id")
+                  merged_record.delete("partial_ordinal")
+                  merged_record.delete("partial_last")
+                end
+              end
               new_es.add(time, merged_record)
             end
           end
@@ -136,10 +173,18 @@ module Fluent::Plugin
     end
 
     def process(tag, time, record)
-      if @stream_identity_key
-        stream_identity = "#{tag}:#{record[@stream_identity_key]}"
+      if @mode == :partial_metadata
+        if @stream_identity_key
+          stream_identity = %Q(#{tag}:#{record[@stream_identity_key]}#{record["partial_id"]})
+        else
+          stream_identity = %Q(#{tag}:#{record["partial_id"]})
+        end
       else
-        stream_identity = "#{tag}:default"
+        if @stream_identity_key
+          stream_identity = "#{tag}:#{record[@stream_identity_key]}"
+        else
+          stream_identity = "#{tag}:default"
+        end
       end
       @timeout_map_mutex.synchronize do
         @timeout_map[stream_identity] = Fluent::Engine.now
@@ -149,6 +194,8 @@ module Fluent::Plugin
         process_line(stream_identity, tag, time, record)
       when :partial
         process_partial(stream_identity, tag, time, record)
+      when :partial_metadata
+        process_partial_metadata(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
       end
@@ -169,6 +216,18 @@ module Fluent::Plugin
       new_es = Fluent::MultiEventStream.new
       @buffer[stream_identity] << [tag, time, record]
       unless @partial_value == record[@partial_key]
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_key)
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial_metadata(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      if record["partial_last"] == "true"
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
@@ -245,7 +304,13 @@ module Fluent::Plugin
     end
 
     def flush_buffer(stream_identity, new_element = nil)
-      lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+      lines = if @mode == :partial_metadata
+                @buffer[stream_identity]
+                  .sort_by {|_tag, _time, record| record["partial_ordinal"].to_i }
+                  .map {|_tag, _time, record| record[@key] }
+              else
+                @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+              end
       _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
         @key => lines.join(@separator)

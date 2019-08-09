@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.files = ["CHANGELOG.md".freeze, "CONTRIBUTING.md".freeze, "LICENSE.md".freeze, "README.md".freeze, "lib/multi_json.rb".freeze, "lib/multi_json/adapter.rb".freeze, "lib/multi_json/adapter_error.rb".freeze, "lib/multi_json/adapters/gson.rb".freeze, "lib/multi_json/adapters/jr_jackson.rb".freeze, "lib/multi_json/adapters/json_common.rb".freeze, "lib/multi_json/adapters/json_gem.rb".freeze, "lib/multi_json/adapters/json_pure.rb".freeze, "lib/multi_json/adapters/nsjsonserialization.rb".freeze, "lib/multi_json/adapters/oj.rb".freeze, "lib/multi_json/adapters/ok_json.rb".freeze, "lib/multi_json/adapters/yajl.rb".freeze, "lib/multi_json/convertible_hash_keys.rb".freeze, "lib/multi_json/options.rb".freeze, "lib/multi_json/options_cache.rb".freeze, "lib/multi_json/parse_error.rb".freeze, "lib/multi_json/vendor/okjson.rb".freeze, "lib/multi_json/version.rb".freeze]
   s.homepage = "http://github.com/intridea/multi_json".freeze
   s.licenses = ["MIT".freeze]
-  s.rubygems_version = "2.6.12".freeze
+  s.rubygems_version = "3.0.3".freeze
   s.summary = "A common interface to multiple JSON libraries.".freeze
 
   if s.respond_to? :specification_version then
