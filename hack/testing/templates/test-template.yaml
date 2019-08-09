@@ -23,7 +23,11 @@ objects:
         while true; do
           loops=$( expr $loops + 1 )
           for ii in $( seq 1 ${TEST_ITERATIONS} ) ; do
-            echo "${TEST_POD_MESSAGE} $loops $ii"
+            if [ "${FORMAT}" = json ] ; then
+              echo "{\"message\":\"${TEST_POD_MESSAGE}\",\"uniqueid\":\"${UNIQUEID}\",\"loops\":$loops,\"ii\":$ii}"
+            else
+              echo "${TEST_POD_MESSAGE} $loops $ii"
+            fi
           done
           sleep ${TEST_POD_SLEEP_TIME}
         done
@@ -43,5 +47,11 @@ parameters:
 - description: number of times to print message before sleeping
   value: "1"
   name: TEST_ITERATIONS
+- description: format - text or json
+  value: "text"
+  name: FORMAT
+- description: unique id for searching
+  value: ""
+  name: UNIQUEID
 labels:
   test: "true"

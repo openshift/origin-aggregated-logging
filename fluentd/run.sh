@@ -329,6 +329,12 @@ if [ "${ENABLE_UTF8_FILTER:-}" != true ] ; then
     touch $CFG_DIR/openshift/filter-pre-force-utf8.conf
 fi
 
+if [ "${USE_MULTILINE_JOURNAL:-false}" = true ] ; then
+    cp -f $CFG_DIR/filter-pre-systemd-multiline.conf $CFG_DIR/openshift
+else
+    rm -f $CFG_DIR/openshift/filter-pre-systemd-multiline.conf
+fi
+
 if type -p jemalloc-config > /dev/null 2>&1 && [ "${USE_JEMALLOC:-true}" = true ] ; then
     export LD_PRELOAD=$( jemalloc-config --libdir )/libjemalloc.so.$( jemalloc-config --revision )
     export LD_BIND_NOW=1 # workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1544815

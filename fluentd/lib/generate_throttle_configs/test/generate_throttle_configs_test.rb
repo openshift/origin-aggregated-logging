@@ -25,23 +25,73 @@ describe 'generate_throttle_configs' do
       act.must_equal '<source>
   @type tail
   @id docker-input
-  @label @INGRESS
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
+  exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
   format json
   keep_time_key true
   read_from_head "true"
+  @label @INGRESS
+</source>
+'
+    end
+
+    it 'should produce a config with no exclusions with USE_CRIO=true' do
+      generate_throttle_configs(@input_conf, @throttle_conf, @log, :use_crio=>true)
+      act = File.read(@input_conf)
+      act.must_equal '<source>
+  @type tail
+  @id docker-input
+  path "/var/log/containers/*.log"
+  pos_file "/var/log/es-containers.log.pos"
   exclude_path []
+  time_format %Y-%m-%dT%H:%M:%S.%N%:z
+  tag kubernetes.*
+  format /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+  keep_time_key true
+  read_from_head "true"
   @label @CONCAT
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
     @type concat
     key log
+    separator ""
     partial_key logtag
     partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
+'
+    end
+
+    it 'should produce a config with no exclusions with USE_MULTILINE_JSON=true' do
+      generate_throttle_configs(@input_conf, @throttle_conf, @log, :use_multiline_json=>true)
+      act = File.read(@input_conf)
+      act.must_equal '<source>
+  @type tail
+  @id docker-input
+  path "/var/log/containers/*.log"
+  pos_file "/var/log/es-containers.log.pos"
+  exclude_path []
+  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  tag kubernetes.*
+  format json
+  keep_time_key true
+  read_from_head "true"
+  @label @CONCAT
+</source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    separator ""
+    multiline_end_regexp /' + "\\n" + '$/
   </filter>
   <match kubernetes.**>
     @type relabel
@@ -64,29 +114,16 @@ describe 'generate_throttle_configs' do
       act.must_equal '<source>
   @type tail
   @id docker-input
-  @label @INGRESS
   path "/tmp/foo/*.logs"
   pos_file "/tmp/foo/test.logs.pos"
+  exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
   format json
   keep_time_key true
   read_from_head "false"
-  exclude_path []
-  @label @CONCAT
+  @label @INGRESS
 </source>
-<label @CONCAT>
-  <filter kubernetes.**>
-    @type concat
-    key log
-    partial_key logtag
-    partial_value P
-  </filter>
-  <match kubernetes.**>
-    @type relabel
-    @label @INGRESS
-  </match>
-</label>
 '
         end
     end
@@ -129,24 +166,67 @@ secondproject:
       cont_log_dir = ENV['CONT_LOG_DIR']
       generate_throttle_configs(@input_conf, @throttle_conf, @log, :cont_pos_file=>@pos_file)
       act = File.read(@input_conf)
-      act.must_equal"<source>
+      act.must_equal "<source>
   @type tail
   @id docker-input
-  @label @INGRESS
   path \"/var/log/containers/*.log\"
   pos_file \"#{@pos_file}\"
+  exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
   format json
   keep_time_key true
   read_from_head \"true\"
+  @label @INGRESS
+</source>
+"
+      {"firstproject"=>100, "secondproject"=>200}.each do |project,limit|
+        throttle_file = "#{ENV['THROTTLE_PREFIX']}#{project}-#{Date.today.strftime('%Y%m%d')}.conf"
+        pos_file = "#{ENV['CONT_POS_FILE_PREFIX']}#{project}.log.pos"
+        File.exist?(throttle_file).wont_be_nil
+        File.exist?(pos_file).wont_be_nil
+        act = File.read(throttle_file)
+        act.must_equal "<source>
+  @type tail
+  @id #{project}-input
+  path /tmp/*_#{project}_*.log
+  pos_file #{pos_file}
+  read_lines_limit #{limit}
+  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  tag kubernetes.*
+  format json
+  keep_time_key true
+  read_from_head \"true\"
+  @label @INGRESS
+</source>
+"
+        act =  File.read("#{ENV['CONT_POS_FILE_PREFIX']}firstproject.log.pos")
+        act.must_equal "/var/log/containers/docker-registry-1-8md2d_firstproject_registry-50192f5ef340512c3621d2122bbd995f738a654e0378646284008cdef0c3b143.log	00000000000830be	00000000021db8b3\n"
+      end
+    end
+
+    it 'should produce a config with exclusions with USE_CRIO=true' do
+      cont_log_dir = ENV['CONT_LOG_DIR']
+      generate_throttle_configs(@input_conf, @throttle_conf, @log, :cont_pos_file=>@pos_file, :use_crio=>true)
+      act = File.read(@input_conf)
+      act.must_equal"<source>
+  @type tail
+  @id docker-input
+  path \"/var/log/containers/*.log\"
+  pos_file \"#{@pos_file}\"
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
+  time_format %Y-%m-%dT%H:%M:%S.%N%:z
+  tag kubernetes.*
+  format /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+  keep_time_key true
+  read_from_head \"true\"
   @label @CONCAT
 </source>
 <label @CONCAT>
   <filter kubernetes.**>
     @type concat
     key log
+    separator \"\"
     partial_key logtag
     partial_value P
   </filter>
@@ -165,7 +245,73 @@ secondproject:
         act.must_equal "<source>
   @type tail
   @id #{project}-input
-  @label @INGRESS
+  path /tmp/*_#{project}_*.log
+  pos_file #{pos_file}
+  read_lines_limit #{limit}
+  time_format %Y-%m-%dT%H:%M:%S.%N%:z
+  tag kubernetes.*
+  format /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+  keep_time_key true
+  read_from_head \"true\"
+  @label @CONCAT
+</source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    separator \"\"
+    partial_key logtag
+    partial_value P
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
+"
+        act =  File.read("#{ENV['CONT_POS_FILE_PREFIX']}firstproject.log.pos")
+        act.must_equal "/var/log/containers/docker-registry-1-8md2d_firstproject_registry-50192f5ef340512c3621d2122bbd995f738a654e0378646284008cdef0c3b143.log	00000000000830be	00000000021db8b3\n"
+      end
+    end
+    it 'should produce a config with exclusions with USE_MULTILINE_JSON=true' do
+      cont_log_dir = ENV['CONT_LOG_DIR']
+      generate_throttle_configs(@input_conf, @throttle_conf, @log, :cont_pos_file=>@pos_file, :use_multiline_json=>true)
+      act = File.read(@input_conf)
+      act.must_equal"<source>
+  @type tail
+  @id docker-input
+  path \"/var/log/containers/*.log\"
+  pos_file \"#{@pos_file}\"
+  exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
+  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  tag kubernetes.*
+  format json
+  keep_time_key true
+  read_from_head \"true\"
+  @label @CONCAT
+</source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    separator \"\"
+    multiline_end_regexp /\\n$/
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
+"
+      {"firstproject"=>100, "secondproject"=>200}.each do |project,limit|
+        throttle_file = "#{ENV['THROTTLE_PREFIX']}#{project}-#{Date.today.strftime('%Y%m%d')}.conf"
+        pos_file = "#{ENV['CONT_POS_FILE_PREFIX']}#{project}.log.pos"
+        File.exist?(throttle_file).wont_be_nil
+        File.exist?(pos_file).wont_be_nil
+        act = File.read(throttle_file)
+        act.must_equal "<source>
+  @type tail
+  @id #{project}-input
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
   read_lines_limit #{limit}
@@ -174,13 +320,24 @@ secondproject:
   format json
   keep_time_key true
   read_from_head \"true\"
+  @label @CONCAT
 </source>
+<label @CONCAT>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    separator \"\"
+    multiline_end_regexp /\\n$/
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
 "
         act =  File.read("#{ENV['CONT_POS_FILE_PREFIX']}firstproject.log.pos")
         act.must_equal "/var/log/containers/docker-registry-1-8md2d_firstproject_registry-50192f5ef340512c3621d2122bbd995f738a654e0378646284008cdef0c3b143.log	00000000000830be	00000000021db8b3\n"
       end
-
-   end
+    end
   end
-
 end
