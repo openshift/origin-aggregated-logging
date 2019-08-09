@@ -85,6 +85,70 @@ switch_to_admin_user() {
     fi
 }
 
+# what numeric version does master correspond to?
+MASTER_VERSION=${MASTER_VERSION:-4.2}
+# what namespace to use for operator images?
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
+# for dev purposes, image builds will typically be pushed to this namespace
+OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
+
+construct_image_name() {
+    local component="$1"
+    local tagsuffix="${2:-latest}"
+    # if running in CI environment, IMAGE_FORMAT will look like this:
+    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # stable is the imagestream containing the images built for this PR, or
+    # otherwise the most recent image
+    if [ -n "${IMAGE_FORMAT:-}" ] ; then
+        if [ -n "${LOGGING_IMAGE_STREAM:-}" ] ; then
+            local match=/stable:
+            local replace="/${LOGGING_IMAGE_STREAM}:"
+            IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
+        fi
+        echo ${IMAGE_FORMAT/'${component}'/$component}
+    elif oc -n ${OPENSHIFT_BUILD_NAMESPACE} get istag origin-${component}:$tagsuffix > /dev/null 2>&1 ; then
+        oc -n ${OPENSHIFT_BUILD_NAMESPACE} get istag origin-${component}:$tagsuffix -o jsonpath='{.image.dockerImageReference}'
+    else
+        # fallback to latest externally available image
+        echo $EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:$component
+    fi
+}
+
+wait_for_logging_is_running() {
+    # we expect a fluentd or rsyslog running on each node
+    expectedcollectors=$( oc get nodes | grep -c " Ready " )
+    if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
+        if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
+            collector=rsyslog
+        else
+            collector=fluentd
+        fi
+    else
+        collector=$( oc get clusterlogging instance -o jsonpath='{.spec.collection.logs.type}' )
+    fi
+    # we expect $nodeCount elasticsearch pods
+    wait_func() {
+        if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
+            return 1
+        fi
+        local actualcollectors=$( oc get pods -l component=$collector 2> /dev/null | grep -c "${collector}.*Running" )
+        if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
+            return 1
+        fi
+        local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
+        if [ $expectedes -ne ${actuales:-0} ] ; then
+            return 1
+        fi
+        # if we got here, everything is as it should be
+        return 0
+    }
+    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: operator did not start pods after 300 seconds
+        logging_err_exit
+    fi
+}
+
 deploy_logging_using_olm() {
     # Create the $ESO_NS namespace:
     if oc get project $ESO_NS > /dev/null 2>&1 ; then
@@ -127,31 +191,18 @@ deploy_logging_using_clo_make() {
     fi
     # edit the deployment manifest - use the images provided by CI or from api.ci registry
     # make deploy-no-build
-    # during CI, the env var IMAGE_FORMAT is present:
-    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
-    # the EO image is registry.svc.ci.openshift.org/ci-op-xxx/stable:elasticsearch-operator
-    # the CLO image is registry.svc.ci.openshift.org/ci-op-xxx/stable:cluster-logging-operator
-    if [ -n "${IMAGE_FORMAT:-}" ] ; then
-        EO_IMAGE=$( echo "$IMAGE_FORMAT" | sed 's/\${component}/elasticsearch-operator/' )
-        CLO_IMAGE=$( echo "$IMAGE_FORMAT" | sed 's/\${component}/cluster-logging-operator/' )
-    else
-        EO_IMAGE=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:elasticsearch-operator
-        CLO_IMAGE=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:cluster-logging-operator
-    fi
-
+    EO_IMAGE=$( construct_image_name elasticsearch-operator latest )
+    CLO_IMAGE=$( construct_image_name cluster-logging-operator latest )
     pushd $GOPATH/src/github.com/openshift/cluster-logging-operator > /dev/null
     REMOTE_CLUSTER=true REMOTE_REGISTRY=true NAMESPACE=openshift-logging \
         IMAGE_OVERRIDE="$CLO_IMAGE" EO_IMAGE_OVERRIDE="$EO_IMAGE" make deploy-no-build
     popd > /dev/null
 }
 
+DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
+
 switch_to_admin_user
 
-# what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-4.2}
-# what namespace to use for operator images?
-EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
-EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 USE_OLM=${USE_OLM:-false}
 
 if [ -z "${USE_CUSTOM_IMAGES:-}" ] ; then
@@ -162,7 +213,7 @@ if [ -z "${USE_CUSTOM_IMAGES:-}" ] ; then
     elif [ "${USE_CLO_LATEST_IMAGE:-false}" = true -o "${USE_EO_LATEST_IMAGE:-false}" = true ] ; then
         USE_CUSTOM_IMAGES=true
     else
-        # default to false
+        # default to false - false means "use whatever images are defined in the default deployment"
         USE_CUSTOM_IMAGES=false
     fi
 fi
@@ -181,25 +232,43 @@ else
     oc create -f $TEST_OBJ_DIR/openshift-logging-namespace.yaml
 fi
 
-if [ "${USE_OLM:-false}" = true ] ; then
-    deploy_logging_using_olm
+if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
+    expectedes=$( awk '/nodeCount:/ {print $2}' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} )
 else
-    ESO_NS=openshift-logging
-    deploy_logging_using_clo_make
+    expectedes=$( oc get clusterlogging instance -o jsonpath='{.spec.logStore.elasticsearch.nodeCount}' )
+fi
+
+if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
+    if [ "${USE_OLM:-false}" = true ] ; then
+        deploy_logging_using_olm
+    else
+        ESO_NS=openshift-logging
+        deploy_logging_using_clo_make
+    fi
+else
+    # expect everything is already running
+    wait_for_logging_is_running
+    # dump current images
+    oc get deploy,ds,cronjob -o yaml | awk '/ image: / {print $2}' > $ARTIFACT_DIR/pre-upgrade-images
+    # if elasticsearch-operator is running in $LOGGING_NS, then set ESO_NS=$LOGGING_NS
+    if oc -n $LOGGING_NS get deploy/elasticsearch-operator -o name > /dev/null 2>&1 ; then
+        ESO_NS=$LOGGING_NS
+    fi
 fi
 
 # at this point, the cluster-logging-operator should be deployed in the
 # $LOGGING_NS namespace
 oc project ${LOGGING_NS}
 
-DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
-wait_func() {
-    oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
-    oc get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
-}
-if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-    echo ERROR: one of or both of elasticsearch-operator and cluster-logging-operator pod not running
-    logging_err_exit
+if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
+    wait_func() {
+        oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
+        oc get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
+    }
+    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: one of or both of elasticsearch-operator and cluster-logging-operator pod not running
+        logging_err_exit
+    fi
 fi
 
 if [ "$USE_CUSTOM_IMAGES" = true ] ; then
@@ -218,28 +287,13 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     fi
 
     clopod=$( oc get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
+    startclogen=$( oc get deploy/cluster-logging-operator -o jsonpath='{.metadata.generation}' )
     eopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+    starteogen=$( oc -n $ESO_NS get deploy/elasticsearch-operator -o jsonpath='{.metadata.generation}' )
 
-    # update the images to use in the CLO
-    if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
-        # we are running in the CI environment
-        # OPENSHIFT_BUILD_NAMESPACE=ci-op-xxx
-        # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
-        # edit the deployments - for the logging images, use pipeline
-        # for example, change this:
-        # docker.io/openshift/origin-logging-elasticsearch5:latest
-        # to this:
-        # $imageprefix/pipeline:logging-elasticsearch5
-        imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
-        oc set env deploy/cluster-logging-operator --list | grep _IMAGE= | \
-        sed -e 's,docker.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' \
-            -e 's,quay.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' | \
-        oc set env -e - deploy/cluster-logging-operator
-        # special handling for rsyslog for now
-        oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${imageprefix}pipeline:logging-rsyslog
-    elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
+    if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         # running in a dev env with imagestream builds
-        OPENSHIFT_BUILD_NAMESPACE=openshift
+        OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
         registry=$( oc -n $OPENSHIFT_BUILD_NAMESPACE get is -l logging-infra=development -o jsonpath='{.items[0].status.dockerImageRepository}' | \
             sed 's,/[^/]*$,/,' )
         oc set env deploy/cluster-logging-operator --list | grep _IMAGE= | \
@@ -248,44 +302,16 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
         oc set env -e - deploy/cluster-logging-operator
         # special handling for rsyslog for now
         oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${registry}logging-rsyslog:latest
+    # update the images to use in the CLO
     else
-        # running in a dev env - pushed local builds
-        out=$( mktemp )
-        oc get is --all-namespaces | grep -E 'logging-|elasticsearch-operator' > $out || :
-        found=""
-        while read ns name reg_and_name tag rest ; do
-            img="${reg_and_name}:${tag}"
-            case "$name" in
-            *-cluster-logging-operator) cloimg="$img" ; found="$found cluster-logging-operator" ;;
-            *-elasticsearch-operator) eoimg="$img" ; found="$found elasticsearch-operator" ;;
-            *-elasticsearch*) oc set env deploy/cluster-logging-operator ELASTICSEARCH_IMAGE="$img"
-                              found="$found elasticsearch5" ;;
-            *-kibana*) oc set env deploy/cluster-logging-operator KIBANA_IMAGE="$img"
-                       found="$found kibana5" ;;
-            *-curator*) oc set env deploy/cluster-logging-operator CURATOR_IMAGE="$img"
-                        found="$found curator5" ;;
-            *-fluentd) oc set env deploy/cluster-logging-operator FLUENTD_IMAGE="$img"
-                       found="$found fluentd" ;;
-            *-rsyslog) oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE="$img"
-                       found="$found rsyslog" ;;
-            esac
-        done < $out
-        rm -f $out
-        for comp_and_name in curator5:CURATOR_IMAGE elasticsearch5:ELASTICSEARCH_IMAGE fluentd:FLUENTD_IMAGE \
-            kibana5:KIBANA_IMAGE rsyslog:RSYSLOG_IMAGE ; do
-            comp=$( echo $comp_and_name | awk -F: '{print $1}' )
-            envname=$( echo $comp_and_name | awk -F: '{print $2}' )
-            for ff in $found ; do
-                if [ $ff = $comp ] ; then
-                    comp=""
-                    break
-                fi
-            done
-            if [ -n "$comp" ] ; then
-                img=$EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:logging-$comp
-                oc set env deploy/cluster-logging-operator ${envname}="$img"
-            fi
-        done
+        oc set env deploy/cluster-logging-operator \
+            ELASTICSEARCH_IMAGE=$( construct_image_name logging-elasticsearch5 latest ) \
+            KIBANA_IMAGE=$( construct_image_name logging-kibana5 latest ) \
+            CURATOR_IMAGE=$( construct_image_name logging-curator5 latest ) \
+            FLUENTD_IMAGE=$( construct_image_name logging-fluentd latest ) \
+            RSYSLOG_IMAGE=$( construct_image_name logging-rsyslog latest )
+        cloimg=$( construct_image_name cluster-logging-operator latest )
+        eoimg=$( construct_image_name elasticsearch-operator latest )
         if [ "${USE_CLO_LATEST_IMAGE:-false}" = true -a -n "${cloimg:-}" ] ; then
             oc patch deploy/cluster-logging-operator --type=json \
                 --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$cloimg"'"}]'
@@ -293,25 +319,32 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
         if [ "${USE_EO_LATEST_IMAGE:-false}" = true -a -n "${eoimg:-}" ] ; then
             oc -n $ESO_NS patch deploy/elasticsearch-operator --type=json \
                 --patch '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"'"$eoimg"'"}]'
+            cureogen=$( oc -n $ESO_NS get deploy/elasticsearch-operator -o jsonpath='{.metadata.generation}' )
             # doing the oc patch will restart eo - check to make sure it was restarted
-            wait_func() {
+            eo_is_restarted() {
                 # wait until the old eo pod is not running and a new one is
-                ! oc -n $ESO_NS get pods $eopod > /dev/null 2>&1 && \
+                if [ $starteogen -lt $cureogen ] && oc -n $ESO_NS get pods $eopod > /dev/null 2>&1 ; then
+                    return 1 # supposed to be restarted but old pod is still running
+                fi
                 oc -n $ESO_NS get pods | grep -q '^elasticsearch-operator-.* Running'
             }
-            if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+            if ! wait_for_condition eo_is_restarted $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
                 echo ERROR: elasticsearch-operator pod was not restarted
                 logging_err_exit
             fi
         fi
     fi
 
+    curclogen=$( oc get deploy/cluster-logging-operator -o jsonpath='{.metadata.generation}' )
     # doing the oc set env and patch will restart clo - check to make sure it was restarted
-    wait_func() {
+    clo_is_restarted() {
         # wait until the old clo pod is not running and a new one is
-        ! oc get pods $clopod > /dev/null 2>&1 && oc get pods | grep -q '^cluster-logging-operator-.* Running'
+        if [ $startclogen -lt $curclogen ] && oc get pods $clopod > /dev/null 2>&1 ; then
+            return 1 # supposed to be restarted but old pod is still running
+        fi
+        oc get pods | grep -q '^cluster-logging-operator-.* Running'
     }
-    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+    if ! wait_for_condition clo_is_restarted $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
         echo ERROR: cluster-logging-operator pod was not restarted
         logging_err_exit
     fi
@@ -319,17 +352,9 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
     oc set env deploy/cluster-logging-operator --list | grep _IMAGE=
 fi
 
-# we expect a fluentd or rsyslog running on each node
-expectedcollectors=$( oc get nodes | grep -c " Ready " )
-if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
-    collector=rsyslog
-else
-    collector=fluentd
+if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
+    oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 fi
-# we expect $nodeCount elasticsearch pods
-expectedes=$( awk '/nodeCount:/ {print $2}' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} )
-
-oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
 
 if [ -n "${LOGGING_IMAGE_PULL_POLICY:-}" ] ; then
     wait_func() {
@@ -371,24 +396,11 @@ if [ -n "${LOGGING_IMAGE_PULL_POLICY:-}" ] ; then
     # then fall through to the wait below to wait for the pods to come up
 fi
 
-wait_func() {
-    if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.*Running' ; then
-        return 1
-    fi
-    local actualcollectors=$( oc get pods -l component=$collector 2> /dev/null | grep -c "${collector}.*Running" )
-    if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-        return 1
-    fi
-    local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
-    if [ $expectedes -ne ${actuales:-0} ] ; then
-        return 1
-    fi
-    # if we got here, everything is as it should be
-    return 0
-}
-if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-    echo ERROR: operator did not start pods after 300 seconds
-    logging_err_exit
+wait_for_logging_is_running
+
+if [ "${LOGGING_DEPLOY_MODE:-install}" = upgrade ] ; then
+    # dump current images
+    oc get deploy,ds,cronjob -o yaml | awk '/ image: / {print $2}' > $ARTIFACT_DIR/post-upgrade-images
 fi
 
 echo Logging successfully deployed
