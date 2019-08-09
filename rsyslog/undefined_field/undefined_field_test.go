@@ -217,11 +217,98 @@ func TestUndefinedMaxNumFields(t *testing.T) {
 	}
 }
 
-func TestUndefinedToString(t *testing.T) {
+func TestUndefinedToStringAndUseUndefined(t *testing.T) {
 	testcfg := undefinedConfig{
 		Debug:                   true,
 		MergeJSONLog:            true,
 		UseUndefined:            true,
+		UndefinedToString:       true,
+		DefaultKeepFields:       "method,statusCode,type,@timestamp,req,res,CONTAINER_NAME,CONTAINER_ID_FULL",
+		ExtraKeepFields:         "undefined4,undefined5,empty1,undefined3",
+		UndefinedName:           "undefined",
+		KeepEmptyFields:         "undefined4,undefined5,empty1,undefined3",
+		UndefinedDotReplaceChar: "UNUSED",
+		UndefinedMaxNumFields:   -1,
+	}
+	err := setup(t, testcfg)
+	defer teardown(t)
+	if err != nil {
+		t.Errorf("test setup failed: %v", err)
+	}
+	inputString := `{"@timestamp": "2019-07-17T21:26:45.913217+00:00", "empty1": "", ` +
+		`"undefined1": "undefined1", "undefined11": 1111, "undefined12": true, "empty1": "", ` +
+		`"undefined2": { "undefined2": "undefined2", "": "", "undefined22": 2222, "undefined23": false }, ` +
+		`"undefinedary": ["a",1,false,{"b":"c"},["d",2,true,{"e":"f"}]],` +
+		`"undefined3": { "emptyvalue": "" }, "undefined4": {}, "undefined5": "undefined5", ` +
+		`"undefined.6": "undefined6" }`
+	expectedOutputString := `{"@timestamp": "2019-07-17T21:26:45.913217+00:00", "empty1": "", ` +
+		`"undefined": {"undefined.6": "undefined6", "undefined1": "undefined1","undefined11": "1111", "undefined12": "true", ` +
+		`"undefined2": "{ \"undefined2\": \"undefined2\", \"\": \"\", \"undefined22\": 2222, \"undefined23\": false }",` +
+		`"undefinedary": "[\"a\",1,false,{\"b\":\"c\"},[\"d\",2,true,{\"e\":\"f\"}]]"}, ` +
+		`"undefined3": { "emptyvalue": "" }, "undefined4": {}, "undefined5": "undefined5"}`
+	inputMap := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(inputString), &inputMap); err != nil {
+		t.Errorf("json.Unmarshal failed for inputString [%v]: %v", inputString, err)
+	}
+	origMap := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(inputString), &origMap); err != nil {
+		t.Errorf("json.Unmarshal failed for inputString [%v]: %v", inputString, err)
+	}
+	changed := processFields(inputString, inputMap)
+	if !changed {
+		t.Errorf("Expected changes not performed on the input")
+	}
+	outputBytes, _ := json.Marshal(inputMap)
+	t.Logf("outputBytes [%s]", outputBytes)
+	expectedOutputMap := make(map[string]interface{})
+	if err = json.Unmarshal([]byte(expectedOutputString), &expectedOutputMap); err != nil {
+		t.Errorf("Could not convert expectedOutputString [%s] to map: %v", expectedOutputString, err)
+	}
+	t.Logf("using s [%s] using v [%v]", expectedOutputMap, expectedOutputMap)
+	actualUndefinedMap := inputMap["undefined"].(map[string]interface{})
+	delete(inputMap, "undefined")
+	expectedUndefinedMap := expectedOutputMap["undefined"].(map[string]interface{})
+	delete(expectedOutputMap, "undefined")
+	if !reflect.DeepEqual(expectedOutputMap, inputMap) {
+		t.Errorf("expected [%s] does not match actual [%s]", expectedOutputMap, inputMap)
+	}
+	actualUndefined2Map := make(map[string]interface{})
+	if err = json.Unmarshal([]byte(actualUndefinedMap["undefined2"].(string)), &actualUndefined2Map); err != nil {
+		t.Errorf("Could not convert undefined2 [%s] to map: %v", actualUndefinedMap["undefined2"], err)
+	}
+	delete(actualUndefinedMap, "undefined2")
+	expectedUndefined2Map := make(map[string]interface{})
+	if err = json.Unmarshal([]byte(expectedUndefinedMap["undefined2"].(string)), &expectedUndefined2Map); err != nil {
+		t.Errorf("Could not convert undefined2 [%s] to map: %v", expectedUndefinedMap["undefined2"], err)
+	}
+	delete(expectedUndefinedMap, "undefined2")
+	if !reflect.DeepEqual(expectedUndefined2Map, actualUndefined2Map) {
+		t.Errorf("expected [%s] does not match actual [%s]", expectedUndefined2Map, actualUndefined2Map)
+	}
+
+	var actualUndefinedAry []interface{}
+	if err = json.Unmarshal([]byte(actualUndefinedMap["undefinedary"].(string)), &actualUndefinedAry); err != nil {
+		t.Errorf("Could not convert undefinedary [%s] to map: %v", actualUndefinedMap["undefinedary"], err)
+	}
+	delete(actualUndefinedMap, "undefinedary")
+	var expectedUndefinedAry []interface{}
+	if err = json.Unmarshal([]byte(expectedUndefinedMap["undefinedary"].(string)), &expectedUndefinedAry); err != nil {
+		t.Errorf("Could not convert undefinedary [%s] to map: %v", expectedUndefinedMap["undefinedary"], err)
+	}
+	delete(expectedUndefinedMap, "undefinedary")
+	if !reflect.DeepEqual(expectedUndefinedAry, actualUndefinedAry) {
+		t.Errorf("expected [%s] does not match actual [%s]", expectedUndefinedAry, actualUndefinedAry)
+	}
+	if !reflect.DeepEqual(expectedUndefinedMap, actualUndefinedMap) {
+		t.Errorf("expected [%s] does not match actual [%s]", expectedUndefinedMap, actualUndefinedMap)
+	}
+}
+
+func TestUndefinedToString(t *testing.T) {
+	testcfg := undefinedConfig{
+		Debug:                   true,
+		MergeJSONLog:            true,
+		UseUndefined:            false,
 		UndefinedToString:       true,
 		DefaultKeepFields:       "method,statusCode,type,@timestamp,req,res,CONTAINER_NAME,CONTAINER_ID_FULL",
 		ExtraKeepFields:         "undefined4,undefined5,empty1,undefined3",
@@ -337,38 +424,33 @@ func TestUseUndefined(t *testing.T) {
 	if err := json.Unmarshal([]byte(inputString), &origMap); err != nil {
 		t.Errorf("json.Unmarshal failed for inputString [%v]: %v", inputString, err)
 	}
-	changed := processUndefinedAndEmpty(inputMap, true, true)
-	if !changed {
+	undefString, undefMap, err := processUndefinedAndMaxNumFields(inputMap)
+	outputBytes, _ := json.Marshal(inputMap)
+	undefBytes, _ := json.Marshal(undefMap)
+	t.Logf("outputBytes [%s] undefBytes [%s]", outputBytes, undefBytes)
+	if err != nil {
 		t.Errorf("Expected changes not performed on the input")
 	}
-	outputBytes, _ := json.Marshal(inputMap)
-	t.Logf("outputBytes [%s]", outputBytes)
-	fieldlist := []string{"@timestamp"}
-	if err = checkFieldsEqual(t, origMap, inputMap, fieldlist); err != nil {
+	if undefMap == nil {
+		t.Errorf("The undefined fields were not moved to the undefined map")
+	}
+	if undefString != "" {
+		t.Errorf("The undefined fields were returned as a string, not a map")
+	}
+	if len(inputMap) != 1 {
+		t.Errorf("The undefined fields were not removed from the input map")
+	}
+	definedFieldList := []string{"@timestamp"}
+	if err = checkFieldsEqual(t, origMap, inputMap, definedFieldList); err != nil {
 		t.Error(err)
 	}
-	var val1 float64 = 1111
-	var val2 float64 = 2222
-	undefined2Map := map[string]interface{}{
-		"undefined2":  "undefined2",
-		"undefined22": val2,
-		"undefined23": false,
-	}
-	undefinedMap := map[string]interface{}{
-		"undefined1":  "undefined1",
-		"undefined11": val1,
-		"undefined12": true,
-		"undefined2":  undefined2Map,
-		"undefined5":  "undefined5",
-		"undefined.6": "undefined6",
-	}
-	fieldlist = []string{"undefined1", "undefined11", "undefined12", "undefined2", "undefined5", "undefined.6"}
-	if err = checkFieldsEqual(t, undefinedMap, inputMap, fieldlist); err != nil {
+	undefFieldList := []string{"undefined1", "undefined11", "undefined12", "empty1", "undefined2", "undefined3", "undefined4", "undefined5", "undefined.6"}
+	if err = checkFieldsEqual(t, origMap, undefMap, undefFieldList); err != nil {
 		t.Error(err)
 	}
 }
 
-func TestUseUndefined2(t *testing.T) {
+func TestDotReplaceCharAndUseUndefined(t *testing.T) {
 	testcfg := undefinedConfig{
 		Debug:                   true,
 		MergeJSONLog:            false,
@@ -378,7 +460,7 @@ func TestUseUndefined2(t *testing.T) {
 		ExtraKeepFields:         "",
 		UndefinedName:           "undefined",
 		KeepEmptyFields:         "",
-		UndefinedDotReplaceChar: "UNUSED",
+		UndefinedDotReplaceChar: "_",
 		UndefinedMaxNumFields:   -1,
 	}
 	err := setup(t, testcfg)
@@ -399,21 +481,35 @@ func TestUseUndefined2(t *testing.T) {
 	if err := json.Unmarshal([]byte(inputString), &origMap); err != nil {
 		t.Errorf("json.Unmarshal failed for inputString [%v]: %v", inputString, err)
 	}
-	expectedUndefString := `{"empty1":"","undefined.6":"undefined6","undefined1":"undefined1","undefined11":1111,"undefined12":true,"undefined2":{"":"","undefined2":"undefined2","undefined22":2222,"undefined23":false},"undefined3":{"emptyvalue":""},"undefined4":{},"undefined5":"undefined5"}`
-	undefString, undefMap, _ := processUndefinedAndMaxNumFields(inputMap)
+	origMap["undefined_6"] = origMap["undefined.6"]
+	delete(origMap, "undefined.6")
+	delete(origMap, "empty1")
+	delete(origMap, "undefined3")
+	delete(origMap, "undefined4")
+	delete(origMap["undefined2"].(map[string]interface{}), "")
+	if !processFields(inputString, inputMap) {
+		t.Error("expected changes but no changes made")
+	}
 	outputBytes, _ := json.Marshal(inputMap)
-	t.Logf("outputBytes [%s] undefString [%s] undefMap [%v]", outputBytes, undefString, undefMap)
-	fieldlist := []string{"@timestamp"}
-	if err = checkFieldsEqual(t, origMap, inputMap, fieldlist); err != nil {
+	undefMap := inputMap["undefined"].(map[string]interface{})
+	t.Logf("outputBytes [%s] undefMap [%v]", outputBytes, undefMap)
+	delete(inputMap, "undefined")
+	if len(inputMap) != 1 {
+		t.Errorf("Unexpected number of elements in inputMap [%s]", inputMap)
+	}
+	definedFieldlist := []string{"@timestamp"}
+	if err = checkFieldsEqual(t, origMap, inputMap, definedFieldlist); err != nil {
 		t.Error(err)
 	}
-	expectedUndefMap := make(map[string]interface{})
-	if err = json.Unmarshal([]byte(expectedUndefString), &expectedUndefMap); err != nil {
-		t.Errorf("Could not convert expectedUndefString [%s] back to map: %v", expectedUndefString, err)
-	}
-	fieldlist = []string{"undefined1", "undefined11", "undefined12", "undefined2", "undefined3", "undefined4", "undefined5", "undefined.6", "empty1"}
-	if err = checkFieldsEqual(t, expectedUndefMap, undefMap, fieldlist); err != nil {
+	undefFieldlist := []string{"undefined1", "undefined11", "undefined12", "undefined2", "undefined3", "undefined4", "undefined5", "undefined_6", "empty1"}
+	if err = checkFieldsEqual(t, origMap, undefMap, undefFieldlist); err != nil {
 		t.Error(err)
+	}
+	if _, exists := undefMap["undefined.6"]; exists {
+		t.Error("field undefined.6 is present in undefMap")
+	}
+	if _, exists := inputMap["undefined.6"]; exists {
+		t.Error("field undefined.6 is present in inputMap")
 	}
 }
 
@@ -466,15 +562,21 @@ func TestUndefinedDotReplaceChar(t *testing.T) {
 		"undefined23": false,
 	}
 	undefinedMap := map[string]interface{}{
-		"undefined1":  "undefined1",
-		"undefined11": val1,
-		"undefined12": true,
-		"undefined2":  undefined2Map,
+		"undefined1":    "undefined1",
+		"undefined11":   val1,
+		"undefined12":   true,
+		"undefined2":    undefined2Map,
 		"undefined@@@6": "undefined6",
 	}
 	fieldlist = []string{"undefined1", "undefined11", "undefined12", "undefined2", "undefined@@@6"}
 	if err = checkFieldsEqual(t, undefinedMap, inputMap, fieldlist); err != nil {
 		t.Error(err)
+	}
+	if _, exists := undefinedMap["undefined.6"]; exists {
+		t.Error("field undefined.6 is present in undefinedMap")
+	}
+	if _, exists := inputMap["undefined.6"]; exists {
+		t.Error("field undefined.6 is present in inputMap")
 	}
 }
 
