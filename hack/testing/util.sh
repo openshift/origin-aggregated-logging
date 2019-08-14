@@ -275,7 +275,7 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    os::cmd::expect_success "sudo rm -f /var/log/journal.pos"
+    sudo rm -f /var/log/journal.pos
 }
 
 # $1 - command to call to pass the uuid_es
@@ -317,6 +317,8 @@ function wait_for_fluentd_to_catch_up() {
         while ! sudo find /var/log/containers -name \*.log -exec grep -b -n "$fullmsg" {} /dev/null \; > $ARTIFACT_DIR/es_out.txt 2> $ARTIFACT_DIR/es_errs.txt ; do
             sleep 1
         done & checkpids="$checkpids $!"
+        sudo ls -alL /var/log/containers/logging-kibana-*.log > $ARTIFACT_DIR/kibana-log-files.start || :
+        sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos.start || :
     fi
 
     add_test_message $uuid_es
@@ -359,6 +361,8 @@ function wait_for_fluentd_to_catch_up() {
             sudo journalctl -S "$startjournal" -r -n 20 -o export > $ARTIFACT_DIR/apps_err_journal_last.txt
         elif sudo test -f /var/log/es-containers.log.pos ; then
             sudo cat /var/log/es-containers.log.pos > $ARTIFACT_DIR/es-containers.log.pos
+            sudo ls -alL /var/log/containers/logging-kibana-*.log > $ARTIFACT_DIR/kibana-log-files.end || :
+
         fi
         # records since start of function in ascending @timestamp order - see what records were added around
         # the time our record should have been added
@@ -403,8 +407,8 @@ function wait_for_fluentd_to_catch_up() {
         rc=1
     fi
 
-    kill $checkpids > /dev/null 2>&1 || :
-    kill -9 $checkpids > /dev/null 2>&1 || :
+    sudo kill $checkpids > /dev/null 2>&1 || :
+    sudo kill -9 $checkpids > /dev/null 2>&1 || :
 
     local endtime=$( date +%s.%9N )
     local endsecs=$( date --date=@${endtime} +%s )
@@ -535,4 +539,68 @@ get_all_logging_pod_logs() {
       esac
 	done
   done
+}
+
+stop_fluentd() {
+    local fpod=${1:-$( get_running_pod fluentd )}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    oc label node -l logging-infra-fluentd=true --overwrite logging-infra-fluentd=false
+    os::cmd::try_until_text "oc get ds/logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $wait_time
+    # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the fluentd pod hangs around
+    # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
+    # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
+    if [ -n "${fpod:-}" ] ; then
+        os::cmd::try_until_failure "oc get pod $fpod > /dev/null 2>&1" $wait_time
+    fi
+}
+
+start_fluentd() {
+    local cleanfirst=${1:-false}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    if [ "$cleanfirst" != false ] ; then
+        flush_fluentd_pos_files
+        sudo rm -f /var/log/fluentd/fluentd.log
+        sudo rm -rf /var/lib/fluentd/*
+    fi
+    oc label node -l logging-infra-fluentd=false --overwrite logging-infra-fluentd=true
+    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $wait_time
+}
+
+stop_mux() {
+    local mpod=${1:-$( get_running_pod mux )}
+    local wait_time=${2:-$(( 2 * minute ))}
+    oc scale --replicas=0 dc/logging-mux
+    os::cmd::try_until_failure "oc get pods -l component=mux | grep -q \^logging-mux-" $wait_time
+    if [ -n "${mpod:-}" ] ; then
+        os::cmd::try_until_failure "oc get pods $mpod > /dev/null 2>&1" $wait_time
+    fi
+}
+
+start_mux() {
+    local wait_time=${1:-$(( 2 * minute ))}
+    oc scale --replicas=1 dc/logging-mux
+    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running " $wait_time
+}
+
+wait_for_condition() {
+    # $1 is shell function condition to execute until it returns success
+    # $2 is the timeout number of retries - default 60
+    # $3 is the interval in seconds - default 1
+    # e.g. the total timeout in seconds is timeout * interval
+    local cmd=$1
+    local timeout=${2:-60}
+    local interval=${3:-1}
+    local ii=0
+    for ii in $( seq 1 $timeout ) ; do
+        if $cmd ; then
+            break
+        fi
+        sleep $interval
+    done
+    if [ $ii = $timeout ] ; then
+        return 1
+    fi
+    return 0
 }

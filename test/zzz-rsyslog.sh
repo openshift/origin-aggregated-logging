@@ -3,6 +3,9 @@
 # This is a test suite for testing basic log processing
 # functionality and Kubernetes processing for rsyslog
 
+echo Skipping rsyslog test for 3.11
+exit 0
+
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
@@ -35,9 +38,7 @@ cleanup() {
         sudo systemctl restart $rsyslog_service
     fi
     # cleanup fluentd pos file and restart
-    flush_fluentd_pos_files
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true 2>&1 | artifact_out
 
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output

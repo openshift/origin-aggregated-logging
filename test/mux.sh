@@ -9,9 +9,9 @@ os::util::environment::use_sudo
 
 # only works if there is a mux dc
 if oc get dc/logging-mux > /dev/null 2>&1 ; then
-    os::log::debug "$( oc get dc/logging-mux )"
+    oc get dc/logging-mux 2>&1 | artifact_out
 else
-    os::log::debug "$( oc get dc/logging-mux )"
+    oc get dc/logging-mux 2>&1 | artifact_out || :
     os::log::info dc/logging-mux is not present - skipping test
     exit 0
 fi
@@ -31,9 +31,9 @@ fi
 
 reset_fluentd_daemonset() {
   # this test only works with MUX_CLIENT_MODE=minimal for now
-  os::log::debug "$( oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal )"
-  os::log::debug "$( oc set volumes daemonset/logging-fluentd --add --overwrite \
-        --name=muxcerts -t secret -m /etc/fluent/muxkeys --secret-name logging-mux 2>&1 )"
+  oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
+  oc set volumes daemonset/logging-fluentd --add --overwrite \
+        --name=muxcerts -t secret -m /etc/fluent/muxkeys --secret-name logging-mux 2>&1 | artifact_out
 }
 
 # OPTIONS:
@@ -47,9 +47,7 @@ update_current_fluentd() {
   local myoption=${1:-0}
 
   # undeploy fluentd
-  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-  os::cmd::try_until_failure "oc get pod $fpod" $FLUENTD_WAIT_TIME
-  oc get pods |grep fluentd | artifact_out || :
+  stop_fluentd 2>&1 | artifact_out
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
       @include configs.d/user/filter-pre-mux-a-test-client.conf' | oc replace -f - 2>&1 | artifact_out
@@ -155,10 +153,7 @@ update_current_fluentd() {
 
   reset_fluentd_daemonset
 
-  os::cmd::expect_success flush_fluentd_pos_files
-  sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
-  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-  os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+  start_fluentd true 2>&1 | artifact_out
   fpod=$( get_running_pod fluentd )
 }
 
@@ -200,7 +195,7 @@ write_and_verify_logs() {
 
     local rc=0
 
-    os::log::debug "is_testproj $is_testproj no_container_vals $no_container_vals ===================================="
+    artifact_log is_testproj $is_testproj no_container_vals $no_container_vals ====================================
 
     local essvc=$es_svc
     local mymessage="GET /$uuid_es 404 "
@@ -225,7 +220,7 @@ write_and_verify_logs() {
         comma=","
     done
     local qs="${startqs}]}}}"
-    os::log::debug "query string is $qs"
+    artifact_log query string is "$qs"
     artifact_log start $( date ) $( date +%s )
     if ! os::cmd::try_until_text "curl_es $essvc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json" "^${expected}\$" "$(( 10*minute ))" ; then
         artifact_log end $( date ) $( date +%s )
@@ -277,10 +272,9 @@ write_and_verify_logs() {
 }
 
 reset_ES_HOST() {
-    os::cmd::expect_success "oc set env dc logging-mux $1 $2"
-    os::log::debug $( oc get pods -l component=mux )
-    oc rollout status -w dc/logging-mux 2>&1 | artifact_out # wait for mux to be redeployed
-    os::cmd::try_until_text "oc get pods -l component=mux" "^logging-mux-.* Running "
+    stop_mux 2>&1 | artifact_out
+    oc set env dc logging-mux $1 $2 2>&1 | artifact_out
+    start_mux 2>&1 | artifact_out
     muxpod=$( get_running_pod mux )
 }
 
@@ -319,8 +313,7 @@ cleanup() {
     if [ -n "${fpod:-}" ] ; then
         get_fluentd_pod_log $fpod > $ARTIFACT_DIR/mux.$fpod.log
     fi
-    oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+    stop_fluentd 2>&1 | artifact_out
     if [ -n "${savecm:-}" -a -f "${savecm:-}" ] ; then
         oc replace --force -f $savecm 2>&1 | artifact_out
     fi
@@ -330,12 +323,9 @@ cleanup() {
     # delete indices created by this test
     for index in testproj default .orphaned openshift- kube-
     do
-      curl_es $es_svc /project.$index* -XDELETE
+      curl_es $es_svc /project.$index* -XDELETE 2>&1 | artifact_out
     done
-    os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/lib/fluentd/buffer*.log /var/log/fluentd/fluentd.log
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true 2>&1 | artifact_out
     oc delete project testproj 2>&1 | artifact_out
     os::cmd::try_until_failure "oc get project testproj" 2>&1 | artifact_out
     # this will call declare_test_end, suite_end, etc.
@@ -369,9 +359,9 @@ muxpod=$( get_running_pod mux )
 
 MUX_FILE_BUFFER_STORAGE_TYPE=${MUX_FILE_BUFFER_STORAGE_TYPE:-emptydir}
 if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" ]; then
-    os::log::debug file_buffer_storage_type: pvc
-    os::log::debug "$( oc get pv )"
-    os::log::debug "$( oc get pvc )"
+    artifact_log file_buffer_storage_type: pvc
+    oc get pv 2>&1 | artifact_out
+    oc get pvc 2>&1 | artifact_out
 fi
 
 ES_HOST_BAK=$( oc set env --list dc/logging-mux | grep \^ES_HOST= )
@@ -443,13 +433,13 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
 
     mymessage="GET /${uuid_es} 404 "
     qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
-    os::log::debug "Check kibana log - message \"${mymessage}\""
+    artifact_log "Check kibana log - message \"${mymessage}\""
     os::cmd::try_until_success "curl_es $essvc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 
     myproject=.operations
     mymessage=$uuid_es_ops
     qs='{"query":{"term":{"systemd.u.SYSLOG_IDENTIFIER":"'"${mymessage}"'"}}}'
-    os::log::debug "Check system log - SYSLOG_IDENTIFIER \"${mymessage}\""
+    artifact_log "Check system log - SYSLOG_IDENTIFIER \"${mymessage}\""
     os::cmd::try_until_success "curl_es $es_ops_svc /${myproject}.*/_count -XPOST -d '$qs' | get_count_from_json | egrep -q '^1$'" "$(( 10*minute ))"
 fi
 

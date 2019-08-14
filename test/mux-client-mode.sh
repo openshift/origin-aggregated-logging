@@ -35,15 +35,12 @@ cleanup() {
     fi
     if [ -n "${saveds:-}" ] ; then
         if [ -f "${saveds:-}" ]; then
+            stop_fluentd 2>&1 | artifact_out
             oc replace --force -f $saveds 2>&1 | artifact_out
             rm -f $saveds
+            start_fluentd true 2>&1 | artifact_out
         fi
     fi
-    os::cmd::expect_success flush_fluentd_pos_files
-    sudo rm -f /var/log/fluentd/fluentd.log
-    oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-    # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
 }
@@ -62,26 +59,18 @@ fpod=$( get_running_pod fluentd )
 muxpod=$( get_running_pod mux )
 
 os::log::info configure fluentd to use MUX_CLIENT_MODE=minimal - verify logs get through
-oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+stop_fluentd $fpod 2>&1 | artifact_out
 oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=minimal 2>&1 | artifact_out
 reset_fluentd_daemonset
-os::cmd::expect_success flush_fluentd_pos_files
-sudo rm -f /var/log/fluentd/fluentd.log
-oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up
 
 # configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
 os::log::info configure fluentd to use MUX_CLIENT_MODE=maximal - verify logs get through
-oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
+stop_fluentd $fpod 2>&1 | artifact_out
 oc set env daemonset/logging-fluentd MUX_CLIENT_MODE=maximal 2>&1 | artifact_out
 reset_fluentd_daemonset
-os::cmd::expect_success flush_fluentd_pos_files
-sudo rm -f /var/log/fluentd/fluentd.log
-oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 wait_for_fluentd_to_catch_up

@@ -26,10 +26,20 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
 LOGGING_NS=openshift-logging
-if oc get project logging -o name > /dev/null && [ $(oc get dc -n logging -o name | wc -l) -gt 0 ]  ; then
+if oc get project logging -o name > /dev/null 2>&1 && [ $(oc get dc -n logging -o name | wc -l) -gt 0 ]  ; then
     LOGGING_NS=logging
 fi
 export LOGGING_NS
+
+# shutdown fluentd to reduce churn when we change things below
+fpod=$( get_running_pod fluentd )
+oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
+condition() { oc -n ${LOGGING_NS} get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }' 2>&1 | grep -q '^0$' ; }
+wait_for_condition condition
+if [ -n "${fpod:-}" ] ; then
+    condition() { ! oc -n ${LOGGING_NS} get pod $fpod > /dev/null 2>&1 ; }
+    wait_for_condition condition
+fi
 
 # HACK HACK HACK
 #
@@ -55,6 +65,14 @@ oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 # Starting in 3.10, we can no longer mount /var/lib/docker/containers
 oc volumes -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
     --name=varlibdockercontainers -m /var/lib/docker --path=/var/lib/docker || :
+
+# speed up tests by making fluentd read from tail of logs
+oc set -n ${LOGGING_NS} env ds/logging-fluentd JSON_FILE_READ_FROM_HEAD=false JOURNAL_READ_FROM_HEAD=false
+
+# startup fluentd
+oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
+condition() { oc -n ${LOGGING_NS} get pods -l component=fluentd 2>&1 | grep -q "^logging-fluentd-.* Running " ; }
+wait_for_condition condition
 
 # start a fluentd performance monitor
 monitor_fluentd_top() {
