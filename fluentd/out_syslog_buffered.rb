@@ -95,7 +95,14 @@ module Fluent
       tag = tag.sub(@remove_tag_prefix, '') if @remove_tag_prefix
       if @use_record
         @packet.hostname = record['hostname'] || hostname
-        @packet.severity = (record['level'].eql? 'warning')? 'warn' : record['level'] || @severity
+        case record['level']
+        when 'warning'
+          @packet.severity = 'warn'
+        when 'unknown', nil
+          @packet.severity = @severity
+        else
+          @packet.severity = record['level']
+        end
         if @use_record && record.key?('systemd') && (record['systemd']).key?('u') && (record['systemd']['u']).key?('SYSLOG_FACILITY')
           begin
             @packet.facility = record['systemd']['u']['SYSLOG_FACILITY']
