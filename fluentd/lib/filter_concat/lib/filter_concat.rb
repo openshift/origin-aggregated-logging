@@ -12,6 +12,8 @@ module Fluent
     config_param :multiline_start_regexp, :string, default: nil
     desc "The regexp to match ending of multiline"
     config_param :multiline_end_regexp, :string, default: nil
+    desc "The regexp to match continuous lines"
+    config_param :continuous_line_regexp, :string, default: nil
     desc "The key to determine which stream an event belongs to"
     config_param :stream_identity_key, :string, default: nil
     desc "The interval between data flushes, 0 means disable timeout"
@@ -26,6 +28,10 @@ module Fluent
     config_param :partial_value, :string, default: nil
     desc "If true, keep partial_key in concatenated records"
     config_param :keep_partial_key, :bool, default: false
+    desc "Use partial metadata to concatenate multiple records"
+    config_param :use_partial_metadata, :bool, default: false
+    desc "If true, keep partial metadata"
+    config_param :keep_partial_metadata, :bool, default: false
 
     class TimeoutError < StandardError
     end
@@ -40,17 +46,29 @@ module Fluent
     def configure(conf)
       super
 
-      if @n_lines && @multiline_start_regexp
-        raise ConfigError, "n_lines and multiline_start_regexp are exclusive"
+      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata
+        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required"
       end
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @partial_key.nil?
-        raise ConfigError, "Either partial_key or n_lines or multiline_start_regexp is required"
+      if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
       if @partial_key && @n_lines
         raise Fluent::ConfigError, "partial_key and n_lines are exclusive"
       end
+      if @partial_key && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "partial_key and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
       if @partial_key && @partial_value.nil?
         raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
+      end
+      if @use_partial_metadata && @n_lines
+        raise Fluent::ConfigError, "user_partial_metadata and n_lines are exclusive"
+      end
+      if @use_partial_metadata && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "user_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
+      if @use_partial_metadata && @partial_key
+        raise Fluent::ConfigError, "user_partial_metadata and partial_key are exclusive"
       end
 
       @mode = nil
@@ -59,17 +77,25 @@ module Fluent
         @mode = :line
       when @partial_key
         @mode = :partial
-      when @multiline_start_regexp
+      when @use_partial_metadata
+        @mode = :partial_metadata
+      when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
-        @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
+        if @multiline_start_regexp
+          @multiline_start_regexp = Regexp.compile(@multiline_start_regexp[1..-2])
+        end
         if @multiline_end_regexp
           @multiline_end_regexp = Regexp.compile(@multiline_end_regexp[1..-2])
+        end
+        if @continuous_line_regexp
+          @continuous_line_regexp = Regexp.compile(@continuous_line_regexp[1..-2])
         end
       end
     end
 
     def start
       super
+      @finished = false
       @loop = Coolio::Loop.new
       timer = TimeoutTimer.new(1, method(:on_timer))
       @loop.attach(timer)
@@ -78,10 +104,11 @@ module Fluent
 
     def shutdown
       super
+      @finished = true
       @loop.watchers.each {|w| w.detach if w.attached? }
       @loop.stop
       @thread.join
-      @finished = true
+      flush_remaining_buffer
     rescue => e
       log.error "unexpected error", error: e, error_class: e.class
       log.error_backtrace
@@ -90,13 +117,43 @@ module Fluent
     def filter_stream(tag, es)
       new_es = MultiEventStream.new
       es.each do |time, record|
+        if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
+          new_es.add(time, record)
+          next
+        end
+        unless record.key?(@key)
+          new_es.add(time, record)
+          next
+        end
+        if @mode == :partial
+          unless record.key?(@partial_key)
+            new_es.add(time, record)
+            next
+          end
+        end
+        if @mode == :partial_metadata
+          unless record.key?("partial_message")
+            new_es.add(time, record)
+            next
+          end
+        end
         begin
           flushed_es = process(tag, time, record)
           unless flushed_es.empty?
             flushed_es.each do |_time, new_record|
               time = _time if @use_first_timestamp
               merged_record = record.merge(new_record)
-              merged_record.delete(@partial_key) unless @keep_partial_key
+              case @mode
+              when :partial
+                merged_record.delete(@partial_key) unless @keep_partial_key
+              when :partial_metadata
+                unless @keep_partial_metadata
+                  merged_record.delete("partial_message")
+                  merged_record.delete("partial_id")
+                  merged_record.delete("partial_ordinal")
+                  merged_record.delete("partial_last")
+                end
+              end
               new_es.add(time, merged_record)
             end
           end
@@ -113,68 +170,117 @@ module Fluent
       return if @flush_interval <= 0
       return if @finished
       flush_timeout_buffer
+    rescue => e
+      log.error "failed to flush timeout buffer", error: e
     end
 
     def process(tag, time, record)
-      new_es = MultiEventStream.new
-      if @stream_identity_key
-        stream_identity = "#{tag}:#{record[@stream_identity_key]}"
+      if @mode == :partial_metadata
+        if @stream_identity_key
+          stream_identity = %Q(#{tag}:#{record[@stream_identity_key]}#{record["partial_id"]})
+        else
+          stream_identity = %Q(#{tag}:#{record["partial_id"]})
+        end
       else
-        stream_identity = "#{tag}:default"
+        if @stream_identity_key
+          stream_identity = "#{tag}:#{record[@stream_identity_key]}"
+        else
+          stream_identity = "#{tag}:default"
+        end
       end
       @timeout_map[stream_identity] = Fluent::Engine.now
       case @mode
       when :line
-        @buffer[stream_identity] << [tag, time, record]
-        if @buffer[stream_identity].size >= @n_lines
-          new_time, new_record = flush_buffer(stream_identity)
-          time = new_time if @use_first_timestamp
-          new_es.add(time, new_record)
-          return new_es
-        end
+        process_line(stream_identity, tag, time, record)
       when :partial
-        @buffer[stream_identity] << [tag, time, record]
-        unless @partial_value == record[@partial_key]
-          new_time, new_record = flush_buffer(stream_identity)
-          time = new_time if @use_first_timestamp
-          new_record.delete(@partial_key)
-          new_es.add(time, new_record)
-          return new_es
-        end
+        process_partial(stream_identity, tag, time, record)
+      when :partial_metadata
+        process_partial_metadata(stream_identity, tag, time, record)
       when :regexp
-        case
-        when firstline?(record[@key])
-          if @buffer[stream_identity].empty?
-            @buffer[stream_identity] << [tag, time, record]
-            if lastline?(record[@key])
-              new_time, new_record = flush_buffer(stream_identity)
-              time = new_time if @use_first_timestamp
-              new_es.add(time, new_record)
-            end
-          else
-            new_time, new_record = flush_buffer(stream_identity, [tag, time, record])
+        process_regexp(stream_identity, tag, time, record)
+      end
+    end
+
+    def process_line(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      if @buffer[stream_identity].size >= @n_lines
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      unless @partial_value == record[@partial_key]
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_key)
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_partial_metadata(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      if record["partial_last"] == "true"
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_key)
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
+    def process_regexp(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      case
+      when firstline?(record[@key])
+        if @buffer[stream_identity].empty?
+          @buffer[stream_identity] << [tag, time, record]
+          if lastline?(record[@key])
+            new_time, new_record = flush_buffer(stream_identity)
             time = new_time if @use_first_timestamp
             new_es.add(time, new_record)
-            if lastline?(record[@key])
-              new_time, new_record = flush_buffer(stream_identity)
-              time = new_time if @use_first_timestamp
-              new_es.add(time, new_record)
-            end
-            return new_es
           end
-        when lastline?(record[@key])
-          @buffer[stream_identity] << [tag, time, record]
-          new_time, new_record = flush_buffer(stream_identity)
+        else
+          new_time, new_record = flush_buffer(stream_identity, [tag, time, record])
           time = new_time if @use_first_timestamp
           new_es.add(time, new_record)
+          if lastline?(record[@key])
+            new_time, new_record = flush_buffer(stream_identity)
+            time = new_time if @use_first_timestamp
+            new_es.add(time, new_record)
+          end
           return new_es
-        else
-          if @buffer[stream_identity].empty?
+        end
+      when lastline?(record[@key])
+        @buffer[stream_identity] << [tag, time, record]
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_es.add(time, new_record)
+        return new_es
+      else
+        if @buffer[stream_identity].empty?
+          if !@multiline_start_regexp
+            @buffer[stream_identity] << [tag, time, record]
+          else
             new_es.add(time, record)
             return new_es
-          else
+          end
+        else
+          if continuous_line?(record[@key])
             # Continuation of the previous line
             @buffer[stream_identity] << [tag, time, record]
+          else
+            new_time, new_record = flush_buffer(stream_identity)
+            time = new_time if @use_first_timestamp
+            new_es.add(time, new_record)
+            new_es.add(time, record)
           end
         end
       end
@@ -189,11 +295,25 @@ module Fluent
       @multiline_end_regexp && !!@multiline_end_regexp.match(text)
     end
 
+    def continuous_line?(text)
+      if @continuous_line_regexp
+        !!@continuous_line_regexp.match(text)
+      else
+        true
+      end
+    end
+
     def flush_buffer(stream_identity, new_element = nil)
-      lines = @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+      lines = if @mode == :partial_metadata
+                @buffer[stream_identity]
+                  .sort_by {|_tag, _time, record| record["partial_ordinal"].to_i }
+                  .map {|_tag, _time, record| record[@key] }
+              else
+                @buffer[stream_identity].map {|_tag, _time, record| record[@key] }
+              end
       _tag, time, first_record = @buffer[stream_identity].first
       new_record = {
-        @key => lines.join
+        @key => lines.join(@separator)
       }
       @buffer[stream_identity] = []
       @buffer[stream_identity] << new_element if new_element
@@ -224,7 +344,7 @@ module Fluent
 
         lines = elements.map {|_tag, _time, record| record[@key] }
         new_record = {
-          @key => lines.join
+          @key => lines.join(@separator)
         }
         tag, time, record = elements.first
         message = "Flush remaining buffer: #{stream_identity}"

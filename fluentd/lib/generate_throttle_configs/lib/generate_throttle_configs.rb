@@ -21,7 +21,7 @@ DEFAULT_OPS_PROJECTS = !ENV['OCP_OPERATIONS_PROJECTS'].nil? ? ENV['OCP_OPERATION
 DEFAULT_FILENAME = "/etc/fluent/configs.d/user/throttle-config.yaml"
 
 VALID_SETTINGS = {"read_lines_limit" => "number"}
-CONTAINER_LOG_DRIVER = ENV['USE_CRIO'] == 'true' ? "CRIO" : "JSON_FILE"
+CONTAINER_LOG_DRIVER = (ENV['USE_CRIO'] == 'true') ? "CRIO" : "JSON_FILE"
 POS_FILE = CONTAINER_LOG_DRIVER + "_POS_FILE"
 READ_FROM_HEAD = CONTAINER_LOG_DRIVER + "_READ_FROM_HEAD"
 CONT_LOGS_PATH = CONTAINER_LOG_DRIVER + "_PATH"
@@ -45,6 +45,18 @@ def get_file_name(name)
   file_name << '.conf'
 
   return file_name
+end
+
+def get_time_format(options)
+  options[:use_crio] ? '%Y-%m-%dT%H:%M:%S.%N%:z' : '%Y-%m-%dT%H:%M:%S.%N%Z'
+end
+
+def get_output_label(options)
+  (options[:use_crio] || options[:use_multiline_json]) ? '@CONCAT' : '@INGRESS'
+end
+
+def get_logfile_format(options)
+  options[:use_crio] ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/' : 'json'
 end
 
 ## Returns the names of all throttle configs for parsing through when reverting
@@ -111,7 +123,6 @@ def seed_file(file_name, project, log)
 <source>
   @type tail
   @id #{project}-input
-  @label @INGRESS
   path #{path}
   pos_file #{pos_file}
     CONF
@@ -138,26 +149,58 @@ def write_to_file(project, key, value, log)
 
 end
 
-def close_file(project, log)
+def close_project_file(project, log, options)
   file_name = get_file_name(project)
+  close_file(file_name, log, options)
+end
 
+def close_file(file_name, log, options)
+  use_crio = options[:use_crio]
+  use_multiline_json = options[:use_multiline_json]
   File.open(file_name, 'a') { |file|
     log.debug "Closing file: #{file_name}"
     file.write(<<-CONF)
-  time_format %Y-%m-%dT%H:%M:%S.%N%Z
+  time_format #{get_time_format(options)}
   tag kubernetes.*
-  format json
+  format #{get_logfile_format(options)}
   keep_time_key true
-  read_from_head "#{ENV[READ_FROM_HEAD] || 'true'}"
+  read_from_head "#{options[:read_from_head] || 'true'}"
+  @label #{get_output_label(options)}
 </source>
     CONF
+    if use_crio || use_multiline_json
+      file.write(<<-CONFMULTI1)
+<label #{get_output_label(options)}>
+  <filter kubernetes.**>
+    @type concat
+    key log
+    separator ""
+    CONFMULTI1
+      if use_crio
+        file.write(<<-CONFCRIO)
+    partial_key logtag
+    partial_value P
+    CONFCRIO
+      else
+        file.write(<<-CONFJSONFILE)
+    multiline_end_regexp /\\n$/
+    CONFJSONFILE
+      end
+      file.write(<<-CONFMULTI2)
+  </filter>
+  <match kubernetes.**>
+    @type relabel
+    @label @INGRESS
+  </match>
+</label>
+    CONFMULTI2
+    end
   } if File.exist?(file_name)
 end
 
-def create_default_docker(input_conf_file, excluded, log, options={})
+def create_default_docker(input_conf_file, excluded, log, options)
   cont_logs_path = options[:cont_logs_path] || '/var/log/containers/*.log'
   cont_pos_file = options[:cont_pos_file] || '/var/log/es-containers.log.pos'
-  use_crio = options[:use_crio]
 
   File.open(input_conf_file, 'w') { |file|
     log.debug "Creating default docker input config file #{input_conf_file}"
@@ -165,32 +208,13 @@ def create_default_docker(input_conf_file, excluded, log, options={})
 <source>
   @type tail
   @id docker-input
-  @label @INGRESS
   path "#{cont_logs_path}"
   pos_file "#{cont_pos_file}"
-  time_format #{use_crio == 'true' ? '%Y-%m-%dT%H:%M:%S.%N%:z' : '%Y-%m-%dT%H:%M:%S.%N%Z'}
-  tag kubernetes.*
-  format #{use_crio == 'true' ? '/^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/' : 'json'}
-  keep_time_key true
-  read_from_head "#{options[:read_from_head] || 'true'}"
   exclude_path #{excluded}
-  @label @CONCAT
-</source>
-<label @CONCAT>
-  <filter kubernetes.**>
-    @type concat
-    key log
-    partial_key logtag
-    partial_value P
-  </filter>
-  <match kubernetes.**>
-    @type relabel
-    @label @INGRESS
-  </match>
-</label>
-    CONF
+  CONF
   }
-    log.debug "Created default docker input config file"
+  close_file(input_conf_file, log, options)
+  log.debug "Created default docker input config file"
 end
 
 def validate(key, value, log)
@@ -227,6 +251,9 @@ def get_project_pattern(name)
 end
 
 def generate_throttle_configs(input_conf, throttle_conf_file, log, init_options={})
+if init_options[:use_crio] && init_options[:use_multiline_json]
+  raise "Cannot use both USE_CRIO=true and USE_MULTILINE_JSON=true"
+end
 begin
   parsed = if File.exist?(throttle_conf_file) && (hsh = YAML.load_file(throttle_conf_file)) && hsh.respond_to?(:map)
              log.debug "throttle hash #{hsh}"
@@ -278,7 +305,7 @@ parsed.each do |name,options|
   } if !options.nil?
 
   # if file was created, close it here
-  close_file(name, log) if needclose
+  close_project_file(name, log, init_options) if needclose
 end
 
 revert_throttle(log) unless throttling
@@ -293,7 +320,8 @@ if __FILE__ == $0
                               log,
                               :cont_logs_path=>"#{ENV[CONT_LOGS_PATH] || '/var/log/containers/*.log'}",
                               :cont_pos_file=>"#{ENV[POS_FILE] || '/var/log/es-containers.log.pos'}",
-                              :use_crio=>ENV['USE_CRIO']||false,
+                              :use_crio=>(ENV['USE_CRIO'] == 'true'),
+                              :use_multiline_json=>(ENV['USE_MULTILINE_JSON'] == 'true'),
                               :read_from_head=>ENV[READ_FROM_HEAD] || 'true')
 end
 
