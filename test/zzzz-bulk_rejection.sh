@@ -48,15 +48,14 @@ function cleanup() {
         oc rollout status -w $esopsdc 2>&1 | artifact_out
         # have to get esopssvc again if needed
     fi
+    stop_fluentd $fpod 2>&1 | artifact_out
     if [ -n "${f_cm:-}" -a -f "${f_cm:-}" ] ; then
         oc replace --force -f $f_cm 2>&1 | artifact_out
     fi
     if [ -n "${f_ds:-}" -a -f "${f_ds:-}" ] ; then
         oc replace --force -f $f_ds 2>&1 | artifact_out
     fi
-    os::cmd::try_until_failure "oc get pod $fpod"
-    sleep 1
-    os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
+    start_fluentd true 2>&1 | artifact_out
     if [ -n "${bulkdonefile:-}" -a -f "${bulkdonefile:-}" ] ; then
         rm -f $bulkdonefile
     fi
@@ -104,10 +103,7 @@ oc get cm/logging-fluentd -o yaml > $f_cm
 oc get ds/logging-fluentd -o yaml > $f_ds
 
 # stop fluentd to make sure the logs are clear
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-fpod=$( get_running_pod fluentd )
-os::cmd::expect_success "oc label node --all logging-infra-fluentd-"
-os::cmd::try_until_failure "oc get pod $fpod"
+stop_fluentd 2>&1 | artifact_out
 
 # turn on debug output
 cat $f_cm | \
@@ -116,14 +112,7 @@ cat $f_cm | \
     </system>,' | oc replace --force -f -
 
 oc set env ds/logging-fluentd DEBUG=true
-
-# the -r is because some tests create subdirs of this
-sudo rm -rf /var/lib/fluentd/*
-sudo rm -f /var/log/journal.pos
-
-os::cmd::expect_success "oc label node --all logging-infra-fluentd=true"
-os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running "
-wait_for_fluentd_ready
+start_fluentd true 2>&1 | artifact_out
 fpod=$( get_running_pod fluentd )
 
 # wait for fluentd to get up and running

@@ -9,28 +9,6 @@ os::test::junit::declare_suite_start "test/docker_multiline"
 
 FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
-stop_fluentd() {
-  artifact_log at this point there should be 1 fluentd running in Running state
-  oc get pods 2>&1 | artifact_out
-  local fpod=$( get_running_pod fluentd )
-  oc label node --all logging-infra-fluentd- 2>&1 | artifact_out
-  os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $FLUENTD_WAIT_TIME
-  artifact_log at this point there should be no fluentd running - number ready is 0
-  oc get pods 2>&1 | artifact_out
-  # for some reason, in this test, after .status.numberReady is 0, the fluentd pod hangs around
-  # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
-  # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
-  if [ -n "${fpod:-}" ] ; then
-    os::cmd::try_until_failure "oc get pod $fpod > /dev/null 2>&1" $FLUENTD_WAIT_TIME
-  fi
-}
-
-start_fluentd() {
-  sudo rm -f /var/log/fluentd/fluentd.log
-  oc label node --all logging-infra-fluentd=true 2>&1 | artifact_out
-  os::cmd::try_until_text "oc get pods -l component=fluentd" "^logging-fluentd-.* Running " $FLUENTD_WAIT_TIME
-}
-
 cleanup() {
     local return_code="$?"
     set +e
@@ -64,9 +42,9 @@ cleanup() {
         orig_USE_MULTILINE_JOURNAL="USE_MULTILINE_JOURNAL-"
     fi
     if [ -n "${orig_MERGE_JSON_LOG:-}" -o -n "${orig_CDM_UNDEFINED_TO_STRING:-}" -o -n "${orig_USE_MULTILINE_JSON:-}" -o -n "${orig_USE_MULTILINE_JOURNAL:-}" ] ; then
-        stop_fluentd
+        stop_fluentd 2>&1 | artifact_out
         oc set env daemonset/logging-fluentd ${orig_USE_MULTILINE_JSON:-} ${orig_USE_MULTILINE_JOURNAL:-} ${orig_MERGE_JSON_LOG:-} ${orig_CDM_UNDEFINED_TO_STRING:-} 2>&1 | artifact_out
-        start_fluentd
+        start_fluentd true 2>&1 | artifact_out
     fi
 
     # this will call declare_test_end, suite_end, etc.
@@ -101,9 +79,9 @@ orig_USE_MULTILINE_JOURNAL=$( oc set env daemonset/logging-fluentd --list | grep
 if [ -z "$orig_USE_MULTILINE_JOURNAL" ] ; then
     orig_USE_MULTILINE_JOURNAL=unset
 fi
-stop_fluentd
+stop_fluentd 2>&1 | artifact_out
 oc set env daemonset/logging-fluentd USE_MULTILINE_JSON=true USE_MULTILINE_JOURNAL=true MERGE_JSON_LOG=true CDM_UNDEFINED_TO_STRING=false 2>&1 | artifact_out
-start_fluentd
+start_fluentd true 2>&1 | artifact_out
 
 # create a test pod to generate very long lines
 ident=$( openssl rand -hex 16 )
@@ -116,7 +94,7 @@ expected=10
 pod=$proj
 oc process -f $OS_O_A_L_DIR/hack/testing/templates/test-template.yaml \
     -p TEST_NAMESPACE_NAME=$proj -p TEST_POD_NAME=$pod -p UNIQUEID=$ident \
-    -p TEST_POD_SLEEP_TIME=600 -p TEST_ITERATIONS=$expected -p FORMAT=json \
+    -p TEST_POD_SLEEP_TIME=1 -p TEST_ITERATIONS=1 -p FORMAT=json \
     -p TEST_POD_MESSAGE=$( cat $ARTIFACT_DIR/test-message ) > $ARTIFACT_DIR/test-pod.yaml
 oc create -f $ARTIFACT_DIR/test-pod.yaml 2>&1 | artifact_out
 os::cmd::try_until_success "oc -n $proj get pod $pod -o yaml > /dev/null 2>&1" 2>&1 | artifact_out
@@ -124,7 +102,7 @@ os::cmd::try_until_success "oc -n $proj get pod $pod -o yaml > /dev/null 2>&1" 2
 # wait until es msg count is 10
 rc=0
 qs='{"query":{"term":{"uniqueid":"'"${ident}"'"}}}'
-if os::cmd::try_until_text "curl_es ${essvc} /project.${proj}.*/_count -X POST -d '$qs' | get_count_from_json" "^${expected}\$" $(( 120 * second )); then
+if os::cmd::try_until_text "curl_es ${essvc} /project.${proj}.*/_count -X POST -d '$qs' | get_count_from_json" "^..\$" $(( 300 * second )); then
     # verify messages
     curl_es ${essvc} "/project.${proj}.*/_search" -X POST -d "$qs" > $ARTIFACT_DIR/records.json 2>&1 || :
     for ii in $( seq 0 $(( expected - 1 )) ) ; do

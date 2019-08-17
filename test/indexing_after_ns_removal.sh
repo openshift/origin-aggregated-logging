@@ -28,9 +28,10 @@ EOF
 
 cleanup(){
     local return_code="$?"
+    set +e
 
     # delete all the $NS indices
-    curl_es $espod /project.$NS.* -XDELETE || :
+    curl_es $espod /project.$NS.* -XDELETE | artifact_out
 
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
