@@ -87,61 +87,22 @@ export BUFFER_QUEUE_FULL_ACTION=${BUFFER_QUEUE_FULL_ACTION:-block}
 K8S_FILTER_REMOVE_KEYS="log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID"
 export K8S_FILTER_REMOVE_KEYS ENABLE_ES_INDEX_NAME
 
-if [ -z $ES_HOST ]; then
-    echo "ERROR: Environment variable ES_HOST for Elasticsearch host name is not set."
-    exit 1
-fi
-if [ -z $ES_PORT ]; then
-    echo "ERROR: Environment variable ES_PORT for Elasticsearch port number is not set."
-    exit 1
-fi
-
 # Check bearer_token_file for fluent-plugin-kubernetes_metadata_filter.
 if [ ! -s /var/run/secrets/kubernetes.io/serviceaccount/token ] ; then
     echo "ERROR: Bearer_token_file (/var/run/secrets/kubernetes.io/serviceaccount/token) to access the Kubernetes API server is missing or empty."
     exit 1
 fi
 
-if [ "${ENABLE_PIPELINES}" = "true" ] ; then
-    # pipeline-output-labels.conf is the 'matches' included in @OUTPUT label
-    # pipeline-output-endpoints.conf is the individual conf for each source->destination
-    if [ ! -f /var/run/ocp-collector/pipelines ]; then
-        mkdir -p '/var/run/ocp-collector'
-        cat > /var/run/ocp-collector/pipelines <<- EOF 
-logs.app:
-  targets:
-  - type: elasticsearch
-    endpoint: '$ES_HOST:$ES_PORT'
-    tls_key: '$ES_CLIENT_KEY'
-    tls_cert: '$ES_CLIENT_CERT'
-    tls_cacert: '$ES_CA'
-logs.infra:
-  targets:
-  - type: elasticsearch
-    endpoint: '$ES_HOST:$ES_PORT'
-    tls_key: '$ES_CLIENT_KEY'
-    tls_cert: '$ES_CLIENT_CERT'
-    tls_cacert: '$ES_CA'
-EOF
-    fi
-
-    #use built-in fluent.conf
-    ln -sf $HOME/fluent-pipeline.conf /etc/fluent/fluent.conf
-
-    #generate pipeline configs
-    fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines --tags logs.infra="$OCP_FLUENTD_TAGS" -o $CFG_DIR/openshift/pipeline-output-labels.conf -t $CFG_DIR/openshift/pipeline-output-endpoints.conf
-
-    # calculate the number of buffers - which should be 2 * OUTPUTS because we have retrys
-    NUM_OUTPUTS=$(fluentd-okd-config-generator -i /var/run/ocp-collector/pipelines |  grep '<buffer>' | wc -l)
-
-else
-    #There is only one allowed destination for initial release of 4.2
-    NUM_OUTPUTS=2
-fi 
-
 # If FILE_BUFFER_PATH exists and it is not a directory, mkdir fails with the error.
 FILE_BUFFER_PATH=/var/lib/fluentd
 mkdir -p $FILE_BUFFER_PATH
+
+FLUENT_CONF=$CFG_DIR/user/fluent.conf
+if [ ! -f "$FLUENT_CONF" ] ; then
+    echo "ERROR: The configuration $FLUENT_CONF does not exist"
+    exit 1
+fi
+NUM_OUTPUTS=$(grep "path.*'$FILE_BUFFER_PATH" $FLUENT_CONF | wc -l)
 
 # Get the available disk size.
 DF_LIMIT=$(df -B1 $FILE_BUFFER_PATH | grep -v Filesystem | awk '{print $2}')
