@@ -27,6 +27,8 @@ describe 'generate_throttle_configs' do
   @id docker-input
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -46,6 +48,8 @@ describe 'generate_throttle_configs' do
   @id docker-input
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%:z
   tag kubernetes.*
@@ -78,6 +82,8 @@ describe 'generate_throttle_configs' do
   @id docker-input
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -116,6 +122,8 @@ describe 'generate_throttle_configs' do
   @id docker-input
   path "/tmp/foo/*.logs"
   pos_file "/tmp/foo/test.logs.pos"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path []
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -171,6 +179,8 @@ secondproject:
   @id docker-input
   path \"/var/log/containers/*.log\"
   pos_file \"#{@pos_file}\"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -191,6 +201,8 @@ secondproject:
   @id #{project}-input
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
+  refresh_interval 5
+  rotate_wait 5
   read_lines_limit #{limit}
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -214,6 +226,8 @@ secondproject:
   @id docker-input
   path \"/var/log/containers/*.log\"
   pos_file \"#{@pos_file}\"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
   time_format %Y-%m-%dT%H:%M:%S.%N%:z
   tag kubernetes.*
@@ -247,6 +261,8 @@ secondproject:
   @id #{project}-input
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
+  refresh_interval 5
+  rotate_wait 5
   read_lines_limit #{limit}
   time_format %Y-%m-%dT%H:%M:%S.%N%:z
   tag kubernetes.*
@@ -282,6 +298,8 @@ secondproject:
   @id docker-input
   path \"/var/log/containers/*.log\"
   pos_file \"#{@pos_file}\"
+  refresh_interval 5
+  rotate_wait 5
   exclude_path [\"#{cont_log_dir}/*_firstproject_*.log\", \"#{cont_log_dir}/*_secondproject_*.log\"]
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
@@ -314,6 +332,8 @@ secondproject:
   @id #{project}-input
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
+  refresh_interval 5
+  rotate_wait 5
   read_lines_limit #{limit}
   time_format %Y-%m-%dT%H:%M:%S.%N%Z
   tag kubernetes.*
