@@ -239,9 +239,12 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
         "_EXE"                       => "EXE",
         "_GID"                       => "GID",
         "_MACHINE_ID"                => "MACHINE_ID",
+        "_LINE_BREAK"                => "LINE_BREAK",
         "_PID"                       => "PID",
         "_SELINUX_CONTEXT"           => "SELINUX_CONTEXT",
+        "_STREAM_ID"                 => "STREAM_ID",
         "_SYSTEMD_CGROUP"            => "SYSTEMD_CGROUP",
+        "_SYSTEMD_INVOCATION_ID"     => "SYSTEMD_INVOCATION_ID",
         "_SYSTEMD_OWNER_UID"         => "SYSTEMD_OWNER_UID",
         "_SYSTEMD_SESSION"           => "SYSTEMD_SESSION",
         "_SYSTEMD_SLICE"             => "SYSTEMD_SLICE",
@@ -273,25 +276,28 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
     end
     def normal_output_t
       {
-        "AUDIT_LOGINUID"    =>"AUDIT_LOGINUID",
-        "AUDIT_SESSION"     =>"AUDIT_SESSION",
-        "BOOT_ID"           =>"BOOT_ID",
-        "CAP_EFFECTIVE"     =>"CAP_EFFECTIVE",
-        "CMDLINE"           =>"CMDLINE",
-        "COMM"              =>"COMM",
-        "EXE"               =>"EXE",
-        "GID"               =>"GID",
-        "MACHINE_ID"        =>"MACHINE_ID",
-        "PID"               =>"PID",
-        "SELINUX_CONTEXT"   =>"SELINUX_CONTEXT",
-        "SYSTEMD_CGROUP"    =>"SYSTEMD_CGROUP",
-        "SYSTEMD_OWNER_UID" =>"SYSTEMD_OWNER_UID",
-        "SYSTEMD_SESSION"   =>"SYSTEMD_SESSION",
-        "SYSTEMD_SLICE"     =>"SYSTEMD_SLICE",
-        "SYSTEMD_UNIT"      =>"SYSTEMD_UNIT",
-        "SYSTEMD_USER_UNIT" =>"SYSTEMD_USER_UNIT",
-        "TRANSPORT"         =>"TRANSPORT",
-        "UID"               =>"UID"
+        "AUDIT_LOGINUID"        =>"AUDIT_LOGINUID",
+        "AUDIT_SESSION"         =>"AUDIT_SESSION",
+        "BOOT_ID"               =>"BOOT_ID",
+        "CAP_EFFECTIVE"         =>"CAP_EFFECTIVE",
+        "CMDLINE"               =>"CMDLINE",
+        "COMM"                  =>"COMM",
+        "EXE"                   =>"EXE",
+        "GID"                   =>"GID",
+        "MACHINE_ID"            =>"MACHINE_ID",
+        "LINE_BREAK"            =>"LINE_BREAK",
+        "PID"                   =>"PID",
+        "SELINUX_CONTEXT"       =>"SELINUX_CONTEXT",
+        "STREAM_ID"             =>"STREAM_ID",
+        "SYSTEMD_INVOCATION_ID" =>"SYSTEMD_INVOCATION_ID",
+        "SYSTEMD_CGROUP"        =>"SYSTEMD_CGROUP",
+        "SYSTEMD_OWNER_UID"     =>"SYSTEMD_OWNER_UID",
+        "SYSTEMD_SESSION"       =>"SYSTEMD_SESSION",
+        "SYSTEMD_SLICE"         =>"SYSTEMD_SLICE",
+        "SYSTEMD_UNIT"          =>"SYSTEMD_UNIT",
+        "SYSTEMD_USER_UNIT"     =>"SYSTEMD_USER_UNIT",
+        "TRANSPORT"             =>"TRANSPORT",
+        "UID"                   =>"UID"
       }
     end
     def normal_output_u
@@ -838,7 +844,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(@timestamp_str, rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])
@@ -867,7 +873,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       assert_equal('ADDED', rec['kubernetes']['event']['verb'])
       assert_equal('event message', rec['message'])
       assert_equal('mymessage', rec['pipeline_metadata']['collector']['original_raw_message'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal('2017-07-27T17:23:46.216527+00:00', rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['collector']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['collector']['ipaddr6'])
@@ -896,7 +902,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(now.utc.to_datetime.rfc3339(6), rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])
@@ -926,7 +932,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(expectedtime, rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])
@@ -955,7 +961,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(@timestamp_str, rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])
@@ -983,7 +989,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('err', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(Time.at(@time).utc.to_datetime.rfc3339(6), rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])
@@ -1010,7 +1016,7 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       ')
       assert_equal('mymessage', rec['message'])
       assert_equal('k8shost', rec['hostname'])
-      assert_equal('info', rec['level'])
+      assert_equal('unknown', rec['level'])
       assert_equal(@timestamp_str, rec['@timestamp'])
       assert_equal('127.0.0.1', rec['pipeline_metadata']['normalizer']['ipaddr4'])
       assert_equal('::1', rec['pipeline_metadata']['normalizer']['ipaddr6'])

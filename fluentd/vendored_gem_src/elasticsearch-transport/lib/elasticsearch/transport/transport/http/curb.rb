@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module Transport
     module Transport
@@ -16,8 +33,8 @@ module Elasticsearch
           # @see    Transport::Base#perform_request
           #
           def perform_request(method, path, params={}, body=nil, headers=nil)
-            super do |connection,url|
-              connection.connection.url = url
+            super do |connection, url|
+              connection.connection.url = connection.full_url(path, params)
 
               case method
                 when 'HEAD'
@@ -26,7 +43,15 @@ module Elasticsearch
                   connection.connection.set :nobody, false
 
                   connection.connection.put_data = __convert_to_json(body) if body
-                  connection.connection.headers = headers if headers
+
+                  if headers
+                    if connection.connection.headers
+                      connection.connection.headers.merge!(headers)
+                    else
+                      connection.connection.headers = headers
+                    end
+                  end
+
                 else raise ArgumentError, "Unsupported HTTP method: #{method}"
               end
 
@@ -36,7 +61,7 @@ module Elasticsearch
               response_headers['content-type'] = 'application/json' if connection.connection.header_str =~ /\/json/
 
               Response.new connection.connection.response_code,
-                           connection.connection.body_str,
+                           decompress_response(connection.connection.body_str),
                            response_headers
             end
           end
@@ -48,10 +73,7 @@ module Elasticsearch
           def __build_connection(host, options={}, block=nil)
             client = ::Curl::Easy.new
 
-            headers = options[:headers] || {}
-            headers.update('User-Agent' => "Curb #{Curl::CURB_VERSION}")
-
-            client.headers = headers
+            apply_headers(client, options)
             client.url     = __full_url(host)
 
             if host[:user]
@@ -79,8 +101,20 @@ module Elasticsearch
               ::Curl::Err::TimeoutError
             ]
           end
-        end
 
+          private
+
+          def user_agent_header(client)
+            @user_agent ||= begin
+              meta = ["RUBY_VERSION: #{RUBY_VERSION}"]
+              if RbConfig::CONFIG && RbConfig::CONFIG['host_os']
+                meta << "#{RbConfig::CONFIG['host_os'].split('_').first[/[a-z]+/i].downcase} #{RbConfig::CONFIG['target_cpu']}"
+              end
+              meta << "Curb #{Curl::CURB_VERSION}"
+              "elasticsearch-ruby/#{VERSION} (#{meta.join('; ')})"
+            end
+          end
+        end
       end
     end
   end

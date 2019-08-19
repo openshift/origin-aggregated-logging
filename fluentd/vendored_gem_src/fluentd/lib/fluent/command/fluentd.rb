@@ -40,7 +40,7 @@ op.on('--dry-run', "Check fluentd setup is correct or not", TrueClass) {|b|
   opts[:dry_run] = b
 }
 
-op.on('--show-plugin-config=PLUGIN', "Show PLUGIN configuration and exit(ex: input:dummy)") {|plugin|
+op.on('--show-plugin-config=PLUGIN', "[DEPRECATED] Show PLUGIN configuration and exit(ex: input:dummy)") {|plugin|
   opts[:show_plugin_config] = plugin
 }
 
@@ -92,8 +92,8 @@ op.on('--log-rotate-age AGE', 'generations to keep rotated log files') {|age|
   else
     begin
       opts[:log_rotate_age] = Integer(age)
-    rescue TypeError
-      usage "log-rotate-age should be #{rotate_ages.join(', ')} or a number"
+    rescue TypeError, ArgumentError
+      usage "log-rotate-age should be #{ROTATE_AGE.join(', ')} or a number"
     end
   end
 }
@@ -153,6 +153,10 @@ op.on('-g', '--gemfile GEMFILE', "Gemfile path") {|s|
 
 op.on('-G', '--gem-path GEM_INSTALL_PATH', "Gemfile install path (default: $(dirname $gemfile)/vendor/bundle)") {|s|
   opts[:gem_install_path] = s
+}
+
+op.on('--conf-encoding ENCODING', "specify configuration file encoding") { |s|
+  opts[:conf_encoding] = s
 }
 
 if Fluent.windows?

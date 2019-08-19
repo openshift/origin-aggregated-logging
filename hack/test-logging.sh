@@ -48,12 +48,50 @@ wait_for_condition()
     return 0
 }
 
+switch_to_admin_user() {
+    # make sure we are using the admin credentials for the remote repo
+    if [ -z "${KUBECONFIG:-}" ] ; then
+        echo WARNING: KUBECONFIG is not set - assuming you have set credentials
+        echo via ~/.kube/config or otherwise
+    fi
+
+    if ! oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+        local adminname
+        local oldcontext=$( oc config current-context )
+        # see if there is already an admin context in the kubeconfig
+        for adminname in admin system:admin kube:admin ; do
+            if oc config use-context $adminname > /dev/null 2>&1 ; then
+                break
+            fi
+        done
+        if oc auth can-i view pods/log -n default > /dev/null 2>&1 ; then
+            echo INFO: switched from context [$oldcontext] to [$(oc config current-context)]
+        else
+            echo ERROR: could not get an admin context to use - make sure you have
+            echo set KUBECONFIG or ~/.kube/config correctly
+            oc config use-context $oldcontext
+            exit 1
+        fi
+    fi
+}
+
+switch_to_admin_user
+
 ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
 if [ ! -d $ARTIFACT_DIR ] ; then
     mkdir -p $ARTIFACT_DIR
 fi
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
+esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+if [ -z "$esopod" ] ; then
+    ESO_NS=openshift-logging
+    esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
+fi
+if [ -z "$esopod" ] ; then
+    echo ERROR: could not find elasticsearch-operator running in openshift-operators-redhat or openshift-logging
+    logging_err_exit
+fi
 
 # set elasticsearch to unmanaged - so that the elasticsearch-operator
 # won't try to do anything to elasticsearch when we shut it down
@@ -195,6 +233,7 @@ else
 fi
 
 wait || :
+oc delete --force pod logging-ci-test-runner || :
 echo finished $0 at $( date --rfc-3339=sec )
 if [ "$result" = PASS ] ; then
     exit 0

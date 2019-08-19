@@ -1,3 +1,11 @@
+2019-06-20 verison 1.3.0:
+
+* Add timestamp ext type (id:-1) support
+
+2019-04-19 version 1.2.10:
+
+* Optimze MessagePack.unpack not to copy source string
+
 2019-03-13 version 1.2.9:
 
 * Hotfix release only for JRuby: 1.2.8-java was built incorrectly

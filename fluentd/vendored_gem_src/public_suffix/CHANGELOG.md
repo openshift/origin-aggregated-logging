@@ -1,6 +1,19 @@
 # Changelog
 
 
+#### Release 3.1.1
+
+- CHANGED: Updated definitions.
+- CHANGED: Rolled back support for Ruby 2.3 (GH-161, GH-162)
+
+
+#### Release 3.1.0
+
+- CHANGED: Updated definitions.
+- CHANGED: Minimum Ruby version is 2.3
+- CHANGED: Upgraded to Bundler 2.x
+
+
 #### Release 3.0.3
 
 - CHANGED: Updated definitions.

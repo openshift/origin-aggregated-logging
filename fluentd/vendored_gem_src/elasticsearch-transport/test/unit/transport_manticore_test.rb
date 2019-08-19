@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require 'test_helper'
 
 unless JRUBY
@@ -7,7 +24,7 @@ else
   require 'elasticsearch/transport/transport/http/manticore'
   require 'manticore'
 
-  class Elasticsearch::Transport::Transport::HTTP::ManticoreTest < Test::Unit::TestCase
+  class Elasticsearch::Transport::Transport::HTTP::ManticoreTest < Minitest::Test
     include Elasticsearch::Transport::Transport::HTTP
 
     context "Manticore transport" do
@@ -39,32 +56,42 @@ else
 
       should "set body for GET request" do
         @transport.connections.first.connection.expects(:get).
-          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}'}).returns(stub_everything)
+          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}',
+                                           :headers => {"Content-Type" => "application/json",
+                                                        "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
         @transport.perform_request 'GET', '/', {}, '{"foo":"bar"}'
       end
 
       should "set body for PUT request" do
         @transport.connections.first.connection.expects(:put).
-          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}'}).returns(stub_everything)
+          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}',
+                                           :headers => {"Content-Type" => "application/json",
+                                                        "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
         @transport.perform_request 'PUT', '/', {}, {:foo => 'bar'}
       end
 
       should "serialize the request body" do
         @transport.connections.first.connection.expects(:post).
-          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}'}).returns(stub_everything)
+          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}',
+                                           :headers => {"Content-Type" => "application/json",
+                                                        "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
         @transport.perform_request 'POST', '/', {}, {'foo' => 'bar'}
       end
 
       should "set custom headers for PUT request" do
         @transport.connections.first.connection.expects(:put).
-          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}', :headers => {"Content-Type" => "application/x-ndjson"}})
+          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}',
+                                           :headers => {"Content-Type" => "application/json",
+                                                        "User-Agent" => @transport.send(:user_agent_header)}})
           .returns(stub_everything)
         @transport.perform_request 'PUT', '/', {}, '{"foo":"bar"}', {"Content-Type" => "application/x-ndjson"}
       end
 
       should "not serialize a String request body" do
         @transport.connections.first.connection.expects(:post).
-          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}'}).returns(stub_everything)
+          with('http://127.0.0.1:8080//', {:body => '{"foo":"bar"}',
+                                           :headers => {"Content-Type" => "application/json",
+                                                        "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
         @transport.serializer.expects(:dump).never
         @transport.perform_request 'POST', '/', {}, '{"foo":"bar"}'
       end
@@ -76,7 +103,8 @@ else
 
         transport = Manticore.new :hosts => [ { :host => 'localhost', :port => 8080 } ], :options => options
 
-        transport.connections.first.connection.stub("http://localhost:8080//", :body => "\"\"", :headers => {"content-type" => "application/json"}, :code => 200 )
+        transport.connections.first.connection.stub("http://localhost:8080//", :body => "\"\"", :headers => {"Content-Type" => "application/x-ndjson",
+                                                                                                             "User-Agent" => @transport.send(:user_agent_header)}, :code => 200 )
 
         response = transport.perform_request 'GET', '/', {}
         assert_equal response.status, 200
@@ -96,11 +124,16 @@ else
       end
 
       should "handle HTTP methods" do
-        @transport.connections.first.connection.expects(:delete).with('http://127.0.0.1:8080//', {}).returns(stub_everything)
-        @transport.connections.first.connection.expects(:head).with('http://127.0.0.1:8080//', {}).returns(stub_everything)
-        @transport.connections.first.connection.expects(:get).with('http://127.0.0.1:8080//', {}).returns(stub_everything)
-        @transport.connections.first.connection.expects(:put).with('http://127.0.0.1:8080//', {}).returns(stub_everything)
-        @transport.connections.first.connection.expects(:post).with('http://127.0.0.1:8080//', {}).returns(stub_everything)
+        @transport.connections.first.connection.expects(:delete).with('http://127.0.0.1:8080//', { headers: {"Content-Type" => "application/json",
+                                                                                                             "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
+        @transport.connections.first.connection.expects(:head).with('http://127.0.0.1:8080//', { headers: {"Content-Type" => "application/json",
+                                                                                                           "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
+        @transport.connections.first.connection.expects(:get).with('http://127.0.0.1:8080//', { headers: {"Content-Type" => "application/json",
+                                                                                                          "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
+        @transport.connections.first.connection.expects(:put).with('http://127.0.0.1:8080//', { headers: {"Content-Type" => "application/json",
+                                                                                                          "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
+        @transport.connections.first.connection.expects(:post).with('http://127.0.0.1:8080//', { headers: {"Content-Type" => "application/json",
+                                                                                                           "User-Agent" => @transport.send(:user_agent_header)}}).returns(stub_everything)
 
         %w| HEAD GET PUT POST DELETE |.each { |method| @transport.perform_request method, '/' }
 
@@ -110,8 +143,13 @@ else
       should "allow to set options for Manticore" do
         options = { :headers => {"User-Agent" => "myapp-0.0" }}
         transport = Manticore.new :hosts => [ { :host => 'foobar', :port => 1234 } ], :options => options
-        transport.connections.first.connection.expects(:get).
-          with('http://foobar:1234//', options).returns(stub_everything)
+        transport.connections.first.connection
+          .expects(:get)
+          .with do |host, options|
+            assert_equal 'myapp-0.0', options[:headers]['User-Agent']
+            true
+          end
+          .returns(stub_everything)
 
         transport.perform_request 'GET', '/', {}
       end

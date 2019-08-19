@@ -31,11 +31,8 @@ declare -a components=()
 while (($#))
 do
 case $1 in
-    kibana|fluentd|curator|elasticsearch|project_info)
+    kibana|collector|curator|elasticsearch|project_info|elasticsearch-operator)
       components+=($1)
-      ;;
-    --namespace=*)
-      NAMESPACE=${1#*=}
       ;;
     --outdir=*)
       target=${1#*=}
@@ -49,28 +46,26 @@ done
 
 if [[ ${#components[@]} -eq 0 ]]
 then
-    components=( "kibana" "fluentd" "curator" "elasticsearch" "project_info" )
+    components=( "kibana" "collector" "curator" "elasticsearch" "project_info" "elasticsearch-operator" )
 fi
 
-if [ -z "${NAMESPACE:-}" ] && oc get project logging > /dev/null ; then
-  NAMESPACE=logging
-fi
-
-NAMESPACE=${NAMESPACE:-openshift-logging}
+NAMESPACE=openshift-logging
 
 DATE=`date +%Y%m%d_%H%M%S`
 target=${target:-"logging-$DATE"}
 logs_folder="$target/logs"
 es_folder="$target/es"
-fluentd_folder="$target/fluentd"
+collector_folder="$target/collector"
 kibana_folder="$target/kibana"
 curator_folder="$target/curator"
 project_folder="$target/project"
+es_operator_folder="$target/es-operator"
 
 dump_resource_items() {
   local type=$1
+  local ns=${2:-$NAMESPACE}
   mkdir $project_folder/$type
-  for resource in `oc get $type -o jsonpath='{.items[*].metadata.name}'`
+  for resource in `oc -n $ns get $type -o jsonpath='{.items[*].metadata.name}'`
   do
     oc get $type $resource -o yaml > $project_folder/$type/$resource
   done
@@ -110,7 +105,7 @@ check_project_info() {
   echo -- Secrets
   oc describe secrets > $project_folder/secrets
 
-  resource_types=(deploymentconfigs daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods)
+  resource_types=(deployments daemonsets configmaps services routes serviceaccounts persistentvolumeclaims pods cronjobs)
   for resource_type in ${resource_types[@]}
   do
     echo -- Extracting $resource_type ...
@@ -122,105 +117,107 @@ check_project_info() {
 get_env() {
   local pod=$1
   local env_file=$2/$pod
-  containers=$(oc get po $pod -o jsonpath='{.spec.containers[*].name}')
+  local ns=${3:-$NAMESPACE}
+  local pattern=${4:-"Dockerfile-*logging*"}
+  echo ---- Env for $pod
+  containers=$(oc -n $ns get po $pod -o jsonpath='{.spec.containers[*].name}')
   for container in $containers
   do
-    dockerfile=$(oc exec $pod -c $container -- find /root/buildinfo -name "Dockerfile-openshift3-logging*" || :)
+    dockerfile=$(oc -n $ns exec $pod -c $container -- find /root/buildinfo -name $pattern || :)
     if [ -n "$dockerfile" ]
     then
       echo Dockerfile info: $dockerfile > $env_file
-      oc exec $pod -c $container -- grep -o "\"build-date\"=\"[^[:blank:]]*\"" $dockerfile >> $env_file || echo ---- Unable to get build date
+      oc -n $ns exec $pod -c $container -- grep -o "\"build-date\"=\"[^[:blank:]]*\"" $dockerfile >> $env_file || echo ---- Unable to get build date
     fi
     echo -- Environment Variables >> $env_file
-    oc exec $pod -c $container -- env | sort >> $env_file
+    oc -n $ns exec $pod -c $container -- env | sort >> $env_file
   done
 }
 
 get_pod_logs() {
   local pod=$1
   local logs_folder=$2/logs
-  echo -- POD $1 Logs
+  local ns=${3:-$NAMESPACE}
+  echo ---- Logs for POD $1
   if [ ! -d "$logs_folder" ]
   then
     mkdir $logs_folder
   fi
-  local containers=$(oc get po $pod -o jsonpath='{.spec.containers[*].name}')
+  local containers=$(oc -n $ns get po $pod -o jsonpath='{.spec.containers[*].name}')
   for container in $containers
   do
-    oc logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
+    echo ------ container: $container
+    oc -n $ns logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
   done
-  if [ "$fluentd_folder" == "$2" ]
-  then
-    oc exec $1 logs | nice xz >> $logs_folder/$pod.log.xz
-  fi  
 }
 
-check_fluentd_connectivity() {
+check_collector_connectivity() {
   local pod=$1
-  echo --Connectivity between $pod and elasticsearch >> $fluentd_folder/$pod
+  echo --Connectivity between $pod and elasticsearch >> $collector_folder/$pod
   es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_HOST")].value}')
   es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_PORT")].value}')
-  echo "  with ca" >> $fluentd_folder/$pod
-  oc exec $pod -- curl -ILvs --key /etc/fluent/keys/key --cert /etc/fluent/keys/cert --cacert /etc/fluent/keys/ca -XGET https://$es_host:$es_port &>> $fluentd_folder/$pod
-  echo "  without ca" >> $fluentd_folder/$pod
-  oc exec $pod -- curl -ILkvs --key /etc/fluent/keys/key --cert /etc/fluent/keys/cert -XGET https://$es_host:$es_port &>> $fluentd_folder/$pod
-  echo --Connectivity between $pod and elasticsearch-ops >> $fluentd_folder/$pod
-  es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="OPS_HOST")].value}')
-  es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="OPS_PORT")].value}')
-  if [ -n "$es_host" -a -n "$es_port" ] ; then
-    echo "ops cluster Elasticsearch"
-    echo "  with ca" >> $fluentd_folder/$pod
-    oc exec $pod -- curl -ILvs --key /etc/fluent/keys/key --cert /etc/fluent/keys/cert --cacert /etc/fluent/keys/ca -XGET https://$es_host:$es_port &>> $fluentd_folder/$pod
-    echo "  without ca" >> $fluentd_folder/$pod
-    oc exec $pod -- curl -ILkvs --key /etc/fluent/keys/key --cert /etc/fluent/keys/cert -XGET https://$es_host:$es_port &>> $fluentd_folder/$pod
+  collector=fluent
+  if [[ "${pod}" =~ .*rsyslog.* ]] ; then
+    collector=rsyslog
   fi
+  echo "  with ca" >> $collector_folder/$pod
+  oc exec $pod -- curl -ILvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert --cacert /etc/$collector/keys/ca -XGET https://$es_host:$es_port &>> $collector_folder/$pod
+  echo "  without ca" >> $collector_folder/$pod
+  oc exec $pod -- curl -ILkvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert -XGET https://$es_host:$es_port &>> $collector_folder/$pod
 }
 
-check_fluentd_persistence() {
+check_collector_persistence() {
   local pod=$1
-  echo --Persistence stats for pod $pod >> $fluentd_folder/$pod
-  fbstoragePath=$(oc get daemonset logging-fluentd -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="filebufferstorage")].mountPath}')
+  echo --Persistence stats for pod $pod >> $collector_folder/$pod
+  collector=fluentd
+  if [[ "${pod}" =~ .*rsyslog.* ]] ; then
+    collector=rsyslog
+  fi
+  fbstoragePath=$(oc get daemonset $collector -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="filebufferstorage")].mountPath}')
   if [ -z "$fbstoragePath" ] ; then
-    echo No filebuffer storage defined >>  $fluentd_folder/$pod
+    echo No filebuffer storage defined >>  $collector_folder/$pod
   else
-    oc exec $pod -- df -h $fbstoragePath >> $fluentd_folder/$pod
-    oc exec $pod -- ls -lr $fbstoragePath >> $fluentd_folder/$pod
+    oc exec $pod -c $collector -- df -h $fbstoragePath >> $collector_folder/$pod
+    oc exec $pod -c $collector -- ls -lr $fbstoragePath >> $collector_folder/$pod
   fi
 }
 
-check_fluentd() {
-  echo -- Checking Fluentd health
-  fluentd_pods=$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name})
-  mkdir $fluentd_folder
-  for pod in $fluentd_pods
+check_collector() {
+  echo -- Checking Collector health
+  pods="$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name}) $(oc get pods -l logging-infra=rsyslog -o jsonpath={.items[*].metadata.name})"
+  mkdir $collector_folder
+  for pod in $pods
   do
-    echo ---- Fluentd pod: $pod
-    get_env $pod $fluentd_folder
-    get_pod_logs $pod $fluentd_folder
-    check_fluentd_connectivity $pod
-    check_fluentd_persistence $pod
+    echo ---- Collector pod: $pod
+    get_env $pod $collector_folder
+    get_pod_logs $pod $collector_folder
+    check_collector_connectivity $pod
+    check_collector_persistence $pod
   done
+}
+
+check_elasticsearch-operator() {
+  echo "Checking elasticsearch-operator"
+  mkdir $es_operator_folder
+  namespace=openshift-operators-redhat
+  pods=$(oc -n $namespace get pods -l name=elasticsearch-operator -o jsonpath={.items[*].metadata.name})
+  for pod in $pods
+  do
+    get_env $pod $es_operator_folder $namespace "Dockerfile-*operator*"
+    get_pod_logs $pod $es_operator_folder $namespace
+  done
+  oc -n $namespace get deployment elasticsearch-operator -o yaml > $es_operator_folder/deployment
 }
 
 check_curator_connectivity() {
-  local pod=$1
-  echo --Connectivity between $pod and elasticsearch >> $curator_folder/$pod
-  es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_HOST")].value}')
-  es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_PORT")].value}')
+  local cron=$1
+  echo --Connectivity between $cron and elasticsearch >> $curator_folder/$pod
+  es_host=$(oc get cronjob $cron  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_HOST")].value}')
+  es_port=$(oc get cronjob $cron  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_PORT")].value}')
   echo "  with ca" >> $curator_folder/$pod
-  oc exec $pod -- curl -ILvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert --cacert /etc/curator/keys/ca -XGET https://$es_host:$es_port &>> $curator_folder/$pod
+  oc debug cronjob/$cron -- curl -ILvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert --cacert /etc/curator/keys/ca -XGET https://$es_host:$es_port &>> $curator_folder/$pod
   echo "  without ca" >> $curator_folder/$pod
-  oc exec $pod -- curl -ILkvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert -XGET https://$es_host:$es_port &>> $curator_folder/$pod
-  echo --Connectivity between $pod and elasticsearch-ops >> $curator_folder/$pod
-  es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="OPS_HOST")].value}')
-  es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="OPS_PORT")].value}')
-  if [ -n "$es_host" -a -n "$es_port" ] ; then
-    echo "ops cluster Elasticsearch"
-    echo "  with ca" >> $curator_folder/$pod
-    oc exec $pod -- curl -ILvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert --cacert /etc/curator/keys/ca -XGET https://$es_host:$es_port &>> $curator_folder/$pod
-    echo "  without ca" >> $curator_folder/$pod
-    oc exec $pod -- curl -ILkvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert -XGET https://$es_host:$es_port &>> $curator_folder/$pod
-  fi
+  oc debug cronjob/$cron -- curl -ILkvs --key /etc/curator/keys/key --cert /etc/curator/keys/cert -XGET https://$es_host:$es_port &>> $curator_folder/$pod
 }
 
 check_curator() {
@@ -232,19 +229,18 @@ check_curator() {
     echo ---- Curator pod: $pod
     get_env $pod $curator_folder
     get_pod_logs $pod $curator_folder
-    check_curator_connectivity $pod
   done
+  check_curator_connectivity curator
 }
 
 check_kibana_connectivity() {
   pod=$1
   echo ---- Connectivity between $pod and elasticsearch >> $kibana_folder/$pod
-  es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[?(@.name=="kibana")].env[?(@.name=="ES_HOST")].value}')
-  es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[?(@.name=="kibana")].env[?(@.name=="ES_PORT")].value}')
+  es_url=$(oc get pod $pod  -o jsonpath='{.spec.containers[?(@.name=="kibana")].env[?(@.name=="ELASTICSEARCH_URL")].value}')
   echo "  with ca" >> $kibana_folder/$pod
-  oc exec $pod -c kibana -- curl -ILvs --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca -XGET https://$es_host:$es_port &>> $kibana_folder/$pod
+  oc exec $pod -c kibana -- curl -ILvs --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert --cacert /etc/kibana/keys/ca -XGET $es_url &>> $kibana_folder/$pod
   echo "  without ca" >> $kibana_folder/$pod
-  oc exec $pod -c kibana -- curl -ILkvs --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET https://$es_host:$es_port &>> $kibana_folder/$pod
+  oc exec $pod -c kibana -- curl -ILkvs --key /etc/kibana/keys/key --cert /etc/kibana/keys/cert -XGET $es_url &>> $kibana_folder/$pod
 }
 
 check_kibana() {
@@ -302,21 +298,10 @@ get_es_logs() {
   then
     mkdir $logs_folder
   fi
-  local dc_name=$(oc get po $pod -o jsonpath='{.metadata.labels.deploymentconfig}')
-  if [[ $pod == logging-es-ops* ]]
-  then
-    path=/elasticsearch/persistent/logging-es-ops/logs
-  else
-    path=/elasticsearch/persistent/logging-es/logs
-  fi
+  path=/elasticsearch/persistent/elasticsearch/logs
   exists=$( oc exec $pod -c elasticsearch -- ls ${path} 2> /dev/null ) || :
   if [ -z "$exists" ]; then
-    if [[ $pod == logging-es-ops* ]]
-    then
-      path=/elasticsearch/logging-es-ops/logs
-    else
-      path=/elasticsearch/logging-es/logs
-    fi
+    path=/elasticsearch/elasticsearch/logs
   fi
   exists=$( oc exec $pod -c elasticsearch -- ls ${path} 2> /dev/null ) || :
   if [ -z "$exists" ]; then
@@ -338,7 +323,7 @@ list_es_storage() {
 check_elasticsearch() {
   echo Checking Elasticsearch health
   echo -- Checking Elasticsearch health
-  local es_pods=$(oc get pods -l logging-infra=elasticsearch -o jsonpath={.items[*].metadata.name})
+  local es_pods=$(oc get pods -l component=elasticsearch -o jsonpath={.items[*].metadata.name})
   mkdir $es_folder
   for pod in $es_pods
   do
@@ -350,7 +335,7 @@ check_elasticsearch() {
   done
 
   local anypod=""
-  for comp in "es" "es-ops"
+  for comp in "elasticsearch"
   do
     echo -- Getting Elasticsearch cluster info from logging-${comp} pod
     anypod=$(oc get po --selector="component=${comp}" --no-headers | grep Running | awk '{print$1}' | tail -1 || :)
@@ -368,5 +353,5 @@ fi
 
 for comp in "${components[@]}"
 do
-    eval "check_${comp}" || echo Unrecognized function check_${comp} to check component: ${comp}
+    eval "check_${comp}" || echo Unrecognized function "'check_${comp}'" to check component: "'${comp}'"
 done

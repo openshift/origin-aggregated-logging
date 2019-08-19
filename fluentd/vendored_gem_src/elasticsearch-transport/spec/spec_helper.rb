@@ -4,6 +4,12 @@ require 'logger'
 require 'ansi/code'
 require 'hashie/mash'
 require 'pry-nav'
+if defined?(JRUBY_VERSION)
+  require 'elasticsearch/transport/transport/http/manticore'
+else
+  require 'elasticsearch/transport/transport/http/curb'
+  require 'curb'
+end
 
 # The hosts to use for creating a elasticsearch client.
 #
@@ -13,6 +19,8 @@ ELASTICSEARCH_HOSTS = if hosts = ENV['TEST_ES_SERVER'] || ENV['ELASTICSEARCH_HOS
                           /(http\:\/\/)?(\S+)/.match(host)[2]
                         end
                       end.freeze
+
+TEST_HOST, TEST_PORT = ELASTICSEARCH_HOSTS.first.split(':') if ELASTICSEARCH_HOSTS
 
 # Are we testing on JRuby?
 #

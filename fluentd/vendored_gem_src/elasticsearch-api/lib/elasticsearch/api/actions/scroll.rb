@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module API
     module Actions
@@ -16,7 +33,7 @@ module Elasticsearch
       #                            scroll: '5m',
       #                            body: { query: { match: { title: 'test' } }, sort: '_id' }
       #
-      #     result = client.scroll scroll: '5m', body: { scroll_id: result['_scroll_id'] }
+      #     result = client.scroll body: { scroll_id: result['_scroll_id'], scroll: '5m' }
       #
       # @example Call the `scroll` API until all the documents are returned
       #
@@ -42,10 +59,11 @@ module Elasticsearch
       #
       # @option arguments [String] :scroll_id The scroll ID
       # @option arguments [Hash] :body The scroll ID if not passed by URL or query parameter.
-      # @option arguments [Duration] :scroll Specify how long a consistent view of the index
-      #                                      should be maintained for scrolled search
+      # @option arguments [Time] :scroll Specify how long a consistent view of the index should be maintained for scrolled search
+      # @option arguments [String] :scroll_id The scroll ID for scrolled search
+      # @option arguments [Boolean] :rest_total_hits_as_int Indicates whether hits.total should be rendered as an integer or an object in the rest search response
       #
-      # @see http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/scan-scroll.html#scan-scroll
+      # @see https://www.elastic.co/guide/en/elasticsearch/guide/current/scan-scroll.html#scan-scroll
       # @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-scroll.html
       #
       def scroll(arguments={})
@@ -59,7 +77,7 @@ module Elasticsearch
 
       # Register this action with its valid params when the module is loaded.
       #
-      # @since 6.2.0
+      # @since 6.1.1
       ParamsRegistry.register(:scroll, [
           :scroll,
           :scroll_id,

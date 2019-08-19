@@ -76,7 +76,7 @@ for kibana_pod in $( oc get pods --selector component="${OAL_KIBANA_COMPONENT}" 
 	os::cmd::try_until_text "oc get pod ${kibana_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"kibana-proxy\")].ready }'" "true"
 done
 
-for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
+for elasticsearch_pod in $( get_es_pod_all ${OAL_ELASTICSEARCH_COMPONENT} ); do
 	os::log::info "Testing Elasticsearch pod ${elasticsearch_pod} for a successful start..."
 	os::cmd::try_until_text "curl_es_pod '${elasticsearch_pod}' '/' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200' "$(( 10*TIME_MIN ))"
 	os::cmd::try_until_text "oc get pod ${elasticsearch_pod} -o jsonpath='{ .status.containerStatuses[?(@.name==\"elasticsearch\")].ready }'" "true"
@@ -126,7 +126,7 @@ for elasticsearch_pod in $( get_es_pod ${OAL_ELASTICSEARCH_COMPONENT} ); do
 	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} contains common data model index templates..."
 	es_home="$( oc exec -c elasticsearch ${elasticsearch_pod} -- env | awk -F= '/^ES_HOME/ {print $2}')"
 	os::cmd::expect_success "oc exec -c elasticsearch ${elasticsearch_pod} -- ls -1 ${es_home}/index_templates"
-	for template in $( oc exec -c elasticsearch "${elasticsearch_pod}" -- ls -1 ${es_home}/index_templates ); do
+	for template in $( oc exec -c elasticsearch "${elasticsearch_pod}" -- ls -1 ${es_home}/index_templates | grep -v .bkup); do
 		os::cmd::expect_success_and_text "curl_es_pod '${elasticsearch_pod}' '/_template/${template}' --request HEAD --head --output /dev/null --write-out '%{response_code}'" '200'
 	done
 

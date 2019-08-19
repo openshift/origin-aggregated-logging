@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module Transport
     module Transport
@@ -5,6 +22,8 @@ module Elasticsearch
       # @abstract Module with common functionality for transport implementations.
       #
       module Base
+        include Loggable
+
         DEFAULT_PORT             = 9200
         DEFAULT_PROTOCOL         = 'http'
         DEFAULT_RELOAD_AFTER     = 10_000 # Requests
@@ -32,11 +51,12 @@ module Elasticsearch
           @state_mutex = Mutex.new
 
           @hosts       = arguments[:hosts]   || []
-          @options     = arguments[:options] ? arguments[:options].dup : {}
+          @options     = arguments[:options] || {}
           @options[:http] ||= {}
           @options[:retry_on_status] ||= []
 
           @block       = block
+          @compression = !!@options[:compression]
           @connections = __build_connections
 
           @serializer  = options[:serializer] || ( options[:serializer_class] ? options[:serializer_class].new(self) : DEFAULT_SERIALIZER_CLASS.new(self) )
@@ -81,7 +101,7 @@ module Elasticsearch
           __rebuild_connections :hosts => hosts, :options => options
           self
         rescue SnifferTimeoutError
-          logger.error "[SnifferTimeoutError] Timeout when reloading connections." if logger
+          log_error "[SnifferTimeoutError] Timeout when reloading connections."
           self
         end
 
@@ -128,15 +148,15 @@ module Elasticsearch
         def __build_connections
           Connections::Collection.new \
             :connections => hosts.map { |host|
-              host[:protocol] = host[:scheme] || options[:scheme] || options[:http][:scheme] || DEFAULT_PROTOCOL
-              host[:port] ||= options[:port] || options[:http][:port] || DEFAULT_PORT
-              if (options[:user] || options[:http][:user]) && !host[:user]
-                host[:user] ||= options[:user] || options[:http][:user]
-                host[:password] ||= options[:password] || options[:http][:password]
-              end
+            host[:protocol] = host[:scheme] || options[:scheme] || options[:http][:scheme] || DEFAULT_PROTOCOL
+            host[:port] ||= options[:port] || options[:http][:port] || DEFAULT_PORT
+            if (options[:user] || options[:http][:user]) && !host[:user]
+              host[:user] ||= options[:user] || options[:http][:user]
+              host[:password] ||= options[:password] || options[:http][:password]
+            end
 
-              __build_connection(host, (options[:transport_options] || {}), @block)
-            },
+            __build_connection(host, (options[:transport_options] || {}), @block)
+          },
             :selector_class => options[:selector_class],
             :selector => options[:selector]
         end
@@ -164,20 +184,14 @@ module Elasticsearch
         #
         # @api private
         #
-        def __log(method, path, params, body, url, response, json, took, duration)
-          sanitized_url = url.to_s.gsub(/\/\/(.+):(.+)@/, '//' + '\1:' + SANITIZED_PASSWORD +  '@')
-          logger.info  "#{method.to_s.upcase} #{sanitized_url} " +
-                       "[status:#{response.status}, request:#{sprintf('%.3fs', duration)}, query:#{took}]"
-          logger.debug "> #{__convert_to_json(body)}" if body
-          logger.debug "< #{response.body}"
-        end
-
-        # Log failed request
-        #
-        # @api private
-        #
-        def __log_failed(response)
-          logger.fatal "[#{response.status}] #{response.body}"
+        def __log_response(method, path, params, body, url, response, json, took, duration)
+          if logger
+            sanitized_url = url.to_s.gsub(/\/\/(.+):(.+)@/, '//' + '\1:' + SANITIZED_PASSWORD + '@')
+            log_info "#{method.to_s.upcase} #{sanitized_url} " +
+                         "[status:#{response.status}, request:#{sprintf('%.3fs', duration)}, query:#{took}]"
+            log_debug "> #{__convert_to_json(body)}" if body
+            log_debug "< #{response.body}"
+          end
         end
 
         # Trace the request in the `curl` format
@@ -186,10 +200,10 @@ module Elasticsearch
         #
         def __trace(method, path, params, headers, body, url, response, json, took, duration)
           trace_url  = "http://localhost:9200/#{path}?pretty" +
-                       ( params.empty? ? '' : "&#{::Faraday::Utils::ParamsHash[params].to_query}" )
+              ( params.empty? ? '' : "&#{::Faraday::Utils::ParamsHash[params].to_query}" )
           trace_body = body ? " -d '#{__convert_to_json(body, :pretty => true)}'" : ''
           trace_command = "curl -X #{method.to_s.upcase}"
-          trace_command += " -H '#{headers.inject('') { |memo,item| memo << item[0] + ': ' + item[1] }}'" if headers && !headers.empty?
+          trace_command += " -H '#{headers.collect { |k,v| "#{k}: #{v}" }.join(", ")}'" if headers && !headers.empty?
           trace_command += " '#{trace_url}'#{trace_body}\n"
           tracer.info trace_command
           tracer.debug "# #{Time.now.iso8601} [#{response.status}] (#{format('%.3f', duration)}s)\n#"
@@ -221,7 +235,8 @@ module Elasticsearch
         def __full_url(host)
           url  = "#{host[:protocol]}://"
           url += "#{CGI.escape(host[:user])}:#{CGI.escape(host[:password])}@" if host[:user]
-          url += "#{host[:host]}:#{host[:port]}"
+          url += "#{host[:host]}"
+          url += ":#{host[:port]}" if host[:port]
           url += "#{host[:path]}" if host[:path]
           url
         end
@@ -246,7 +261,7 @@ module Elasticsearch
         #
         def perform_request(method, path, params={}, body=nil, headers=nil, &block)
           raise NoMethodError, "Implement this method in your transport class" unless block_given?
-          start = Time.now if logger || tracer
+          start = Time.now
           tries = 0
 
           params = params.clone
@@ -271,12 +286,12 @@ module Elasticsearch
             __raise_transport_error(response) if response.status.to_i >= 300 && @retry_on_status.include?(response.status.to_i)
 
           rescue Elasticsearch::Transport::Transport::ServerError => e
-            if @retry_on_status.include?(response.status)
-              logger.warn "[#{e.class}] Attempt #{tries} to get response from #{url}" if logger
+            if response && @retry_on_status.include?(response.status)
+              log_warn "[#{e.class}] Attempt #{tries} to get response from #{url}"
               if tries <= max_retries
                 retry
               else
-                logger.fatal "[#{e.class}] Cannot get response from #{url} after #{tries} tries" if logger
+                log_fatal "[#{e.class}] Cannot get response from #{url} after #{tries} tries"
                 raise e
               end
             else
@@ -284,21 +299,21 @@ module Elasticsearch
             end
 
           rescue *host_unreachable_exceptions => e
-            logger.error "[#{e.class}] #{e.message} #{connection.host.inspect}" if logger
+            log_error "[#{e.class}] #{e.message} #{connection.host.inspect}"
 
             connection.dead!
 
             if @options[:reload_on_failure] and tries < connections.all.size
-              logger.warn "[#{e.class}] Reloading connections (attempt #{tries} of #{connections.all.size})" if logger
+              log_warn "[#{e.class}] Reloading connections (attempt #{tries} of #{connections.all.size})"
               reload_connections! and retry
             end
 
             if @options[:retry_on_failure]
-              logger.warn "[#{e.class}] Attempt #{tries} connecting to #{connection.host.inspect}" if logger
+              log_warn "[#{e.class}] Attempt #{tries} connecting to #{connection.host.inspect}"
               if tries <= max_retries
                 retry
               else
-                logger.fatal "[#{e.class}] Cannot connect to #{connection.host.inspect} after #{tries} tries" if logger
+                log_fatal "[#{e.class}] Cannot connect to #{connection.host.inspect} after #{tries} tries"
                 raise e
               end
             else
@@ -306,28 +321,33 @@ module Elasticsearch
             end
 
           rescue Exception => e
-            logger.fatal "[#{e.class}] #{e.message} (#{connection.host.inspect if connection})" if logger
+            log_fatal "[#{e.class}] #{e.message} (#{connection.host.inspect if connection})"
             raise e
 
           end #/begin
 
-          duration = Time.now-start if logger || tracer
+          duration = Time.now - start
 
           if response.status.to_i >= 300
-            __log    method, path, params, body, url, response, nil, 'N/A', duration if logger
-            __trace  method, path, params, headers, body, url, response, nil, 'N/A', duration if tracer
+            __log_response    method, path, params, body, url, response, nil, 'N/A', duration
+            __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
 
             # Log the failure only when `ignore` doesn't match the response status
-            __log_failed response if logger && !ignore.include?(response.status.to_i)
+            unless ignore.include?(response.status.to_i)
+              log_fatal "[#{response.status}] #{response.body}"
+            end
 
             __raise_transport_error response unless ignore.include?(response.status.to_i)
           end
 
           json     = serializer.load(response.body) if response.body && !response.body.empty? && response.headers && response.headers["content-type"] =~ /json/
-          took     = (json['took'] ? sprintf('%.3fs', json['took']/1000.0) : 'n/a') rescue 'n/a' if logger || tracer
+          took     = (json['took'] ? sprintf('%.3fs', json['took']/1000.0) : 'n/a') rescue 'n/a'
 
-          __log   method, path, params, body, url, response, json, took, duration if logger && !ignore.include?(response.status.to_i)
-          __trace method, path, params, headers, body, url, response, json, took, duration if tracer
+          unless ignore.include?(response.status.to_i)
+            __log_response   method, path, params, body, url, response, json, took, duration
+          end
+
+          __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
 
           Response.new response.status, json || response.body, response.headers
         ensure
@@ -341,6 +361,66 @@ module Elasticsearch
         #
         def host_unreachable_exceptions
           [Errno::ECONNREFUSED]
+        end
+
+        private
+
+        USER_AGENT_STR = 'User-Agent'.freeze
+        USER_AGENT_REGEX = /user\-?\_?agent/
+        CONTENT_TYPE_STR = 'Content-Type'.freeze
+        CONTENT_TYPE_REGEX = /content\-?\_?type/
+        DEFAULT_CONTENT_TYPE = 'application/json'.freeze
+        GZIP = 'gzip'.freeze
+        ACCEPT_ENCODING = 'Accept-Encoding'.freeze
+        GZIP_FIRST_TWO_BYTES = '1f8b'.freeze
+        HEX_STRING_DIRECTIVE = 'H*'.freeze
+        RUBY_ENCODING = '1.9'.respond_to?(:force_encoding)
+
+        def decompress_response(body)
+          return body unless use_compression?
+          return body unless gzipped?(body)
+
+          io = StringIO.new(body)
+          gzip_reader = if RUBY_ENCODING
+                          Zlib::GzipReader.new(io, :encoding => 'ASCII-8BIT')
+                        else
+                          Zlib::GzipReader.new(io)
+                        end
+          gzip_reader.read
+        end
+
+        def gzipped?(body)
+          body[0..1].unpack(HEX_STRING_DIRECTIVE)[0] == GZIP_FIRST_TWO_BYTES
+        end
+
+        def use_compression?
+          @compression
+        end
+
+        def apply_headers(client, options)
+          headers = options[:headers] || {}
+          headers[CONTENT_TYPE_STR] = find_value(headers, CONTENT_TYPE_REGEX) || DEFAULT_CONTENT_TYPE
+          headers[USER_AGENT_STR] = find_value(headers, USER_AGENT_REGEX) || user_agent_header(client)
+          client.headers[ACCEPT_ENCODING] = GZIP if use_compression?
+          client.headers.merge!(headers)
+        end
+
+        def find_value(hash, regex)
+          key_value = hash.find { |k,v| k.to_s.downcase =~ regex }
+          if key_value
+            hash.delete(key_value[0])
+            key_value[1]
+          end
+        end
+
+        def user_agent_header(client)
+          @user_agent ||= begin
+            meta = ["RUBY_VERSION: #{RUBY_VERSION}"]
+            if RbConfig::CONFIG && RbConfig::CONFIG['host_os']
+              meta << "#{RbConfig::CONFIG['host_os'].split('_').first[/[a-z]+/i].downcase} #{RbConfig::CONFIG['target_cpu']}"
+            end
+            "elasticsearch-ruby/#{VERSION} (#{meta.join('; ')})"
+          end
         end
       end
     end

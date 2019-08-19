@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+export NSS_SDB_USE_CACHE=no
+
 # TODO: try re-use code from ./run.sh
 ES_REST_BASEURL=https://localhost:9200
 EXPECTED_RESPONSE_CODE=200

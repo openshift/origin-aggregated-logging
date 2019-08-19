@@ -475,7 +475,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     # creation
     stub_request(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template").
       to_return(:status => 200, :body => "", :headers => {})
-    
+
     driver(config)
 
     assert_requested(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template", times: 1)
@@ -520,7 +520,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     # put the alias for the index
     stub_request(:put, "https://john:doe@logs.google.com:777/es//%3Cmylogs-myapp-%7Bnow%2Fw%7Bxxxx.ww%7D%7D-000001%3E/_alias/myapp_deflector").
       to_return(:status => 200, :body => "", :headers => {})
-    
+
     driver(config)
 
     assert_requested(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template", times: 1)
@@ -584,7 +584,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     # creation
     stub_request(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template").
       to_return(:status => 200, :body => "", :headers => {})
-    
+
     driver(config)
 
     assert_requested(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template", times: 1)
@@ -629,7 +629,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     # put the alias for the index
     stub_request(:put, "https://john:doe@logs.google.com:777/es//%3Cmylogs-myapp-%7Bnow%2Fd%7D-000001%3E/_alias/myapp_deflector").
       to_return(:status => 200, :body => "", :headers => {})
-  
+
     driver(config)
 
     assert_requested(:put, "https://john:doe@logs.google.com:777/es//_template/myapp_alias_template", times: 1)
@@ -679,7 +679,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     end
   end
 
-  def test_template_retry_install
+  def test_template_retry_install_fails
     cwd = File.dirname(__FILE__)
     template_file = File.join(cwd, 'test_template.json')
 
@@ -705,6 +705,35 @@ class ElasticsearchOutput < Test::Unit::TestCase
     assert_raise(Fluent::Plugin::ElasticsearchError::RetryableOperationExhaustedFailure) do
       driver(config)
     end
+
+    assert_equal(connection_resets, 4)
+  end
+
+  def test_template_retry_install_does_not_fail
+    cwd = File.dirname(__FILE__)
+    template_file = File.join(cwd, 'test_template.json')
+
+    config = %{
+      host            logs.google.com
+      port            778
+      scheme          https
+      path            /es/
+      user            john
+      password        doe
+      template_name   logstash
+      template_file   #{template_file}
+      max_retry_putting_template 3
+      fail_on_putting_template_retry_exceed false
+    }
+
+    connection_resets = 0
+    # check if template exists
+    stub_request(:get, "https://john:doe@logs.google.com:778/es//_template/logstash").with do |req|
+      connection_resets += 1
+      raise Faraday::ConnectionFailed, "Test message"
+    end
+
+    driver(config)
 
     assert_equal(connection_resets, 4)
   end
@@ -1052,6 +1081,27 @@ class ElasticsearchOutput < Test::Unit::TestCase
       driver.feed(sample_record('huge_record' => ("a" * 20 * 1024 * 1024)))
     end
     assert_requested(request, times: 2)
+  end
+
+  def test_writes_with_huge_records_but_uncheck
+    driver.configure(Fluent::Config::Element.new(
+                       'ROOT', '', {
+                         '@type' => 'elasticsearch',
+                         'bulk_message_request_threshold' => -1,
+                       }, [
+                         Fluent::Config::Element.new('buffer', 'tag', {
+                                                       'chunk_keys' => ['tag', 'time'],
+                                                       'chunk_limit_size' => '64MB',
+                                                     }, [])
+                       ]
+                     ))
+    request = stub_elastic
+    driver.run(default_tag: 'test') do
+      driver.feed(sample_record('huge_record' => ("a" * 20 * 1024 * 1024)))
+      driver.feed(sample_record('huge_record' => ("a" * 20 * 1024 * 1024)))
+    end
+    assert_false(driver.instance.split_request?({}, nil))
+    assert_requested(request, times: 1)
   end
 
   class IndexNamePlaceholdersTest < self
@@ -1711,6 +1761,20 @@ class ElasticsearchOutput < Test::Unit::TestCase
     assert_equal(index_cmds[1]['@timestamp'], ts)
   end
 
+  def test_uses_custom_time_key_with_float_record
+    driver.configure("logstash_format true
+                      time_precision 3
+                      time_key vtm\n")
+    stub_elastic
+    time = Time.now
+    float_time = time.to_f
+    driver.run(default_tag: 'test') do
+      driver.feed(sample_record.merge!('vtm' => float_time))
+    end
+    assert(index_cmds[1].has_key? '@timestamp')
+    assert_equal(index_cmds[1]['@timestamp'], time.to_datetime.iso8601(3))
+  end
+
   def test_uses_custom_time_key_with_format
     driver.configure("logstash_format true
                       time_key_format %Y-%m-%d %H:%M:%S.%N%z
@@ -1723,6 +1787,22 @@ class ElasticsearchOutput < Test::Unit::TestCase
     assert(index_cmds[1].has_key? '@timestamp')
     assert_equal(index_cmds[1]['@timestamp'], DateTime.parse(ts).iso8601(9))
     assert_equal("logstash-2001.02.03", index_cmds[0]['index']['_index'])
+  end
+
+  def test_uses_custom_time_key_with_float_record_and_format
+    driver.configure("logstash_format true
+                      time_key_format %Y-%m-%d %H:%M:%S.%N%z
+                      time_key vtm\n")
+    stub_elastic
+    ts = "2001-02-03 13:14:01.673+02:00"
+    time = Time.parse(ts)
+    current_zone_offset = Time.now.to_datetime.offset
+    float_time = time.to_f
+    driver.run(default_tag: 'test') do
+      driver.feed(sample_record.merge!('vtm' => float_time))
+    end
+    assert(index_cmds[1].has_key? '@timestamp')
+    assert_equal(index_cmds[1]['@timestamp'], DateTime.parse(ts).new_offset(current_zone_offset).iso8601(9))
   end
 
   def test_uses_custom_time_key_with_format_without_logstash
@@ -1969,7 +2049,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
 
   class AddsRoutingKeyWhenConfiguredTest < self
     def test_es6
-      driver('', 6).configure("routing_key routing_id\n")
+      driver("routing_key routing_id\n", 6)
       stub_elastic
       driver.run(default_tag: 'test') do
         driver.feed(sample_record)
@@ -1978,7 +2058,7 @@ class ElasticsearchOutput < Test::Unit::TestCase
     end
 
     def test_es7
-      driver('', 7).configure("routing_key routing_id\n")
+      driver("routing_key routing_id\n", 7)
       stub_elastic
       driver.run(default_tag: 'test') do
         driver.feed(sample_record)

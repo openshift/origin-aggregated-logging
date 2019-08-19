@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--encoding".freeze, "UTF-8".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 2.2.2".freeze)
-  s.rubygems_version = "2.7.6".freeze
+  s.rubygems_version = "2.6.12".freeze
   s.summary = "A toolkit of support libraries and Ruby core extensions extracted from the Rails framework.".freeze
 
   if s.respond_to? :specification_version then

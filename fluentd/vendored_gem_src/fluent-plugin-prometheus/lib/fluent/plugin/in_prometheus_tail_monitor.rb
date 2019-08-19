@@ -31,6 +31,9 @@ module Fluent::Plugin
       placeholders = expander.prepare_placeholders({'hostname' => hostname, 'worker_id' => fluentd_worker_id})
       @base_labels = Fluent::Plugin::Prometheus.parse_labels_elements(conf)
       @base_labels.each do |key, value|
+        unless value.is_a?(String)
+          raise Fluent::ConfigError, "record accessor syntax is not available in prometheus_tail_monitor"
+        end
         @base_labels[key] = expander.expand(value, placeholders)
       end
 
@@ -40,6 +43,10 @@ module Fluent::Plugin
       else
         @monitor_agent = Fluent::MonitorAgentInput.new
       end
+    end
+
+    def start
+      super
 
       @metrics = {
         position: @registry.gauge(
@@ -49,10 +56,6 @@ module Fluent::Plugin
           :fluentd_tail_file_inode,
           'Current inode of file.'),
       }
-    end
-
-    def start
-      super
       timer_execute(:in_prometheus_tail_monitor, @interval, &method(:update_monitor_info))
     end
 

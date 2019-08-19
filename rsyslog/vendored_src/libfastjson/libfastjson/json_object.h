@@ -489,6 +489,8 @@ extern int fjson_object_array_put_idx(struct fjson_object *obj, int idx,
 extern struct fjson_object* fjson_object_array_get_idx(struct fjson_object *obj,
 							 int idx);
 
+extern void fjson_object_array_del_idx(struct fjson_object *jso, int idx);
+
 /* fjson_bool type methods */
 
 /** Create a new empty fjson_object of type fjson_type_boolean
@@ -731,6 +733,7 @@ typedef struct fjson_tokener fjson_tokener;
 #define json_object_get_int64 fjson_object_get_int64
 #define json_object_get_string_len fjson_object_get_string_len
 #define json_object_get_member_count fjson_object_get_member_count
+#define json_object_array_del_idx fjson_object_array_del_idx
 
 
 #endif

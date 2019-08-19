@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # encoding: UTF-8
 
 require 'thor'
@@ -30,7 +47,7 @@ module Elasticsearch
 
       __root = Pathname( File.expand_path('../../..', __FILE__) )
 
-      desc "generate <PATH TO JSON SPEC FILES>", "Generate source code and tests from the REST API JSON specification"
+      desc "generate", "Generate source code and tests from the REST API JSON specification"
       method_option :language,  default: 'ruby',                                          desc: 'Programming language'
       method_option :force,     type: :boolean, default: false,                           desc: 'Overwrite the output'
       method_option :verbose,   type: :boolean, default: false,                           desc: 'Output more information'
@@ -46,7 +63,11 @@ module Elasticsearch
         # -- Test helper
         copy_file "templates/ruby/test_helper.rb", @output.join('test').join('test_helper.rb') if options[:language] == 'ruby'
 
-        Dir[@input].each do |file|
+        files = Dir.entries(@input.to_s).reject { |f| f.start_with?('.') || f.start_with?('_') }
+
+        files.each do |filepath|
+          file    = @input.join(filepath)
+
           @path   = Pathname(file)
           @json   = MultiJson.load( File.read(@path) )
           @spec   = @json.values.first

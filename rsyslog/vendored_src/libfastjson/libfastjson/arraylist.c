@@ -87,6 +87,22 @@ array_list_add(struct array_list *arr, void *data)
 	return array_list_put_idx(arr, arr->length, data);
 }
 
+/*
+ * Deleting the idx-th element in the array_list.
+ */
+void
+array_list_del_idx(struct array_list *const arr, const int idx)
+{
+	if (idx < 0 || idx >= arr->length) {
+		return;
+	}
+	if(arr->array[idx]) arr->free_fn(arr->array[idx]);
+	if (--arr->length > idx) {
+		memmove(arr->array + idx, arr->array + idx + 1, (arr->length - idx) * sizeof(void *));
+	}
+	return;
+}
+
 /* work around wrong compiler message: GCC and clang do
  * not handle sort_fn correctly if -Werror is given.
  */

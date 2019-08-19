@@ -1,9 +1,11 @@
-From b26df881ee2c2f003f1ad1311f5c207a5a47978f Mon Sep 17 00:00:00 2001
+From 72d863eb35cb12b4b8e8e29479f728d50f603ed0 Mon Sep 17 00:00:00 2001
 From: Rich Megginson <rmeggins@redhat.com>
 Date: Wed, 12 Sep 2018 15:45:59 -0600
 Subject: [PATCH] Revert "Revert "Do closures via libffi""
 
 This reverts commit 94441aa5f8b694b62f70528011b32c5db3d42dd4.
+
+(cherry picked from commit b26df881ee2c2f003f1ad1311f5c207a5a47978f)
 ---
  ext/ffi_c/Call.c                       |  23 +-
  ext/ffi_c/Call.h                       |   9 -
@@ -21,10 +23,10 @@ This reverts commit 94441aa5f8b694b62f70528011b32c5db3d42dd4.
  delete mode 100644 ext/ffi_c/ClosurePool.c
 
 diff --git a/ext/ffi_c/Call.c b/ext/ffi_c/Call.c
-index 0b9aceb..ce0539d 100644
+index 3a7c690..7fa7470 100644
 --- a/ext/ffi_c/Call.c
 +++ b/ext/ffi_c/Call.c
-@@ -65,28 +65,7 @@
+@@ -63,28 +63,7 @@
  #include "Thread.h"
  #include "LongDouble.h"
  
@@ -55,10 +57,10 @@ index 0b9aceb..ce0539d 100644
  static void* callback_param(VALUE proc, VALUE cbinfo);
  static inline void* getPointer(VALUE value, int type);
 diff --git a/ext/ffi_c/Call.h b/ext/ffi_c/Call.h
-index 56bdd61..f91409a 100644
+index d9b9eda..d61c010 100644
 --- a/ext/ffi_c/Call.h
 +++ b/ext/ffi_c/Call.h
-@@ -39,16 +39,7 @@
+@@ -39,15 +39,6 @@
  extern "C" {
  #endif
  
@@ -67,14 +69,13 @@ index 56bdd61..f91409a 100644
 -  !defined(_WIN32) && !defined(__WIN32__)
 -#  define USE_RAW
 -#endif
- 
+-
 -#if (defined(__i386__) || defined(__x86_64__)) && !(defined(_WIN32) || defined(__WIN32__))
 -#  define BYPASS_FFI 1
 -#endif
--    
+ 
  typedef union {
  #ifdef USE_RAW
-     signed int s8, s16, s32;
 diff --git a/ext/ffi_c/Closure.c b/ext/ffi_c/Closure.c
 new file mode 100644
 index 0000000..844c74e
@@ -485,10 +486,10 @@ index 5499b40..0000000
 -}
 -
 diff --git a/ext/ffi_c/Function.c b/ext/ffi_c/Function.c
-index 9e861ff..7047116 100644
+index b44a03b..398dd20 100644
 --- a/ext/ffi_c/Function.c
 +++ b/ext/ffi_c/Function.c
-@@ -67,7 +67,7 @@
+@@ -65,7 +65,7 @@
  #include "Type.h"
  #include "LastError.h"
  #include "Call.h"
@@ -497,7 +498,7 @@ index 9e861ff..7047116 100644
  #include "MappedType.h"
  #include "Thread.h"
  #include "LongDouble.h"
-@@ -300,6 +300,7 @@ static VALUE
+@@ -309,6 +309,7 @@ static VALUE
  function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
  {
      Function* fn = NULL;
@@ -505,7 +506,7 @@ index 9e861ff..7047116 100644
  
      Data_Get_Struct(self, Function, fn);
  
-@@ -314,13 +315,6 @@ function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
+@@ -323,23 +324,28 @@ function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
          fn->base.rbParent = rbProc;
  
      } else if (rb_obj_is_kind_of(rbProc, rb_cProc) || rb_respond_to(rbProc, id_call)) {
@@ -518,9 +519,8 @@ index 9e861ff..7047116 100644
 -
  #if defined(DEFER_ASYNC_CALLBACK)
          if (async_cb_thread == Qnil) {
- #if !(defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)) && defined(_WIN32)
-@@ -335,10 +329,22 @@ function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
- 
+             async_cb_thread = rb_thread_create(async_cb_event, NULL);
+         }
  #endif
  
 -        fn->closure = rbffi_Closure_Alloc(fn->info->closurePool);
@@ -544,7 +544,7 @@ index 9e861ff..7047116 100644
          fn->autorelease = true;
  
      } else {
-@@ -942,21 +948,6 @@ save_callback_exception(void* data, VALUE exc)
+@@ -858,21 +864,6 @@ save_callback_exception(void* data, VALUE exc)
      return Qnil;
  }
  
@@ -978,10 +978,10 @@ index 70efb72..4be3e9e 100644
 -#endif
  }
 diff --git a/ext/ffi_c/ffi.c b/ext/ffi_c/ffi.c
-index ea9a058..894f315 100644
+index 22ea3bf..fe6315c 100644
 --- a/ext/ffi_c/ffi.c
 +++ b/ext/ffi_c/ffi.c
-@@ -46,7 +46,7 @@
+@@ -45,7 +45,7 @@
  #include "Types.h"
  #include "LastError.h"
  #include "Function.h"
@@ -990,7 +990,7 @@ index ea9a058..894f315 100644
  #include "MethodHandle.h"
  #include "Call.h"
  #include "ArrayType.h"
-@@ -79,7 +79,7 @@ Init_ffi_c(void)
+@@ -76,7 +76,7 @@ Init_ffi_c(void)
      rbffi_ArrayType_Init(moduleFFI);
      rbffi_LastError_Init(moduleFFI);
      rbffi_Call_Init(moduleFFI);
@@ -1000,5 +1000,5 @@ index ea9a058..894f315 100644
      rbffi_Platform_Init(moduleFFI);
      rbffi_AbstractMemory_Init(moduleFFI);
 -- 
-2.17.1
+2.21.0
 

@@ -43,10 +43,8 @@
 #endif
 #include <errno.h>
 #include <ruby.h>
-#if defined(HAVE_RUBY_THREAD_H)
 #include <ruby/thread.h>
-#endif
-#if defined(HAVE_NATIVETHREAD) && (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)) && !defined(_WIN32)
+#if defined(HAVE_NATIVETHREAD) && !defined(_WIN32)
 #  include <signal.h>
 #  include <pthread.h>
 #endif
@@ -116,7 +114,7 @@ rbffi_SetupCallParams(int argc, VALUE* argv, int paramCount, Type** paramTypes,
         Type* paramType = paramTypes[i];
         int type;
 
-        
+
         if (unlikely(paramType->nativeType == NATIVE_MAPPED)) {
             VALUE values[] = { argv[argidx], Qnil };
             argv[argidx] = rb_funcall2(((MappedType *) paramType)->rbConverter, id_to_native, 2, values);
@@ -297,8 +295,8 @@ rbffi_SetupCallParams(int argc, VALUE* argv, int paramCount, Type** paramTypes,
 
             case NATIVE_STRING:
                 if (type == T_NIL) {
-                    param->ptr = NULL; 
-                
+                    param->ptr = NULL;
+
                 } else {
                     if (rb_safe_level() >= 1 && OBJ_TAINTED(argv[argidx])) {
                         rb_raise(rb_eSecurityError, "Unsafe string parameter");
@@ -345,9 +343,13 @@ static void *
 call_blocking_function(void* data)
 {
     rbffi_blocking_call_t* b = (rbffi_blocking_call_t *) data;
+#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
     b->frame->has_gvl = false;
+#endif
     ffi_call(&b->cif, FFI_FN(b->function), b->retval, b->ffiValues);
+#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
     b->frame->has_gvl = true;
+#endif
 
     return NULL;
 }
@@ -355,7 +357,7 @@ call_blocking_function(void* data)
 VALUE
 rbffi_do_blocking_call(void *data)
 {
-    rbffi_thread_blocking_region(call_blocking_function, data, (void *) -1, NULL);
+    rb_thread_call_without_gvl(call_blocking_function, data, (void *) -1, NULL);
 
     return Qnil;
 }
@@ -376,28 +378,17 @@ rbffi_CallFunction(int argc, VALUE* argv, void* function, FunctionType* fnInfo)
     FFIStorage* params;
     VALUE rbReturnValue;
     rbffi_frame_t frame = { 0 };
-    
+
     retval = alloca(MAX(fnInfo->ffi_cif.rtype->size, FFI_SIZEOF_ARG));
-    
+
     if (unlikely(fnInfo->blocking)) {
         rbffi_blocking_call_t* bc;
 
-        /*
-         * due to the way thread switching works on older ruby variants, we
-         * cannot allocate anything passed to the blocking function on the stack
-         */
-#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+        /* allocate information passed to the blocking function on the stack */
         ffiValues = ALLOCA_N(void *, fnInfo->parameterCount);
         params = ALLOCA_N(FFIStorage, fnInfo->parameterCount);
         bc = ALLOCA_N(rbffi_blocking_call_t, 1);
         bc->retval = retval;
-#else
-        ffiValues = ALLOC_N(void *, fnInfo->parameterCount);
-        params = ALLOC_N(FFIStorage, fnInfo->parameterCount);
-        bc = ALLOC_N(rbffi_blocking_call_t, 1);
-        bc->retval = xmalloc(MAX(fnInfo->ffi_cif.rtype->size, FFI_SIZEOF_ARG));
-        bc->stkretval = retval;
-#endif
         bc->cif = fnInfo->ffi_cif;
         bc->function = function;
         bc->ffiValues = ffiValues;
@@ -408,18 +399,10 @@ rbffi_CallFunction(int argc, VALUE* argv, void* function, FunctionType* fnInfo)
             fnInfo->parameterCount, fnInfo->parameterTypes, params, ffiValues,
             fnInfo->callbackParameters, fnInfo->callbackCount, fnInfo->rbEnums);
 
-        rbffi_frame_push(&frame); 
+        rbffi_frame_push(&frame);
         rb_rescue2(rbffi_do_blocking_call, (VALUE) bc, rbffi_save_frame_exception, (VALUE) &frame, rb_eException, (VALUE) 0);
         rbffi_frame_pop(&frame);
 
-#if !(defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
-        memcpy(bc->stkretval, bc->retval, MAX(bc->cif.rtype->size, FFI_SIZEOF_ARG));
-        xfree(bc->params);
-        xfree(bc->ffiValues);
-        xfree(bc->retval);
-        xfree(bc);
-#endif
-    
     } else {
 
         ffiValues = ALLOCA_N(void *, fnInfo->parameterCount);
@@ -436,7 +419,7 @@ rbffi_CallFunction(int argc, VALUE* argv, void* function, FunctionType* fnInfo)
 
     if (unlikely(!fnInfo->ignoreErrno)) {
         rbffi_save_errno();
-    }    
+    }
 
     if (RTEST(frame.exc) && frame.exc != Qnil) {
         rb_exc_raise(frame.exc);
@@ -444,7 +427,7 @@ rbffi_CallFunction(int argc, VALUE* argv, void* function, FunctionType* fnInfo)
 
     RB_GC_GUARD(rbReturnValue) = rbffi_NativeValue_ToRuby(fnInfo->returnType, fnInfo->rbReturnType, retval);
     RB_GC_GUARD(fnInfo->rbReturnType);
-    
+
     return rbReturnValue;
 }
 
@@ -461,7 +444,7 @@ getPointer(VALUE value, int type)
         return memory != NULL ? memory->address : NULL;
 
     } else if (type == T_STRING) {
-        
+
         return StringValuePtr(value);
 
     } else if (type == T_NIL) {

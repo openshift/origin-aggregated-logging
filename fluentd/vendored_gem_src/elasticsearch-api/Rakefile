@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require "bundler/gem_tasks"
 
 def __current__
@@ -18,16 +35,22 @@ require 'rspec/core/rake_task'
 
 namespace :test do
 
-  RSpec::Core::RakeTask.new(:spec)
-
-  desc "Update the repository with YAML tests"
-  task :update do
-    git_specs "fetch origin --verbose", :verbose => true
-  end
-
   desc "Wait for Elasticsearch to be in a green state"
   task :wait_for_green do
     sh '../scripts/wait-cluster.sh'
+  end
+
+  RSpec::Core::RakeTask.new(:spec) do |t|
+    t.exclude_pattern = 'spec/**{,/*/**}/rest_api_yaml_spec.rb'
+  end
+
+  RSpec::Core::RakeTask.new(:rest_api) do |t|
+    t.pattern = 'spec/**{,/*/**}/rest_api_yaml_spec.rb'
+  end
+
+  desc "Update the repository with YAML tests"
+  task :update do
+    git_specs "fetch origin", :verbose => true
   end
 
   Rake::TestTask.new(:unit) do |test|
@@ -39,7 +62,7 @@ namespace :test do
   end
 
   desc "Run integration tests"
-  task :integration => :wait_for_green do
+  task :integration => :update do
     require 'elasticsearch'
 
     branches = `git --git-dir=#{__current__.join('../tmp/elasticsearch/.git')} --work-tree=#{__current__.join('../tmp/elasticsearch')} branch --no-color`
@@ -54,15 +77,6 @@ namespace :test do
     unless current_branch
       STDERR.puts "[!] Unable to determine current branch, defaulting to 'master'"
       current_branch = 'master'
-    end
-
-    # Define the task
-    t = Rake::TestTask.new(:integration) do |test|
-      test.deps = [ :wait_for_green ]
-      test.libs << 'lib' << 'test'
-      test.test_files = FileList["test/integration/yaml_test_runner.rb", "test/integration/**/*_test.rb"]
-      test.verbose = false
-      test.warning = false
     end
 
     # Check if a test cluster is running
@@ -99,16 +113,7 @@ namespace :test do
         git_specs "checkout #{checkout_build_hash} --force --quiet"
       end
 
-      # Run the task
-      args = [t.ruby_opts_string, t.run_code, t.file_list_string, t.option_list].join(' ')
-
-      ruby args do |ok, status|
-        if !ok && status.respond_to?(:signaled?) && status.signaled?
-          raise SignalException.new(status.termsig)
-        elsif !ok
-          fail "Command failed with status (#{status.exitstatus}): " + "[ruby #{args}]"
-        end
-      end
+      Rake::Task['test:rest_api'].invoke
 
     ensure
       git_specs "checkout #{current_branch} --force --quiet" if checkout_specs_version && current_branch

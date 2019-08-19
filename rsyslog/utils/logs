@@ -2,6 +2,7 @@
 set -euo pipefail
 
 log_dir=`dirname ${LOGGING_FILE_PATH:-/var/log/rsyslog/rsyslog.log}`
+pod_dir=${RSYSLOG_WORKDIRECTORY:-/var/lib/rsyslog.pod}
 cmd=cat
 
 helpMsg() {
@@ -11,11 +12,13 @@ cat <<MSG
    Options:
      -f                   Follow the log file in the rsyslog log directory.
                           Default log file is "rsyslog.log".
-     -h --help               Prints out help.
+     -a --all             Including logrotation logs.  Ignored if -f is set.
+     -h --help            Prints out help.
 MSG
 }
 
-
+tail_args=""
+include_logrotation="false"
 while (($#))
 do
 case $1 in
@@ -23,6 +26,9 @@ case $1 in
       cmd="tail"
       tail_args="-f"
       break
+      ;;
+    --all|-a)
+      include_logrotation="true"
       ;;
     --help|-h)
       helpMsg
@@ -35,9 +41,42 @@ case $1 in
 done
 
 if [ $cmd = "cat" ] ; then
-    for log_file in $( ls $log_dir | sort -Vr ); do
-        cat $log_dir/$log_file
-    done
+    if [ "$include_logrotation" = "true" ] ; then
+        if ls $pod_dir/rsyslog.* > /dev/null 2>&1 ; then
+            echo "===== rsyslog logs ====="
+            for log_file in $( ls $log_dir/rsyslog.* | sort -Vr ); do
+                cat $log_file
+            done
+        fi
+        if ls $log_dir/rsyslog_debug.* > /dev/null 2>&1 ; then
+            echo ""
+            echo "===== rsyslog debug logs ====="
+            for log_file in $( ls $log_dir/rsyslog_debug.* | sort -Vr ); do
+                cat $log_file
+            done
+        fi
+        if ls $log_dir/logrotate* > /dev/null 2>&1 ; then
+            echo ""
+            echo "===== logrotation logs ($log_dir) ====="
+            for log_file in $( ls $log_dir/logrotate* | sort -Vr ); do
+                cat $log_file
+            done
+        fi
+        if ls $pod_dir/logrotate* > /dev/null 2>&1 ; then
+            echo ""
+            echo "===== logrotation logs ($pod_dir) ====="
+            for log_file in $( ls $pod_dir/logrotate* | sort -Vr ); do
+                cat $log_file
+            done
+        fi
+    else
+        if ls $pod_dir/rsyslog.* > /dev/null 2>&1 ; then
+            for log_file in $( ls $log_dir/rsyslog.* | sort -Vr ); do
+                cat $log_file
+            done
+        fi
+    fi
 else
-    exec tail "$tail_args" $log_dir/rsyslog.log
+    log_file=`basename ${LOGGING_FILE_PATH:-/var/log/rsyslog/rsyslog.log}`
+    exec tail "$tail_args" $log_dir/$log_file
 fi

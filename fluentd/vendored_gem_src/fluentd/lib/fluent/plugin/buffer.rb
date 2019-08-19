@@ -154,6 +154,7 @@ module Fluent
         @dequeued_num = {} # metadata => int (number of dequeued chunks)
 
         @stage_size = @queue_size = 0
+        @timekeys = Hash.new(0)
         @metadata_list = [] # keys of @stage
       end
 
@@ -176,12 +177,14 @@ module Fluent
         @stage.each_pair do |metadata, chunk|
           @metadata_list << metadata unless @metadata_list.include?(metadata)
           @stage_size += chunk.bytesize
+          add_timekey(metadata)
         end
         @queue.each do |chunk|
           @metadata_list << chunk.metadata unless @metadata_list.include?(chunk.metadata)
           @queued_num[chunk.metadata] ||= 0
           @queued_num[chunk.metadata] += 1
           @queue_size += chunk.bytesize
+          add_timekey(chunk.metadata)
         end
         log.debug "buffer started", instance: self.object_id, stage_size: @stage_size, queue_size: @queue_size
       end
@@ -206,6 +209,7 @@ module Fluent
         super
         @dequeued = @stage = @queue = @queued_num = @metadata_list = nil
         @stage_size = @queue_size = 0
+        @timekeys.clear
       end
 
       def storable?
@@ -251,6 +255,7 @@ module Fluent
             @metadata_list[i]
           else
             @metadata_list << metadata
+            add_timekey(metadata)
             metadata
           end
         end
@@ -259,6 +264,30 @@ module Fluent
       def metadata(timekey: nil, tag: nil, variables: nil)
         meta = new_metadata(timekey: timekey, tag: tag, variables: variables)
         add_metadata(meta)
+      end
+
+      def add_timekey(metadata)
+        if t = metadata.timekey
+          @timekeys[t] += 1
+        end
+        nil
+      end
+      private :add_timekey
+      
+      def del_timekey(metadata)
+        if t = metadata.timekey
+          if @timekeys[t] <= 1
+            @timekeys.delete(t)
+          else
+            @timekeys[t] -= 1
+          end
+        end
+        nil
+      end
+      private :del_timekey
+
+      def timekeys
+        @timekeys.keys
       end
 
       # metadata MUST have consistent object_id for each variation
@@ -506,6 +535,7 @@ module Fluent
             @metadata_list.delete(metadata)
             @queued_num.delete(metadata)
             @dequeued_num.delete(metadata)
+            del_timekey(metadata)
           end
           log.trace "chunk purged", instance: self.object_id, chunk_id: dump_unique_id_hex(chunk_id), metadata: metadata
         end
@@ -709,6 +739,40 @@ module Fluent
         end
         enqueue_chunk(metadata) if enqueue_chunk_before_retry
         retry
+      end
+
+      STATS_KEYS = [
+        'stage_length',
+        'stage_byte_size',
+        'queue_length',
+        'queue_byte_size',
+        'available_buffer_space_ratios',
+        'total_queued_size',
+        'oldest_timekey',
+        'newest_timekey'
+      ]
+
+      def statistics
+        stage_size, queue_size = @stage_size, @queue_size
+        buffer_space = 1.0 - ((stage_size + queue_size * 1.0) / @total_limit_size).round
+        stats = {
+          'stage_length' => @stage.size,
+          'stage_byte_size' => stage_size,
+          'queue_length' => @queue.size,
+          'queue_byte_size' => queue_size,
+          'available_buffer_space_ratios' => buffer_space * 100,
+          'total_queued_size' => stage_size + queue_size,
+        }
+
+        if (m = timekeys.min)
+          stats['oldest_timekey'] = m
+        end
+
+        if (m = timekeys.max)
+          stats['newest_timekey'] = m
+        end
+
+        { 'buffer' => stats }
       end
     end
   end

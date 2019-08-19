@@ -22,7 +22,8 @@ if [ ! -d $RH_DIST_GIT ] ; then
     RH_DIST_GIT=$( mktemp -d )
 fi
 SRC_BRANCH=${SRC_BRANCH:-rhel-8.0.0}
-RSYSLOG_VENDOR_DIR=${RSYSLOG_VENDOR_DIR:-$oaldir/rsyslog/vendored_src}
+RSYSLOG_DIR=${RSYSLOG_DIR:-$oaldir/rsyslog}
+RSYSLOG_VENDOR_DIR=${RSYSLOG_VENDOR_DIR:-$RSYSLOG_DIR/vendored_src}
 RSYSLOG_VENDOR_BRANCH=${RSYSLOG_VENDOR_BRANCH:-rsyslog-vendor}
 pushd $oaldir > /dev/null
 git checkout $RSYSLOG_VENDOR_BRANCH
@@ -36,6 +37,9 @@ echo source into $curbranch
 # order doesn't matter here, but does matter at build/install time
 # keep it the same for consistency
 packages="librelp libestr libfastjson liblognorm librdkafka rsyslog"
+
+manifest=$( mktemp )
+trap "rm -f $manifest" EXIT
 
 for pkg in $packages ; do
     if [ ! -d $RH_DIST_GIT/$pkg ] ; then
@@ -72,13 +76,21 @@ for pkg in $packages ; do
     done
     cp -r $RH_DIST_GIT/$pkg/$pkg-$version $pkg
     mv $pkg/$pkg-$version $pkg/$pkg
+    echo $pkg $version >> $manifest
 done
+
+sort $manifest > $RSYSLOG_DIR/rh-manifest.txt
 
 if git diff --exit-code ; then
     echo INFO: rsyslog-vendor source is up-to-date
+    git checkout $curbranch
 else
     git commit -a -m "Vendor in latest rsyslog source"
     echo INFO: remember to push rsyslog-vendor branch
+    git checkout $curbranch
+    git merge $RSYSLOG_VENDOR_BRANCH
 fi
-git checkout $curbranch
-git merge $RSYSLOG_VENDOR_BRANCH
+
+pushd $RSYSLOG_DIR/go/src/github.com/soundcloud/rsyslog_exporter > /dev/null
+GOPATH=$RSYSLOG_DIR/go dep ensure -update
+popd > /dev/null

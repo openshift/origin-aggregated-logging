@@ -40,7 +40,6 @@
 #include "MemoryPointer.h"
 #include "Struct.h"
 #include "StructByValue.h"
-#include "StructByReference.h"
 #include "DynamicLibrary.h"
 #include "Platform.h"
 #include "Types.h"
@@ -59,9 +58,9 @@ VALUE rbffi_FFIModule = Qnil;
 static VALUE moduleFFI = Qnil;
 
 void
-Init_ffi_c(void) 
+Init_ffi_c(void)
 {
-    /* 
+    /*
      * Document-module: FFI
      *
      * This module embbed type constants from {FFI::NativeType}.
@@ -70,11 +69,9 @@ Init_ffi_c(void)
     rb_global_variable(&rbffi_FFIModule);
 
     rbffi_Thread_Init(rbffi_FFIModule);
-    
+
     /* FFI::Type needs to be initialized before most other classes */
     rbffi_Type_Init(moduleFFI);
-
-    rbffi_DataConverter_Init(moduleFFI);
 
     rbffi_ArrayType_Init(moduleFFI);
     rbffi_LastError_Init(moduleFFI);
@@ -88,11 +85,9 @@ Init_ffi_c(void)
     rbffi_MemoryPointer_Init(moduleFFI);
     rbffi_Buffer_Init(moduleFFI);
     rbffi_StructByValue_Init(moduleFFI);
-    rbffi_StructByReference_Init(moduleFFI);
     rbffi_Struct_Init(moduleFFI);
     rbffi_DynamicLibrary_Init(moduleFFI);
     rbffi_Variadic_Init(moduleFFI);
     rbffi_Types_Init(moduleFFI);
     rbffi_MappedType_Init(moduleFFI);
 }
-

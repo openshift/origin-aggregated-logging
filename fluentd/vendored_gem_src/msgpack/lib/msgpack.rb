@@ -17,6 +17,8 @@ require "msgpack/unpacker"
 require "msgpack/factory"
 require "msgpack/symbol"
 require "msgpack/core_ext"
+require "msgpack/timestamp"
+require "msgpack/time"
 
 module MessagePack
   DefaultFactory = MessagePack::Factory.new
@@ -27,7 +29,7 @@ module MessagePack
 
     if src.is_a? String
       unpacker = DefaultFactory.unpacker param || DEFAULT_EMPTY_PARAMS
-      unpacker.feed src
+      unpacker.feed_reference src
     else
       unpacker = DefaultFactory.unpacker src, param || DEFAULT_EMPTY_PARAMS
     end

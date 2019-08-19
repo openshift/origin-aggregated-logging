@@ -2,6 +2,24 @@
 
 ### [Unreleased]
 
+### 3.5.2
+- Fix `@meta_config_map` creation timing (#592)
+
+### 3.5.1
+- Configurable split request size threshold (#586)
+
+### 3.5.0
+- Adopt Elasticsearch ruby client v7 loggable class (#583)
+
+### 3.4.3
+- Add fail_on_putting_template_retry_exceed config (#579)
+
+### 3.4.2
+- Comparing DEFAULT_TYPE_NAME_ES_7x to target_type instead of type_name (#573)
+
+### 3.4.1
+- Handle non-String value on parse_time (#570)
+
 ### 3.4.0
 - Check exclusive feature on #configure (#569)
 - Modify FAQ for highly load k8s EFK stack (#566)

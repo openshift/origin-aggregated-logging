@@ -43,7 +43,7 @@ function get_curator_dcs() {
     oc get dc --selector logging-infra=curator -o name
 }
 
-function get_es_pod() {
+function get_es_pod_all() {
     local clustertype="$1"
     # $1 - cluster name postfix
     # for allinone there is just "elasticsearch"
@@ -61,6 +61,11 @@ function get_es_pod() {
     else
       oc -n $LOGGING_NS get pods -l cluster-name=logging-${clustertype},es-node-role=clientdata --no-headers 2> /dev/null | awk '$3 == "Running" {print $1}'
     fi
+}
+
+function get_es_pod() {
+    local clustertype="$1"
+    get_es_pod_all "$clustertype" | head -1
 }
 
 function get_es_svc() {
@@ -425,43 +430,60 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json
-    if oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json ; then
-        :
-    else
-        echo oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json failed $?
-    fi
     os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
+function flush_rsyslog_pos_files() {
+    os::cmd::expect_success "oal_sudo rm -f /var/lib/rsyslog.pod/imfile-state* /var/lib/rsyslog.pod/imjournal.state"
+}
+
+# return 0 if given file has size ge given size, otherwise, return 1
+function file_has_size() {
+    local f=$1
+    local gesize=$2
+    local size=$( oal_sudo stat -c '%s' $f 2> /dev/null )
+    test ${size:-0} -ge $gesize
+}
+
 function get_journal_pos_cursor() {
-    if oal_sudo test -s /var/log/journal.pos ; then
+    if file_has_size /var/log/journal.pos 100 ; then
         oal_sudo cat /var/log/journal.pos
-    elif oal_sudo test -s /var/log/journal_pos.json ; then
-        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json
+        return 0
+    elif file_has_size /var/log/journal_pos.json 100 ; then
+        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json 2> /dev/null
+        return 0
     else
         echo ""
+        return 1
     fi
 }
 
 function wait_for_journal_apps_ops_msg() {
     local fullmsg="$1"
     local uuid_es_ops="$2"
+    # ingore pipe failure
+    trap "" PIPE
     oal_sudo journalctl -m -f -o export 2>&1 | \
-        awk -v "es=MESSAGE=.*$fullmsg" -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
-        -v es_out=$ARTIFACT_DIR/es_out.txt -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+        awk -v "journal=MESSAGE=.*$fullmsg" -v "journal_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" \
+        -v journal_out=$ARTIFACT_DIR/journal_out.txt -v journal_ops_out=$ARTIFACT_DIR/journal_ops_out.txt '
             BEGIN{RS="";FS="\n"};
-            $0 ~ es {print > es_out; app += 1; if (app && op) {exit 0}};
-            $0 ~ es_ops {print > es_ops_out; op += 1; if (app && op) {exit 0}};
+            $0 ~ journal {print > journal_out; app += 1; if (app && op) {exit 0}};
+            $0 ~ journal_ops {print > journal_ops_out; op += 1; if (app && op) {exit 0}};
             '
+    # reset PIPE trap
+    trap - PIPE
 }
 
 function wait_for_ops_log_message() {
     local uuid_es_ops="$1"
+    # ingore pipe failure
+    trap "" PIPE
     oal_sudo journalctl -m -f -o export 2>&1 | \
-        awk -v "es_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v es_ops_out=$ARTIFACT_DIR/es_ops_out.txt '
+        awk -v "journal_ops=SYSLOG_IDENTIFIER=$uuid_es_ops" -v journal_ops_out=$ARTIFACT_DIR/journal_ops_out.txt '
             BEGIN{RS="";FS="\n"};
-            $0 ~ es_ops {print > es_ops_out; exit 0}'
+            $0 ~ journal_ops {print > journal_ops_out; exit 0}'
+    # reset PIPE trap
+    trap - PIPE
 }
 
 function wait_for_apps_log_message() {
@@ -592,6 +614,7 @@ function wait_for_fluentd_to_catch_up() {
         # last records in descending @timestamp order - see what records have been added recently
         errqs='{"query":{"range":{"@timestamp":{"gte":"'"$( date --date=@${starttime} -u -Ins )"'"}}},"sort":[{"@timestamp":{"order":"desc"}}],"size":20}'
         curl_es ${es_ops_svc} /.operations.*/_search -X POST -d "$errqs" | jq . > $ARTIFACT_DIR/ops_err_recs_desc.json 2>&1 || :
+        oc get pods -o wide
         rc=1
     fi
 
@@ -623,12 +646,13 @@ docker_uses_journal() {
 
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
-    # wait until fluentd is actively reading from the source (journal or files)
-    os::cmd::try_until_success "oal_sudo test -s /var/log/journal.pos -o -s /var/log/journal_pos.json" $(( timeout * second ))
+    # wait until fluentd is actively reading from the source (journal and/or files)
+    os::cmd::try_until_text "get_journal_pos_cursor" "x="  $(( timeout * second ))
     if docker_uses_journal ; then
         : # done
     else
-        os::cmd::try_until_success "oal_sudo test -f /var/log/es-containers.log.pos" $(( timeout * second ))
+        # size of /var/log/containers/*.log >= 25
+        os::cmd::try_until_success "file_has_size /var/log/es-containers.log.pos 25" $(( timeout * second ))
     fi
 }
 
@@ -693,7 +717,19 @@ get_fluentd_pod_log() {
         : # done
     elif oal_sudo test -f $logfile ; then
         # can't read from the pod directly - see if we can get the log file
-        oal_sudo cat $logfile
+        oal_sudo cat ${logfile}.* ${logfile} || :
+    fi
+}
+
+# rsyslog may have pod logs and logs in the file
+get_rsyslog_pod_log() {
+    local pod=${1:-$( get_running_pod rsyslog )}
+    local container=${2:-rsyslog}
+    oc logs -c $container $pod 2>&1
+    if [ $container = rsyslog ] ; then
+        oc exec -c $container $pod -- logs 2>&1 || oal_sudo cat /var/log/rsyslog/rsyslog.log.* /var/log/rsyslog/rsyslog.log || :
+    else
+        oal_sudo cat /var/lib/rsyslog.pod/logrotate.log /var/log/rsyslog/logrotate.log || :
     fi
 }
 
@@ -716,15 +752,22 @@ get_all_logging_pod_logs() {
     oc -n ${LOGGING_NS} describe pod $p > $ARTIFACT_DIR/$p.describe 2>&1 || :
     oc -n ${LOGGING_NS} get pod $p -o yaml > $ARTIFACT_DIR/$p.yaml 2>&1 || :
     for container in $(oc get po $p -o jsonpath='{.spec.containers[*].name}') ; do
+      if [ $container = rsyslog ] ; then
+        get_rsyslog_pod_log $p $container > $ARTIFACT_DIR/$p.$container.log 2>&1
+        continue
+      fi
+      if [ $container = logrotate ] ; then
+        get_rsyslog_pod_log $p $container > $ARTIFACT_DIR/$p.$container.log 2>&1
+        continue
+      fi
       case "$p" in
         logging-fluentd-*|fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
         logging-mux-*) get_mux_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
-        logging-es-*|elasticsearch-*) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1
-                      oc exec -c elasticsearch -n ${LOGGING_NS} $p -- logs >> $ARTIFACT_DIR/$p.$container.log 2>&1
-                      ;;
-	    *) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
+        *) oc logs -n ${LOGGING_NS} -c $container $p > $ARTIFACT_DIR/$p.$container.log 2>&1
+           oc exec -n ${LOGGING_NS} -c $container $p -- logs >> $ARTIFACT_DIR/$p.$container.log 2>&1 || :
+           ;;
       esac
-	done
+    done
   done
 }
 
@@ -755,6 +798,32 @@ start_fluentd() {
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^(logging-)*fluentd-.* Running " $wait_time
 }
 
+stop_rsyslog() {
+    local rpod=${1:-$( get_running_pod rsyslog )}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    oc label node -l logging-infra-rsyslog=true --overwrite logging-infra-rsyslog=false
+    os::cmd::try_until_text "oc get $rsyslog_ds -o jsonpath='{ .status.numberReady }'" "0" $wait_time
+    # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the rsyslog pod hangs around
+    # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
+    # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
+    if [ -n "${rpod:-}" ] ; then
+        os::cmd::try_until_failure "oc get pod $rpod > /dev/null 2>&1" $wait_time
+    fi
+}
+
+start_rsyslog() {
+    local cleanfirst=${1:-false}
+    local wait_time=${2:-$(( 2 * minute ))}
+
+    if [ "$cleanfirst" != false ] ; then
+        flush_rsyslog_pos_files
+        oal_sudo rm -f /var/log/rsyslog/* /var/lib/rsyslog.pod/*
+    fi
+    oc label node -l logging-infra-rsyslog=false --overwrite logging-infra-rsyslog=true
+    os::cmd::try_until_text "oc get pods -l component=rsyslog" "^(logging-)*rsyslog-.* Running " $wait_time
+}
+
 get_fluentd_ds_name() {
     if oc -n ${LOGGING_NS} get daemonset fluentd -o name > /dev/null 2>&1 ; then
         echo daemonset/fluentd
@@ -774,6 +843,9 @@ get_fluentd_cm_name() {
 }
 
 fluentd_cm=${fluentd_cm:-$(get_fluentd_cm_name)}
+
+# Hardcode daemonset/rsyslog for the case the rsyslog pod does not exist.
+rsyslog_ds=${rsyslog_ds:-daemonset/rsyslog}
 
 enable_cluster_logging_operator() {
     if oc -n ${LOGGING_NS} get deploy cluster-logging-operator > /dev/null 2>&1 ; then

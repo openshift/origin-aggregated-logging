@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require 'test_helper'
 
 if JRUBY
@@ -6,7 +23,7 @@ else
   require 'elasticsearch/transport/transport/http/curb'
   require 'curb'
 
-  class Elasticsearch::Transport::Transport::HTTP::FaradayTest < Test::Unit::TestCase
+  class Elasticsearch::Transport::Transport::HTTP::FaradayTest < Minitest::Test
     include Elasticsearch::Transport::Transport::HTTP
 
     context "Curb transport" do
@@ -40,7 +57,7 @@ else
       should "perform request with headers" do
         @transport.connections.first.connection.expects(:put_data=).with('{"foo":"bar"}')
         @transport.connections.first.connection.expects(:http).with(:POST).returns(stub_everything)
-        @transport.connections.first.connection.expects(:headers=).with({"Content-Type" => "application/x-ndjson"})
+        @transport.connections.first.connection.headers.expects(:merge!).with("Content-Type" => "application/x-ndjson")
 
         @transport.perform_request 'POST', '/', {}, {:foo => 'bar'}, {"Content-Type" => "application/x-ndjson"}
       end

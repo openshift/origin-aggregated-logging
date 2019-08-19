@@ -6,6 +6,7 @@ module Excon
 
     class StubNotFound < Error; end
     class InvalidStub < Error; end
+    class Warning < Error; end
 
     # Socket related errors
     class Socket < Error
@@ -45,6 +46,8 @@ or:
       end
     end
 
+    class InvalidHeaderKey < Error; end
+    class InvalidHeaderValue < Error; end
     class Timeout < Error; end
     class ResponseParse < Error; end
     class ProxyParse < Error; end

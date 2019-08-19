@@ -1,3 +1,22 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+require 'base64'
+
 module Elasticsearch
   module Transport
 
@@ -28,6 +47,11 @@ module Elasticsearch
       #
       # @since 7.0.0
       DEFAULT_HOST = 'localhost:9200'.freeze
+
+      # The default port to use if connecting using a Cloud ID.
+      #
+      # @since 7.2.0
+      DEFAULT_CLOUD_PORT = 9243
 
       # Returns the transport object.
       #
@@ -84,12 +108,15 @@ module Elasticsearch
       #
       # @option arguments [String] :send_get_body_as Specify the HTTP method to use for GET requests with a body.
       #                                              (Default: GET)
+      # @option arguments [true, false] :compression Whether to compress requests. Gzip compression will be used.
+      #   The default is false. Responses will automatically be inflated if they are compressed.
+      #   If a custom transport object is used, it must handle the request compression and response inflation.
       #
       # @yield [faraday] Access and configure the `Faraday::Connection` instance directly with a block
       #
       def initialize(arguments={}, &block)
-        @options = arguments
-        @arguments = arguments
+        @options = arguments.each_with_object({}){ |(k,v), args| args[k.to_sym] = v }
+        @arguments = @options
         @arguments[:logger] ||= @arguments[:log]   ? DEFAULT_LOGGER.call() : nil
         @arguments[:tracer] ||= @arguments[:trace] ? DEFAULT_TRACER.call() : nil
         @arguments[:reload_connections] ||= false
@@ -100,7 +127,8 @@ module Elasticsearch
         @arguments[:http]               ||= {}
         @options[:http]               ||= {}
 
-        @seeds = __extract_hosts(@arguments[:hosts] ||
+        @seeds = extract_cloud_creds(@arguments)
+        @seeds ||= __extract_hosts(@arguments[:hosts] ||
                                      @arguments[:host] ||
                                      @arguments[:url] ||
                                      @arguments[:urls] ||
@@ -111,12 +139,6 @@ module Elasticsearch
 
         if @arguments[:request_timeout]
           @arguments[:transport_options][:request] = { :timeout => @arguments[:request_timeout] }
-        end
-
-        @arguments[:transport_options][:headers] ||= {}
-
-        unless @arguments[:transport_options][:headers].keys.any? {|k| k.to_s.downcase =~ /content\-?\_?type/}
-          @arguments[:transport_options][:headers]['Content-Type'] = 'application/json'
         end
 
         if @arguments[:transport]
@@ -145,6 +167,16 @@ module Elasticsearch
 
       private
 
+      def extract_cloud_creds(arguments)
+        return unless arguments[:cloud_id]
+        cloud_url, elasticsearch_instance = Base64.decode64(arguments[:cloud_id].gsub('name:', '')).split('$')
+        [ { scheme: 'https',
+            user: arguments[:user],
+            password: arguments[:password],
+            host: "#{elasticsearch_instance}.#{cloud_url}",
+            port: arguments[:port] || DEFAULT_CLOUD_PORT } ]
+      end
+
       # Normalizes and returns hosts configuration.
       #
       # Arrayifies the `hosts_config` argument and extracts `host` and `port` info from strings.
@@ -159,15 +191,15 @@ module Elasticsearch
       #
       def __extract_hosts(hosts_config)
         hosts = case hosts_config
-                when String
-                  hosts_config.split(',').map { |h| h.strip! || h }
-                when Array
-                  hosts_config
-                when Hash, URI
-                  [ hosts_config ]
-                else
-                  Array(hosts_config)
-                end
+        when String
+          hosts_config.split(',').map { |h| h.strip! || h }
+        when Array
+          hosts_config
+        when Hash, URI
+          [ hosts_config ]
+        else
+          Array(hosts_config)
+        end
 
         host_list = hosts.map { |host| __parse_host(host) }
         @options[:randomize_hosts] ? host_list.shuffle! : host_list
@@ -175,32 +207,35 @@ module Elasticsearch
 
       def __parse_host(host)
         host_parts = case host
-                     when String
-                       if host =~ /^[a-z]+\:\/\//
-                         uri = URI.parse(host)
-                         { :scheme => uri.scheme,
-                           :user => uri.user,
-                           :password => uri.password,
-                           :host => uri.host,
-                           :path => uri.path,
-                           :port => uri.port }
-                       else
-                         host, port = host.split(':')
-                         { :host => host,
-                           :port => port }
-                       end
-                     when URI
-                       { :scheme => host.scheme,
-                         :user => host.user,
-                         :password => host.password,
-                         :host => host.host,
-                         :path => host.path,
-                         :port => host.port }
-                     when Hash
-                       host
-                     else
-                       raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
-                     end
+        when String
+          if host =~ /^[a-z]+\:\/\//
+            # Construct a new `URI::Generic` directly from the array returned by URI::split.
+            # This avoids `URI::HTTP` and `URI::HTTPS`, which supply default ports.
+            uri = URI::Generic.new(*URI.split(host))
+
+            { :scheme => uri.scheme,
+              :user => uri.user,
+              :password => uri.password,
+              :host => uri.host,
+              :path => uri.path,
+              :port => uri.port }
+          else
+            host, port = host.split(':')
+            { :host => host,
+              :port => port }
+          end
+        when URI
+          { :scheme => host.scheme,
+            :user => host.user,
+            :password => host.password,
+            :host => host.host,
+            :path => host.path,
+            :port => host.port }
+        when Hash
+          host
+        else
+          raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
+        end
 
         @options[:http][:user] ||= host_parts[:user]
         @options[:http][:password] ||= host_parts[:password]

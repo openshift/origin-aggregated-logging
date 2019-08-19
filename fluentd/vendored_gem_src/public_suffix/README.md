@@ -7,7 +7,7 @@
 
 ## Requirements
 
-- Ruby >= 2.1
+- Ruby >= 2.3
 
 For an older versions of Ruby use a previous release.
 
@@ -197,6 +197,6 @@ See the [CHANGELOG.md](CHANGELOG.md) file for details.
 
 ## License
 
-Copyright (c) 2009-2018 Simone Carletti. This is Free Software distributed under the MIT license.
+Copyright (c) 2009-2019 Simone Carletti. This is Free Software distributed under the MIT license.
 
 The [Public Suffix List source](https://publicsuffix.org/list/) is subject to the terms of the Mozilla Public License, v. 2.0.

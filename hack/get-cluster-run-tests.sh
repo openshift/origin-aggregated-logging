@@ -42,6 +42,15 @@ after use e.g. you will need to manually do
 
 after you are done.
 
+USE_CUSTOM_IMAGES - if you are developer, you are probably wanting to use
+custom images that you have built and pushed into the cluster for testing,
+so use USE_CUSTOM_IMAGES=true.  If you are trying to deploy a released
+version of logging with released images, use USE_CUSTOM_IMAGES=false,
+in order to use the official images from the official repos.
+
+USE_EO_LATEST_IMAGE,USE_CLO_LATEST_IMAGE - sometimes you want to deploy only a
+custom EO image or CLO image - set these to true
+
 BUILD_IMAGES - default is true - set to false if you want to skip building the
 images e.g. if you have already built them - this step takes a long time
 
@@ -52,6 +61,13 @@ otherwise will pull images from somewhere else
 
 TEST_LOGGING - default is true - set to false if you do not want to deploy
 logging and run the logging CI tests
+
+OPENSHIFT_INSTALL_VERSION - unset - set this to a released version e.g.
+4.1.0 to download and deploy a released cluster, or use a github release
+to download and deploy a dev cluster
+
+OPENSHIFT_INSTALLER - unset - set this to the full path of an installer
+you have already pre-built or downloaded
 
 OPENSHIFT_INSTALL_PULL_SECRET_PATH - no default - this is the absolute path
 of the file containing the pull secrets used with the openshift-installer
@@ -65,6 +81,8 @@ where $HOME/.pullsecret contains something like
 {"auths":{"cloud.openshift.com":{"auth":"asdjflaskdlfakjsdfljsdfl....
 
 The file should be the file downloaded from https://cloud.openshift.com/clusters/install
+
+*PROTECT THIS FILE* - perms 0400 - it contains secrets
 
 OPENSHIFT_INSTALL_SSH_PUB_KEY_PATH - default $HOME/.ssh/id_rsa.pub - also for
 DEPLOY_CLUSTER=true
@@ -144,13 +162,15 @@ fi
 # deploy logging
 if [ "${DEPLOY_LOGGING:-true}" = true ] ; then
     KUBECONFIG=$workdir/auth/kubeconfig ARTIFACT_DIR=$workdir/artifacts \
-    USE_EO_LATEST_IMAGE=true USE_CLO_LATEST_IMAGE=true \
-    $scriptdir/deploy-logging-marketplace.sh
+    USE_EO_LATEST_IMAGE=${USE_EO_LATEST_IMAGE:-true} \
+    USE_CLO_LATEST_IMAGE=${USE_CLO_LATEST_IMAGE:-true} \
+    $scriptdir/deploy-logging.sh
 fi
 
 # run logging tests
 if [ "${TEST_LOGGING:-true}" = true ] ; then
     KUBECONFIG=$workdir/auth/kubeconfig ARTIFACT_DIR=$workdir/artifacts \
-    USE_EO_LATEST_IMAGE=true USE_CLO_LATEST_IMAGE=true \
+    USE_EO_LATEST_IMAGE=${USE_EO_LATEST_IMAGE:-true} \
+    USE_CLO_LATEST_IMAGE=${USE_CLO_LATEST_IMAGE:-true} \
     $scriptdir/test-logging.sh
 fi

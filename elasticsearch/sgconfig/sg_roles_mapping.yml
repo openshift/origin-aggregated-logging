@@ -17,6 +17,9 @@ sg_role_curator:
 sg_role_admin:
   users:
     - 'CN=system.admin,OU=OpenShift,O=Logging'
+  backendroles:
+    - 'elasticsearch-operator'
+
 sg_role_prometheus:
   backendroles:
     - 'prometheus'

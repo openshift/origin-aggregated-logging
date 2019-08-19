@@ -1,3 +1,20 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 module Elasticsearch
   module API
     module Actions
@@ -41,6 +58,7 @@ module Elasticsearch
       # @option arguments [String] :consistency Explicit write consistency setting for the operation
       #                                         (options: one, quorum, all)
       # @option arguments [List] :fields A comma-separated list of fields to return in the response
+      # @option arguments [Boolean] :include_type_name Whether a type should be expected in the body of the mappings.
       # @option arguments [String] :lang The script language (default: mvel)
       # @option arguments [String] :parent ID of the parent document
       # @option arguments [String] :percolate Perform percolation during the operation;
@@ -67,17 +85,23 @@ module Elasticsearch
       #
       def update(arguments={})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
-        raise ArgumentError, "Required argument 'type' missing"  unless arguments[:type]
         raise ArgumentError, "Required argument 'id' missing"    unless arguments[:id]
+        arguments[:type] ||= DEFAULT_DOC
         method = HTTP_POST
-        path   = Utils.__pathify Utils.__escape(arguments[:index]),
-                                 Utils.__escape(arguments[:type]),
-                                 Utils.__escape(arguments[:id]),
-                                 '_update'
+
+        if arguments[:type]
+          path   = Utils.__pathify Utils.__escape(arguments[:index]),
+                                   Utils.__escape(arguments[:type]),
+                                   Utils.__escape(arguments[:id]),
+                                   '_update'
+        else
+          path   = Utils.__pathify Utils.__escape(arguments[:index]),
+                                   '_update',
+                                   Utils.__escape(arguments[:id])
+        end
 
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
         body   = arguments[:body]
-
         params[:fields] = Utils.__listify(params[:fields]) if params[:fields]
 
         if Array(arguments[:ignore]).include?(404)
@@ -89,10 +113,11 @@ module Elasticsearch
 
       # Register this action with its valid params when the module is loaded.
       #
-      # @since 6.2.0
+      # @since 6.1.1
       ParamsRegistry.register(:update, [
           :consistency,
           :fields,
+          :include_type_name,
           :lang,
           :parent,
           :percolate,
@@ -103,14 +128,14 @@ module Elasticsearch
           :script,
           :_source,
           :_source_include,
-          :_source_includes,
           :_source_exclude,
-          :_source_excludes,
           :timeout,
           :timestamp,
           :ttl,
           :version,
-          :version_type ].freeze)
+          :version_type,
+          :if_seq_no,
+          :if_primary_term ].freeze)
     end
   end
 end

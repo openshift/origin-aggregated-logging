@@ -12,6 +12,8 @@ end
 require 'fluent/plugin/output'
 require 'fluent/event'
 require 'fluent/error'
+require 'fluent/time'
+require 'fluent/log-ext'
 require_relative 'elasticsearch_constants'
 require_relative 'elasticsearch_error'
 require_relative 'elasticsearch_error_handler'
@@ -108,6 +110,7 @@ EOC
     config_param :application_name, :string, :default => "default"
     config_param :templates, :hash, :default => nil
     config_param :max_retry_putting_template, :integer, :default => 10
+    config_param :fail_on_putting_template_retry_exceed, :bool, :default => true
     config_param :max_retry_get_es_version, :integer, :default => 15
     config_param :include_tag_key, :bool, :default => false
     config_param :tag_key, :string, :default => 'tag'
@@ -135,6 +138,7 @@ EOC
     config_param :suppress_doc_wrap, :bool, :default => false
     config_param :ignore_exceptions, :array, :default => [], value_type: :string, :desc => "Ignorable exception list"
     config_param :exception_backup, :bool, :default => true, :desc => "Chunk backup flag when ignore exception occured"
+    config_param :bulk_message_request_threshold, :size, :default => TARGET_BULK_BYTES
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -184,7 +188,7 @@ EOC
 
       if !Fluent::Engine.dry_run_mode
         if @template_name && @template_file
-          retry_operate(@max_retry_putting_template) do
+          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
             if @customize_template
               if @rollover_index
                 raise Fluent::ConfigError, "'deflector_alias' must be provided if 'rollover_index' is set true ." if not @deflector_alias
@@ -195,18 +199,11 @@ EOC
             end
           end
         elsif @templates
-          retry_operate(@max_retry_putting_template) do
+          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
             templates_hash_install(@templates, @template_overwrite)
           end
         end
       end
-
-      # Consider missing the prefix of "$." in nested key specifiers.
-      @id_key = convert_compat_id_key(@id_key) if @id_key
-      @parent_key = convert_compat_id_key(@parent_key) if @parent_key
-      @routing_key = convert_compat_id_key(@routing_key) if @routing_key
-
-      @meta_config_map = create_meta_config_map
 
       @serializer_class = nil
       begin
@@ -281,7 +278,13 @@ EOC
         log.warn "To prevent events traffic jam, you should specify 2 or more 'flush_thread_count'."
       end
 
+      # Consider missing the prefix of "$." in nested key specifiers.
+      @id_key = convert_compat_id_key(@id_key) if @id_key
+      @parent_key = convert_compat_id_key(@parent_key) if @parent_key
+      @routing_key = convert_compat_id_key(@routing_key) if @routing_key
+
       @routing_key_name = configure_routing_key_name
+      @meta_config_map = create_meta_config_map
       @current_config = nil
 
       @ignore_exception_classes = @ignore_exceptions.map do |exception|
@@ -293,6 +296,16 @@ EOC
           Object.const_get(exception)
         end
       end.compact
+
+      if @bulk_message_request_threshold < 0
+        class << self
+          alias_method :split_request?, :split_request_size_uncheck?
+        end
+      else
+        class << self
+          alias_method :split_request?, :split_request_size_check?
+        end
+      end
     end
 
     def placeholder?(name, param)
@@ -358,16 +371,30 @@ EOC
           # Strptime doesn't support all formats, but for those it does it's
           # blazingly fast.
           strptime = Strptime.new(@time_key_format)
-          Proc.new { |value| strptime.exec(value).to_datetime }
+          Proc.new { |value|
+            value = convert_numeric_time_into_string(value, @time_key_format) if value.is_a?(Numeric)
+            strptime.exec(value).to_datetime
+          }
         rescue
           # Can happen if Strptime doesn't recognize the format; or
           # if strptime couldn't be required (because it's not installed -- it's
           # ruby 2 only)
-          Proc.new { |value| DateTime.strptime(value, @time_key_format) }
+          Proc.new { |value|
+            value = convert_numeric_time_into_string(value, @time_key_format) if value.is_a?(Numeric)
+            DateTime.strptime(value, @time_key_format)
+          }
         end
       else
-        Proc.new { |value| DateTime.parse(value) }
+        Proc.new { |value|
+          value = convert_numeric_time_into_string(value) if value.is_a?(Numeric)
+          DateTime.parse(value)
+        }
       end
+    end
+
+    def convert_numeric_time_into_string(numeric_time, time_key_format = "%Y-%m-%d %H:%M:%S.%N%z")
+      numeric_time_parser = Fluent::NumericTimeParser.new(:float)
+      Time.at(numeric_time_parser.parse(numeric_time).to_r).strftime(time_key_format)
     end
 
     def parse_time(value, event_time, tag)
@@ -575,7 +602,7 @@ EOC
 
           if append_record_to_messages(@write_operation, meta, header, record, bulk_message[info])
             bulk_message_count[info] += 1;
-            if bulk_message[info].size > TARGET_BULK_BYTES
+            if split_request?(bulk_message, info)
               bulk_message.each do |info, msgs|
                 send_bulk(msgs, tag, chunk, bulk_message_count[info], extracted_values, info) unless msgs.empty?
                 msgs.clear
@@ -600,6 +627,18 @@ EOC
         send_bulk(msgs, tag, chunk, bulk_message_count[info], extracted_values, info) unless msgs.empty?
         msgs.clear
       end
+    end
+
+    def split_request?(bulk_message, info)
+      # For safety.
+    end
+
+    def split_request_size_check?(bulk_message, info)
+      bulk_message[info].size > @bulk_message_request_threshold
+    end
+
+    def split_request_size_uncheck?(bulk_message, info)
+      false
     end
 
     def process_message(tag, meta, header, time, record, extracted_values)
@@ -652,7 +691,7 @@ EOC
           target_type = '_doc'.freeze
         end
       else
-        if @last_seen_major_version >= 7 && target_type != DEFAULT_TYPE_NAME_ES_7x
+        if @last_seen_major_version >= 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
           log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
         else
