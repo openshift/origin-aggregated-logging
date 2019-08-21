@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: openshift-olm-test
+  namespace: olm-test
+spec:
+  name: openshift-olm-test
+  sourceType: internal
+  configMap: openshift-olm-test
+  displayName: openshift-olm-test
+  publisher: Operator Framework
