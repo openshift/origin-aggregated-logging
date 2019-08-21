@@ -67,6 +67,10 @@ def get_refresh_interval()
   return ENV['CONTAINER_LOGS_REFRESH_INTERVAL'] || '60'
 end
 
+def get_rotate_wait()
+  return ENV['CONTAINER_LOGS_ROTATE_WAIT'] || '5'
+end
+
 def move_pos_file_project_entry(source_file, dest_file, project, log)
   log.debug "moving project #{project} pos entry from #{source_file} to #{dest_file}"
   if File.file?(source_file)
@@ -130,6 +134,7 @@ def seed_file(file_name, project, log)
   path #{path}
   pos_file #{pos_file}
   refresh_interval #{get_refresh_interval}
+  rotate_wait #{get_rotate_wait}
     CONF
   }
 
@@ -191,6 +196,7 @@ def create_default_container_input(input_conf_file, excluded, log, options={})
   path "#{options[:cont_logs_path] || cont_logs_path}"
   pos_file "#{options[:cont_pos_file] || cont_pos_file}"
   refresh_interval #{get_refresh_interval}
+  rotate_wait #{get_rotate_wait}
   tag kubernetes.*
   read_from_head "#{options[:read_from_head] || read_from_head}"
   exclude_path #{excluded}
