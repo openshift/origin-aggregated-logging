@@ -149,6 +149,15 @@ get_pod_logs() {
     echo ------ container: $container
     oc -n $ns logs $pod -c $container | nice xz > $logs_folder/$pod-$container.log.xz || oc logs $pod | nice xz > $logs_folder/$pod.log.xz || echo ---- Unable to get logs from pod $pod and container $container
   done
+
+  if [ "$collector_folder" == "$2" ]	
+  then	
+    collector=fluentd
+    if [[ "${pod}" =~ .*rsyslog.* ]] ; then
+      collector=rsyslog
+    fi
+    oc exec $1 -c $collector -- logs --all | nice xz >> $logs_folder/$pod.log.xz
+  fi
 }
 
 check_collector_connectivity() {
@@ -157,13 +166,15 @@ check_collector_connectivity() {
   es_host=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_HOST")].value}')
   es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_PORT")].value}')
   collector=fluent
+  container=fluentd
   if [[ "${pod}" =~ .*rsyslog.* ]] ; then
     collector=rsyslog
+    container=rsyslog
   fi
   echo "  with ca" >> $collector_folder/$pod
-  oc exec $pod -- curl -ILvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert --cacert /etc/$collector/keys/ca -XGET https://$es_host:$es_port &>> $collector_folder/$pod
+  oc exec $pod -c $container -- curl -ILvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert --cacert /etc/$collector/keys/ca -XGET https://$es_host:$es_port &>> $collector_folder/$pod
   echo "  without ca" >> $collector_folder/$pod
-  oc exec $pod -- curl -ILkvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert -XGET https://$es_host:$es_port &>> $collector_folder/$pod
+  oc exec $pod -c $container -- curl -ILkvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert -XGET https://$es_host:$es_port &>> $collector_folder/$pod
 }
 
 check_collector_persistence() {
