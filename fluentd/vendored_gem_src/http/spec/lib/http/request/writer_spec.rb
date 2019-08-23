@@ -1,88 +1,77 @@
+# frozen_string_literal: true
 # coding: utf-8
 
 RSpec.describe HTTP::Request::Writer do
   let(:io)          { StringIO.new }
-  let(:body)        { "" }
+  let(:body)        { HTTP::Request::Body.new("") }
   let(:headers)     { HTTP::Headers.new }
   let(:headerstart) { "GET /test HTTP/1.1" }
 
   subject(:writer)  { described_class.new(io, body, headers, headerstart) }
 
-  describe "#initalize" do
-    context "when body is nil" do
-      let(:body) { nil }
-
-      it "does not raise an error" do
-        expect { writer }.not_to raise_error
-      end
-    end
-
-    context "when body is a string" do
-      let(:body) { "string body" }
-
-      it "does not raise an error" do
-        expect { writer }.not_to raise_error
-      end
-    end
-
-    context "when body is an Enumerable" do
-      let(:body) { %w(bees cows) }
-
-      it "does not raise an error" do
-        expect { writer }.not_to raise_error
-      end
-    end
-
-    context "when body is not string, enumerable or nil" do
-      let(:body) { 123 }
-
-      it "raises an error" do
-        expect { writer }.to raise_error
-      end
-    end
-  end
-
   describe "#stream" do
-    context "when body is Enumerable" do
-      let(:body)    { %w(bees cows) }
-      let(:headers) { HTTP::Headers.coerce "Transfer-Encoding" => "chunked" }
+    context "when multiple headers are set" do
+      let(:headers) { HTTP::Headers.coerce "Host" => "example.org" }
 
-      it "writes a chunked request from an Enumerable correctly" do
+      it "separates headers with carriage return and line feed" do
         writer.stream
-        expect(io.string).to end_with "\r\n4\r\nbees\r\n4\r\ncows\r\n0\r\n\r\n"
-      end
-
-      it "writes Transfer-Encoding header only once" do
-        writer.stream
-        expect(io.string).to start_with "#{headerstart}\r\nTransfer-Encoding: chunked\r\n\r\n"
-      end
-
-      context "when Transfer-Encoding not set" do
-        let(:headers) { HTTP::Headers.new }
-        specify { expect { writer.stream }.to raise_error }
-      end
-
-      context "when Transfer-Encoding is not chunked" do
-        let(:headers) { HTTP::Headers.coerce "Transfer-Encoding" => "gzip" }
-        specify { expect { writer.stream }.to raise_error }
+        expect(io.string).to eq [
+          "#{headerstart}\r\n",
+          "Host: example.org\r\nContent-Length: 0\r\n\r\n"
+        ].join
       end
     end
 
-    context "when body is a unicode String" do
-      let(:body) { "Привет, мир!" }
+    context "when body is nonempty" do
+      let(:body) { HTTP::Request::Body.new("content") }
 
-      it "properly calculates Content-Length if needed" do
+      it "writes it to the socket and sets Content-Length" do
         writer.stream
-        expect(io.string).to start_with "#{headerstart}\r\nContent-Length: 21\r\n\r\n"
+        expect(io.string).to eq [
+          "#{headerstart}\r\n",
+          "Content-Length: 7\r\n\r\n",
+          "content"
+        ].join
       end
+    end
 
-      context "when Content-Length explicitly set" do
-        let(:headers) { HTTP::Headers.coerce "Content-Length" => 12 }
+    context "when body is empty" do
+      let(:body) { HTTP::Request::Body.new(nil) }
 
-        it "keeps given value" do
-          writer.stream
-          expect(io.string).to start_with "#{headerstart}\r\nContent-Length: 12\r\n\r\n"
-        end
+      it "doesn't write anything to the socket and sets Content-Length" do
+        writer.stream
+        expect(io.string).to eq [
+          "#{headerstart}\r\n",
+          "Content-Length: 0\r\n\r\n"
+        ].join
+      end
+    end
+
+    context "when Content-Length header is set" do
+      let(:headers) { HTTP::Headers.coerce "Content-Length" => "12" }
+      let(:body)    { HTTP::Request::Body.new("content") }
+
+      it "keeps the given value" do
+        writer.stream
+        expect(io.string).to eq [
+          "#{headerstart}\r\n",
+          "Content-Length: 12\r\n\r\n",
+          "content"
+        ].join
+      end
+    end
+
+    context "when Transfer-Encoding is chunked" do
+      let(:headers) { HTTP::Headers.coerce "Transfer-Encoding" => "chunked" }
+      let(:body)    { HTTP::Request::Body.new(%w[request body]) }
+
+      it "writes encoded content and omits Content-Length" do
+        writer.stream
+        expect(io.string).to eq [
+          "#{headerstart}\r\n",
+          "Transfer-Encoding: chunked\r\n\r\n",
+          "7\r\nrequest\r\n4\r\nbody\r\n0\r\n\r\n"
+        ].join
       end
     end
   end

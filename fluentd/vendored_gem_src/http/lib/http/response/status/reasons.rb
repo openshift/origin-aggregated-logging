@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # AUTO-GENERATED FILE, DO NOT CHANGE IT MANUALLY
 
 require "delegate"
@@ -61,6 +63,7 @@ module HTTP
         428 => "Precondition Required",
         429 => "Too Many Requests",
         431 => "Request Header Fields Too Large",
+        451 => "Unavailable For Legal Reasons",
         500 => "Internal Server Error",
         501 => "Not Implemented",
         502 => "Bad Gateway",

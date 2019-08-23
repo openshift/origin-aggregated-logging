@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "delegate"
 
 require "http/response/status/reasons"
@@ -26,9 +28,9 @@ module HTTP
 
           return new code if code
 
-          fail Error, "Can't coerce #{object.class}(#{object}) to #{self}"
+          raise Error, "Can't coerce #{object.class}(#{object}) to #{self}"
         end
-        alias_method :[], :coerce
+        alias [] coerce
 
         private
 
@@ -83,6 +85,36 @@ module HTTP
         "#{code} #{reason}".strip
       end
 
+      # Check if status code is informational (1XX)
+      # @return [Boolean]
+      def informational?
+        100 <= code && code < 200
+      end
+
+      # Check if status code is successful (2XX)
+      # @return [Boolean]
+      def success?
+        200 <= code && code < 300
+      end
+
+      # Check if status code is redirection (3XX)
+      # @return [Boolean]
+      def redirect?
+        300 <= code && code < 400
+      end
+
+      # Check if status code is client error (4XX)
+      # @return [Boolean]
+      def client_error?
+        400 <= code && code < 500
+      end
+
+      # Check if status code is server error (5XX)
+      # @return [Boolean]
+      def server_error?
+        500 <= code && code < 600
+      end
+
       # Symbolized {#reason}
       #
       # @return [nil] unless code is well-known (see REASONS)
@@ -90,9 +122,6 @@ module HTTP
       def to_sym
         SYMBOLS[code]
       end
-
-      # @deprecated Will be removed in 1.0.0
-      alias_method :symbolize, :to_sym
 
       # Printable version of HTTP Status, surrounded by quote marks,
       # with special characters escaped.
@@ -111,6 +140,7 @@ module HTTP
       end
 
       def __setobj__(obj)
+        raise TypeError, "Expected #{obj.inspect} to respond to #to_i" unless obj.respond_to? :to_i
         @code = obj.to_i
       end
 

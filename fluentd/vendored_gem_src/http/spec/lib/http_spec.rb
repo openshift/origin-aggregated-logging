@@ -1,3 +1,6 @@
+# frozen_string_literal: true
+# encoding: utf-8
+
 require "json"
 
 require "support/dummy_server"
@@ -38,6 +41,12 @@ RSpec.describe HTTP do
       end
     end
 
+    context "with two leading slashes in path" do
+      it "is allowed" do
+        expect { HTTP.get "#{dummy.endpoint}//" }.not_to raise_error
+      end
+    end
+
     context "with headers" do
       it "is easy" do
         response = HTTP.accept("application/json").get dummy.endpoint
@@ -46,7 +55,7 @@ RSpec.describe HTTP do
     end
 
     context "with a large request body" do
-      %w(global null per_operation).each do |timeout|
+      %w[global null per_operation].each do |timeout|
         context "with a #{timeout} timeout" do
           [16_000, 16_500, 17_000, 34_000, 68_000].each do |size|
             [0, rand(0..100), rand(100..1000)].each do |fuzzer|
@@ -55,14 +64,26 @@ RSpec.describe HTTP do
 
                 let(:characters) { ("A".."Z").to_a }
                 let(:request_body) do
-                  (size + fuzzer).times.map { |i| characters[i % characters.length] }.join
+                  Array.new(size + fuzzer) { |i| characters[i % characters.length] }.join
                 end
 
                 it "returns a large body" do
                   response = client.post("#{dummy.endpoint}/echo-body", :body => request_body)
 
                   expect(response.body.to_s).to eq(request_body)
-                  expect(response.headers["Content-Length"].to_i).to eq(request_body.length)
+                  expect(response.headers["Content-Length"].to_i).to eq(request_body.bytesize)
+                end
+
+                context "when bytesize != length" do
+                  let(:characters) { ("A".."Z").to_a.push("“") }
+
+                  it "returns a large body" do
+                    body = {:data => request_body}
+                    response = client.post("#{dummy.endpoint}/echo-body", :json => body)
+
+                    expect(CGI.unescape(response.body.to_s)).to eq(body.to_json)
+                    expect(response.headers["Content-Length"].to_i).to eq(body.to_json.bytesize)
+                  end
                 end
               end
             end
@@ -160,14 +181,36 @@ RSpec.describe HTTP do
   context "loading binary data" do
     it "is encoded as bytes" do
       response = HTTP.get "#{dummy.endpoint}/bytes"
-      expect(response.to_s.encoding).to eq(Encoding::ASCII_8BIT)
+      expect(response.to_s.encoding).to eq(Encoding::BINARY)
     end
   end
 
-  context "loading text" do
-    it "is utf-8 encoded" do
+  context "loading endpoint with charset" do
+    it "uses charset from headers" do
+      response = HTTP.get "#{dummy.endpoint}/iso-8859-1"
+      expect(response.to_s.encoding).to eq(Encoding::ISO8859_1)
+      expect(response.to_s.encode(Encoding::UTF_8)).to eq("testæ")
+    end
+
+    context "with encoding option" do
+      it "respects option" do
+        response = HTTP.get "#{dummy.endpoint}/iso-8859-1", "encoding" => Encoding::BINARY
+        expect(response.to_s.encoding).to eq(Encoding::BINARY)
+      end
+    end
+  end
+
+  context "passing a string encoding type" do
+    it "finds encoding" do
+      response = HTTP.get dummy.endpoint, "encoding" => "ascii"
+      expect(response.to_s.encoding).to eq(Encoding::ASCII)
+    end
+  end
+
+  context "loading text with no charset" do
+    it "is binary encoded" do
       response = HTTP.get dummy.endpoint
-      expect(response.to_s.encoding).to eq(Encoding::UTF_8)
+      expect(response.to_s.encoding).to eq(Encoding::BINARY)
     end
   end
 
@@ -201,12 +244,12 @@ RSpec.describe HTTP do
   describe ".auth" do
     it "sets Authorization header to the given value" do
       client = HTTP.auth "abc"
-      expect(client.default_headers[:authorization]).to eq "abc"
+      expect(client.default_options.headers[:authorization]).to eq "abc"
     end
 
     it "accepts any #to_s object" do
       client = HTTP.auth double :to_s => "abc"
-      expect(client.default_headers[:authorization]).to eq "abc"
+      expect(client.default_options.headers[:authorization]).to eq "abc"
     end
   end
 
@@ -225,7 +268,7 @@ RSpec.describe HTTP do
 
     it "sets Authorization header with proper BasicAuth value" do
       client = HTTP.basic_auth :user => "foo", :pass => "bar"
-      expect(client.default_headers[:authorization]).
+      expect(client.default_options.headers[:authorization]).
         to match(%r{^Basic [A-Za-z0-9+/]+=*$})
     end
   end
@@ -249,6 +292,14 @@ RSpec.describe HTTP do
           expect(client).to receive(:close).and_call_original
           client.get("/repos/httprb/http.rb")
         end
+      end
+    end
+
+    context "with timeout specified" do
+      subject(:client) { HTTP.persistent host, :timeout => 100 }
+      it "sets keep_alive_timeout" do
+        options = client.default_options
+        expect(options.keep_alive_timeout).to eq(100)
       end
     end
   end
@@ -337,5 +388,95 @@ RSpec.describe HTTP do
       client = HTTP.headers("Cookie" => "foo=bar").cookies(:baz => :moo)
       expect(client.get(endpoint).to_s).to eq "foo: bar\nbaz: moo"
     end
+  end
+
+  describe ".nodelay" do
+    before do
+      HTTP.default_options = {:socket_class => socket_spy_class}
+    end
+
+    after do
+      HTTP.default_options = {}
+    end
+
+    let(:socket_spy_class) do
+      Class.new(TCPSocket) do
+        def self.setsockopt_calls
+          @setsockopt_calls ||= []
+        end
+
+        def setsockopt(*args)
+          self.class.setsockopt_calls << args
+          super
+        end
+      end
+    end
+
+    it "sets TCP_NODELAY on the underlying socket" do
+      HTTP.get(dummy.endpoint)
+      expect(socket_spy_class.setsockopt_calls).to eq([])
+      HTTP.nodelay.get(dummy.endpoint)
+      expect(socket_spy_class.setsockopt_calls).to eq([[Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]])
+    end
+  end
+
+  describe ".use" do
+    it "turns on given feature" do
+      client = HTTP.use :auto_deflate
+      expect(client.default_options.features.keys).to eq [:auto_deflate]
+    end
+
+    context "with :auto_deflate" do
+      it "sends gzipped body" do
+        client   = HTTP.use :auto_deflate
+        body     = "Hello!"
+        response = client.post("#{dummy.endpoint}/echo-body", :body => body)
+        encoded  = response.to_s
+
+        expect(Zlib::GzipReader.new(StringIO.new(encoded)).read).to eq body
+      end
+
+      it "sends deflated body" do
+        client   = HTTP.use :auto_deflate => {:method => "deflate"}
+        body     = "Hello!"
+        response = client.post("#{dummy.endpoint}/echo-body", :body => body)
+        encoded  = response.to_s
+
+        expect(Zlib::Inflate.inflate(encoded)).to eq body
+      end
+    end
+
+    context "with :auto_inflate" do
+      it "returns raw body when Content-Encoding type is missing" do
+        client   = HTTP.use :auto_inflate
+        body     = "Hello!"
+        response = client.post("#{dummy.endpoint}/encoded-body", :body => body)
+        expect(response.to_s).to eq("#{body}-raw")
+      end
+
+      it "returns decoded body" do
+        client   = HTTP.use(:auto_inflate).headers("Accept-Encoding" => "gzip")
+        body     = "Hello!"
+        response = client.post("#{dummy.endpoint}/encoded-body", :body => body)
+
+        expect(response.to_s).to eq("#{body}-gzipped")
+      end
+
+      it "returns deflated body" do
+        client   = HTTP.use(:auto_inflate).headers("Accept-Encoding" => "deflate")
+        body     = "Hello!"
+        response = client.post("#{dummy.endpoint}/encoded-body", :body => body)
+
+        expect(response.to_s).to eq("#{body}-deflated")
+      end
+    end
+  end
+
+  it "unifies socket errors into HTTP::ConnectionError" do
+    expect { HTTP.get "http://thishostshouldnotexists.com" }.
+      to raise_error HTTP::ConnectionError
+
+    expect { HTTP.get "http://127.0.0.1:000" }.
+      to raise_error HTTP::ConnectionError
   end
 end

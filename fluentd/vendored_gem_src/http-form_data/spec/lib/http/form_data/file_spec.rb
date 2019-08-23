@@ -1,20 +1,21 @@
-# coding: utf-8
 # frozen_string_literal: true
+# coding: utf-8
 
 RSpec.describe HTTP::FormData::File do
-  let(:opts) { nil }
+  let(:opts)      { nil }
+  let(:form_file) { described_class.new(file, opts) }
 
   describe "#size" do
-    subject { described_class.new(file, opts).size }
+    subject { form_file.size }
 
     context "when file given as a String" do
       let(:file) { fixture("the-http-gem.info").to_s }
       it { is_expected.to eq fixture("the-http-gem.info").size }
     end
 
-    context "when file given as StringIO" do
-      let(:file) { StringIO.new "привет мир!" }
-      it { is_expected.to eq 20 }
+    context "when file given as a Pathname" do
+      let(:file) { fixture("the-http-gem.info") }
+      it { is_expected.to eq fixture("the-http-gem.info").size }
     end
 
     context "when file given as File" do
@@ -22,19 +23,73 @@ RSpec.describe HTTP::FormData::File do
       after { file.close }
       it { is_expected.to eq fixture("the-http-gem.info").size }
     end
+
+    context "when file given as IO" do
+      let(:file) { StringIO.new "привет мир!" }
+      it { is_expected.to eq 20 }
+    end
   end
 
   describe "#to_s" do
-    subject { described_class.new(file, opts).to_s }
+    subject { form_file.to_s }
+
+    context "when file given as a String" do
+      let(:file) { fixture("the-http-gem.info").to_s }
+      it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
+
+      it "rewinds content" do
+        content = form_file.read
+        expect(form_file.to_s).to eq content
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as a Pathname" do
+      let(:file) { fixture("the-http-gem.info") }
+      it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
+
+      it "rewinds content" do
+        content = form_file.read
+        expect(form_file.to_s).to eq content
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as File" do
+      let(:file) { fixture("the-http-gem.info").open("rb") }
+      after { file.close }
+      it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
+
+      it "rewinds content" do
+        content = form_file.read
+        expect(form_file.to_s).to eq content
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as IO" do
+      let(:file) { StringIO.new "привет мир!" }
+      it { is_expected.to eq "привет мир!" }
+
+      it "rewinds content" do
+        content = form_file.read
+        expect(form_file.to_s).to eq content
+        expect(form_file.read).to eq content
+      end
+    end
+  end
+
+  describe "#read" do
+    subject { form_file.read }
 
     context "when file given as a String" do
       let(:file) { fixture("the-http-gem.info").to_s }
       it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
     end
 
-    context "when file given as StringIO" do
-      let(:file) { StringIO.new "привет мир!" }
-      it { is_expected.to eq "привет мир!" }
+    context "when file given as a Pathname" do
+      let(:file) { fixture("the-http-gem.info") }
+      it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
     end
 
     context "when file given as File" do
@@ -42,10 +97,58 @@ RSpec.describe HTTP::FormData::File do
       after { file.close }
       it { is_expected.to eq fixture("the-http-gem.info").read(:mode => "rb") }
     end
+
+    context "when file given as IO" do
+      let(:file) { StringIO.new "привет мир!" }
+      it { is_expected.to eq "привет мир!" }
+    end
+  end
+
+  describe "#rewind" do
+    context "when file given as a String" do
+      let(:file) { fixture("the-http-gem.info").to_s }
+
+      it "rewinds the underlying IO object" do
+        content = form_file.read
+        form_file.rewind
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as a Pathname" do
+      let(:file) { fixture("the-http-gem.info") }
+
+      it "rewinds the underlying IO object" do
+        content = form_file.read
+        form_file.rewind
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as File" do
+      let(:file) { fixture("the-http-gem.info").open("rb") }
+      after { file.close }
+
+      it "rewinds the underlying IO object" do
+        content = form_file.read
+        form_file.rewind
+        expect(form_file.read).to eq content
+      end
+    end
+
+    context "when file given as IO" do
+      let(:file) { StringIO.new "привет мир!" }
+
+      it "rewinds the underlying IO object" do
+        content = form_file.read
+        form_file.rewind
+        expect(form_file.read).to eq content
+      end
+    end
   end
 
   describe "#filename" do
-    subject { described_class.new(file, opts).filename }
+    subject { form_file.filename }
 
     context "when file given as a String" do
       let(:file) { fixture("the-http-gem.info").to_s }
@@ -58,10 +161,10 @@ RSpec.describe HTTP::FormData::File do
       end
     end
 
-    context "when file given as StringIO" do
-      let(:file) { StringIO.new }
+    context "when file given as a Pathname" do
+      let(:file) { fixture("the-http-gem.info") }
 
-      it { is_expected.to eq "stream-#{file.object_id}" }
+      it { is_expected.to eq ::File.basename file }
 
       context "and filename given with options" do
         let(:opts) { { :filename => "foobar.txt" } }
@@ -80,10 +183,22 @@ RSpec.describe HTTP::FormData::File do
         it { is_expected.to eq "foobar.txt" }
       end
     end
+
+    context "when file given as IO" do
+      let(:file) { StringIO.new }
+
+      it { is_expected.to eq "stream-#{file.object_id}" }
+
+      context "and filename given with options" do
+        let(:opts) { { :filename => "foobar.txt" } }
+        it { is_expected.to eq "foobar.txt" }
+      end
+    end
   end
 
   describe "#content_type" do
-    subject { described_class.new(StringIO.new, opts).content_type }
+    let(:file) { StringIO.new }
+    subject    { form_file.content_type }
 
     it { is_expected.to eq "application/octet-stream" }
 

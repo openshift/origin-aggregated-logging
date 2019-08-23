@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "forwardable"
 
 require "http/form_data"
@@ -13,10 +15,7 @@ module HTTP
     extend Forwardable
     include Chainable
 
-    KEEP_ALIVE         = "Keep-Alive".freeze
-    CLOSE              = "close".freeze
-
-    HTTP_OR_HTTPS_RE   = %r{^https?://}i
+    HTTP_OR_HTTPS_RE = %r{^https?://}i
 
     def initialize(default_options = {})
       @default_options = HTTP::Options.new(default_options)
@@ -25,21 +24,33 @@ module HTTP
     end
 
     # Make an HTTP request
-    def request(verb, uri, opts = {})
+    def request(verb, uri, opts = {}) # rubocop:disable Style/OptionHash
+      opts = @default_options.merge(opts)
+      req = build_request(verb, uri, opts)
+      res = perform(req, opts)
+      return res unless opts.follow
+
+      Redirector.new(opts.follow).perform(req, res) do |request|
+        perform(request, opts)
+      end
+    end
+
+    # Prepare an HTTP request
+    def build_request(verb, uri, opts = {}) # rubocop:disable Style/OptionHash
       opts    = @default_options.merge(opts)
       uri     = make_request_uri(uri, opts)
       headers = make_request_headers(opts)
       body    = make_request_body(opts, headers)
       proxy   = opts.proxy
 
-      req = HTTP::Request.new(verb, uri, headers, proxy, body)
-      res = perform req, opts
-
-      return res unless opts.follow
-
-      Redirector.new(opts.follow).perform req, res do |request|
-        perform request, opts
-      end
+      HTTP::Request.new(
+        :verb         => verb,
+        :uri          => uri,
+        :headers      => headers,
+        :proxy        => proxy,
+        :body         => body,
+        :auto_deflate => opts.feature(:auto_deflate)
+      )
     end
 
     # @!method persistent?
@@ -61,11 +72,14 @@ module HTTP
       end
 
       res = Response.new(
-        @connection.status_code,
-        @connection.http_version,
-        @connection.headers,
-        Response::Body.new(@connection),
-        req.uri
+        :status        => @connection.status_code,
+        :version       => @connection.http_version,
+        :headers       => @connection.headers,
+        :proxy_headers => @connection.proxy_response_headers,
+        :connection    => @connection,
+        :encoding      => options.encoding,
+        :auto_inflate  => options.feature(:auto_inflate),
+        :uri           => req.uri
       )
 
       @connection.finish_response if req.verb == :head
@@ -73,9 +87,7 @@ module HTTP
 
       res
     rescue
-      # On any exception we reset the conn. This is a safety measure, to ensure
-      # we don't have conns in a bad state resulting in mixed requests/responses
-      close if persistent?
+      close
       raise
     end
 
@@ -90,7 +102,7 @@ module HTTP
     # Verify our request isn't going to be made against another URI
     def verify_connection!(uri)
       if default_options.persistent? && uri.origin != default_options.persistent
-        fail StateError, "Persistence is enabled for #{default_options.persistent}, but we got #{uri.origin}"
+        raise StateError, "Persistence is enabled for #{default_options.persistent}, but we got #{uri.origin}"
       # We re-create the connection object because we want to let prior requests
       # lazily load the body as long as possible, and this mimics prior functionality.
       elsif @connection && (!@connection.keep_alive? || @connection.expired?)
@@ -116,7 +128,7 @@ module HTTP
       uri = HTTP::URI.parse uri
 
       if opts.params && !opts.params.empty?
-        uri.query = [uri.query, HTTP::URI.form_encode(opts.params)].compact.join("&")
+        uri.query_values = uri.query_values(Array).to_a.concat(opts.params.to_a)
       end
 
       # Some proxies (seen on WEBRick) fail if URL has
@@ -132,16 +144,21 @@ module HTTP
       headers = opts.headers
 
       # Tell the server to keep the conn open
-      if default_options.persistent?
-        headers[Headers::CONNECTION] = KEEP_ALIVE
-      else
-        headers[Headers::CONNECTION] = CLOSE
-      end
+      headers[Headers::CONNECTION] = default_options.persistent? ? Connection::KEEP_ALIVE : Connection::CLOSE
 
       cookies = opts.cookies.values
+
       unless cookies.empty?
         cookies = opts.headers.get(Headers::COOKIE).concat(cookies).join("; ")
         headers[Headers::COOKIE] = cookies
+      end
+
+      if (auto_deflate = opts.feature(:auto_deflate))
+        # We need to delete Content-Length header. It will be set automatically
+        # by HTTP::Request::Writer
+        headers.delete(Headers::CONTENT_LENGTH)
+
+        headers[Headers::CONTENT_ENCODING] = auto_deflate.method
       end
 
       headers
@@ -154,12 +171,12 @@ module HTTP
         opts.body
       when opts.form
         form = HTTP::FormData.create opts.form
-        headers[Headers::CONTENT_TYPE]   ||= form.content_type
-        headers[Headers::CONTENT_LENGTH] ||= form.content_length
-        form.to_s
+        headers[Headers::CONTENT_TYPE] ||= form.content_type
+        form
       when opts.json
-        headers[Headers::CONTENT_TYPE] ||= "application/json"
-        MimeType[:json].encode opts.json
+        body = MimeType[:json].encode opts.json
+        headers[Headers::CONTENT_TYPE] ||= "application/json; charset=#{body.encoding.name}"
+        body
       end
     end
   end

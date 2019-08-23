@@ -1,5 +1,15 @@
 # frozen_string_literal: true
 
+require "simplecov"
+require "coveralls"
+
+SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new([
+  SimpleCov::Formatter::HTMLFormatter,
+  Coveralls::SimpleCov::Formatter
+])
+
+SimpleCov.start { add_filter "/spec/" }
+
 require "http/form_data"
 require "support/fixtures_helper"
 

@@ -1,12 +1,23 @@
 ---
 language: ruby
 rvm:
+  # - 1.9.3  # json gem now requires Ruby ~> 2.0
   - 2.0.0
-  - 2.1.7
-  - 2.2.3
-  - 2.3.0
+  - 2.1.10
+  - 2.2.9
+  - 2.3.6
+  - 2.4.3
   - ruby-head
   - jruby-19mode
-  - jruby-9.0.0.0
+  - jruby-9.1.9.0
   - jruby-head
 sudo: false
+matrix:
+  allow_failures:
+    # No longer supported
+    - rvm: 2.0.0
+    - rvm: 2.1.10
+    - rvm: jruby-19mode
+    # Future
+    - rvm: ruby-head
+    - rvm: jruby-head

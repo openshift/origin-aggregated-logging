@@ -18,6 +18,15 @@ fi
 
 fluentddir=$basedir/fluentd
 
+if [ -z "${FLUENTD_VERSION:-}" ] ; then
+    FLUENTD_VERSION=$( awk -F'[     =]+' '$2 == "FLUENTD_VERSION" {print $3; exit}' $fluentddir/Dockerfile.centos7 )
+fi
+if [ -z "${FLUENTD_VERSION:-}" ] ; then
+    echo ERROR: Could not determine FLUENTD_VERSION
+    exit 1
+fi
+export FLUENTD_VERSION
+
 gemlist=$( mktemp )
 manifest=$( mktemp )
 trap "rm -f $gemlist $manifest" EXIT
@@ -25,7 +34,7 @@ trap "rm -f $gemlist $manifest" EXIT
 # name-of-gem-file-X.Y.Z - we assume everything
 # after the last '-' is the version, and split
 # the output into name version
-gem install --explain -g $fluentddir/Gemfile | \
+gem install -N --explain -g $fluentddir/Gemfile | \
 sed -e '/^Gems/d' -e 's,[-]\([^-][^-]*\)$, \1,' | sort > $gemlist
 while read gemname gemver ; do
     vendordir=$fluentddir/vendored_gem_src/$gemname

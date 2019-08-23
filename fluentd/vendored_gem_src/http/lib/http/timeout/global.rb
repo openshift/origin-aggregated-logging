@@ -1,4 +1,7 @@
+# frozen_string_literal: true
+
 require "timeout"
+require "io/wait"
 
 require "http/timeout/per_operation"
 
@@ -18,10 +21,11 @@ module HTTP
         @total_timeout = time_left
       end
 
-      def connect(socket_class, host, port)
+      def connect(socket_class, host, port, nodelay = false)
         reset_timer
         ::Timeout.timeout(time_left, TimeoutError) do
           @socket = socket_class.open(host, port)
+          @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) if nodelay
         end
 
         log_time
@@ -31,21 +35,21 @@ module HTTP
         reset_timer
 
         begin
-          socket.connect_nonblock
+          @socket.connect_nonblock
         rescue IO::WaitReadable
-          IO.select([socket], nil, nil, time_left)
+          IO.select([@socket], nil, nil, time_left)
           log_time
           retry
         rescue IO::WaitWritable
-          IO.select(nil, [socket], nil, time_left)
+          IO.select(nil, [@socket], nil, time_left)
           log_time
           retry
         end
       end
 
       # Read from the socket
-      def readpartial(size)
-        perform_io { read_nonblock(size) }
+      def readpartial(size, buffer = nil)
+        perform_io { read_nonblock(size, buffer) }
       end
 
       # Write to the socket
@@ -53,30 +57,26 @@ module HTTP
         perform_io { write_nonblock(data) }
       end
 
-      alias_method :<<, :write
+      alias << write
 
       private
 
       if RUBY_VERSION < "2.1.0"
-
-        def read_nonblock(size)
-          @socket.read_nonblock(size)
+        def read_nonblock(size, buffer = nil)
+          @socket.read_nonblock(size, buffer)
         end
 
         def write_nonblock(data)
           @socket.write_nonblock(data)
         end
-
       else
-
-        def read_nonblock(size)
-          @socket.read_nonblock(size, :exception => false)
+        def read_nonblock(size, buffer = nil)
+          @socket.read_nonblock(size, buffer, :exception => false)
         end
 
         def write_nonblock(data)
           @socket.write_nonblock(data, :exception => false)
         end
-
       end
 
       # Perform the given I/O operation with the given argument
@@ -105,13 +105,13 @@ module HTTP
 
       # Wait for a socket to become readable
       def wait_readable_or_timeout
-        IO.select([@socket], nil, nil, time_left)
+        @socket.to_io.wait_readable(time_left)
         log_time
       end
 
       # Wait for a socket to become writable
       def wait_writable_or_timeout
-        IO.select(nil, [@socket], nil, time_left)
+        @socket.to_io.wait_writable(time_left)
         log_time
       end
 
@@ -124,7 +124,7 @@ module HTTP
       def log_time
         @time_left -= (Time.now - @started)
         if time_left <= 0
-          fail TimeoutError, "Timed out after using the allocated #{total_timeout} seconds"
+          raise TimeoutError, "Timed out after using the allocated #{total_timeout} seconds"
         end
 
         reset_timer

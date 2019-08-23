@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.shared_context "HTTP handling" do
   describe "timeouts" do
     let(:conn_timeout) { 1 }
@@ -49,8 +51,7 @@ RSpec.shared_context "HTTP handling" do
         context "of 0" do
           let(:read_timeout) { 0 }
 
-          it "times out" do
-            skip "flaky environment" if flaky_env?
+          it "times out", :flaky do
             expect { response }.to raise_error(HTTP::TimeoutError, /Read/i)
           end
         end
@@ -58,7 +59,7 @@ RSpec.shared_context "HTTP handling" do
         context "of 2.5" do
           let(:read_timeout) { 2.5 }
 
-          it "does not time out" do
+          it "does not time out", :flaky do
             expect { client.get("#{server.endpoint}/sleep").body.to_s }.to_not raise_error
           end
         end
@@ -92,7 +93,7 @@ RSpec.shared_context "HTTP handling" do
 
         let(:read_timeout) { 2.5 }
 
-        it "does not timeout" do
+        it "does not timeout", :flaky do
           client.get("#{server.endpoint}/sleep").body.to_s
           client.get("#{server.endpoint}/sleep").body.to_s
         end
@@ -123,9 +124,7 @@ RSpec.shared_context "HTTP handling" do
       end
 
       context "on a mixed state" do
-        it "re-opens the connection" do
-          skip "flaky environment" if flaky_env?
-
+        it "re-opens the connection", :flaky do
           first_socket_id = client.get("#{server.endpoint}/socket/1").body.to_s
 
           client.instance_variable_set(:@state, :dirty)
@@ -156,9 +155,7 @@ RSpec.shared_context "HTTP handling" do
       end
 
       context "with a socket issue" do
-        it "transparently reopens" do
-          skip "flaky environment" if flaky_env?
-
+        it "transparently reopens", :flaky do
           first_socket_id = client.get("#{server.endpoint}/socket").body.to_s
           expect(first_socket_id).to_not eq("")
           # Kill off the sockets we used
@@ -170,7 +167,7 @@ RSpec.shared_context "HTTP handling" do
           # rubocop:enable Style/RescueModifier
 
           # Should error because we tried to use a bad socket
-          expect { client.get("#{server.endpoint}/socket").body.to_s }.to raise_error(IOError)
+          expect { client.get("#{server.endpoint}/socket").body.to_s }.to raise_error HTTP::ConnectionError
 
           # Should succeed since we create a new socket
           second_socket_id = client.get("#{server.endpoint}/socket").body.to_s
@@ -188,9 +185,7 @@ RSpec.shared_context "HTTP handling" do
     context "when disabled" do
       let(:options) { {} }
 
-      it "opens new sockets" do
-        skip "flaky environment" if flaky_env?
-
+      it "opens new sockets", :flaky do
         expect(sockets_used).to_not include("")
         expect(sockets_used.uniq.length).to eq(2)
       end

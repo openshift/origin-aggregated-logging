@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module HTTP
   class Response
     class Parser
@@ -11,7 +13,7 @@ module HTTP
       def add(data)
         @parser << data
       end
-      alias_method :<<, :add
+      alias << add
 
       def headers?
         !!@headers
@@ -41,8 +43,17 @@ module HTTP
         end
       end
 
-      def chunk
-        chunk, @chunk = @chunk, nil
+      def read(size)
+        return if @chunk.nil?
+
+        if @chunk.bytesize <= size
+          chunk  = @chunk
+          @chunk = nil
+        else
+          chunk = @chunk.byteslice(0, size)
+          @chunk[0, size] = ""
+        end
+
         chunk
       end
 

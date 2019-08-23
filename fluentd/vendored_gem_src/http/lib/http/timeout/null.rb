@@ -1,4 +1,7 @@
+# frozen_string_literal: true
+
 require "forwardable"
+require "io/wait"
 
 module HTTP
   module Timeout
@@ -9,13 +12,14 @@ module HTTP
 
       attr_reader :options, :socket
 
-      def initialize(options = {})
+      def initialize(options = {}) # rubocop:disable Style/OptionHash
         @options = options
       end
 
       # Connects to a socket
-      def connect(socket_class, host, port)
+      def connect(socket_class, host, port, nodelay = false)
         @socket = socket_class.open(host, port)
+        @socket.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) if nodelay
       end
 
       # Starts a SSL connection on a socket
@@ -37,8 +41,8 @@ module HTTP
       end
 
       # Read from the socket
-      def readpartial(size)
-        @socket.readpartial(size)
+      def readpartial(size, buffer = nil)
+        @socket.readpartial(size, buffer)
       rescue EOFError
         :eof
       end
@@ -47,30 +51,24 @@ module HTTP
       def write(data)
         @socket.write(data)
       end
-      alias_method :<<, :write
+      alias << write
 
       private
 
       # Retry reading
-      def rescue_readable
+      def rescue_readable(timeout = read_timeout)
         yield
       rescue IO::WaitReadable
-        if IO.select([socket], nil, nil, read_timeout)
-          retry
-        else
-          raise TimeoutError, "Read timed out after #{read_timeout} seconds"
-        end
+        retry if @socket.to_io.wait_readable(timeout)
+        raise TimeoutError, "Read timed out after #{timeout} seconds"
       end
 
       # Retry writing
-      def rescue_writable
+      def rescue_writable(timeout = write_timeout)
         yield
       rescue IO::WaitWritable
-        if IO.select(nil, [socket], nil, write_timeout)
-          retry
-        else
-          raise TimeoutError, "Write timed out after #{write_timeout} seconds"
-        end
+        retry if @socket.to_io.wait_writable(timeout)
+        raise TimeoutError, "Write timed out after #{timeout} seconds"
       end
     end
   end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe HTTP::ContentType do
   describe ".parse" do
     context "with text/plain" do

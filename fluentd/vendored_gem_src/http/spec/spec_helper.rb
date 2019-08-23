@@ -1,12 +1,14 @@
-# coding: utf-8
+# frozen_string_literal: true
 
 require "simplecov"
 require "coveralls"
 
-SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter[
-  SimpleCov::Formatter::HTMLFormatter,
-  Coveralls::SimpleCov::Formatter
-]
+SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new(
+  [
+    SimpleCov::Formatter::HTMLFormatter,
+    Coveralls::SimpleCov::Formatter
+  ]
+)
 
 SimpleCov.start do
   add_filter "/spec/"
@@ -16,11 +18,7 @@ end
 require "http"
 require "rspec/its"
 require "support/capture_warning"
-
-# Are we in a flaky environment?
-def flaky_env?
-  defined?(JRUBY_VERSION) && ENV["CI"]
-end
+require "support/fakeio"
 
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 RSpec.configure do |config|
@@ -47,6 +45,7 @@ RSpec.configure do |config|
   # `:focus` metadata. When nothing is tagged with `:focus`, all examples
   # get run.
   config.filter_run :focus
+  config.filter_run_excluding :flaky if defined?(JRUBY_VERSION) && ENV["CI"]
   config.run_all_when_everything_filtered = true
 
   # Limits the available syntax to the non-monkey patched syntax that is recommended.

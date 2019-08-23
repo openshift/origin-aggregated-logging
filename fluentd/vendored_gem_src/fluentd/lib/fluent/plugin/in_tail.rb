@@ -97,6 +97,10 @@ module Fluent::Plugin
     desc 'Ignore repeated permission error logs'
     config_param :ignore_repeated_permission_error, :bool, default: false
 
+    config_section :parse, required: false, multi: true, init: true, param_name: :parser_configs do
+      config_argument :usage, :string, default: 'in_tail_parser'
+    end
+
     attr_reader :paths
 
     @@pos_file_paths = {}
@@ -148,7 +152,8 @@ module Fluent::Plugin
                            method(:parse_singleline)
                          end
       @file_perm = system_config.file_permission || FILE_PERMISSION
-      @parser = parser_create(conf: parser_config)
+      # parser is already created by parser helper
+      @parser = parser_create(usage: parser_config['usage'] || @parser_configs.first.usage)
     end
 
     def configure_tag
@@ -431,7 +436,7 @@ module Fluent::Plugin
           end
         }
       rescue => e
-        log.warn line.dump, error: e.to_s
+        log.warn 'invalid line found', file: tail_watcher.path, line: line, error: e.to_s
         log.debug_backtrace(e.backtrace)
       end
     end

@@ -1,8 +1,19 @@
+# frozen_string_literal: true
+
 RSpec.describe HTTP::Response do
   let(:body)          { "Hello world!" }
   let(:uri)           { "http://example.com/" }
   let(:headers)       { {} }
-  subject(:response)  { HTTP::Response.new 200, "1.1", headers, body, uri }
+
+  subject(:response) do
+    HTTP::Response.new(
+      :status  => 200,
+      :version => "1.1",
+      :headers => headers,
+      :body    => body,
+      :uri     => uri
+    )
+  end
 
   it "includes HTTP::Headers::Mixin" do
     expect(described_class).to include HTTP::Headers::Mixin
@@ -15,6 +26,24 @@ RSpec.describe HTTP::Response do
 
     it "returns a Rack-like array" do
       expect(subject.to_a).to eq([200, headers, body])
+    end
+  end
+
+  describe "#content_length" do
+    subject { response.content_length }
+
+    context "without Content-Length header" do
+      it { is_expected.to be_nil }
+    end
+
+    context "with Content-Length: 5" do
+      let(:headers) { {"Content-Length" => "5"} }
+      it { is_expected.to eq 5 }
+    end
+
+    context "with invalid Content-Length" do
+      let(:headers) { {"Content-Length" => "foo"} }
+      it { is_expected.to be_nil }
     end
   end
 
@@ -77,11 +106,11 @@ RSpec.describe HTTP::Response do
     context "with explicitly given mime type" do
       let(:content_type) { "application/deadbeef" }
       it "ignores mime_type of response" do
-        expect(response.parse "application/json").to eq "foo" => "bar"
+        expect(response.parse("application/json")).to eq "foo" => "bar"
       end
 
       it "supports MIME type aliases" do
-        expect(response.parse :json).to eq "foo" => "bar"
+        expect(response.parse(:json)).to eq "foo" => "bar"
       end
     end
   end
@@ -128,5 +157,30 @@ RSpec.describe HTTP::Response do
     it "does not contains cookies limited to non-requeted uri" do
       expect(jar.count { |c| "c" == c.name }).to eq 0
     end
+  end
+
+  describe "#connection" do
+    let(:connection) { double }
+
+    subject(:response) do
+      HTTP::Response.new(
+        :version    => "1.1",
+        :status     => 200,
+        :connection => connection
+      )
+    end
+
+    it "returns the connection object used to instantiate the response" do
+      expect(response.connection).to eq connection
+    end
+  end
+
+  describe "#chunked?" do
+    subject { response }
+    context "when encoding is set to chunked" do
+      let(:headers) { {"Transfer-Encoding" => "chunked"} }
+      it { is_expected.to be_chunked }
+    end
+    it { is_expected.not_to be_chunked }
   end
 end

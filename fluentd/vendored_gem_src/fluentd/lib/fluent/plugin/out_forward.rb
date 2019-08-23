@@ -20,13 +20,16 @@ require 'fluent/clock'
 require 'base64'
 
 require 'fluent/compat/socket_util'
+require 'fluent/plugin/out_forward/handshake_protocol'
+require 'fluent/plugin/out_forward/load_balancer'
+require 'fluent/plugin/out_forward/socket_cache'
+require 'fluent/plugin/out_forward/failure_detector'
+require 'fluent/plugin/out_forward/error'
+require 'fluent/plugin/out_forward/connection_manager'
+require 'fluent/plugin/out_forward/ack_handler'
 
 module Fluent::Plugin
   class ForwardOutput < Output
-    class Error < StandardError; end
-    class NoNodesAvailable < Error; end
-    class ConnectionClosedError < Error; end
-
     Fluent::Plugin.register_output('forward', self)
 
     helpers :socket, :server, :timer, :thread, :compat_parameters
@@ -154,8 +157,6 @@ module Fluent::Plugin
       @thread = nil
 
       @usock = nil
-      @sock_ack_waiting = nil
-      @sock_ack_waiting_mutex = nil
       @keep_alive_watcher_interval = 5 # TODO
     end
 
@@ -176,10 +177,8 @@ module Fluent::Plugin
         @heartbeat_type = :transport
       end
 
-      if @dns_round_robin
-        if @heartbeat_type == :udp
-          raise Fluent::ConfigError, "forward output heartbeat type must be 'transport' or 'none' to use dns_round_robin option"
-        end
+      if @dns_round_robin && @heartbeat_type == :udp
+        raise Fluent::ConfigError, "forward output heartbeat type must be 'transport' or 'none' to use dns_round_robin option"
       end
 
       if @transport == :tls
@@ -201,15 +200,24 @@ module Fluent::Plugin
         end
       end
 
+      @ack_handler = @require_ack_response ? AckHandler.new(timeout: @ack_response_timeout, log: @log, read_length: @read_length) : nil
+      socket_cache = @keepalive ? SocketCache.new(@keepalive_timeout, @log) : nil
+      @connection_manager = ConnectionManager.new(
+        log: @log,
+        secure: !!@security,
+        connection_factory: method(:create_transfer_socket),
+        socket_cache: socket_cache,
+      )
+
       @servers.each do |server|
         failure = FailureDetector.new(@heartbeat_interval, @hard_timeout, Time.now.to_i.to_f)
         name = server.name || "#{server.host}:#{server.port}"
 
         log.info "adding forwarding server '#{name}'", host: server.host, port: server.port, weight: server.weight, plugin_id: plugin_id
         if @heartbeat_type == :none
-          @nodes << NoneHeartbeatNode.new(self, server, failure: failure, keepalive: @keepalive, keepalive_timeout: @keepalive_timeout)
+          @nodes << NoneHeartbeatNode.new(self, server, failure: failure, connection_manager: @connection_manager, ack_handler: @ack_handler)
         else
-          node = Node.new(self, server, failure: failure, keepalive: @keepalive, keepalive_timeout: @keepalive_timeout)
+          node = Node.new(self, server, failure: failure, connection_manager: @connection_manager, ack_handler: @ack_handler)
           begin
             node.validate_host_resolution!
           rescue => e
@@ -251,31 +259,25 @@ module Fluent::Plugin
     def start
       super
 
-      # Output#start sets @delayed_commit_timeout by @buffer_config.delayed_commit_timeout
-      # But it should be overwritten by ack_response_timeout to rollback chunks after timeout
-      if @ack_response_timeout && @delayed_commit_timeout != @ack_response_timeout
-        log.info "delayed_commit_timeout is overwritten by ack_response_timeout"
-        @delayed_commit_timeout = @ack_response_timeout + 2 # minimum ack_reader IO.select interval is 1s
-      end
-
-      @rand_seed = Random.new.seed
-      rebuild_weight_array
-      @rr = 0
+      @load_balancer = LoadBalancer.new(log)
+      @load_balancer.rebuild_weight_array(@nodes)
 
       unless @heartbeat_type == :none
         if @heartbeat_type == :udp
           @usock = socket_create_udp(@nodes.first.host, @nodes.first.port, nonblock: true)
-          server_create_udp(:out_forward_heartbeat_receiver, 0, socket: @usock, max_bytes: @read_length) do |data, sock|
-            sockaddr = Socket.pack_sockaddr_in(sock.remote_port, sock.remote_host)
-            on_heartbeat(sockaddr, data)
-          end
+          server_create_udp(:out_forward_heartbeat_receiver, 0, socket: @usock, max_bytes: @read_length, &method(:on_udp_heatbeat_response_recv))
         end
-        timer_execute(:out_forward_heartbeat_request, @heartbeat_interval, &method(:on_timer))
+        timer_execute(:out_forward_heartbeat_request, @heartbeat_interval, &method(:on_heartbeat_timer))
       end
 
       if @require_ack_response
-        @sock_ack_waiting_mutex = Mutex.new
-        @sock_ack_waiting = []
+        # Output#start sets @delayed_commit_timeout by @buffer_config.delayed_commit_timeout
+        # But it should be overwritten by ack_response_timeout to rollback chunks after timeout
+        if @delayed_commit_timeout != @ack_response_timeout
+          log.info "delayed_commit_timeout is overwritten by ack_response_timeout"
+          @delayed_commit_timeout = @ack_response_timeout + 2 # minimum ack_reader IO.select interval is 1s
+        end
+
         thread_create(:out_forward_receiving_ack, &method(:ack_reader))
       end
 
@@ -301,22 +303,22 @@ module Fluent::Plugin
         @usock.close rescue nil
       end
 
-      if @keepalive && @keepalive_timeout
-        @nodes.each(&:clear)
-      end
       super
+    end
+
+    def stop
+      super
+
+      if @keepalive
+        @connection_manager.stop
+      end
     end
 
     def write(chunk)
       return if chunk.empty?
       tag = chunk.metadata.tag
-      select_a_healthy_node{|node| node.send_data(tag, chunk) }
-    end
 
-    ACKWaitingSockInfo = Struct.new(:sock, :chunk_id, :chunk_id_base64, :node, :time, :timeout) do
-      def expired?(now)
-        time + timeout < now
-      end
+      @load_balancer.select_healthy_node { |node| node.send_data(tag, chunk) }
     end
 
     def try_write(chunk)
@@ -326,35 +328,7 @@ module Fluent::Plugin
         return
       end
       tag = chunk.metadata.tag
-      sock, node = select_a_healthy_node{|n| n.send_data(tag, chunk) }
-      chunk_id_base64 = Base64.encode64(chunk.unique_id)
-      current_time = Fluent::Clock.now
-      info = ACKWaitingSockInfo.new(sock, chunk.unique_id, chunk_id_base64, node, current_time, @ack_response_timeout)
-      @sock_ack_waiting_mutex.synchronize do
-        @sock_ack_waiting << info
-      end
-    end
-
-    def select_a_healthy_node
-      error = nil
-
-      wlen = @weight_array.length
-      wlen.times do
-        @rr = (@rr + 1) % wlen
-        node = @weight_array[@rr]
-        next unless node.available?
-
-        begin
-          ret = yield node
-          return ret, node
-        rescue
-          # for load balancing during detecting crashed servers
-          error = $!  # use the latest error
-        end
-      end
-
-      raise error if error
-      raise NoNodesAvailable, "no nodes are available"
+      @load_balancer.select_healthy_node { |n| n.send_data(tag, chunk) }
     end
 
     def create_transfer_socket(host, port, hostname, &block)
@@ -403,130 +377,41 @@ module Fluent::Plugin
 
     private
 
-    def rebuild_weight_array
-      standby_nodes, regular_nodes = @nodes.partition {|n|
-        n.standby?
-      }
-
-      lost_weight = 0
-      regular_nodes.each {|n|
-        unless n.available?
-          lost_weight += n.weight
-        end
-      }
-      log.debug "rebuilding weight array", lost_weight: lost_weight
-
-      if lost_weight > 0
-        standby_nodes.each {|n|
-          if n.available?
-            regular_nodes << n
-            log.warn "using standby node #{n.host}:#{n.port}", weight: n.weight
-            lost_weight -= n.weight
-            break if lost_weight <= 0
-          end
-        }
-      end
-
-      weight_array = []
-      if regular_nodes.empty?
-        log.warn('No nodes are available')
-        @weight_array = weight_array
-        return @weight_array
-      end
-
-      gcd = regular_nodes.map {|n| n.weight }.inject(0) {|r,w| r.gcd(w) }
-      regular_nodes.each {|n|
-        (n.weight / gcd).times {
-          weight_array << n
-        }
-      }
-
-      # for load balancing during detecting crashed servers
-      coe = (regular_nodes.size * 6) / weight_array.size
-      weight_array *= coe if coe > 1
-
-      r = Random.new(@rand_seed)
-      weight_array.sort_by! { r.rand }
-
-      @weight_array = weight_array
-    end
-
-    def on_timer
-      @nodes.each {|n|
+    def on_heartbeat_timer
+      need_rebuild = false
+      @nodes.each do |n|
         begin
           log.trace "sending heartbeat", host: n.host, port: n.port, heartbeat_type: @heartbeat_type
           n.usock = @usock if @usock
-          if n.send_heartbeat
-            rebuild_weight_array
-          end
+          need_rebuild = n.send_heartbeat || need_rebuild
         rescue Errno::EAGAIN, Errno::EWOULDBLOCK, Errno::EINTR, Errno::ECONNREFUSED, Errno::ETIMEDOUT => e
           log.debug "failed to send heartbeat packet", host: n.host, port: n.port, heartbeat_type: @heartbeat_type, error: e
         rescue => e
           log.debug "unexpected error happen during heartbeat", host: n.host, port: n.port, heartbeat_type: @heartbeat_type, error: e
         end
-        if n.tick
-          rebuild_weight_array
-        end
-      }
+
+        need_rebuild = n.tick || need_rebuild
+      end
+
+      if need_rebuild
+        @load_balancer.rebuild_weight_array(@nodes)
+      end
     end
 
-    def on_heartbeat(sockaddr, msg)
-      if node = @nodes.find {|n| n.sockaddr == sockaddr }
+    def on_udp_heatbeat_response_recv(data, sock)
+      sockaddr = Socket.pack_sockaddr_in(sock.remote_port, sock.remote_host)
+      if node = @nodes.find { |n| n.sockaddr == sockaddr }
         # log.trace "heartbeat arrived", name: node.name, host: node.host, port: node.port
         if node.heartbeat
-          rebuild_weight_array
+          @load_balancer.rebuild_weight_array(@nodes)
         end
+      else
+        log.warn("Unknown heartbeat response received from #{sock.remote_host}:#{sock.remote_port}")
       end
     end
 
     def on_purge_obsolete_socks
-      @nodes.each(&:purge_obsolete_socks)
-    end
-
-    # return chunk id to be committed
-    def read_ack_from_sock(sock, unpacker)
-      begin
-        raw_data = sock.instance_of?(Fluent::PluginHelper::Socket::WrappedSocket::TLS) ? sock.readpartial(@read_length) : sock.recv(@read_length)
-      rescue Errno::ECONNRESET, EOFError # ECONNRESET for #recv, #EOFError for #readpartial
-        raw_data = ""
-      end
-      info = @sock_ack_waiting_mutex.synchronize{ @sock_ack_waiting.find{|i| i.sock == sock } }
-
-      # When connection is closed by remote host, socket is ready to read and #recv returns an empty string that means EOF.
-      # If this happens we assume the data wasn't delivered and retry it.
-      if raw_data.empty?
-        log.warn "destination node closed the connection. regard it as unavailable.", host: info.node.host, port: info.node.port
-        info.node.disable!
-        rollback_write(info.chunk_id, update_retry: false)
-        return nil
-      else
-        unpacker.feed(raw_data)
-        res = unpacker.read
-        log.trace "getting response from destination", host: info.node.host, port: info.node.port, chunk_id: dump_unique_id_hex(info.chunk_id), response: res
-        if res['ack'] != info.chunk_id_base64
-          # Some errors may have occurred when ack and chunk id is different, so send the chunk again.
-          log.warn "ack in response and chunk id in sent data are different", chunk_id: dump_unique_id_hex(info.chunk_id), ack: res['ack']
-          rollback_write(info.chunk_id, update_retry: false)
-          return nil
-        else
-          log.trace "got a correct ack response", chunk_id: dump_unique_id_hex(info.chunk_id)
-        end
-        return info.chunk_id
-      end
-    rescue => e
-      log.error "unexpected error while receiving ack message", error: e
-      log.error_backtrace
-    ensure
-      if @keepalive
-        info.node.socket_cache.dec_ref_by_value(info.sock)
-      else
-        info.sock.close_write rescue nil
-        info.sock.close rescue nil
-      end
-
-      @sock_ack_waiting_mutex.synchronize do
-        @sock_ack_waiting.delete(info)
-      end
+      @connection_manager.purge_obsolete_socks
     end
 
     def ack_reader
@@ -536,185 +421,33 @@ module Fluent::Plugin
                           @delayed_commit_timeout / 3.0
                         end
 
-      unpacker = Fluent::Engine.msgpack_unpacker
-
       while thread_current_running?
-        now = Fluent::Clock.now
-        sockets = []
-        begin
-          @sock_ack_waiting_mutex.synchronize do
-            new_list = []
-            @sock_ack_waiting.each do |info|
-              if info.expired?(now)
-                # There are 2 types of cases when no response has been received from socket:
-                # (1) the node does not support sending responses
-                # (2) the node does support sending response but responses have not arrived for some reasons.
-                log.warn "no response from node. regard it as unavailable.", host: info.node.host, port: info.node.port
-                info.node.disable!
-                if @keepalive
-                  info.node.socket_cache.revoke_by_value(info.sock)
-                end
-                info.sock.close rescue nil
-                rollback_write(info.chunk_id, update_retry: false)
-              else
-                sockets << info.sock
-                new_list << info
-              end
+        @ack_handler.collect_response(select_interval) do |chunk_id, node, sock, result|
+          @connection_manager.close(sock)
+
+          case result
+          when AckHandler::Result::SUCCESS
+            commit_write(chunk_id)
+          when AckHandler::Result::FAILED
+            node.disable!
+            rollback_write(chunk_id, update_retry: false)
+          when AckHandler::Result::CHUNKID_UNMATCHED
+            rollback_write(chunk_id, update_retry: false)
+          else
+            log.warn("BUG: invalid status #{result} #{chunk_id}")
+
+            if chunk_id
+              rollback_write(chunk_id, update_retry: false)
             end
-            @sock_ack_waiting = new_list
           end
-
-          readable_sockets, _, _ = IO.select(sockets, nil, nil, select_interval)
-          next unless readable_sockets
-
-          readable_sockets.each do |sock|
-            chunk_id = read_ack_from_sock(sock, unpacker)
-            commit_write(chunk_id) if chunk_id
-          end
-        rescue => e
-          log.error "unexpected error while receiving ack", error: e
-          log.error_backtrace
         end
       end
     end
 
     class Node
-      class SocketCache
-        TimedSocket = Struct.new(:timeout, :sock, :ref)
-
-        def initialize(timeout, log)
-          @log = log
-          @timeout = timeout
-          @active_socks = {}
-          @inactive_socks = {}
-          @mutex = Mutex.new
-        end
-
-        def revoke(key = Thread.current.object_id)
-          @mutex.synchronize do
-            if @active_socks[key]
-              @inactive_socks[key] = @active_socks.delete(key)
-              @inactive_socks[key].ref = 0
-            end
-          end
-        end
-
-        def clear
-          @mutex.synchronize do
-            @inactive_socks.values.each do |s|
-              s.sock.close rescue nil
-            end
-            @inactive_socks.clear
-
-            @active_socks.values.each do |s|
-              s.sock.close rescue nil
-            end
-            @active_socks.clear
-          end
-        end
-
-        def purge_obsolete_socks
-          @mutex.synchronize do
-            @inactive_socks.keys.each do |k|
-              # 0 means sockets stored in this class received all acks
-              if @inactive_socks[k].ref <= 0
-                s = @inactive_socks.delete(k)
-                s.sock.close  rescue nil
-                @log.debug("purged obsolete socket #{s.sock}")
-              end
-            end
-
-            @active_socks.keys.each do |k|
-              if expired?(k) && @active_socks[k].ref <= 0
-                @inactive_socks[k] = @active_socks.delete(k)
-              end
-            end
-          end
-        end
-
-        # We expect that `yield` returns a unique object in this class
-        def fetch_or(key = Thread.current.object_id)
-          @mutex.synchronize do
-            unless @active_socks[key]
-              @active_socks[key] = TimedSocket.new(timeout, yield, 1)
-              @log.debug("connect new socket #{@active_socks[key]}")
-              return @active_socks[key].sock
-            end
-
-            if expired?(key)
-              # Do not close this socket here in case of it will be used by other place (e.g. wait for receiving ack)
-              @inactive_socks[key] = @active_socks.delete(key)
-              @log.debug("connection #{@inactive_socks[key]} is expired. reconnecting...")
-              @active_socks[key] = TimedSocket.new(timeout, yield, 0)
-            end
-
-            @active_socks[key].ref += 1
-            @active_socks[key].sock
-          end
-        end
-
-        def dec_ref(key = Thread.current.object_id)
-          @mutex.synchronize do
-            if @active_socks[key]
-              @active_socks[key].ref -= 1
-            elsif @inactive_socks[key]
-              @inactive_socks[key].ref -= 1
-            else
-              @log.warn("Not found key for dec_ref: #{key}")
-            end
-          end
-        end
-
-        # This method is expected to be called in class which doesn't call #inc_ref
-        def dec_ref_by_value(val)
-          @mutex.synchronize do
-            sock = @active_socks.detect { |_, v| v.sock == val }
-            if sock
-              key = sock.first
-              @active_socks[key].ref -= 1
-              return
-            end
-
-            sock = @inactive_socks.detect { |_, v| v.sock == val }
-            if sock
-              key = sock.first
-              @inactive_socks[key].ref -= 1
-              return
-            else
-              @log.warn("Not found key for dec_ref_by_value: #{key}")
-            end
-          end
-        end
-
-        # This method is expected to be called in class which doesn't call #fetch_or
-        def revoke_by_value(val)
-          @mutex.synchronize do
-            sock = @active_socks.detect { |_, v| v.sock == val }
-            if sock
-              key = sock.first
-              @inactive_socks[key] = @active_socks.delete(key)
-              @inactive_socks[key].ref = 0
-            else
-              @log.debug("Not found for revoke_by_value :#{val}")
-            end
-          end
-        end
-
-        private
-
-        def timeout
-          @timeout && Time.now + @timeout
-        end
-
-        # This method is thread unsafe
-        def expired?(key = Thread.current.object_id)
-           @active_socks[key].timeout ? @active_socks[key].timeout < Time.now : false
-        end
-      end
-
-      # @param keepalive [Bool]
-      # @param keepalive_timeout [Integer | nil]
-      def initialize(sender, server, failure:, keepalive: false, keepalive_timeout: nil)
+      # @param connection_manager [Fluent::Plugin::ForwardOutput::ConnectionManager]
+      # @param ack_handler [Fluent::Plugin::ForwardOutput::AckHandler]
+      def initialize(sender, server, failure:, connection_manager:, ack_handler:)
         @sender = sender
         @log = sender.log
         @compress = sender.compress
@@ -737,10 +470,13 @@ module Fluent::Plugin
 
         @usock = nil
 
-        @username = server.username
-        @password = server.password
-        @shared_key = server.shared_key || (sender.security && sender.security.shared_key) || ""
-        @shared_key_salt = generate_salt
+        @handshake = HandshakeProtocol.new(
+          log: @log,
+          hostname: sender.security && sender.security.self_hostname,
+          shared_key: server.shared_key || (sender.security && sender.security.shared_key) || '',
+          password: server.password,
+          username: server.username,
+        )
 
         @unpacker = Fluent::Engine.msgpack_unpacker
 
@@ -748,20 +484,15 @@ module Fluent::Plugin
         @resolved_time = 0
         @resolved_once = false
 
-        @keepalive = keepalive
-        if @keepalive
-          @socket_cache = SocketCache.new(keepalive_timeout, @log)
-        end
+        @connection_manager = connection_manager
+        @ack_handler = ack_handler
       end
 
       attr_accessor :usock
 
       attr_reader :name, :host, :port, :weight, :standby, :state
-      attr_reader :sockaddr  # used by on_heartbeat
-      attr_reader :failure, :available # for test
-      attr_reader :socket_cache        # for ack
-
-      RequestInfo = Struct.new(:state, :shared_key_nonce, :auth)
+      attr_reader :sockaddr  # used by on_udp_heatbeat_response_recv
+      attr_reader :failure # for test
 
       def validate_host_resolution!
         resolved_host
@@ -783,13 +514,15 @@ module Fluent::Plugin
         connect do |sock, ri|
           if ri.state != :established
             establish_connection(sock, ri)
-            raise if ri.state != :established
+            if ri.state != :established
+              raise "Failed to establish connection to #{@host}:#{@port}"
+            end
           end
         end
       end
 
       def establish_connection(sock, ri)
-        while available? && ri.state != :established
+        while ri.state != :established
           begin
             # TODO: On Ruby 2.2 or earlier, read_nonblock doesn't work expectedly.
             # We need rewrite around here using new socket/server plugin helper.
@@ -799,7 +532,9 @@ module Fluent::Plugin
               next
             end
             @unpacker.feed_each(buf) do |data|
-              on_read(sock, ri, data)
+              if @handshake.invoke(sock, ri, data) == :established
+                @log.debug "connection established", host: @host, port: @port
+              end
             end
           rescue IO::WaitReadable
             # If the exception is Errno::EWOULDBLOCK or Errno::EAGAIN, it is extended by IO::WaitReadable.
@@ -814,17 +549,21 @@ module Fluent::Plugin
             @log.warn "disconnected", host: @host, port: @port
             disable!
             break
+          rescue HeloError => e
+            @log.warn "received invalid helo message from #{@name}"
+            disable!
+            break
+          rescue PingpongError => e
+            @log.warn "connection refused to #{@name || @host}: #{e.message}"
+            disable!
+            break
           end
         end
       end
 
       def send_data_actual(sock, tag, chunk)
-        unless available?
-          raise ConnectionClosedError, "failed to establish connection with node #{@name}"
-        end
-
         option = { 'size' => chunk.size, 'compressed' => @compress }
-        option['chunk'] = Base64.encode64(chunk.unique_id) if @sender.require_ack_response
+        option['chunk'] = Base64.encode64(chunk.unique_id) if @ack_handler
 
         # https://github.com/fluent/fluentd/wiki/Forward-Protocol-Specification-v1#packedforward-mode
         # out_forward always uses str32 type for entries.
@@ -845,48 +584,26 @@ module Fluent::Plugin
       end
 
       def send_data(tag, chunk)
-        sock, ri = connect
-        if ri.state != :established
-          establish_connection(sock, ri)
-        end
+        ack = @ack_handler && @ack_handler.create_ack(chunk.unique_id, self)
+        connect(nil, ack: ack) do |sock, ri|
+          if ri.state != :established
+            establish_connection(sock, ri)
 
-        begin
-          send_data_actual(sock, tag, chunk)
-        rescue
-          if @keepalive
-            @socket_cache.revoke
-          else
-            sock.close rescue nil
+            if ri.state != :established
+              raise ConnectionClosedError, "failed to establish connection with node #{@name}"
+            end
           end
-          raise
+
+          send_data_actual(sock, tag, chunk)
         end
 
-        if @sender.require_ack_response
-          return sock # to read ACK from socket
-        end
-
-        if @keepalive
-          @socket_cache.dec_ref
-        else
-          sock.close_write rescue nil
-          sock.close rescue nil
-        end
         heartbeat(false)
         nil
       end
 
-      def clear
-        @keepalive && @socket_cache.clear
-      end
-
-      def purge_obsolete_socks
-        unless @keepalive
-          raise "Don not call this method without keepalive option"
-        end
-        @socket_cache.purge_obsolete_socks
-      end
-
       # FORWARD_TCP_HEARTBEAT_DATA = FORWARD_HEADER + ''.to_msgpack + [].to_msgpack
+      #
+      # @return [Boolean] return true if it needs to rebuild nodes
       def send_heartbeat
         begin
           dest_addr = resolved_host
@@ -894,14 +611,14 @@ module Fluent::Plugin
         rescue ::SocketError => e
           if !@resolved_once && @sender.ignore_network_errors_at_startup
             @log.warn "failed to resolve node name in heartbeating", server: @name || @host, error: e
-            return
+            return false
           end
           raise
         end
 
         case @sender.heartbeat_type
         when :transport
-          connect(dest_addr) do |sock|
+          connect(dest_addr) do |_ri, _sock|
             ## don't send any data to not cause a compatibility problem
             # sock.write FORWARD_TCP_HEARTBEAT_DATA
 
@@ -910,8 +627,9 @@ module Fluent::Plugin
             heartbeat(true)
           end
         when :udp
-          @usock.send "\0", 0, Socket.pack_sockaddr_in(@port, resolved_host)
-          nil
+          @usock.send "\0", 0, Socket.pack_sockaddr_in(@port, dest_addr)
+          # response is going to receive at on_udp_heatbeat_response_recv
+          false
         when :none # :none doesn't use this class
           raise "BUG: heartbeat_type none must not use Node"
         else
@@ -943,14 +661,14 @@ module Fluent::Plugin
       def resolve_dns!
         addrinfo_list = Socket.getaddrinfo(@host, @port, nil, Socket::SOCK_STREAM)
         addrinfo = @sender.dns_round_robin ? addrinfo_list.sample : addrinfo_list.first
-        @sockaddr = Socket.pack_sockaddr_in(addrinfo[1], addrinfo[3]) # used by on_heartbeat
+        @sockaddr = Socket.pack_sockaddr_in(addrinfo[1], addrinfo[3]) # used by on_udp_heatbeat_response_recv
         addrinfo[3]
       end
       private :resolve_dns!
 
       def tick
         now = Time.now.to_f
-        if !@available
+        unless available?
           if @failure.hard_timeout?(now)
             @failure.clear
           end
@@ -959,7 +677,7 @@ module Fluent::Plugin
 
         if @failure.hard_timeout?(now)
           @log.warn "detached forwarding server '#{@name}'", host: @host, port: @port, hard_timeout: true
-          @available = false
+          disable!
           @resolved_host = nil  # expire cached host
           @failure.clear
           return true
@@ -969,7 +687,7 @@ module Fluent::Plugin
           phi = @failure.phi(now)
           if phi > @sender.phi_threshold
             @log.warn "detached forwarding server '#{@name}'", host: @host, port: @port, phi: phi, phi_threshold: @sender.phi_threshold
-            @available = false
+            disable!
             @resolved_host = nil  # expire cached host
             @failure.clear
             return true
@@ -981,7 +699,7 @@ module Fluent::Plugin
       def heartbeat(detect=true)
         now = Time.now.to_f
         @failure.add(now)
-        if detect && !@available && @failure.sample_size > @sender.recover_sample_size
+        if detect && !available? && @failure.sample_size > @sender.recover_sample_size
           @available = true
           @log.warn "recovered forwarding server '#{@name}'", host: @host, port: @port
           true
@@ -990,127 +708,10 @@ module Fluent::Plugin
         end
       end
 
-      def generate_salt
-        SecureRandom.hex(16)
-      end
-
-      def check_helo(ri, message)
-        @log.debug "checking helo"
-        # ['HELO', options(hash)]
-        unless message.size == 2 && message[0] == 'HELO'
-          return false
-        end
-        opts = message[1] || {}
-        # make shared_key_check failed (instead of error) if protocol version mismatch exist
-        ri.shared_key_nonce = opts['nonce'] || ''
-        ri.auth = opts['auth'] || ''
-        true
-      end
-
-      def generate_ping(ri)
-        @log.debug "generating ping"
-        # ['PING', self_hostname, sharedkey\_salt, sha512\_hex(sharedkey\_salt + self_hostname + nonce + shared_key),
-        #  username || '', sha512\_hex(auth\_salt + username + password) || '']
-        shared_key_hexdigest = Digest::SHA512.new.update(@shared_key_salt)
-          .update(@sender.security.self_hostname)
-          .update(ri.shared_key_nonce)
-          .update(@shared_key)
-          .hexdigest
-        ping = ['PING', @sender.security.self_hostname, @shared_key_salt, shared_key_hexdigest]
-        if !ri.auth.empty?
-          password_hexdigest = Digest::SHA512.new.update(ri.auth).update(@username).update(@password).hexdigest
-          ping.push(@username, password_hexdigest)
-        else
-          ping.push('','')
-        end
-        ping
-      end
-
-      def check_pong(ri, message)
-        @log.debug "checking pong"
-        # ['PONG', bool(authentication result), 'reason if authentication failed',
-        #  self_hostname, sha512\_hex(salt + self_hostname + nonce + sharedkey)]
-        unless message.size == 5 && message[0] == 'PONG'
-          return false, 'invalid format for PONG message'
-        end
-        _pong, auth_result, reason, hostname, shared_key_hexdigest = message
-
-        unless auth_result
-          return false, 'authentication failed: ' + reason
-        end
-
-        if hostname == @sender.security.self_hostname
-          return false, 'same hostname between input and output: invalid configuration'
-        end
-
-        clientside = Digest::SHA512.new.update(@shared_key_salt).update(hostname).update(ri.shared_key_nonce).update(@shared_key).hexdigest
-        unless shared_key_hexdigest == clientside
-          return false, 'shared key mismatch'
-        end
-
-        return true, nil
-      end
-
-      def on_read(sock, ri, data)
-        @log.trace __callee__
-
-        case ri.state
-        when :helo
-          unless check_helo(ri, data)
-            @log.warn "received invalid helo message from #{@name}"
-            disable! # shutdown
-            return
-          end
-          sock.write(generate_ping(ri).to_msgpack)
-          ri.state = :pingpong
-        when :pingpong
-          succeeded, reason = check_pong(ri, data)
-          unless succeeded
-            @log.warn "connection refused to #{@name || @host}: #{reason}"
-            disable! # shutdown
-            return
-          end
-          ri.state = :established
-          @log.debug "connection established", host: @host, port: @port
-        else
-          raise "BUG: unknown session state: #{ri.state}"
-        end
-      end
-
       private
 
-      def connect(host = nil)
-        socket, request_info =
-                if @keepalive
-                  ri = RequestInfo.new(:established)
-                  sock = @socket_cache.fetch_or do
-                    s = @sender.create_transfer_socket(host || resolved_host, port, @hostname)
-                    ri = RequestInfo.new(@sender.security ? :helo : :established) # overwrite if new connection
-                    s
-                  end
-                  [sock, ri]
-                else
-                  @log.debug('connect new socket')
-                  [@sender.create_transfer_socket(host || resolved_host, port, @hostname), RequestInfo.new(@sender.security ? :helo : :established)]
-                end
-
-        if block_given?
-          ret = nil
-          begin
-            ret = yield(socket, request_info)
-          rescue
-            @socket_cache.revoke if @keepalive
-            raise
-          else
-            @socket_cache.dec_ref if @keepalive
-          ensure
-            socket.close unless @keepalive
-          end
-
-          ret
-        else
-          [socket, request_info]
-        end
+      def connect(host = nil, ack: false, &block)
+        @connection_manager.connect(host: host || resolved_host, port: port, hostname: @hostname, ack: ack, &block)
       end
     end
 
@@ -1126,69 +727,6 @@ module Fluent::Plugin
 
       def heartbeat(detect=true)
         true
-      end
-    end
-
-    class FailureDetector
-      PHI_FACTOR = 1.0 / Math.log(10.0)
-      SAMPLE_SIZE = 1000
-
-      def initialize(heartbeat_interval, hard_timeout, init_last)
-        @heartbeat_interval = heartbeat_interval
-        @last = init_last
-        @hard_timeout = hard_timeout
-
-        # microsec
-        @init_gap = (heartbeat_interval * 1e6).to_i
-        @window = [@init_gap]
-      end
-
-      def hard_timeout?(now)
-        now - @last > @hard_timeout
-      end
-
-      def add(now)
-        if @window.empty?
-          @window << @init_gap
-          @last = now
-        else
-          gap = now - @last
-          @window << (gap * 1e6).to_i
-          @window.shift if @window.length > SAMPLE_SIZE
-          @last = now
-        end
-      end
-
-      def phi(now)
-        size = @window.size
-        return 0.0 if size == 0
-
-        # Calculate weighted moving average
-        mean_usec = 0
-        fact = 0
-        @window.each_with_index {|gap,i|
-          mean_usec += gap * (1+i)
-          fact += (1+i)
-        }
-        mean_usec = mean_usec / fact
-
-        # Normalize arrive intervals into 1sec
-        mean = (mean_usec.to_f / 1e6) - @heartbeat_interval + 1
-
-        # Calculate phi of the phi accrual failure detector
-        t = now - @last - @heartbeat_interval + 1
-        phi = PHI_FACTOR * t / mean
-
-        return phi
-      end
-
-      def sample_size
-        @window.size
-      end
-
-      def clear
-        @window.clear
-        @last = 0
       end
     end
   end
