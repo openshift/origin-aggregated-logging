@@ -218,6 +218,7 @@ EOF
             os::cmd::try_until_success "oc login -u '$username' -p '$pwd'" $((3 * minute)) 3
             oc login -u system:admin
             if [ $isadmin = true ] ; then
+                os::cmd::try_until_success "oc get user $username" $((3 * minute))
                 echo adding cluster-admin role to user "$username"
                 oc adm policy add-cluster-role-to-user cluster-admin "$username"
             else
