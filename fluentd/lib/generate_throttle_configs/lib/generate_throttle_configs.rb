@@ -64,7 +64,7 @@ def get_all_throttle_files()
 end
 
 def get_refresh_interval()
-  return ENV['CONTAINER_LOGS_REFRESH_INTERVAL'] || '60'
+  return ENV['CONTAINER_LOGS_REFRESH_INTERVAL'] || '5'
 end
 
 def get_rotate_wait()

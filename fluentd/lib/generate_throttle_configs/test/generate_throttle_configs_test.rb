@@ -27,7 +27,7 @@ describe 'generate_throttle_configs' do
   @id container-input
   path "/var/log/containers/*.log"
   pos_file "/var/log/es-containers.log.pos"
-  refresh_interval 60
+  refresh_interval 5
   rotate_wait 5
   tag kubernetes.*
   read_from_head "true"
@@ -79,7 +79,7 @@ describe 'generate_throttle_configs' do
   @id container-input
   path "/tmp/foo/*.logs"
   pos_file "/tmp/foo/test.logs.pos"
-  refresh_interval 60
+  refresh_interval 5
   rotate_wait 5
   tag kubernetes.*
   read_from_head "false"
@@ -160,7 +160,7 @@ secondproject:
   @id container-input
   path \"/tmp/*.log\"
   pos_file \"#{@pos_file}\"
-  refresh_interval 60
+  refresh_interval 5
   rotate_wait 5
   tag kubernetes.*
   read_from_head \"true\"
@@ -207,7 +207,7 @@ secondproject:
   @label @INGRESS
   path /tmp/*_#{project}_*.log
   pos_file #{pos_file}
-  refresh_interval 60
+  refresh_interval 5
   rotate_wait 5
   read_lines_limit #{limit}
   tag kubernetes.*
