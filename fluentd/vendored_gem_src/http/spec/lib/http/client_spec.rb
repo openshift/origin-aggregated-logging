@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # coding: utf-8
 
 require "support/http_handling_shared"
@@ -26,11 +27,20 @@ RSpec.describe HTTP::Client do
   end
 
   def redirect_response(location, status = 302)
-    HTTP::Response.new(status, "1.1", {"Location" => location}, "")
+    HTTP::Response.new(
+      :status  => status,
+      :version => "1.1",
+      :headers => {"Location" => location},
+      :body    => ""
+    )
   end
 
   def simple_response(body, status = 200)
-    HTTP::Response.new(status, "1.1", {}, body)
+    HTTP::Response.new(
+      :status  => status,
+      :version => "1.1",
+      :body    => body
+    )
   end
 
   describe "following redirects" do
@@ -100,51 +110,85 @@ RSpec.describe HTTP::Client do
     before { allow(client).to receive :perform }
 
     it "accepts params within the provided URL" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(CGI.parse uri.query).to eq("foo" => %w(bar))
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(CGI.parse(opts[:uri].query)).to eq("foo" => %w[bar])
       end
 
       client.get("http://example.com/?foo=bar")
     end
 
     it "combines GET params from the URI with the passed in params" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(CGI.parse uri.query).to eq("foo" => %w(bar), "baz" => %w(quux))
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(CGI.parse(opts[:uri].query)).to eq("foo" => %w[bar], "baz" => %w[quux])
       end
 
       client.get("http://example.com/?foo=bar", :params => {:baz => "quux"})
     end
 
     it "merges duplicate values" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(uri.query).to match(/^(a=1&a=2|a=2&a=1)$/)
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:uri].query).to match(/^(a=1&a=2|a=2&a=1)$/)
       end
 
       client.get("http://example.com/?a=1", :params => {:a => 2})
     end
 
     it "does not modifies query part if no params were given" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(uri.query).to eq "deadbeef"
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:uri].query).to eq "deadbeef"
       end
 
       client.get("http://example.com/?deadbeef")
     end
 
     it "does not corrupts index-less arrays" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(CGI.parse uri.query).to eq "a[]" => %w(b c), "d" => %w(e)
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(CGI.parse(opts[:uri].query)).to eq "a[]" => %w[b c], "d" => %w[e]
       end
 
       client.get("http://example.com/?a[]=b&a[]=c", :params => {:d => "e"})
     end
 
     it "properly encodes colons" do
-      expect(HTTP::Request).to receive(:new) do |_, uri|
-        expect(uri.query).to eq "t=1970-01-01T00%3A00%3A00Z"
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:uri].query).to eq "t=1970-01-01T00%3A00%3A00Z"
       end
 
       client.get("http://example.com/", :params => {:t => "1970-01-01T00:00:00Z"})
+    end
+
+    it 'does not convert newlines into \r\n before encoding string values' do
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:uri].query).to eq "foo=bar%0Abaz"
+      end
+
+      client.get("http://example.com/", :params => {:foo => "bar\nbaz"})
+    end
+  end
+
+  describe "passing multipart form data" do
+    it "creates url encoded form data object" do
+      client = HTTP::Client.new
+      allow(client).to receive(:perform)
+
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:body]).to be_a(HTTP::FormData::Urlencoded)
+        expect(opts[:body].to_s).to eq "foo=bar"
+      end
+
+      client.get("http://example.com/", :form => {:foo => "bar"})
+    end
+
+    it "creates multipart form data object" do
+      client = HTTP::Client.new
+      allow(client).to receive(:perform)
+
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:body]).to be_a(HTTP::FormData::Multipart)
+        expect(opts[:body].to_s).to include("content")
+      end
+
+      client.get("http://example.com/", :form => {:foo => HTTP::FormData::Part.new("content")})
     end
   end
 
@@ -153,8 +197,8 @@ RSpec.describe HTTP::Client do
       client = HTTP::Client.new
       allow(client).to receive(:perform)
 
-      expect(HTTP::Request).to receive(:new) do |*args|
-        expect(args.last).to eq('{"foo":"bar"}')
+      expect(HTTP::Request).to receive(:new) do |opts|
+        expect(opts[:body]).to eq '{"foo":"bar"}'
       end
 
       client.get("http://example.com/", :json => {:foo => :bar})
@@ -182,6 +226,27 @@ RSpec.describe HTTP::Client do
       it "keeps `Host` header as is" do
         expect(client).to receive(:perform) do |req, _|
           expect(req["Host"]).to eq "another.example.com"
+        end
+
+        client.request(:get, "http://example.com/")
+      end
+    end
+
+    context "when :auto_deflate was specified" do
+      let(:headers) { {"Content-Length" => "12"} }
+      let(:client)  { described_class.new :headers => headers, :features => {:auto_deflate => {}} }
+
+      it "deletes Content-Length header" do
+        expect(client).to receive(:perform) do |req, _|
+          expect(req["Content-Length"]).to eq nil
+        end
+
+        client.request(:get, "http://example.com/")
+      end
+
+      it "sets Content-Encoding header" do
+        expect(client).to receive(:perform) do |req, _|
+          expect(req["Content-Encoding"]).to eq "gzip"
         end
 
         client.request(:get, "http://example.com/")
@@ -270,7 +335,7 @@ RSpec.describe HTTP::Client do
 
         allow(socket_spy).to receive(:close) { nil }
         allow(socket_spy).to receive(:closed?) { true }
-        allow(socket_spy).to receive(:readpartial) { chunks[0] }
+        allow(socket_spy).to receive(:readpartial) { chunks.shift || :eof }
         allow(socket_spy).to receive(:write) { chunks[0].length }
 
         allow(TCPSocket).to receive(:open) { socket_spy }
@@ -279,6 +344,59 @@ RSpec.describe HTTP::Client do
       it "properly reads body" do
         body = client.get(dummy.endpoint).to_s
         expect(body).to eq "<!doctype html>"
+      end
+    end
+
+    context "when uses chunked transfer encoding" do
+      let(:chunks) do
+        [
+          <<-RESPONSE.gsub(/^\s*\| */, "").gsub(/\n/, "\r\n") << body
+          | HTTP/1.1 200 OK
+          | Content-Type: application/json
+          | Transfer-Encoding: chunked
+          | Connection: close
+          |
+          RESPONSE
+        ]
+      end
+      let(:body) do
+        <<-BODY.gsub(/^\s*\| */, "").gsub(/\n/, "\r\n")
+        | 9
+        | {"state":
+        | 5
+        | "ok"}
+        | 0
+        |
+        BODY
+      end
+
+      before do
+        socket_spy = double
+
+        allow(socket_spy).to receive(:close) { nil }
+        allow(socket_spy).to receive(:closed?) { true }
+        allow(socket_spy).to receive(:readpartial) { chunks.shift || :eof }
+        allow(socket_spy).to receive(:write) { chunks[0].length }
+
+        allow(TCPSocket).to receive(:open) { socket_spy }
+      end
+
+      it "properly reads body" do
+        body = client.get(dummy.endpoint).to_s
+        expect(body).to eq '{"state":"ok"}'
+      end
+
+      context "with broken body (too early closed connection)" do
+        let(:body) do
+          <<-BODY.gsub(/^\s*\| */, "").gsub(/\n/, "\r\n")
+          | 9
+          | {"state":
+          BODY
+        end
+
+        it "raises HTTP::ConnectionError" do
+          expect { client.get(dummy.endpoint).to_s }.to raise_error(HTTP::ConnectionError)
+        end
       end
     end
   end

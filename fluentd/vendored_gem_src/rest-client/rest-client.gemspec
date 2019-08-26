@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.authors = ['REST Client Team']
   s.description = 'A simple HTTP and REST client for Ruby, inspired by the Sinatra microframework style of specifying actions: get, put, post, delete.'
   s.license = 'MIT'
-  s.email = 'rest.client@librelist.com'
+  s.email = 'discuss@rest-client.groups.io'
   s.executables = ['restclient']
   s.extra_rdoc_files = ['README.md', 'history.md']
   s.files = `git ls-files -z`.split("\0")
@@ -21,8 +21,9 @@ Gem::Specification.new do |s|
   s.add_development_dependency('pry', '~> 0')
   s.add_development_dependency('pry-doc', '~> 0')
   s.add_development_dependency('rdoc', '>= 2.4.2', '< 6.0')
-  s.add_development_dependency('rubocop', '~> 0')
+  s.add_development_dependency('rubocop', '~> 0.49')
 
+  s.add_dependency('http-accept', '>= 1.7.0', '< 2.0')
   s.add_dependency('http-cookie', '>= 1.0.2', '< 2.0')
   s.add_dependency('mime-types', '>= 1.16', '< 4.0')
   s.add_dependency('netrc', '~> 0.8')

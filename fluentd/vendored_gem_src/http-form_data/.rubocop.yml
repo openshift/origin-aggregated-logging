@@ -33,6 +33,9 @@ Style/HashSyntax:
 Style/IndentHash:
   EnforcedStyle: consistent
 
+Style/IndentArray:
+  EnforcedStyle: consistent
+
 # New lambda syntax is as ugly to me as new syntax of Hash.
 Style/Lambda:
   Enabled: false

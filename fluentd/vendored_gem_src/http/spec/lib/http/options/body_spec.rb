@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 RSpec.describe HTTP::Options, "body" do
   let(:opts) { HTTP::Options.new }
 

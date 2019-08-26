@@ -3,7 +3,7 @@ FROM rhscl/ruby-25-rhel7:latest as builder
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.6.2 \
+    FLUENTD_VERSION=1.7.0 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -15,7 +15,7 @@ ARG TEST_REPO
 #ADD test.repo /etc/yum.repos.d
 
 USER 0
-RUN yum-config-manager --enable rhel-7-server-ose-4.1-rpms && \
+RUN yum-config-manager --enable rhel-7-server-ose-4.2-rpms && \
   INSTALL_PKGS="make gcc-c++ libffi-devel \
       autoconf automake libtool m4 \
       redhat-rpm-config" && \
@@ -43,7 +43,7 @@ RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/
 FROM rhel7:7-released
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.6.2 \
+    FLUENTD_VERSION=1.7.0 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -53,7 +53,7 @@ ENV DATA_VERSION=1.6.0 \
 
 #ADD test.repo /etc/yum.repos.d
 USER 0
-RUN yum-config-manager --enable rhel-7-server-ose-4.1-rpms \
+RUN yum-config-manager --enable rhel-7-server-ose-4.2-rpms \
     --enable rhscl-3.2-rh-ruby25-rhel-7> /dev/null && \
   INSTALL_PKGS="hostname \
                 bc \

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "set"
 
 require "http/headers"
@@ -19,10 +21,10 @@ module HTTP
 
     # Insecure http verbs, which should trigger StateError in strict mode
     # upon {STRICT_SENSITIVE_CODES}
-    UNSAFE_VERBS = [:put, :delete, :post].to_set.freeze
+    UNSAFE_VERBS = %i[put delete post].to_set.freeze
 
     # Verbs which will remain unchanged upon See Other response.
-    SEE_OTHER_ALLOWED_VERBS = [:get, :head].to_set.freeze
+    SEE_OTHER_ALLOWED_VERBS = %i[get head].to_set.freeze
 
     # @!attribute [r] strict
     #   Returns redirector policy.
@@ -37,7 +39,7 @@ module HTTP
     # @param [Hash] opts
     # @option opts [Boolean] :strict (true) redirector hops policy
     # @option opts [#to_i] :max_hops (5) maximum allowed amount of hops
-    def initialize(opts = {})
+    def initialize(opts = {}) # rubocop:disable Style/OptionHash
       @strict   = opts.fetch(:strict, true)
       @max_hops = opts.fetch(:max_hops, 5).to_i
     end
@@ -51,8 +53,10 @@ module HTTP
       while REDIRECT_CODES.include? @response.status.code
         @visited << "#{@request.verb} #{@request.uri}"
 
-        fail TooManyRedirectsError if too_many_hops?
-        fail EndlessRedirectError  if endless_loop?
+        raise TooManyRedirectsError if too_many_hops?
+        raise EndlessRedirectError  if endless_loop?
+
+        @response.flush
 
         @request  = redirect_to @response.headers[Headers::LOCATION]
         @response = yield @request
@@ -78,13 +82,13 @@ module HTTP
     # Redirect policy for follow
     # @return [Request]
     def redirect_to(uri)
-      fail StateError, "no Location header in redirect" unless uri
+      raise StateError, "no Location header in redirect" unless uri
 
       verb = @request.verb
       code = @response.status.code
 
       if UNSAFE_VERBS.include?(verb) && STRICT_SENSITIVE_CODES.include?(code)
-        fail StateError, "can't follow #{@response.status} redirect" if @strict
+        raise StateError, "can't follow #{@response.status} redirect" if @strict
         verb = :get
       end
 

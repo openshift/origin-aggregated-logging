@@ -52,6 +52,39 @@ describe RecursiveOpenStruct do
         end
       end
 
+      context 'that contains keys that mirror existing private methods' do
+        let(:hash) { { test: :foo, rand: 'not a number' } }
+
+        # https://github.com/aetherknight/recursive-open-struct/issues/42
+        it 'handles subscript notation without calling the method name first (#42)' do
+          expect(ros['test']).to eq :foo
+          expect(ros['rand']).to eq 'not a number'
+
+          expect(ros.test).to eq :foo
+          expect(ros.rand).to eq 'not a number'
+        end
+
+      end
+
+      context 'that contains keys that mirror existing public methods inherited from Object' do
+        let(:hash) { { method: :something } }
+        it 'handles subscript notation without calling the existing methods' do
+          expect(ros[:method]).to eq :something
+          expect(ros['method']).to eq :something
+        end
+      end
+
+      if [/\A([0-9]+)\.([0-9]+)\.([0-9]+)\z/.match(RUBY_VERSION)].tap { |l| m = l[0] ; l[0] = (m[1].to_i >= 2 && m[2].to_i >= 4) }.first
+        context 'when Ruby 2.4.0 or newer' do
+          specify 'new_ostruct_member! is private' do
+            expect {
+              ros.new_ostruct_member!(:bonsoir)
+            }.to raise_error(NoMethodError)
+              # OpenStruct.new().new_ostruct_member!(:foo)
+          end
+        end
+      end
+
     end
 
 

@@ -16,6 +16,7 @@ Current maintainers: @cosmo0920
   + [Index templates](#index-templates)
 * [Configuration](#configuration)
   + [host](#host)
+  + [port](#port)
   + [emit_error_for_missing_id](#emit_error_for_missing_id)
   + [hosts](#hosts)
   + [user, password, path, scheme, ssl_verify](#user-password-path-scheme-ssl_verify)
@@ -147,6 +148,14 @@ You can specify Elasticsearch host by this parameter.
 
 **Note:** Since v3.3.2, `host` parameter supports builtin placeholders. If you want to send events dynamically into different hosts at runtime with `elasticsearch_dynamic` output plugin, please consider to switch to use plain `elasticsearch` output plugin. In more detail for builtin placeholders, please refer to [Placeholders](#placeholders) section.
 
+### port
+
+```
+port 9201 # defaults to 9200
+```
+
+You can specify Elasticsearch port by this parameter.
+
 ### emit_error_for_missing_id
 
 ```
@@ -166,13 +175,26 @@ You can specify multiple Elasticsearch hosts with separator ",".
 
 If you specify multiple hosts, this plugin will load balance updates to Elasticsearch. This is an [elasticsearch-ruby](https://github.com/elasticsearch/elasticsearch-ruby) feature, the default strategy is round-robin.
 
+If you specify `hosts` option, `host` and `port` options are ignored.
+
+```
+host user-custom-host.domain # ignored
+port 9200                    # ignored
+hosts host1:port1,host2:port2,host3:port3
+```
+
+If you specify `hosts` option without port, `port` option is used.
+
+```
+port 9200
+hosts host1:port1,host2:port2,host3 # port3 is 9200
+```
+
 **Note:** If you will use scheme https, do not include "https://" in your hosts ie. host "https://domain", this will cause ES cluster to be unreachable and you will receive an error "Can not reach Elasticsearch cluster"
 
 **Note:** Up until v2.8.5, it was allowed to embed the username/password in the URL. However, this syntax is deprecated as of v2.8.6 because it was found to cause serious connection problems (See #394). Please migrate your settings to use the `user` and `password` field (described below) instead.
 
 ### user, password, path, scheme, ssl_verify
-
-If you specify this option, port options are ignored.
 
 ```
 user demo
@@ -1501,6 +1523,8 @@ If you have a question, [open an Issue](https://github.com/uken/fluent-plugin-el
 There are usually a few feature requests, tagged [Easy](https://github.com/uken/fluent-plugin-elasticsearch/issues?q=is%3Aissue+is%3Aopen+label%3Alevel%3AEasy), [Normal](https://github.com/uken/fluent-plugin-elasticsearch/issues?q=is%3Aissue+is%3Aopen+label%3Alevel%3ANormal) and [Hard](https://github.com/uken/fluent-plugin-elasticsearch/issues?q=is%3Aissue+is%3Aopen+label%3Alevel%3AHard). Feel free to work on any one of them.
 
 Pull Requests are welcomed.
+
+Becore send a pull request or report an issue, please read [the contribution guideline](CONTRIBUTING.md).
 
 [![Pull Request Graph](https://graphs.waffle.io/uken/fluent-plugin-elasticsearch/throughput.svg)](https://waffle.io/uken/fluent-plugin-elasticsearch/metrics)
 

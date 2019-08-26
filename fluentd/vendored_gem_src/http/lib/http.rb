@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "http/parser"
 
 require "http/errors"
@@ -20,8 +22,6 @@ module HTTP
 
   class << self
     # HTTP[:accept => 'text/html'].get(...)
-    alias_method :[], :headers
+    alias [] headers
   end
 end
-
-Http = HTTP unless defined?(Http)

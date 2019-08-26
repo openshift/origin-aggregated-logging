@@ -1,34 +1,16 @@
 # frozen_string_literal: true
 
+require "http/form_data/readable"
+require "http/form_data/composite_io"
+
 module HTTP
   module FormData
     class Multipart
       # Utility class to represent multi-part chunks
       class Param
-        # @param [#to_s] name
-        # @param [FormData::File, FormData::Part, #to_s] value
-        def initialize(name, value)
-          @name = name.to_s
+        include Readable
 
-          @part =
-            if value.is_a?(FormData::Part)
-              value
-            else
-              FormData::Part.new(value)
-            end
-
-          parameters = { :name => @name }
-          parameters[:filename] = @part.filename if @part.filename
-          parameters = parameters.map { |k, v| "#{k}=#{v.inspect}" }.join("; ")
-
-          @header = "Content-Disposition: form-data; #{parameters}"
-
-          return unless @part.content_type
-
-          @header += "#{CRLF}Content-Type: #{@part.content_type}"
-        end
-
-        # Returns body part with headers and data.
+        # Initializes body part with headers and data.
         #
         # @example With {FormData::File} value
         #
@@ -44,15 +26,19 @@ module HTTP
         #   ixti
         #
         # @return [String]
-        def to_s
-          "#{@header}#{CRLF * 2}#{@part}"
-        end
+        # @param [#to_s] name
+        # @param [FormData::File, FormData::Part, #to_s] value
+        def initialize(name, value)
+          @name = name.to_s
 
-        # Calculates size of a part (headers + body).
-        #
-        # @return [Integer]
-        def size
-          @header.bytesize + (CRLF.bytesize * 2) + @part.size
+          @part =
+            if value.is_a?(FormData::Part)
+              value
+            else
+              FormData::Part.new(value)
+            end
+
+          @io = CompositeIO.new [header, @part, footer]
         end
 
         # Flattens given `data` Hash into an array of `Param`'s.
@@ -71,6 +57,34 @@ module HTTP
           end
 
           params
+        end
+
+        private
+
+        def header
+          header = "".b
+          header << "Content-Disposition: form-data; #{parameters}#{CRLF}"
+          header << "Content-Type: #{content_type}#{CRLF}" if content_type
+          header << CRLF
+          header
+        end
+
+        def parameters
+          parameters = { :name => @name }
+          parameters[:filename] = filename if filename
+          parameters.map { |k, v| "#{k}=#{v.inspect}" }.join("; ")
+        end
+
+        def content_type
+          @part.content_type
+        end
+
+        def filename
+          @part.filename
+        end
+
+        def footer
+          CRLF.dup
         end
       end
     end

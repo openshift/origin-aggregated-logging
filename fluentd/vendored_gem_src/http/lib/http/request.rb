@@ -1,9 +1,12 @@
+# frozen_string_literal: true
+
 require "forwardable"
 require "base64"
 require "time"
 
 require "http/errors"
 require "http/headers"
+require "http/request/body"
 require "http/request/writer"
 require "http/version"
 require "http/uri"
@@ -21,28 +24,33 @@ module HTTP
     class UnsupportedSchemeError < RequestError; end
 
     # Default User-Agent header value
-    USER_AGENT = "http.rb/#{HTTP::VERSION}".freeze
+    USER_AGENT = "http.rb/#{HTTP::VERSION}"
 
-    # RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1
-    METHODS = [:options, :get, :head, :post, :put, :delete, :trace, :connect]
+    METHODS = [
+      # RFC 2616: Hypertext Transfer Protocol -- HTTP/1.1
+      :options, :get, :head, :post, :put, :delete, :trace, :connect,
 
-    # RFC 2518: HTTP Extensions for Distributed Authoring -- WEBDAV
-    METHODS.concat [:propfind, :proppatch, :mkcol, :copy, :move, :lock, :unlock]
+      # RFC 2518: HTTP Extensions for Distributed Authoring -- WEBDAV
+      :propfind, :proppatch, :mkcol, :copy, :move, :lock, :unlock,
 
-    # RFC 3648: WebDAV Ordered Collections Protocol
-    METHODS.concat [:orderpatch]
+      # RFC 3648: WebDAV Ordered Collections Protocol
+      :orderpatch,
 
-    # RFC 3744: WebDAV Access Control Protocol
-    METHODS.concat [:acl]
+      # RFC 3744: WebDAV Access Control Protocol
+      :acl,
 
-    # draft-dusseault-http-patch: PATCH Method for HTTP
-    METHODS.concat [:patch]
+      # RFC 6352: vCard Extensions to WebDAV -- CardDAV
+      :report,
 
-    # draft-reschke-webdav-search: WebDAV Search
-    METHODS.concat [:search]
+      # RFC 5789: PATCH Method for HTTP
+      :patch,
+
+      # draft-reschke-webdav-search: WebDAV Search
+      :search
+    ].freeze
 
     # Allowed schemes
-    SCHEMES = [:http, :https, :ws, :wss]
+    SCHEMES = %i[http https ws wss].freeze
 
     # Default ports of supported schemes
     PORTS = {
@@ -50,7 +58,7 @@ module HTTP
       :https  => 443,
       :ws     => 80,
       :wss    => 443
-    }
+    }.freeze
 
     # Method is given as a lowercase symbol e.g. :get, :post
     attr_reader :verb
@@ -63,20 +71,24 @@ module HTTP
     attr_reader :uri
     attr_reader :proxy, :body, :version
 
-    # :nodoc:
-    def initialize(verb, uri, headers = {}, proxy = {}, body = nil, version = "1.1") # rubocop:disable ParameterLists
-      @verb   = verb.to_s.downcase.to_sym
-      @uri    = normalize_uri uri
-      @scheme = @uri.scheme && @uri.scheme.to_s.downcase.to_sym
+    # @option opts [String] :version
+    # @option opts [#to_s] :verb HTTP request method
+    # @option opts [HTTP::URI, #to_s] :uri
+    # @option opts [Hash] :headers
+    # @option opts [Hash] :proxy
+    # @option opts [String, Enumerable, IO, nil] :body
+    def initialize(opts)
+      @verb   = opts.fetch(:verb).to_s.downcase.to_sym
+      @uri    = normalize_uri(opts.fetch(:uri))
+      @scheme = @uri.scheme.to_s.downcase.to_sym if @uri.scheme
 
-      fail(UnsupportedMethodError, "unknown method: #{verb}") unless METHODS.include?(@verb)
-      fail(UnsupportedSchemeError, "unknown scheme: #{scheme}") unless SCHEMES.include?(@scheme)
+      raise(UnsupportedMethodError, "unknown method: #{verb}") unless METHODS.include?(@verb)
+      raise(UnsupportedSchemeError, "unknown scheme: #{scheme}") unless SCHEMES.include?(@scheme)
 
-      @proxy   = proxy
-      @body    = body
-      @version = version
-
-      @headers = HTTP::Headers.coerce(headers || {})
+      @proxy   = opts[:proxy] || {}
+      @body    = request_body(opts[:body], opts)
+      @version = opts[:version] || "1.1"
+      @headers = HTTP::Headers.coerce(opts[:headers] || {})
 
       @headers[Headers::HOST]        ||= default_host_header_value
       @headers[Headers::USER_AGENT]  ||= USER_AGENT
@@ -84,14 +96,22 @@ module HTTP
 
     # Returns new Request with updated uri
     def redirect(uri, verb = @verb)
-      req = self.class.new(verb, @uri.join(uri), headers, proxy, body, version)
-      req[Headers::HOST] = req.uri.host
-      req
+      headers = self.headers.dup
+      headers.delete(Headers::HOST)
+
+      self.class.new(
+        :verb    => verb,
+        :uri     => @uri.join(uri),
+        :headers => headers,
+        :proxy   => proxy,
+        :body    => body,
+        :version => version
+      )
     end
 
     # Stream the request to a socket
     def stream(socket)
-      include_proxy_authorization_header if using_authenticated_proxy? && !@uri.https?
+      include_proxy_headers if using_proxy? && !@uri.https?
       Request::Writer.new(socket, body, headers, headline).stream
     end
 
@@ -102,7 +122,12 @@ module HTTP
 
     # Is this request using an authenticated proxy?
     def using_authenticated_proxy?
-      proxy && proxy.keys.size == 4
+      proxy && proxy.keys.size >= 4
+    end
+
+    def include_proxy_headers
+      headers.merge!(proxy[:proxy_headers]) if proxy.key?(:proxy_headers)
+      include_proxy_authorization_header if using_authenticated_proxy?
     end
 
     # Compute and add the Proxy-Authorization header
@@ -122,12 +147,15 @@ module HTTP
 
     # Compute HTTP request header for direct or proxy request
     def headline
-      request_uri = using_proxy? ? uri : uri.omit(:scheme, :authority)
-      "#{verb.to_s.upcase} #{request_uri.omit :fragment} HTTP/#{version}"
-    end
+      request_uri =
+        if using_proxy? && !uri.https?
+          uri.omit(:fragment)
+        else
+          uri.request_uri
+        end
 
-    # @deprecated Will be removed in 1.0.0
-    alias_method :request_header, :headline
+      "#{verb.to_s.upcase} #{request_uri} HTTP/#{version}"
+    end
 
     # Compute HTTP request header SSL proxy connection
     def proxy_connect_header
@@ -142,7 +170,7 @@ module HTTP
       )
 
       connect_headers[Headers::PROXY_AUTHORIZATION] = proxy_authorization_header if using_authenticated_proxy?
-
+      connect_headers.merge!(proxy[:proxy_headers]) if proxy.key?(:proxy_headers)
       connect_headers
     end
 
@@ -157,6 +185,13 @@ module HTTP
     end
 
     private
+
+    # Transforms body to an object suitable for streaming.
+    def request_body(body, opts)
+      body = Request::Body.new(body) unless body.is_a?(Request::Body)
+      body = opts[:auto_deflate].deflated_body(body) if opts[:auto_deflate]
+      body
+    end
 
     # @!attribute [r] host
     #   @return [String]

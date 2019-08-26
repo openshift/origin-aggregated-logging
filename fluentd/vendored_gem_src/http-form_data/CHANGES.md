@@ -1,18 +1,50 @@
-## 1.0.2 (2017-05-18)
+## 2.1.1 (2018-06-01)
 
-* [#16](https://github.com/httprb/form_data/issues/16)
-  Fix ruby < 2.0.0 support.
-  [@ixti][]
+* [#23](https://github.com/httprb/form_data/pull/23)
+  Allow override urlencoded form data encoder.
+  [@FabienChaynes][]
+
+
+## 2.1.0 (2018-03-05)
+
+* [#21](https://github.com/httprb/form_data/pull/21)
+  Rewind content at the end of `Readable#to_s`.
+  [@janko-m][]
+
+* [#19](https://github.com/httprb/form_data/pull/19)
+  Fix buffer encoding.
+  [@HoneyryderChuck][]
+
+
+## 2.0.0 (2017-10-01)
+
+* [#17](https://github.com/httprb/form_data/pull/17)
+  Add CRLF character to end of multipart body.
+  [@mhickman][]
+
+
+## 2.0.0.pre2 (2017-05-11)
+
+* [#14](https://github.com/httprb/form_data/pull/14)
+  Enable streaming for urlencoded form data.
+  [@janko-m][]
+
+
+## 2.0.0.pre1 (2017-05-10)
+
+* [#12](https://github.com/httprb/form_data.rb/pull/12)
+  Enable form data streaming.
+  [@janko-m][]
 
 
 ## 1.0.2 (2017-05-08)
 
 * [#5](https://github.com/httprb/form_data.rb/issues/5)
-  Allow setting Content-Type non-file parts.
+  Allow setting Content-Type non-file parts
   [@abotalov][]
 
 * [#6](https://github.com/httprb/form_data.rb/issues/6)
-  Creation of file parts without filename.
+  Creation of file parts without filename
   [@abotalov][]
 
 * [#11](https://github.com/httprb/form_data.rb/pull/11)
@@ -43,3 +75,7 @@
 
 [@ixti]: https://github.com/ixti
 [@abotalov]: https://github.com/abotalov
+[@janko-m]: https://github.com/janko-m
+[@mhickman]: https://github.com/mhickman
+[@HoneyryderChuck]: https://github.com/HoneyryderChuck
+[@FabienChaynes]: https://github.com/FabienChaynes
