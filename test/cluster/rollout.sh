@@ -8,7 +8,6 @@
 #  - OAL_EXPECTED_{
 #                  DEPLOYMENTCONFIGS,
 #                  CRONJOBS,
-#                  OAUTHCLIENTS,
 #                  DAEMONSETS,
 #                  SERVICES,
 #                  ROUTES
@@ -81,11 +80,6 @@ done
 os::log::info "Checking for Services..."
 for service in ${OAL_EXPECTED_SERVICES}; do
 	os::cmd::expect_success "oc get service ${service}"
-done
-
-os::log::info "Checking for OAuthClients..."
-for oauthclient in ${OAL_EXPECTED_OAUTHCLIENTS}; do
-	os::cmd::expect_success "oc get oauthclient ${oauthclient}"
 done
 
 os::log::info "Checking for DaemonSets..."

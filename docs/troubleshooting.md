@@ -213,6 +213,8 @@ The experience here is that when you visit Kibana, it redirects you to
 login. Then when you login successfully, you are redirected back to Kibana,
 which immediately redirects back to login again.
 
+NOTE: The following applies to releases prior to OpenShift 4.2.
+
 The typical reason for this is that the OAuth2 proxy in front of Kibana
 is supposed to share a secret with the master's OAuth2 server, in order
 to identify it as a valid client. This problem likely indicates that
@@ -241,6 +243,8 @@ The reason for this is a mismatch between the OAuth2 client and server.
 The return address for the client has to be in a whitelist for the server to
 securely redirect back after logging in; if there is a mismatch, then this
 cryptic error message is shown.
+
+NOTE: The following applies to releases prior to OpenShift 4.2.
 
 As above, this may be caused by an `oauthclient` entry lingering from a
 previous deployment, in which case you can replace it:
