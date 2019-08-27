@@ -25,7 +25,6 @@ function get_es_deployments() {
 if [ "$USE_OPERATOR" = true ] ; then
 	oal_expected_deploymentconfigs=( "" )
 	oal_expected_daemonsets=( "fluentd" )
-	oal_expected_oauthclients=( "kibana-proxy" )
 	if [ "$1" = "true" ]; then
 		oal_expected_deployments=( "kibana-app" "kibana-infra" )
 		oal_expected_cronjobs=( "curator-app" "curator-infra" )
@@ -59,7 +58,6 @@ else
 	oal_expected_cronjobs=( "logging-curator" )
 	oal_expected_routes=( "logging-kibana" )
 	oal_expected_services=( "logging-es" "logging-es-cluster" "logging-kibana" )
-	oal_expected_oauthclients=( "kibana-proxy" )
 	oal_expected_daemonsets=( "logging-fluentd" )
 	if [ "$1" = "true" ]; then
 		# There is an ops cluster set up, so we
@@ -97,7 +95,6 @@ OAL_EXPECTED_DEPLOYMENTS="${oal_expected_deployments[*]}"             \
 OAL_EXPECTED_DEPLOYMENTCONFIGS="${oal_expected_deploymentconfigs[*]}" \
 OAL_EXPECTED_ROUTES="${oal_expected_routes[*]}"                       \
 OAL_EXPECTED_SERVICES="${oal_expected_services[*]}"                   \
-OAL_EXPECTED_OAUTHCLIENTS="${oal_expected_oauthclients[*]}"           \
 OAL_EXPECTED_DAEMONSETS="${oal_expected_daemonsets[*]}"               \
 OAL_EXPECTED_CRONJOBS="${oal_expected_cronjobs[*]}"                   \
 "${OS_O_A_L_DIR}/test/cluster/rollout.sh"
