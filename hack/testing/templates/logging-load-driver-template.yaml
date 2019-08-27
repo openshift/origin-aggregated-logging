@@ -1,0 +1,79 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: logging-load-driver-template
+  annotations:
+    description: "For creating the logging-load-driver pod"
+objects:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: ${POD_NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    restartPolicy: Never
+    terminationGracePeriodSeconds: 0
+    nodeSelector:
+      logging-ci-test: "true"
+    containers:
+    - name: logging-load-driver
+      image: ${IMAGE}
+      imagePullPolicy: Always
+      command: ["${LOADER_PATH}"]
+      args:
+      - "--msgpersec=${MSGPERSEC}"
+      - "--report-interval=${REPORT_INTERVAL}"
+      - "--total-size=${TOTAL_SIZE}"
+      - "--distribution=${DISTRIBUTION}"
+      - "--payload-gen=${PAYLOAD_GEN}"
+      - "--stddev=${STDDEV}"
+      - "--output=${OUTPUT}"
+      - "--report=${REPORT}"
+      - "--invocid=${INVOCID}"
+      - ${PAYLOAD_SIZE}
+parameters:
+- description: Namespace name to create pod in
+  value: openshift-logging
+  name: NAMESPACE
+- description: name of pod to create
+  value: logging-load-driver
+  name: POD_NAME
+- description: path to loader command in the image
+  value: "/loader"
+  name: LOADER_PATH
+- description: number of messages per second
+  value: "0"
+  name: MSGPERSEC
+- description: the number of megabytes of message data between reports
+  value: "10"
+  name: REPORT_INTERVAL
+- description: size of log message in bytes
+  value: "1024"
+  name: PAYLOAD_SIZE
+- description: payload size distribution - fixed or gaussian
+  value: fixed
+  name: DISTRIBUTION
+- description: payload generation method - random or fixed
+  value: random
+  name: PAYLOAD_GEN
+- description: standard deviation for gaussian distribution
+  value: "32"
+  name: STDDEV
+- description: where to write output
+  value: stdout
+  name: OUTPUT
+- description: where to write report stats - inline or other
+  value: inline
+  name: REPORT
+- description: total number of bytes to write (0 for unlimited)
+  value: "0"
+  name: TOTAL_SIZE
+- description: unique identifier for this group of logs
+  value: invocid
+  name: INVOCID
+- description: test image to use
+  value: logging-ci-test-runner:latest
+  name: IMAGE
+labels:
+  test: "true"
+  

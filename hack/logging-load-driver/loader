@@ -1,0 +1,267 @@
+#!/usr/bin/env python
+#
+# ViaQ logging load generator
+#
+# Copyright 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+from __future__ import print_function
+
+import sys
+import time
+import uuid
+import random
+import string
+import logging
+import logging.handlers
+import argparse
+
+
+DEFAULT_STDDEV = 32
+
+
+def msgsizgen_fixed(stats, mean, stddev = None):
+    '''Generate a series of "fixed" sizes, always yielding the given
+       "mean" as the value.
+
+       The stddev value is always ignored.
+    '''
+    while True:
+        yield stats.nextseq(mean)
+
+
+def msgsizgen_gaussian(stats, mean, stddev = DEFAULT_STDDEV):
+    '''Generate a series of random numbers with a Guassian distribution,
+       where the mean and standard deviation are given arguments.
+
+       The mean is a required parameter, while the stddev will default to
+       32.
+
+       The generator will yield numbers continuously.
+    '''
+    randomizer = random.Random()
+    while True:
+        yield stats.nextseq(int(round(randomizer.gauss(mean, stddev))))
+
+
+dist_methods = { 'fixed': msgsizgen_fixed, 'gaussian': msgsizgen_gaussian, 'normal': msgsizgen_gaussian }
+
+
+class StatsCtx(object):
+
+    def __init__(self, msgpersec, rptint):
+        self.start = self.past = time.time()
+        self.seq = 0
+        self.msgs = 0
+        self.total_size = 0
+        self.report_size = 0
+        self.msgpersec = msgpersec
+        if msgpersec > 0:
+            self.msgperiod = (1/msgpersec, self.start)
+        else:
+            self.msgperiod = None
+        self.rptint = rptint * (1024 * 1024)
+
+    def nextseq(self, size):
+        self.seq += 1
+        self.msgs += 1
+        self.total_size += size
+        self.report_size += size
+        if self.msgperiod is not None:
+            now = time.time()
+            while now < self.msgperiod[1]:
+                sleep_window = self.msgperiod[1] - now
+                time.sleep(sleep_window)
+                now = time.time()
+            # We have exited our rate-limit window, calculate next
+            # window and continue
+            self.msgperiod = (self.msgperiod[0], self.msgperiod[1] + self.msgperiod[0])
+        if self.report_size > self.rptint:
+            report = True
+            self.report_size = 0
+        else:
+            report = False
+        return size, self.seq, report
+
+    def statstr(self, seq_width):
+        now = time.time()
+        msg_rate = self.msgs / (now - self.past)
+        total_msg_rate = self.seq / (now - self.start)
+        if self.msgperiod is not None:
+            if msg_rate < (self.msgpersec - 0.50):
+                notice = " (too slow, %d)" % self.msgpersec
+            elif msg_rate > (self.msgpersec + 0.50):
+                notice = " (too fast, %d)" % self.msgpersec
+            else:
+                notice = ""
+        else:
+            notice = ""
+        self.past = now
+        self.msgs = 0
+        return "%.3fs %0*d %10.3f%s %10.3f" % (now, seq_width, self.seq, msg_rate, notice, total_msg_rate)
+
+
+chars = string.ascii_lowercase + string.digits
+def payload_random(size):
+    return ''.join(random.choice(chars) for x in range(size))
+
+
+def payload_fixed(size):
+    return 'x' * size
+
+
+gen_methods = { 'fixed': payload_fixed, 'random': payload_random }
+
+
+def load(invocid, size, output_method, report_method, dist='gaussian', stddev=DEFAULT_STDDEV, report_interval=10, seq_width=10, msgpersec=0, total_size=0, payload_gen='random'):
+    '''Emit a formatted payload of random bytes, using a Gaussian
+       distribution using a given size as the mean.  The payload
+       is emitted using the output_method function, while statistics
+       about the output rate are reported through the report_method.
+
+       The reports are generated once every 10,000 payloads, no
+       more than once a second by default. Both parameters can be
+       changed by the caller.
+
+       The generated sequence number defaults to a width of 10.
+
+       The invocation ID, invocid, is required from the caller to
+       facilitate finding the output emitted by this instance.
+    '''
+    msgsizgen = dist_methods[dist]
+    payloadgen = gen_methods[payload_gen]
+    sep = ' - '
+    sep_len = len(sep)
+    prefix = "loader seq - %s - " % invocid
+    prefix_len = len(prefix)
+    sub_len = (prefix_len + seq_width + sep_len)
+
+    stats = StatsCtx(msgpersec, report_interval)
+    for asize, seq, report in msgsizgen(stats, size, stddev):
+        asize -= sub_len
+        if report_method is None and (report or (total_size > 0 and stats.total_size > total_size * (1024 * 1024))):
+            # Reporting is done inline as part of a sequence message payload.
+            stats_msg = "(stats: %s) " % stats.statstr(seq_width)
+            stats_msg_len = len(stats_msg)
+        else:
+            stats_msg = ""
+            stats_msg_len = 0
+        asize -= stats_msg_len
+        asize = 1 if asize <= 0 else asize
+        msg = stats_msg + payloadgen(asize)
+        output_method("%s%0*d%s%s" % (prefix, seq_width, seq, sep, msg))
+        if report_method is not None and report:
+            # Reporting is done out-of-band.
+            report_method("loader stat: %s" % stats.statstr(seq_width))
+        if total_size > 0 and (stats.total_size > total_size * (1024 * 1024)):
+            # We're done
+            if report_method is not None and not report:
+                # Reporting is done out-of-band.
+                report_method("loader stat: %s" % stats.statstr(seq_width))
+            break
+
+
+if __name__ == '__main__':
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(module)s.%(funcName)s: %(message)s')
+    try:
+        handler = logging.handlers.SysLogHandler(address = '/dev/log')
+        handler.setFormatter(formatter)
+    except Exception as e:
+        print("*** Warning *** - could not open /dev/log, falling back to console handler for logger ... (exception: %s)" % e, file=sys.stderr)
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setFormatter(formatter)
+        log.addHandler(consoleHandler)
+    else:
+        log.addHandler(handler)
+
+    parser = argparse.ArgumentParser(description='Message payload generator.')
+    parser.add_argument('payload_size', metavar='SIZE', type=int, nargs='?',
+            default=1024,
+			help='an integer specifying the mean size of the payload using a Gaussian distribution')
+    parser.add_argument('--distribution', metavar='DIST', dest='payload_dist', action='store',
+            default='gaussian', choices=dist_methods,
+            help='the size distribution to use, e.g. "gaussian" (default), "normal" (alias for gaussian), or "fixed"')
+    parser.add_argument('--payload-gen', metavar='GEN', dest='payload_gen', action='store',
+            default='random', choices=gen_methods,
+            help='the payload generator to use, e.g. "random" (default), or "fixed"')
+    parser.add_argument('--invocid', metavar='INVOCID', dest='invocid', action='store',
+            default=uuid.uuid4().hex,
+			help='the unique invocation ID string to use (defaults to 32 char generated one)')
+    parser.add_argument('--stddev', metavar='STDDEV', dest='stddev', type=float,
+            default=DEFAULT_STDDEV,
+            help='the standard deviation to use with a random distribution (defaults to 32)')
+    parser.add_argument('--output', metavar='METHOD', dest='output', action='store',
+            default='stdout',
+            help='where to emit the output, one of: "stdout", "stderr", "syslog", "<file name>" (defaults to "stdout")')
+    parser.add_argument('--report', metavar='METHOD', dest='report', action='store',
+            default='inline',
+            help='where to emit the report output, one of: "inline", "stdout", "stderr", "syslog", "<file name>" (defaults to "inline")')
+    parser.add_argument('--msgpersec', metavar='MSGPERSEC', dest='msgpersec', type=float,
+            default=0,
+            help='the # of logs per second (floating point) to emit (defaults to 0, unlimited)')
+    parser.add_argument('--report-interval', metavar='INTERVAL', dest='reportint', type=int,
+            default=10,
+            help='the # of megabytes of message data between reports (defaults to 10 MB)')
+    parser.add_argument('--total-size', metavar='TOTSIZE', dest='totalsize', type=int,
+            default=0,
+            help='the total # of megabytes to generate before ending (defaults to 0, unlimited)')
+    args = parser.parse_args()
+
+    # Determine the output method to emit logs
+    if args.output == 'syslog':
+        output_method = log.debug
+        ofp = None
+    else:
+        if args.output in ('stderr', 'stdout'):
+            ofp = getattr(sys, args.output)
+        else:
+            # Assume the parameter is a file name
+            ofp = open(args.output, "w")
+        def output_closure(payload):
+            ofp.write(payload + '\n')
+        output_method = output_closure
+
+    # Determine the report method to use
+    if args.report == 'inline':
+        report_method = None
+        rfp = None
+    elif args.report == 'syslog':
+        report_method = log.info
+        rfp = None
+    else:
+        if args.report in ('stderr', 'stdout'):
+            rfp = getattr(sys, args.report)
+        else:
+            # Assume the parameter is a file name
+            rfp = open(args.report, "w")
+        def report_closure(payload):
+            rfp.write(payload + '\n')
+            rfp.flush()
+        report_method = report_closure
+
+    try:
+        load(args.invocid, args.payload_size, output_method, report_method,
+                dist=args.payload_dist, stddev=args.stddev, msgpersec=args.msgpersec,
+                report_interval=args.reportint, total_size=args.totalsize,
+                payload_gen=args.payload_gen)
+    except KeyboardInterrupt:
+        if ofp:
+            ofp.flush()
+            ofp.close()
+        if rfp:
+            rfp.flush()
+            rfp.close()

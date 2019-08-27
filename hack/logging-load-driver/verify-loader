@@ -1,0 +1,271 @@
+#!/usr/bin/env python
+#
+# ViaQ logging load generator
+#
+# Copyright 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import sys
+import os
+import time
+import argparse
+import signal
+from collections import defaultdict
+
+REPORT_INTERVAL = 10
+MB = 1024 * 1024
+
+# if running verify-loader as a background process,
+# we can still do a kill -2 $pid to make it exit
+# the main loop and print the stats
+def handle_sig_int(signum, frame):
+    raise KeyboardInterrupt
+
+signal.signal(signal.SIGINT, handle_sig_int)
+
+class Context(object):
+
+    def __init__(self):
+        self.prev = None
+        self.count = 0
+        self.bytes = 0
+        self.report_count = 0
+        self.report_bytes = 0
+        self.duplicates = 0
+        self.skips = 0
+
+    def msg(self, seq, length):
+        self.report_count += 1
+        self.report_bytes += length
+
+        if self.prev is None:
+            self.prev = seq
+            return None
+        elif seq == (self.prev + 1):
+            # normal and expected code path
+            self.prev = seq
+            return None
+        else:
+            ret_prev = self.prev
+            if seq <= self.prev:
+                self.duplicates += 1
+            else:
+                assert seq > (self.prev + 1), "Logic bomb! Should not be possible"
+                self.skips += 1
+                # Since the sequence jumped ahead, save the new value as the
+                # previous in order to be sure to stay with the jump.
+                self.prev = seq
+            return ret_prev
+
+    def report(self):
+        if self.report_count > 0:
+            self.count += self.report_count
+            self.bytes += self.report_bytes
+            self.report_count = 0
+            self.report_bytes = 0
+            ret_val = True
+        else:
+            ret_val = False
+
+
+def print_stats(invocid, ctx, payload):
+    try:
+        stats, _ = payload.rsplit(' ', 1)
+        rawvals = stats.strip()[:-1].split(' ')
+        vals = []
+        for val in rawvals:
+            if val:
+                vals.append(val)
+        if len(vals) == 5:
+            timestamp, statseq, lclrate, gblrate = vals[1], vals[2], vals[3], vals[4]
+        elif len(vals) == 8:
+            timestamp, statseq, lclrate, gblrate = vals[1], vals[2], vals[3], vals[7]
+        else:
+            print "Logic bomb!"
+            sys.exit(1)
+    except Exception:
+        print "Error: ", payload
+        sys.stdout.flush()
+    else:
+        try:
+            statseq = int(statseq)
+            ts = float(timestamp[:-1])
+            lclrate = float(lclrate)
+            gblrate = float(gblrate)
+        except Exception:
+            print "Error: ", payload
+            sys.stdout.flush()
+        else:
+            assert ctx.prev == statseq
+            assert timestamp[-1] == 's'
+            now = time.time()
+            print "%s: %.2fs (%5.2fs) %12.3f %12.3f %d %d %d %d" % (
+                    invocid, ts, now - ts, lclrate, gblrate, statseq,
+                    ctx.count, ctx.skips, ctx.duplicates)
+            sys.stdout.flush()
+
+
+def verify(input_gen, report_interval=REPORT_INTERVAL):
+    ret_val = 0
+
+    ignored_bytes = 0
+    ignored_count = 0
+
+    report_bytes = 0
+    report_bytes_target = report_interval * MB
+    report_ignored_bytes = 0
+    report_ignored_count = 0
+
+    contexts = defaultdict(Context)
+    start = time.time()
+    report_start = start
+
+    try:
+        for line in input_gen:
+            line_len = len(line)
+            if not line.startswith("loader seq - "):
+                report_ignored_bytes += line_len
+                report_ignored_count += 1
+            else:
+                try:
+                    _, invocid, seqval, payload = line.split('-', 4)
+                except Exception:
+                    report_ignored_bytes += line_len
+                    report_ignored_count += 1
+                else:
+                    try:
+                        seq = int(seqval)
+                    except Exception:
+                        report_ignored_bytes += line_len
+                        report_ignored_count += 1
+                    else:
+                        report_bytes += line_len
+                        invocid = invocid.strip()
+                        ctx = contexts[invocid]
+                        prev = ctx.msg(seq, line_len)
+                        if prev is not None:
+                            # Bad record encountered, flag it
+                            print "%s: %d %d  <-" % (invocid, seq, prev)
+                            sys.stdout.flush()
+                        if payload.startswith(" (stats:"):
+                            print_stats(invocid, ctx, payload)
+            if report_bytes_target > 0 and (report_bytes + report_ignored_bytes) >= report_bytes_target:
+                now = time.time()
+
+                ignored_bytes += report_ignored_bytes
+                ignored_count += report_ignored_count
+
+                total_bytes = 0
+                total_count = 0
+                report_count = 0
+
+                print "\n+++ verify-loader"
+
+                for invocid, ctx in contexts.items():
+                    report_count += ctx.report_count
+                    if ctx.report():
+                        print "%s: %d %d %d" % (invocid, ctx.count, ctx.skips, ctx.duplicates)
+                    total_bytes += ctx.bytes
+                    total_count += ctx.count
+
+                print "interval read rate: %.3f MB/sec, %.3f/sec " \
+                      "(ignored %.3f MB/sec, %.3f/sec); " \
+                      "overall read rate: %.3f MB/sec %.3f/sec " \
+                      "(ignored %.3f MB/sec, %.3f/sec)" % (
+                        (report_bytes / MB) / (now - report_start),
+                        (report_count / (now - report_start)),
+                        (report_ignored_bytes / MB) / (now - report_start),
+                        (report_ignored_count / (now - report_start)),
+                        (total_bytes / MB) / (now - start),
+                        (total_count / (now - start)),
+                        (ignored_bytes / MB) / (now - start),
+                        (ignored_count / (now - start)))
+                print "--- verify-loader\n"
+                sys.stdout.flush()
+
+                report_bytes = 0
+                report_count = 0
+                report_ignored_bytes = 0
+                report_ignored_count = 0
+                report_start = now
+    except KeyboardInterrupt:
+        pass
+    finally:
+        now = time.time()
+        ignored_bytes += report_ignored_bytes
+        ignored_count += report_ignored_count
+        total_bytes = 0
+        total_count = 0
+        tot_skips = 0
+        tot_dupes = 0
+        for invocid, ctx in contexts.items():
+            ctx.report()
+            total_bytes += ctx.bytes
+            total_count += ctx.count
+            tot_skips += ctx.skips
+            tot_dupes += ctx.duplicates
+        if ignored_count + total_count > 0:
+            print "\n+++ verify-loader"
+            for invocid, ctx in contexts.items():
+                print "%s: %d %d %d" % (invocid, ctx.count, ctx.skips, ctx.duplicates)
+            print "overall read rate: %.3f MB/sec %.3f/sec " \
+                  "(ignored %.3f MB/sec, %.3f/sec)" % (
+                    (total_bytes / MB) / (now - start),
+                    (total_count / (now - start)),
+                    (ignored_bytes / MB) / (now - start),
+                    (ignored_count / (now - start)))
+            print "--- verify-loader\n"
+        if tot_skips + tot_dupes > 0:
+            ret_val = 1
+    return ret_val
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Message payload generator.')
+    parser.add_argument('file', metavar='FILE', nargs='?',
+            default='-',
+            help='file to read, if empty, stdin is used')
+    parser.add_argument('--report-interval', metavar='INTERVAL', dest='reportint', type=int,
+            default=REPORT_INTERVAL,
+            help='the # of megabytes of message data between reports (defaults to 10 MB)')
+    parser.add_argument('--read-journal', dest='readjournal', action="store_true",
+            help='read directly from the systemd journal (defaults to False)')
+    args = parser.parse_args()
+
+    if args.file == '-':
+        if args.readjournal:
+            from systemd import journal
+            j = journal.Reader()
+            # the fileno() method ends up creating the inotify file descriptor
+            # which in turn prevents this client from leaking open journal log
+            # files.
+            j.fileno()
+            j.seek_tail()
+            j.get_previous()
+            def jreader():
+                while True:
+                    for entry in j:
+                        yield entry['MESSAGE']
+                    j.wait()
+            input_gen = jreader()
+        else:
+            input_gen = os.fdopen(sys.stdin.fileno(), 'r', 0)
+    else:
+        if args.readjournal:
+            print "*** Warning *** ignoring request to read from the systemd" \
+                  " journal (--read-journal) since we have an actual file" \
+                  " argument provided (%s) ..." % args.file
+        input_gen = open(args.file, 'r', 0)
+    sys.exit(verify(input_gen, args.reportint))

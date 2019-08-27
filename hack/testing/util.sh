@@ -875,3 +875,44 @@ disable_cluster_logging_operator() {
         os::cmd::try_until_failure "oc -n ${LOGGING_NS} get pods | grep -q '^cluster-logging-operator-.* Running '"
     fi
 }
+
+# same arguments as curl_es - uses scrolling api for very large result sets
+curl_es_scroll() {
+    local svc_name="$1"
+    local endpoint="$2"
+    shift; shift
+    local returnoutput=$( mktemp )
+    local rawoutput=$( mktemp )
+    local tmpout=$( mktemp )
+    trap "rm -f $returnoutput $rawoutput $tmpout" RETURN
+    local scroll_timeout=1m
+    curl_es $svc_name "$endpoint"\&scroll=$scroll_timeout "$@" > $rawoutput
+    local scroll_id
+    while true ; do
+        if scroll_id=$( python -c '
+import sys,json,os.path
+curf, newf = sys.argv[1:]
+new = json.load(open(newf, "r"))
+if len(new.get("hits", {}).get("hits", [])) == 0:
+    sys.exit(1)
+if os.path.exists(curf) and os.path.getsize(curf) > 0:
+    old = json.load(open(curf, "r"))
+    old["hits"]["hits"].extend(new["hits"]["hits"])
+    json.dump(old, open(curf, "w"))
+else:
+    json.dump(new, open(curf, "w"))
+print new["_scroll_id"]
+sys.exit(0)
+' $returnoutput $rawoutput ) && test -n "$scroll_id" ; then
+            curl_es $es_svc /_search/scroll?scroll=${scroll_timeout}\&scroll_id="$scroll_id" > $rawoutput
+        else
+            cp $rawoutput $ARTIFACT_DIR/scroll_search_raw.out
+            break
+        fi
+    done
+    if [ -s $returnoutput ] ; then
+        cat $returnoutput
+    else
+        cat $rawoutput
+    fi
+}
