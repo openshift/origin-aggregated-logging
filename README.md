@@ -73,7 +73,8 @@ Additionally, see [Checking EFK Health](docs/checking-efk-health.md)
 
 ## Issues
 
-Any issues against the origin stack can be filed at https://github.com/openshift/origin-aggregated-logging/issues.  Please
+Any issues against the origin stack can be filed at
+https://github.com/openshift/origin-aggregated-logging/issues.  Please
 include as many [details](docs/issues.md) as possible in order to assist us in resolving the issue.
 
 ## Troubleshooting CI
