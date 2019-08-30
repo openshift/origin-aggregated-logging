@@ -1,0 +1,19 @@
+apiVersion: template.openshift.io/v1
+kind: "Template"
+metadata:
+  name: operator-group-template
+  annotations:
+    description: "Template for creating subscription for e2e-olm test"
+    tags: "e2e"
+objects:
+- apiVersion: operators.coreos.com/v1alpha2
+  kind: OperatorGroup
+  metadata:
+    name: openshift-olm-test
+  spec:
+    targetNamespaces:
+    - "${TARGET_NAMESPACE}"
+parameters:
+- description:
+  name: TARGET_NAMESPACE
+  value: olm-test

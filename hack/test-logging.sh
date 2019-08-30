@@ -75,6 +75,21 @@ switch_to_admin_user() {
     fi
 }
 
+disable_olm() {
+    local olmpod=$( oc -n openshift-operator-lifecycle-manager get pods | awk '/^olm-operator-.* Running / {print $1}' ) || :
+    if [ -z "$olmpod" ] ; then
+        return 0
+    fi
+    oc -n openshift-operator-lifecycle-manager scale --replicas=0 deploy/olm-operator
+    wait_func() {
+        oc -n openshift-operator-lifecycle-manager get pod $olmpod > /dev/null 2>&1
+    }
+    if ! wait_for_condition wait_func > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: could not stop olm pod $olmpod
+        logging_err_exit
+    fi
+}
+
 switch_to_admin_user
 
 ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
@@ -83,6 +98,10 @@ if [ ! -d $ARTIFACT_DIR ] ; then
 fi
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
+
+# we need to make changes to eo and clo
+disable_olm
+
 esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
 if [ -z "$esopod" ] ; then
     ESO_NS=openshift-logging
@@ -143,8 +162,13 @@ oc patch clusterlogging instance --type=json --patch '[
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
-    testimage=${imageprefix}pipeline:src
-    testroot=$( pwd )
+    if [ "${USE_STABLE_VERSION:-false}" = true ] ; then
+        testimage=${imageprefix}stable:logging-ci-test-runner
+        testroot=/go/src/github.com/openshift/origin-aggregated-logging
+    else
+        testimage=${imageprefix}pipeline:src
+        testroot=$( pwd )
+    fi
 elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
     # running in a dev env with imagestream builds
     OPENSHIFT_BUILD_NAMESPACE=openshift
