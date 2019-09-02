@@ -75,6 +75,21 @@ switch_to_admin_user() {
     fi
 }
 
+disable_cvo() {
+    local cvopod=$( oc -n openshift-cluster-version get pods | awk '/^cluster-version-operator-.* Running / {print $1}' ) || :
+    if [ -z "$cvopod" ] ; then
+        return 0
+    fi
+    oc -n openshift-cluster-version scale --replicas=0 deploy/cluster-version-operator
+    wait_func() {
+        oc -n openshift-cluster-version get pod $cvopod > /dev/null 2>&1
+    }
+    if ! wait_for_condition wait_func > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: could not stop cvo pod $cvopod
+        logging_err_exit
+    fi
+}
+
 disable_olm() {
     local olmpod=$( oc -n openshift-operator-lifecycle-manager get pods | awk '/^olm-operator-.* Running / {print $1}' ) || :
     if [ -z "$olmpod" ] ; then
@@ -100,6 +115,7 @@ DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
 
 # we need to make changes to eo and clo
+disable_cvo
 disable_olm
 
 esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )

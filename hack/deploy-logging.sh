@@ -306,11 +306,26 @@ deploy_logging_using_clo_make() {
     CLO_IMAGE=${CLO_IMAGE:-$( construct_image_name cluster-logging-operator latest )}
     pushd $CLO_DIR > /dev/null
     cp manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml.orig
-    update_images_in_clo_yaml manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml $cloimg
+    update_images_in_clo_yaml manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml $CLO_IMAGE
     REMOTE_CLUSTER=true REMOTE_REGISTRY=true NAMESPACE=$LOGGING_NS \
         IMAGE_OVERRIDE="$CLO_IMAGE" EO_IMAGE_OVERRIDE="$EO_IMAGE" make deploy-no-build
     mv manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml.orig manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml
     popd > /dev/null
+}
+
+disable_cvo() {
+    local cvopod=$( oc -n openshift-cluster-version get pods | awk '/^cluster-version-operator-.* Running / {print $1}' ) || :
+    if [ -z "$cvopod" ] ; then
+        return 0
+    fi
+    oc -n openshift-cluster-version scale --replicas=0 deploy/cluster-version-operator
+    wait_func() {
+        oc -n openshift-cluster-version get pod $cvopod > /dev/null 2>&1
+    }
+    if ! wait_for_condition wait_func > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: could not stop cvo pod $cvopod
+        logging_err_exit
+    fi
 }
 
 disable_olm() {
@@ -407,6 +422,7 @@ else
         ESO_NS=$LOGGING_NS
     fi
     # we need to make changes to clo and eo
+    disable_cvo
     disable_olm
 
     clopod=$( oc get pods | awk '/^cluster-logging-operator-.* Running / {print $1}' )
