@@ -140,6 +140,7 @@ struct instanceConf_s {
 	int maxLinesAtOnce;
 	uint32_t trimLineOverBytes;
 	ruleset_t *pBindRuleset;	/* ruleset to bind listener to (use system default if unspecified) */
+	sbool followRename;       /* follow renamed files */
 	struct instanceConf_s *next;
 };
 
@@ -164,7 +165,8 @@ struct act_obj_s {
 #endif
 	time_t timeoutBase; /* what time to calculate the timeout against? */
 	/* file dynamic data */
-	int in_move;	/* workaround for inotify move: if set, state file must not be deleted */
+	uint32_t move_cookie; /* if seen IN_MOVED_FROM and waiting for IN_MOVED_TO, this is the move cookie */
+	                      /* workaround for inotify move: if set, state file must not be deleted */
 	ino_t ino;	/* current inode nbr */
 	strm_t *pStrm;	/* its stream (NULL if not assigned) */
 	int nRecords; /**< How many records did we process before persisting the stream? */
@@ -244,6 +246,7 @@ static wd_map_t *wdmap = NULL;
 static int nWdmap;
 static int allocMaxWdmap;
 static int ino_fd;	/* fd for inotify calls */
+#define IN_EV_NAME(ev) ((ev->mask&(IN_ISDIR|IN_CREATE)) ? ev->name : "")
 #endif /* #if HAVE_INOTIFY_INIT -------------------------------------------------- */
 
 #if defined(OS_SOLARIS) && defined (HAVE_PORT_SOURCE_FILE)
@@ -299,7 +302,8 @@ static struct cnfparamdescr inppdescr[] = {
 	{ "statefile", eCmdHdlrString, CNFPARAM_DEPRECATED },
 	{ "readtimeout", eCmdHdlrPositiveInt, 0 },
 	{ "freshstarttail", eCmdHdlrBinary, 0},
-	{ "filenotfounderror", eCmdHdlrBinary, 0}
+	{ "filenotfounderror", eCmdHdlrBinary, 0},
+	{ "followrename", eCmdHdlrBinary, 0 }
 };
 static struct cnfparamblk inppblk =
 	{ CNFPARAMBLK_VERSION,
@@ -722,11 +726,20 @@ detect_updates(fs_edge_t *const edge)
 	act_obj_t *act;
 	struct stat fileInfo;
 	int restart = 0;
+	const instanceConf_t *inst = NULL;
 
 	for(act = edge->active ; act != NULL ; act = act->next) {
 		DBGPRINTF("detect_updates checking active obj '%s'\n", act->name);
 		const int r = lstat(act->name, &fileInfo);
 		if(r == -1) { /* object gone away? */
+			if(act->move_cookie) {
+				if(!inst)
+					inst = edge->instarr[0];// TODO: same file, multiple instances?
+				if(inst->followRename) {
+					DBGPRINTF("object moved, followRename: '%s'\n", act->name);
+					continue;
+				}
+			}
 			DBGPRINTF("object gone away, unlinking: '%s'\n", act->name);
 			act_obj_unlink(act);
 			restart = 1;
@@ -740,11 +753,31 @@ detect_updates(fs_edge_t *const edge)
 				 * will destroy the strm obj */
 				strmSet_checkRotation(act->pStrm, STRM_ROTATION_DO_NOT_CHECK);
 			}
+			if(act->move_cookie) {
+				if(!inst)
+					inst = edge->instarr[0];// TODO: same file, multiple instances?
+				if(inst->followRename) {
+					rsRetVal rc;
+					ino_t saveino = act->ino;
+					int64 save_iCurrOffs = act->pStrm->iCurrOffs;
+					int64 save_strtOffs = act->pStrm->strtOffs;
+					pollFile(act); /* make sure we read remaining */
+					act->ino = fileInfo.st_ino; /* use new inode . . . */
+					act->pStrm->iCurrOffs = 0; /* new file will start at offset 0 */
+					act->pStrm->strtOffs = 0; /* new file will start at offset 0 */
+					if((rc = persistStrmState(act))) /* . . . to save state for new file */
+						LogMsg(errno, rc, LOG_NOTICE,
+								"problem saving state file for [%s] inode [%ld]", act->name, fileInfo.st_ino);
+					act->ino = saveino; /* restore in case unlink requires original inode */
+					act->pStrm->iCurrOffs = save_iCurrOffs;
+					act->pStrm->strtOffs = save_strtOffs;
+					act->move_cookie = 0; /* so old state file will be deleted */
+				}
+			}
 			act_obj_unlink(act);
 			restart = 1;
 			break;
 		}
-
 	}
 
 	if (restart) {
@@ -781,7 +814,8 @@ process_symlink(fs_edge_t *const chld, const char *symlink)
 	CHKmalloc(target = realpath(symlink, target));
 	struct stat fileInfo;
 	if(lstat(target, &fileInfo) != 0) {
-		LogError(errno, RS_RET_ERR,	"imfile: process_symlink: cannot stat file '%s' - ignored", target);
+		LogMsg(errno, RS_RET_ERR, LOG_INFO,
+			   "imfile: process_symlink: cannot stat file '%s' - ignored", target);
 		FINALIZE;
 	}
 	const int is_file = (S_ISREG(fileInfo.st_mode));
@@ -903,9 +937,9 @@ act_obj_destroy(act_obj_t *const act, const int is_deleted)
 	if(act == NULL)
 		return;
 
-	DBGPRINTF("act_obj_destroy: act %p '%s' (source '%s'), wd %d, pStrm %p, is_deleted %d, in_move %d\n",
+	DBGPRINTF("act_obj_destroy: act %p '%s' (source '%s'), wd %d, pStrm %p, is_deleted %d, move_cookie %ud\n",
 		act, act->name, act->source_name? act->source_name : "---", act->wd, act->pStrm, is_deleted,
-		act->in_move);
+		act->move_cookie);
 	if(act->is_symlink && is_deleted) {
 		act_obj_t *target_act;
 		for(target_act = act->edge->active ; target_act != NULL ; target_act = target_act->next) {
@@ -931,7 +965,7 @@ act_obj_destroy(act_obj_t *const act, const int is_deleted)
 		persistStrmState(act);
 		strm.Destruct(&act->pStrm);
 		/* we delete state file after destruct in case strm obj initiated a write */
-		if(is_deleted && !act->in_move && inst->bRMStateOnDel) {
+		if(is_deleted && !act->move_cookie && inst->bRMStateOnDel) {
 			DBGPRINTF("act_obj_destroy: deleting state file %s\n", statefn);
 			unlink((char*)statefn);
 		}
@@ -1344,7 +1378,11 @@ openFileWithStateFile(act_obj_t *const act)
 
 	CHKiRet(strm.SetFName(act->pStrm, (uchar*)act->name, strlen(act->name)));
 	CHKiRet(strm.SettOperationsMode(act->pStrm, STREAMMODE_READ));
-	CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_MONITOR));
+	if (inst->followRename) {
+		CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_SINGLE));
+	} else {
+		CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_MONITOR));
+	}
 	CHKiRet(strm.SetFileNotFoundError(act->pStrm, inst->fileNotFoundError));
 	CHKiRet(strm.ConstructFinalize(act->pStrm));
 
@@ -1374,7 +1412,11 @@ openFileWithoutStateFile(act_obj_t *const act)
 		strm.Destruct(&act->pStrm);
 	CHKiRet(strm.Construct(&act->pStrm));
 	CHKiRet(strm.SettOperationsMode(act->pStrm, STREAMMODE_READ));
-	CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_MONITOR));
+	if (inst->followRename) {
+		CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_SINGLE));
+	} else {
+		CHKiRet(strm.SetsType(act->pStrm, STREAMTYPE_FILE_MONITOR));
+	}
 	CHKiRet(strm.SetFName(act->pStrm, (uchar*)act->name, strlen(act->name)));
 	CHKiRet(strm.SetFileNotFoundError(act->pStrm, inst->fileNotFoundError));
 	CHKiRet(strm.ConstructFinalize(act->pStrm));
@@ -1535,6 +1577,7 @@ createInstance(instanceConf_t **const pinst)
 	inst->freshStartTail = 0;
 	inst->fileNotFoundError = 1;
 	inst->readTimeout = loadModConf->readTimeout;
+	inst->followRename = 0;
 
 	/* node created, let's add to config */
 	if(loadModConf->tail == NULL) {
@@ -1679,6 +1722,7 @@ addInstance(void __attribute__((unused)) *pVal, uchar *pNewVal)
 	inst->addCeeTag = 0;
 	inst->bRMStateOnDel = 0;
 	inst->readTimeout = loadModConf->readTimeout;
+	inst->followRename = 0;
 
 	CHKiRet(checkInstance(inst));
 
@@ -1769,6 +1813,8 @@ CODESTARTnewInpInst
 			inst->nMultiSub = pvals[i].val.d.n;
 		} else if(!strcmp(inppblk.descr[i].name, "readtimeout")) {
 			inst->readTimeout = pvals[i].val.d.n;
+		} else if(!strcmp(inppblk.descr[i].name, "followrename")) {
+			inst->followRename = (sbool) pvals[i].val.d.n;
 		} else {
 			DBGPRINTF("program error, non-handled "
 			  "param '%s'\n", inppblk.descr[i].name);
@@ -2078,7 +2124,7 @@ in_dbg_showEv(const struct inotify_event *ev)
 		dbgprintf("INOTIFY event: watch was REMOVED\n");
 	}
 	if(ev->mask & IN_MODIFY) {
-		dbgprintf("INOTIFY event: watch was MODIFID\n");
+		dbgprintf("INOTIFY event: watch was MODIFIED\n");
 	}
 	if(ev->mask & IN_ACCESS) {
 		dbgprintf("INOTIFY event: watch IN_ACCESS\n");
@@ -2137,22 +2183,22 @@ in_handleFileEvent(struct inotify_event *ev, const wd_map_t *const etry)
  * TODO: replace by a more generic solution.
  */
 static void
-flag_in_move(fs_edge_t *const edge, const char *name_moved)
+flag_in_move(fs_edge_t *const edge, const char *name_moved, uint32_t move_cookie)
 {
 	act_obj_t *act;
 
 	for(act = edge->active ; act != NULL ; act = act->next) {
 		DBGPRINTF("checking active object %s\n", act->basename);
 		if(!strcmp(act->basename, name_moved)){
-			DBGPRINTF("found file\n");
-			act->in_move = 1;
+			DBGPRINTF("flag_in_move: found file %s %p\n", act->name, act);
+			act->move_cookie = move_cookie;
 			break;
 		} else {
 			DBGPRINTF("name check fails, '%s' != '%s'\n", act->basename, name_moved);
 		}
 	}
 	if (!act && edge->next) {
-		flag_in_move(edge->next, name_moved);
+		flag_in_move(edge->next, name_moved, move_cookie);
 	}
 }
 
@@ -2164,24 +2210,24 @@ in_processEvent(struct inotify_event *ev)
 		goto done;
 	}
 
-	DBGPRINTF("in_processEvent process Event %x for \"%s\"\n", ev->mask, ev->name);
+	DBGPRINTF("in_processEvent process Event %x for %s wd %d\n", ev->mask, IN_EV_NAME(ev), ev->wd);
 	const wd_map_t *const etry =  wdmapLookup(ev->wd);
 	if(etry == NULL) {
-		LogMsg(0, RS_RET_INTERNAL_ERROR, LOG_WARNING, "imfile: internal error? "
-			"inotify provided watch descriptor %d for \"%s\" (Event %x) which we could not find "
-			"in our tables - ignored", ev->wd, ev->name, ev->mask);
+		LogMsg(0, RS_RET_INTERNAL_ERROR, LOG_INFO, "imfile: internal error? "
+			"inotify provided watch descriptor %d mask %x name %s which we could not find "
+			"in our tables - ignored", ev->wd, ev->mask, IN_EV_NAME(ev));
 		goto done;
 	}
-	DBGPRINTF("in_processEvent process Event %x is_file %d, act->name '%s'\n",
-		ev->mask, etry->act->edge->is_file, etry->act->name);
+	DBGPRINTF("in_processEvent process Event %x is_file %d, act->name '%s' %p\n",
+		ev->mask, etry->act->edge->is_file, IN_EV_NAME(ev), etry->act);
 
 	if((ev->mask & IN_MOVED_FROM)) {
-		flag_in_move(etry->act->edge->node->edges, ev->name);
+		flag_in_move(etry->act->edge->node->edges, ev->name, ev->cookie);
 	}
 	if(ev->mask & (IN_MOVED_FROM | IN_MOVED_TO))  {
 		fs_node_walk(etry->act->edge->node, poll_tree);
 	} else if(etry->act->edge->is_file && !(etry->act->is_symlink)) {
-		in_handleFileEvent(ev, etry); // esentially poll_file()!
+		in_handleFileEvent(ev, etry); // essentially poll_file()!
 	} else {
 		fs_node_walk(etry->act->edge->node, poll_tree);
 	}
