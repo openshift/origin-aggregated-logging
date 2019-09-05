@@ -496,4 +496,8 @@ func main() {
 			fmt.Println(string(outputString))
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(logfile, "Scanner error [%v]", err)
+	}
 }
