@@ -449,13 +449,17 @@ func main() {
 		reader = bufio.NewReader(os.Stdin)
 	}
 	scanner := bufio.NewScanner(reader)
+	// Mitigating bufio.Scanner: token too long error
+	const maxScanBufferSize = 256 * 1024
+	scanBuffer := make([]byte, maxScanBufferSize)
+	scanner.Buffer(scanBuffer, maxScanBufferSize)
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
 		jsonMap := make(map[string]interface{})
 		rawStr := scanner.Text()
 		if cfg.Debug {
-			fmt.Fprintln(logfile, "Source: ", rawStr)
+			fmt.Fprintf(logfile, "Source (%d): %s\n", len(rawStr), rawStr)
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &jsonMap); err != nil {
 			fmt.Fprintln(logfile, "json.Unmarshal failed (", err, "): ", rawStr)
@@ -498,6 +502,6 @@ func main() {
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(logfile, "Scanner error [%v]", err)
+		fmt.Fprintf(logfile, "Scanner error [%v]\n", err)
 	}
 }
