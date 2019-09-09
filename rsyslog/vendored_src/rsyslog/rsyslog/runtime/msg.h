@@ -67,8 +67,8 @@ struct msg {
 	sbool	bParseSuccess;	/* set to reflect state of last executed higher level parser */
 	unsigned short	iSeverity;/* the severity  */
 	unsigned short	iFacility;/* Facility code */
-	short	offAfterPRI;	/* offset, at which raw message WITHOUT PRI part starts in pszRawMsg */
-	short	offMSG;		/* offset at which the MSG part starts in pszRawMsg */
+	uint32_t offAfterPRI;	/* offset, at which raw message WITHOUT PRI part starts in pszRawMsg */
+	uint32_t offMSG;		/* offset at which the MSG part starts in pszRawMsg */
 	short	iProtocolVersion;/* protocol version of message received 0 - legacy, 1 syslog-protocol) */
 	int	msgFlags;	/* flags associated with this message */
 	int	iLenRawMsg;	/* length of raw message */
@@ -156,6 +156,8 @@ struct msg {
 /* check UDP ACLs after DNS resolution has been done in main queue consumer */
 #define NO_PRI_IN_RAW	0x100
 /* rawmsg does not include a PRI (Solaris!), but PRI is already set correctly in the msg object */
+#define PRESERVE_CASE	0x200
+/* preserve case in fromhost */
 
 /* (syslog) protocol types */
 #define MSG_LEGACY_PROTOCOL 0
@@ -192,8 +194,8 @@ void MsgSetRcvFromStr(smsg_t *const pMsg, const uchar* pszRcvFrom, const int, pr
 rsRetVal MsgSetRcvFromIP(smsg_t *pMsg, prop_t*);
 rsRetVal MsgSetRcvFromIPStr(smsg_t *const pThis, const uchar *psz, const int len, prop_t **ppProp);
 void MsgSetHOSTNAME(smsg_t *pMsg, const uchar* pszHOSTNAME, const int lenHOSTNAME);
-rsRetVal MsgSetAfterPRIOffs(smsg_t *pMsg, short offs);
-void MsgSetMSGoffs(smsg_t *pMsg, short offs);
+rsRetVal MsgSetAfterPRIOffs(smsg_t *pMsg, uint32_t offs);
+void MsgSetMSGoffs(smsg_t *pMsg, uint32_t offs);
 void MsgSetRawMsgWOSize(smsg_t *pMsg, char* pszRawMsg);
 void ATTR_NONNULL() MsgSetRawMsg(smsg_t *const pThis, const char*const pszRawMsg, const size_t lenMsg);
 rsRetVal MsgReplaceMSG(smsg_t *pThis, const uchar* pszMSG, int lenMSG);

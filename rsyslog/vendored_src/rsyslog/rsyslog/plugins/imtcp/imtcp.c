@@ -100,6 +100,7 @@ static struct configSettings_s {
 	int bDisableLFDelim;
 	int discardTruncatedMsg;
 	int bUseFlowControl;
+	int bPreserveCase;
 	uchar *gnutlsPriorityString;
 	uchar *pszStrmDrvrAuthMode;
 	uchar *pszInputName;
@@ -128,6 +129,8 @@ struct modConfData_s {
 	int iTCPSessMax; /* max number of sessions */
 	int iTCPLstnMax; /* max number of sessions */
 	int iStrmDrvrMode; /* mode for stream driver, driver-dependent (0 mostly means plain tcp) */
+	int iStrmDrvrExtendedCertCheck; /* verify also purpose OID in certificate extended field */
+	int iStrmDrvrSANPreference; /* ignore CN when any SAN set */
 	int iAddtlFrameDelim; /* addtl frame delimiter, e.g. for netscreen, default none */
 	int maxFrameSize;
 	int bSuppOctetFram;
@@ -144,6 +147,7 @@ struct modConfData_s {
 	uchar *pszStrmDrvrAuthMode; /* authentication mode to use */
 	struct cnfarray *permittedPeers;
 	sbool configSetViaV2Method;
+	sbool bPreserveCase; /* preserve case of fromhost; true by default */
 };
 
 static modConfData_t *loadModConf = NULL;/* modConf ptr to use for the current load process */
@@ -164,12 +168,15 @@ static struct cnfparamdescr modpdescr[] = {
 	{ "streamdriver.mode", eCmdHdlrNonNegInt, 0 },
 	{ "streamdriver.authmode", eCmdHdlrString, 0 },
 	{ "streamdriver.name", eCmdHdlrString, 0 },
+	{ "streamdriver.CheckExtendedKeyPurpose", eCmdHdlrBinary, 0 },
+	{ "streamdriver.PrioritizeSAN", eCmdHdlrBinary, 0 },
 	{ "permittedpeer", eCmdHdlrArray, 0 },
 	{ "keepalive", eCmdHdlrBinary, 0 },
 	{ "keepalive.probes", eCmdHdlrPositiveInt, 0 },
 	{ "keepalive.time", eCmdHdlrPositiveInt, 0 },
 	{ "keepalive.interval", eCmdHdlrPositiveInt, 0 },
-	{ "gnutlsprioritystring", eCmdHdlrString, 0 }
+	{ "gnutlsprioritystring", eCmdHdlrString, 0 },
+	{ "preservecase", eCmdHdlrBinary, 0 }
 };
 static struct cnfparamblk modpblk =
 	{ CNFPARAMBLK_VERSION,
@@ -359,6 +366,8 @@ addListner(modConfData_t *modConf, instanceConf_t *inst)
 		CHKiRet(tcpsrv.SetSessMax(pOurTcpsrv, modConf->iTCPSessMax));
 		CHKiRet(tcpsrv.SetLstnMax(pOurTcpsrv, modConf->iTCPLstnMax));
 		CHKiRet(tcpsrv.SetDrvrMode(pOurTcpsrv, modConf->iStrmDrvrMode));
+		CHKiRet(tcpsrv.SetDrvrCheckExtendedKeyUsage(pOurTcpsrv, modConf->iStrmDrvrExtendedCertCheck));
+		CHKiRet(tcpsrv.SetDrvrPrioritizeSAN(pOurTcpsrv, modConf->iStrmDrvrSANPreference));
 		CHKiRet(tcpsrv.SetUseFlowControl(pOurTcpsrv, modConf->bUseFlowControl));
 		CHKiRet(tcpsrv.SetAddtlFrameDelim(pOurTcpsrv, modConf->iAddtlFrameDelim));
 		CHKiRet(tcpsrv.SetMaxFrameSize(pOurTcpsrv, modConf->maxFrameSize));
@@ -375,6 +384,7 @@ addListner(modConfData_t *modConf, instanceConf_t *inst)
 		if(pPermPeersRoot != NULL) {
 			CHKiRet(tcpsrv.SetDrvrPermPeers(pOurTcpsrv, pPermPeersRoot));
 		}
+		CHKiRet(tcpsrv.SetPreserveCase(pOurTcpsrv, modConf->bPreserveCase));
 	}
 
 	/* initialized, now add socket and listener params */
@@ -458,6 +468,8 @@ CODESTARTbeginCnfLoad
 	loadModConf->iTCPLstnMax = 20;
 	loadModConf->bSuppOctetFram = 1;
 	loadModConf->iStrmDrvrMode = 0;
+	loadModConf->iStrmDrvrExtendedCertCheck = 0;
+	loadModConf->iStrmDrvrSANPreference = 0;
 	loadModConf->bUseFlowControl = 1;
 	loadModConf->bKeepAlive = 0;
 	loadModConf->iKeepAliveIntvl = 0;
@@ -473,6 +485,7 @@ CODESTARTbeginCnfLoad
 	loadModConf->pszStrmDrvrAuthMode = NULL;
 	loadModConf->permittedPeers = NULL;
 	loadModConf->configSetViaV2Method = 0;
+	loadModConf->bPreserveCase = 1; /* default to true */
 	bLegacyCnfModGlobalsPermitted = 1;
 	/* init legacy config variables */
 	cs.pszStrmDrvrAuthMode = NULL;
@@ -537,12 +550,18 @@ CODESTARTsetModCnf
 			loadModConf->gnutlsPriorityString = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.mode")) {
 			loadModConf->iStrmDrvrMode = (int) pvals[i].val.d.n;
+		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.CheckExtendedKeyPurpose")) {
+			loadModConf->iStrmDrvrExtendedCertCheck = (int) pvals[i].val.d.n;
+		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.PrioritizeSAN")) {
+			loadModConf->iStrmDrvrSANPreference = (int) pvals[i].val.d.n;
 		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.authmode")) {
 			loadModConf->pszStrmDrvrAuthMode = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.name")) {
 			loadModConf->pszStrmDrvrName = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(modpblk.descr[i].name, "permittedpeer")) {
 			loadModConf->permittedPeers = cnfarrayDup(pvals[i].val.d.ar);
+		} else if(!strcmp(modpblk.descr[i].name, "preservecase")) {
+			loadModConf->bPreserveCase = (int) pvals[i].val.d.n;
 		} else {
 			dbgprintf("imtcp: program error, non-handled "
 			  "param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
@@ -584,6 +603,7 @@ CODESTARTendCnfLoad
 			loadModConf->pszStrmDrvrAuthMode = cs.pszStrmDrvrAuthMode;
 			cs.pszStrmDrvrAuthMode = NULL;
 		}
+		pModConf->bPreserveCase = cs.bPreserveCase;
 	}
 	free(cs.pszStrmDrvrAuthMode);
 	cs.pszStrmDrvrAuthMode = NULL;
@@ -731,6 +751,7 @@ resetConfigVariables(uchar __attribute__((unused)) *pp, void __attribute__((unus
 	cs.pszInputName = NULL;
 	free(cs.pszStrmDrvrAuthMode);
 	cs.pszStrmDrvrAuthMode = NULL;
+	cs.bPreserveCase = 1;
 	return RS_RET_OK;
 }
 
@@ -797,7 +818,8 @@ CODEmodInit_QueryRegCFSLineHdlr
 			   NULL, &cs.bEmitMsgOnClose, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
 	CHKiRet(regCfSysLineHdlr2(UCHAR_CONSTANT("inputtcpserverstreamdrivermode"), 0, eCmdHdlrInt,
 			   NULL, &cs.iStrmDrvrMode, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
-
+	CHKiRet(regCfSysLineHdlr2(UCHAR_CONSTANT("inputtcpserverpreservecase"), 1, eCmdHdlrBinary,
+			   NULL, &cs.bPreserveCase, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("resetconfigvariables"), 1, eCmdHdlrCustomHandler,
 				   resetConfigVariables, NULL, STD_LOADABLE_MODULE_ID));
 ENDmodInit

@@ -6,7 +6,7 @@
 Summary: Enhanced system logging and kernel message trapping daemon
 Name: rsyslog
 Version: 8.37.0
-Release: 9%{?dist}
+Release: 13%{?dist}
 License: (GPLv3+ and ASL 2.0)
 Group: System Environment/Daemons
 ExcludeArch: i686
@@ -225,6 +225,14 @@ mv build doc
 %patch1 -p1 -b .default-tag
 %patch2 -p1 -b .imfile-symlink
 %patch3 -p1 -b .mmkubernetes-404
+%patch4 -p1 -b .endmsg-regex
+%patch5 -p1 -b .rotation-detection
+%patch6 -p1 -b .short-offmsg-crash
+%patch7 -p1 -b .preservecase-option
+%patch8 -p1 -b .imjournal-memleak
+%patch9 -p1 -b .imjournal-err-flood
+%patch10 -p1 -b .imrelp-old-syntax
+%patch11 -p1 -b .tls-CC
 
 %build
 %ifarch sparc64
@@ -428,6 +436,39 @@ done
 
 
 %changelog
+* Fri Aug 30 2019 Jiri Vymazal <jvymazal@redhat.com> - 8.37.0-13
+  RHEL 8.1.0 ERRATUM
+- added patch enabling stricter TLS certs checking conforming to 
+  common criteria requirements
+  resolves: rhbz#1733244
+
+* Mon Jul 22 2019 Jiri Vymazal <jvymazal@redhat.com> - 8.37.0-12
+  RHEL 8.1.0 ERRATUM
+- edited imjournal memleak patch to not cause double-free crash
+  resolves: rhbz#1729995
+- added patch calling journald API only when there are no
+  preceeding errors
+  resolves: rhbz#1722165
+- added patch fixing imrelp module when invoked with old syntax
+  resolves: rhbz#1724218
+
+* Wed Jun 05 2019 Jiri Vymazal <jvymazal@redhat.com> - 8.37.0-11
+  RHEL 8.1.0 ERRATUM
+- fixed memory leak in imjournal by proper cursor releasing
+  resolves: rhbz#1716867
+
+* Fri May 10 2019 Jiri Vymazal <jvymazal@redhat.com> - 8.37.0-10
+  RHEL 8.1.0 ERRATUM
+- added option for imfile endmsg.regex
+  resolves: rhbz#1627941
+- added patch enhancing imfile rotation detection
+  resolves: rhbz#1674471
+- added patch fixing msgOffset datatype preventing crash on
+  message with too long other fields
+  resolves: rhbz#1677037
+- added patch introducing "preservecase" option for imudp/imtcp
+  resolves: rhbz#1614181
+
 * Mon Dec 17 2018 Jiri Vymazal <jvymazal@redhat.com> - 8.37.0-9
   RHEL 8.0.0 ERRATUM
 - added back legacy option for imjournal default tag

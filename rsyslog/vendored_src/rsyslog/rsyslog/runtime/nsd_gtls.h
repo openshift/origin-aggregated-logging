@@ -49,6 +49,11 @@ struct nsd_gtls_s {
 		GTLS_AUTH_CERTVALID = 2,
 		GTLS_AUTH_CERTANON = 3
 	} authMode;
+	enum {
+		GTLS_NONE = 0,
+		GTLS_PURPOSE = 1
+	} dataTypeCheck;
+	int bSANpriority; /* if true, we do stricter checking (if any SAN present we do not cehck CN) */
 	gtlsRtryCall_t rtryCall;/**< what must we retry? */
 	int bIsInitiator;	/**< 0 if socket is the server end (listener), 1 if it is the initiator */
 	gnutls_session_t sess;

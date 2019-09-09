@@ -82,6 +82,8 @@ typedef struct _instanceData {
 	uchar *pszStrmDrvrAuthMode;
 	permittedPeers_t *pPermPeers;
 	int iStrmDrvrMode;
+	int iStrmDrvrExtendedCertCheck; /* verify also purpose OID in certificate extended field */
+	int iStrmDrvrSANPreference; /* ignore CN when any SAN set */
 	char	*target;
 	char	*address;
 	char	*device;
@@ -187,6 +189,8 @@ static struct cnfparamdescr actpdescr[] = {
 	{ "streamdrivermode", eCmdHdlrInt, 0 },
 	{ "streamdriverauthmode", eCmdHdlrGetWord, 0 },
 	{ "streamdriverpermittedpeers", eCmdHdlrGetWord, 0 },
+	{ "streamdriver.CheckExtendedKeyPurpose", eCmdHdlrBinary, 0 },
+	{ "streamdriver.PrioritizeSAN", eCmdHdlrBinary, 0 },
 	{ "resendlastmsgonreconnect", eCmdHdlrBinary, 0 },
 	{ "udp.sendtoall", eCmdHdlrBinary, 0 },
 	{ "udp.senddelay", eCmdHdlrInt, 0 },
@@ -745,6 +749,8 @@ static rsRetVal TCPSendInit(void *pvData)
 		CHKiRet(netstrms.CreateStrm(pWrkrData->pNS, &pWrkrData->pNetstrm));
 		CHKiRet(netstrm.ConstructFinalize(pWrkrData->pNetstrm));
 		CHKiRet(netstrm.SetDrvrMode(pWrkrData->pNetstrm, pData->iStrmDrvrMode));
+		CHKiRet(netstrm.SetDrvrCheckExtendedKeyUsage(pWrkrData->pNetstrm, pData->iStrmDrvrExtendedCertCheck));
+		CHKiRet(netstrm.SetDrvrPrioritizeSAN(pWrkrData->pNetstrm, pData->iStrmDrvrSANPreference));
 		/* now set optional params, but only if they were actually configured */
 		if(pData->pszStrmDrvrAuthMode != NULL) {
 			CHKiRet(netstrm.SetDrvrAuthMode(pWrkrData->pNetstrm, pData->pszStrmDrvrAuthMode));
@@ -1110,6 +1116,8 @@ setInstParamDefaults(instanceData *pData)
 	pData->pszStrmDrvr = NULL;
 	pData->pszStrmDrvrAuthMode = NULL;
 	pData->iStrmDrvrMode = 0;
+	pData->iStrmDrvrExtendedCertCheck = 0;
+	pData->iStrmDrvrSANPreference = 0;
 	pData->iRebindInterval = 0;
 	pData->bKeepAlive = 0;
 	pData->iKeepAliveProbes = 0;
@@ -1213,6 +1221,10 @@ CODESTARTnewActInst
 			pData->pszStrmDrvr = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(actpblk.descr[i].name, "streamdrivermode")) {
 			pData->iStrmDrvrMode = pvals[i].val.d.n;
+		} else if(!strcmp(actpblk.descr[i].name, "streamdriver.CheckExtendedKeyPurpose")) {
+			pData->iStrmDrvrExtendedCertCheck = pvals[i].val.d.n;
+		} else if(!strcmp(actpblk.descr[i].name, "streamdriver.PrioritizeSAN")) {
+			pData->iStrmDrvrSANPreference = pvals[i].val.d.n;
 		} else if(!strcmp(actpblk.descr[i].name, "streamdriverauthmode")) {
 			pData->pszStrmDrvrAuthMode = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(actpblk.descr[i].name, "streamdriverpermittedpeers")) {

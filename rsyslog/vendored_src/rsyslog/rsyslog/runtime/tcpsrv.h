@@ -61,6 +61,8 @@ struct tcpsrv_s {
 	int iKeepAliveTime;	/**< socket layer KEEPALIVE timeout */
 	netstrms_t *pNS;	/**< pointer to network stream subsystem */
 	int iDrvrMode;		/**< mode of the stream driver to use */
+	int DrvrChkExtendedKeyUsage;		/**< if true, verify extended key usage in certs */
+	int DrvrPrioritizeSan;		/**< if true, perform stricter checking of names in certs */
 	uchar *gnutlsPriorityString;	/**< priority string for gnutls */
 	uchar *pszDrvrAuthMode;	/**< auth mode of the stream driver to use */
 	uchar *pszDrvrName;	/**< name of stream driver to use */
@@ -85,6 +87,7 @@ struct tcpsrv_s {
 	int maxFrameSize;	/**< max frame size for octet counted*/
 	int bDisableLFDelim;	/**< if 1, standard LF frame delimiter is disabled (*very dangerous*) */
 	int discardTruncatedMsg;/**< discard msg part that has been truncated*/
+	sbool bPreserveCase;	/**< preserve case in fromhost */
 	int ratelimitInterval;
 	int ratelimitBurst;
 	tcps_sess_t **pSessions;/**< array of all of our sessions */
@@ -177,8 +180,13 @@ BEGINinterface(tcpsrv) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetbSPFramingFix)(tcpsrv_t*, sbool);
 	/* added v19 -- PascalWithopf, 2017-08-08 */
 	rsRetVal (*SetGnutlsPriorityString)(tcpsrv_t*, uchar*);
+	/* added v21 -- Preserve case in fromhost, 2018-08-16 */
+	rsRetVal (*SetPreserveCase)(tcpsrv_t *pThis, int bPreserveCase);
+	/* added v23 -- Options for stricter driver behavior, 2019-08-16 */
+	rsRetVal (*SetDrvrCheckExtendedKeyUsage)(tcpsrv_t *pThis, int ChkExtendedKeyUsage);
+	rsRetVal (*SetDrvrPrioritizeSAN)(tcpsrv_t *pThis, int prioritizeSan);
 ENDinterface(tcpsrv)
-#define tcpsrvCURR_IF_VERSION 20 /* increment whenever you change the interface structure! */
+#define tcpsrvCURR_IF_VERSION 23 /* increment whenever you change the interface structure! */
 /* change for v4:
  * - SetAddtlFrameDelim() added -- rgerhards, 2008-12-10
  * - SetInputName() added -- rgerhards, 2008-12-10

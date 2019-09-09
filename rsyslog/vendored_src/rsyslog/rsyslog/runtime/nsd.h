@@ -84,8 +84,11 @@ BEGINinterface(nsd) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetKeepAliveProbes)(nsd_t *pThis, int keepAliveProbes);
 	rsRetVal (*SetKeepAliveTime)(nsd_t *pThis, int keepAliveTime);
 	rsRetVal (*SetGnutlsPriorityString)(nsd_t *pThis, uchar *gnutlsPriorityString);
+	/* v13 -- two new binary flags added to gtls driver enabling stricter operation */
+	rsRetVal (*SetCheckExtendedKeyUsage)(nsd_t *pThis, int ChkExtendedKeyUsage);
+	rsRetVal (*SetPrioritizeSAN)(nsd_t *pThis, int prioritizeSan);
 ENDinterface(nsd)
-#define nsdCURR_IF_VERSION 11 /* increment whenever you change the interface structure! */
+#define nsdCURR_IF_VERSION 13 /* increment whenever you change the interface structure! */
 /* interface version 4 added GetRemAddr()
  * interface version 5 added EnableKeepAlive() -- rgerhards, 2009-06-02
  * interface version 6 changed return of CheckConnection from void to rsRetVal -- alorbach, 2012-09-06

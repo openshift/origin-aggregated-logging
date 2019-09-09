@@ -76,8 +76,11 @@ BEGINinterface(netstrm) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetKeepAliveTime)(netstrm_t *pThis, int keepAliveTime);
 	rsRetVal (*SetKeepAliveIntvl)(netstrm_t *pThis, int keepAliveIntvl);
 	rsRetVal (*SetGnutlsPriorityString)(netstrm_t *pThis, uchar *priorityString);
+	/* v12 -- two new binary flags added to gtls driver enabling stricter operation */
+	rsRetVal (*SetDrvrCheckExtendedKeyUsage)(netstrm_t *pThis, int ChkExtendedKeyUsage);
+	rsRetVal (*SetDrvrPrioritizeSAN)(netstrm_t *pThis, int prioritizeSan);
 ENDinterface(netstrm)
-#define netstrmCURR_IF_VERSION 10 /* increment whenever you change the interface structure! */
+#define netstrmCURR_IF_VERSION 12 /* increment whenever you change the interface structure! */
 /* interface version 3 added GetRemAddr()
  * interface version 4 added EnableKeepAlive() -- rgerhards, 2009-06-02
  * interface version 5 changed return of CheckConnection from void to rsRetVal -- alorbach, 2012-09-06

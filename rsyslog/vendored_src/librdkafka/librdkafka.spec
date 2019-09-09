@@ -1,6 +1,6 @@
 Name:		librdkafka
 Version:	0.11.4
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	The Apache Kafka C library
 
 Group:		Development/Libraries
@@ -77,6 +77,9 @@ find %{buildroot} -name '*.a' -delete -print
 
 
 %changelog
+* Mon Jun 03 2019 Radovan Sroka <rsroka@redhat.com> - 0.11.4-2
+- rebuild
+
 * Fri Feb 08 2019 Jiri Vymazal <jvymazal@redhat.com> - 0.11.4-1
 - rebase to v0.11.4 (0.11.5 was breaking rsyslog-kafka)
   resolves: rhbz#1614697
