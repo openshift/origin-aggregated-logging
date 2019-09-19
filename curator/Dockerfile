@@ -23,7 +23,7 @@ RUN if [ -n "${LOCAL_REPO}" ] ; then \
     fi
 
 RUN yum install -y --setopt=skip_missing_names_on_install=False --setopt=tsflags=nodocs \
-        elastic-curator-${CURATOR_VER} python2-ruamel-yaml "python-elasticsearch < 5.5" \
+        elastic-curator-${CURATOR_VER} python2-ruamel-yaml python-elasticsearch \
  && yum clean all
 
 COPY run.sh lib/oalconverter/* ${HOME}/
