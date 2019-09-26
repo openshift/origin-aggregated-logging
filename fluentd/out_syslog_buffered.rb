@@ -110,7 +110,7 @@ module Fluent
             begin
               @packet.facility = Integer(record['systemd']['u']['SYSLOG_FACILITY'])
             rescue
-              log.warn "out:syslog: invalid facility value #{record['systemd']['u']['SYSLOG_FACILITY']}; reset to default #{@facility}"
+              log.debug "out:syslog: invalid facility value #{record['systemd']['u']['SYSLOG_FACILITY']}; reset to default #{@facility}"
               @packet.facility = @facility
             end
           end
