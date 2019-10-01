@@ -40,21 +40,23 @@ RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autoge
 
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     gem install -N --conservative --minimal-deps --no-ri --no-doc \
-     'activesupport:<5' \
-     'public_suffix:<3' \
-     'elasticsearch-transport:<6' \
-     'elasticsearch-api:<6' \
-     'elasticsearch:<6' \
+     'minitest:5.10.3' \
+     'activesupport:4.2.10' \
+     'public_suffix:2.0.5' \
+     'faraday:0.15.2' \
+     'elasticsearch-transport:5.0.5' \
+     'elasticsearch-api:5.0.5' \
+     'elasticsearch:5.0.5' \
       fluentd:${FLUENTD_VERSION} \
-     'fluent-plugin-elasticsearch:<2.0.0' \
-     'fluent-plugin-kubernetes_metadata_filter:<2' \
-     'fluent-plugin-record-modifier:<1.0.0' \
-     'fluent-plugin-rewrite-tag-filter:<1.6.0' \
-      fluent-plugin-secure-forward \
-     'fluent-plugin-systemd:<0.1.0' \
-      fluent-plugin-viaq_data_model \
+     'fluent-plugin-elasticsearch:1.17.2' \
+     'fluent-plugin-record-modifier:0.6.2' \
+     'fluent-plugin-rewrite-tag-filter:1.5.6' \
+      fluent-plugin-secure-forward:0.4.5 \
+     'fluent-plugin-systemd:0.0.11' \
+      fluent-plugin-viaq_data_model:0.0.18 \
      'fluent-plugin-remote-syslog:1.1' \
-     'fluent-plugin-prometheus:<1.0.0'
+     'fluent-plugin-kubernetes_metadata_filter:1.2.2' \
+     'fluent-plugin-prometheus:0.4.0'
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
