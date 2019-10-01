@@ -127,6 +127,7 @@ application/fdt+xml
 application/fhir+json
 application/fhir+xml
 application/fits
+application/flexfec
 application/font-sfnt otf ttf
 application/font-tdpfr pfr
 application/font-woff woff woff2
@@ -225,6 +226,7 @@ application/metalink4+xml meta4
 application/mets+xml mets
 application/MF4
 application/mikey
+application/mipc
 application/mmt-aei+xml
 application/mmt-usd+xml
 application/mods+xml mods
@@ -271,7 +273,7 @@ application/p2p-overlay+xml
 application/parityfec
 application/passport
 application/patch-ops-error+xml xer
-application/pdf pdf
+application/pdf ai pdf
 application/PDX
 application/pem-certificate-chain
 application/pgp-encrypted pgp gpg
@@ -293,7 +295,7 @@ application/pkix-pkipath pkipath
 application/pkixcmp pki
 application/pls+xml pls
 application/poc-settings+xml
-application/postscript ai eps ps
+application/postscript eps ps
 application/powerpoint ppt pps pot
 application/ppsp-tracker+json
 application/pro_eng
@@ -371,6 +373,7 @@ application/sieve siv
 application/simple-filter+xml
 application/simple-message-summary
 application/simpleSymbolContainer
+application/sipc
 application/SLA
 application/slate
 application/smil smi smil
@@ -390,6 +393,7 @@ application/ssdl+xml ssdl
 application/ssml+xml ssml
 application/STEP
 application/stix+json
+application/swid+xml
 application/tamp-apex-update
 application/tamp-apex-update-confirm
 application/tamp-community-update
@@ -455,6 +459,7 @@ application/vnd.3gpp.mcptt-ue-init-config+xml
 application/vnd.3gpp.mcptt-user-profile+xml
 application/vnd.3gpp.mcvideo-affiliation-command+xml
 application/vnd.3gpp.mcvideo-affiliation-info+xml
+application/vnd.3gpp.mcvideo-info+xml
 application/vnd.3gpp.mcvideo-location-info+xml
 application/vnd.3gpp.mcvideo-mbms-usage-info+xml
 application/vnd.3gpp.mcvideo-service-config+xml
@@ -500,6 +505,7 @@ application/vnd.amazon.mobi8-ebook
 application/vnd.americandynamics.acc acc
 application/vnd.amiga.ami ami
 application/vnd.amundsen.maze+xml
+application/vnd.android.ota
 application/vnd.android.package-archive apk
 application/vnd.anki
 application/vnd.anser-web-certificate-issue-initiation cii
@@ -528,6 +534,7 @@ application/vnd.avistar+xml
 application/vnd.balsamiq.bmml+xml
 application/vnd.balsamiq.bmpr
 application/vnd.banana-accounting
+application/vnd.bbf.usp.error
 application/vnd.bbf.usp.msg
 application/vnd.bbf.usp.msg+json
 application/vnd.bekitzur-stech+json
@@ -538,6 +545,8 @@ application/vnd.blueice.multipass mpm
 application/vnd.bluetooth.ep.oob
 application/vnd.bluetooth.le.oob
 application/vnd.bmi bmi
+application/vnd.bpf
+application/vnd.bpf3
 application/vnd.businessobjects rep
 application/vnd.byu.uapi+json
 application/vnd.cab-jscript
@@ -549,6 +558,7 @@ application/vnd.century-systems.tcp_stream
 application/vnd.chemdraw+xml cdxml
 application/vnd.chess-pgn
 application/vnd.chipnuts.karaoke-mmd mmd
+application/vnd.ciedi
 application/vnd.cinderella cdy
 application/vnd.cirpack.isdn-ext
 application/vnd.citationstyles.style+xml
@@ -580,6 +590,8 @@ application/vnd.crick.clicker.palette clkp
 application/vnd.crick.clicker.template clkt
 application/vnd.crick.clicker.wordbank clkw
 application/vnd.criticaltools.wbs+xml wbs
+application/vnd.cryptii.pipe+json
+application/vnd.crypto-shade-file
 application/vnd.ctc-posml pml
 application/vnd.ctct.ws+xml
 application/vnd.cups-pdf
@@ -819,6 +831,7 @@ application/vnd.ipunplugged.rcprofile rcprofile
 application/vnd.irepository.package+xml irp
 application/vnd.is-xpr xpr
 application/vnd.isac.fcs fcs
+application/vnd.iso11783-10+zip
 application/vnd.jam jam
 application/vnd.japannet-directory-service
 application/vnd.japannet-jpnstore-wakeup
@@ -846,12 +859,16 @@ application/vnd.kidspiration kia
 application/vnd.Kinar kne knp sdf
 application/vnd.koan skd skm skp skt
 application/vnd.kodak-descriptor sse
+application/vnd.las
 application/vnd.las.las+json
 application/vnd.las.las+xml lasxml
+application/vnd.laszip
 application/vnd.leap+json
 application/vnd.liberty-request+xml
 application/vnd.llamagraphics.life-balance.desktop lbd
 application/vnd.llamagraphics.life-balance.exchange+xml lbe
+application/vnd.logipipe.circuit+zip
+application/vnd.loom
 application/vnd.lotus-1-2-3 wks 123
 application/vnd.lotus-approach apr
 application/vnd.lotus-freelance pre
@@ -1239,11 +1256,13 @@ application/vnd.seemail see
 application/vnd.sema sema
 application/vnd.semd semd
 application/vnd.semf semf
+application/vnd.shade-save-file
 application/vnd.shana.informed.formdata ifm
 application/vnd.shana.informed.formtemplate itp
 application/vnd.shana.informed.interchange iif
 application/vnd.shana.informed.package ipk
 application/vnd.shootproof+json
+application/vnd.shopkick+json
 application/vnd.sigrok.session
 application/vnd.SimTech-MindMapper twd twds
 application/vnd.siren+json
@@ -1332,6 +1351,7 @@ application/vnd.vectorworks
 application/vnd.vel+json
 application/vnd.verimatrix.vcas
 application/vnd.veryant.thin
+application/vnd.ves.encrypted
 application/vnd.vidsoft.vidconference vsc
 application/vnd.visio vsd vst vsw vss
 application/vnd.visionary vis
@@ -1655,6 +1675,7 @@ audio/EVRCWB0
 audio/EVRCWB1
 audio/EVS
 audio/example
+audio/flexfec
 audio/fwdred
 audio/G711-0
 audio/G719
@@ -1812,13 +1833,23 @@ image/heic
 image/heic-sequence
 image/heif
 image/heif-sequence
+image/hej2k
+image/hsj2
 image/ief ief
 image/jls
 image/jp2 jp2 jpg2
 image/jpeg jpeg jpg jpe
+image/jph
+image/jphc
 image/jpm jpm jpgm
 image/jpx jpx jpf
 image/jxr
+image/jxrA
+image/jxrS
+image/jxs
+image/jxsc
+image/jxsi
+image/jxss
 image/ktx ktx
 image/naplps
 image/pjpeg
@@ -1980,6 +2011,7 @@ text/ecmascript es ecma
 text/encaprtp
 text/enriched
 text/example
+text/flexfec
 text/fwdred
 text/grammar-ref-list
 text/html html htm htmlx shtml htx
@@ -2040,6 +2072,7 @@ text/vnd.net2phone.commcenter.command ccc
 text/vnd.radisys.msml-basic-layout
 text/vnd.senx.warpscript
 text/vnd.si.uricatalogue
+text/vnd.sosi
 text/vnd.sun.j2me.app-descriptor jad
 text/vnd.trolltech.linguist
 text/vnd.wap.si si
@@ -2076,6 +2109,7 @@ video/dl dl
 video/DV dv
 video/encaprtp
 video/example
+video/flexfec
 video/gl gl
 video/H261 h261
 video/H263 h263
@@ -2148,6 +2182,7 @@ video/vnd.sealed.swf sswf ssw
 video/vnd.sealedmedia.softseal.mov smov smo s1q
 video/vnd.uvvu.mp4 uvu uvvu
 video/vnd.vivo viv vivo
+video/vnd.youtube.yt
 video/VP8
 video/webm webm
 video/x-dl dl

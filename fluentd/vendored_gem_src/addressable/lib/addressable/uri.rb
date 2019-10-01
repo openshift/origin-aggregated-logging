@@ -207,7 +207,7 @@ module Addressable
       fragments = match.captures
       authority = fragments[3]
       if authority && authority.length > 0
-        new_authority = authority.gsub(/\\/, '/').gsub(/ /, '%20')
+        new_authority = authority.tr("\\", "/").gsub(" ", "%20")
         # NOTE: We want offset 4, not 3!
         offset = match.offset(4)
         uri = uri.dup
@@ -218,8 +218,9 @@ module Addressable
         parsed = self.parse(hints[:scheme] + "://" + uri)
       end
       if parsed.path.include?(".")
-        new_host = parsed.path[/^([^\/]+\.[^\/]*)/, 1]
-        if new_host
+        if parsed.path[/\b@\b/]
+          parsed.scheme = "mailto" unless parsed.scheme
+        elsif new_host = parsed.path[/^([^\/]+\.[^\/]*)/, 1]
           parsed.defer_validation do
             new_path = parsed.path.sub(
               Regexp.new("^" + Regexp.escape(new_host)), EMPTY_STR)
@@ -281,15 +282,15 @@ module Addressable
         uri.path.sub!(/^\/?([a-zA-Z])[\|:][\\\/]/) do
           "/#{$1.downcase}:/"
         end
-        uri.path.gsub!(/\\/, SLASH)
+        uri.path.tr!("\\", SLASH)
         if File.exist?(uri.path) &&
             File.stat(uri.path).directory?
-          uri.path.sub!(/\/$/, EMPTY_STR)
+          uri.path.chomp!(SLASH)
           uri.path = uri.path + '/'
         end
 
         # If the path is absolute, set the scheme and host.
-        if uri.path =~ /^\//
+        if uri.path.start_with?(SLASH)
           uri.scheme = "file"
           uri.host = EMPTY_STR
         end
@@ -324,6 +325,21 @@ module Addressable
         result.join!(uri)
       end
       return result
+    end
+
+    ##
+    # Tables used to optimize encoding operations in `self.encode_component`
+    # and `self.normalize_component`
+    SEQUENCE_ENCODING_TABLE = Hash.new do |hash, sequence|
+      hash[sequence] = sequence.unpack("C*").map do |c|
+        format("%02x", c)
+      end.join
+    end
+
+    SEQUENCE_UPCASED_PERCENT_ENCODING_TABLE = Hash.new do |hash, sequence|
+      hash[sequence] = sequence.unpack("C*").map do |c|
+        format("%%%02X", c)
+      end.join
     end
 
     ##
@@ -392,12 +408,14 @@ module Addressable
       component.force_encoding(Encoding::ASCII_8BIT)
       # Avoiding gsub! because there are edge cases with frozen strings
       component = component.gsub(character_class) do |sequence|
-        (sequence.unpack('C*').map { |c| "%" + ("%02x" % c).upcase }).join
+        SEQUENCE_UPCASED_PERCENT_ENCODING_TABLE[sequence]
       end
       if upcase_encoded.length > 0
-        component = component.gsub(/%(#{upcase_encoded.chars.map do |char|
-          char.unpack('C*').map { |c| '%02x' % c }.join
-        end.join('|')})/i) { |s| s.upcase }
+        upcase_encoded_chars = upcase_encoded.chars.map do |char|
+          SEQUENCE_ENCODING_TABLE[char]
+        end
+        component = component.gsub(/%(#{upcase_encoded_chars.join('|')})/,
+                                   &:upcase)
       end
       return component
     end
@@ -531,7 +549,7 @@ module Addressable
           character_class = "#{character_class}%" unless character_class.include?('%')
 
           "|%(?!#{leave_encoded.chars.map do |char|
-            seq = char.unpack('C*').map { |c| '%02x' % c }.join
+            seq = SEQUENCE_ENCODING_TABLE[char]
             [seq.upcase, seq.downcase]
           end.flatten.join('|')})"
         end
@@ -1172,7 +1190,7 @@ module Addressable
     # Returns the top-level domain for this host.
     #
     # @example
-    #   Addressable::URI.parse("www.example.co.uk").tld # => "co.uk"
+    #   Addressable::URI.parse("http://www.example.co.uk").tld # => "co.uk"
     def tld
       PublicSuffix.parse(self.host, ignore_private: true).tld
     end
@@ -1182,7 +1200,7 @@ module Addressable
     #
     # @param [String, #to_str] new_tld The new top-level domain.
     def tld=(new_tld)
-      replaced_tld = domain.sub(/#{tld}\z/, new_tld)
+      replaced_tld = host.sub(/#{tld}\z/, new_tld)
       self.host = PublicSuffix::Domain.new(replaced_tld).to_s
     end
 
@@ -1190,7 +1208,7 @@ module Addressable
     # Returns the public suffix domain for this host.
     #
     # @example
-    #   Addressable::URI.parse("www.example.co.uk").domain # => "example.co.uk"
+    #   Addressable::URI.parse("http://www.example.co.uk").domain # => "example.co.uk"
     def domain
       PublicSuffix.domain(self.host, ignore_private: true)
     end
@@ -1595,6 +1613,7 @@ module Addressable
         # Make sure possible key-value pair delimiters are escaped.
         modified_query_class.sub!("\\&", "").sub!("\\;", "")
         pairs = (self.query || "").split("&", -1)
+        pairs.delete_if(&:empty?) if flags.include?(:compacted)
         pairs.sort! if flags.include?(:sorted)
         component = pairs.map do |pair|
           Addressable::URI.normalize_component(pair, modified_query_class, "+")
@@ -1660,7 +1679,7 @@ module Addressable
           # Treating '+' as a space was just an unbelievably bad idea.
           # There was nothing wrong with '%20'!
           # If it ain't broke, don't fix it!
-          pair[1] = URI.unencode_component(pair[1].to_str.gsub(/\+/, " "))
+          pair[1] = URI.unencode_component(pair[1].to_str.tr("+", " "))
         end
         if return_type == Hash
           accu[pair[0]] = pair[1]
@@ -1917,7 +1936,7 @@ module Addressable
               # Section 5.2.3 of RFC 3986
               #
               # Removes the right-most path segment from the base path.
-              if base_path =~ /\//
+              if base_path.include?(SLASH)
                 base_path.sub!(/\/[^\/]+$/, SLASH)
               else
                 base_path = EMPTY_STR
@@ -2367,10 +2386,10 @@ module Addressable
     #
     # @param [Proc] block
     #   A set of operations to perform on a given URI.
-    def defer_validation(&block)
-      raise LocalJumpError, "No block given." unless block
+    def defer_validation
+      raise LocalJumpError, "No block given." unless block_given?
       @validation_deferred = true
-      block.call()
+      yield
       @validation_deferred = false
       validate
       return nil

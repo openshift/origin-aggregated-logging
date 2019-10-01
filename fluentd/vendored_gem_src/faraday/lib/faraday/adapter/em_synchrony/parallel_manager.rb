@@ -1,16 +1,21 @@
+# frozen_string_literal: true
+
 module Faraday
   class Adapter
     class EMSynchrony < Faraday::Adapter
+      # A parallel manager for EMSynchrony.
       class ParallelManager
-
-        # Add requests to queue. The `request` argument should be a
-        # `EM::HttpRequest` object.
+        # Add requests to queue.
+        #
+        # @param request [EM::HttpRequest]
+        # @param method [Symbol, String] HTTP method
+        # @param args [Array] the rest of the positional arguments
         def add(request, method, *args, &block)
           queue << {
-            :request => request,
-            :method => method,
-            :args => args,
-            :block => block
+            request: request,
+            method: method,
+            args: args,
+            block: block
           }
         end
 
@@ -19,18 +24,17 @@ module Faraday
         def run
           result = nil
           if !EM.reactor_running?
-            EM.run {
+            EM.run do
               Fiber.new do
                 result = perform
                 EM.stop
               end.resume
-            }
+            end
           else
             result = perform
           end
           result
         end
-
 
         private
 
@@ -59,8 +63,7 @@ module Faraday
           # Block fiber until all requests have returned.
           multi.perform
         end
-
-      end # ParallelManager
-    end # EMSynchrony
-  end # Adapter
-end # Faraday
+      end
+    end
+  end
+end

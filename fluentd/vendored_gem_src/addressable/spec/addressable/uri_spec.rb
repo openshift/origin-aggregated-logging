@@ -3944,7 +3944,7 @@ describe Addressable::URI, "when parsed from " +
   it "should raise an error if assigning a bogus object to the hostname" do
     expect(lambda do
       @uri.hostname = Object.new
-    end).to raise_error
+    end).to raise_error(TypeError)
   end
 
   it "should have the correct port after assignment" do
@@ -4303,6 +4303,26 @@ describe Addressable::URI, "when parsed from " +
   end
 end
 
+describe Addressable::URI, "when parsed from 'http://example/?b=1&a=2&c=3'" do
+  before do
+    @uri = Addressable::URI.parse("http://example/?b=1&a=2&c=3")
+  end
+
+  it "should have a sorted normalized query of 'a=2&b=1&c=3'" do
+    expect(@uri.normalized_query(:sorted)).to eq("a=2&b=1&c=3")
+  end
+end
+
+describe Addressable::URI, "when parsed from 'http://example/?&a&&c&'" do
+  before do
+    @uri = Addressable::URI.parse("http://example/?&a&&c&")
+  end
+
+  it "should have a compacted normalized query of 'a&c'" do
+    expect(@uri.normalized_query(:compacted)).to eq("a&c")
+  end
+end
+
 describe Addressable::URI, "when parsed from " +
     "'http://example.com/sound%2bvision'" do
   before do
@@ -4417,7 +4437,7 @@ describe Addressable::URI, "when parsed from " +
     expect(lambda do
       # This would create an invalid URI
       @uri.authority = nil
-    end).to raise_error
+    end).to raise_error(Addressable::URI::InvalidURIError)
   end
 end
 
@@ -4820,7 +4840,7 @@ describe Addressable::URI, "when parsed from '?one=1&two=2&three=3'" do
 
   it "should raise an error for invalid return type values" do
     expect(lambda do
-      @uri.query_values(Fixnum)
+      @uri.query_values(Integer)
     end).to raise_error(ArgumentError)
   end
 
@@ -5515,18 +5535,18 @@ describe Addressable::URI, "when given the tld " do
   end
 
   context "which " do
-    let (:uri) { Addressable::URI.parse("http://comrade.net/path/to/source/") }
+    let (:uri) { Addressable::URI.parse("http://www.comrade.net/path/to/source/") }
 
     it "contains a subdomain" do
       uri.tld = "co.uk"
 
-      expect(uri.to_s).to eq("http://comrade.co.uk/path/to/source/")
+      expect(uri.to_s).to eq("http://www.comrade.co.uk/path/to/source/")
     end
 
     it "is part of the domain" do
       uri.tld = "com"
 
-      expect(uri.to_s).to eq("http://comrade.com/path/to/source/")
+      expect(uri.to_s).to eq("http://www.comrade.com/path/to/source/")
     end
   end
 end
@@ -6349,6 +6369,44 @@ describe Addressable::URI, "when given the input " +
   it "should heuristically parse to 'http://example.com'" do
     @uri = Addressable::URI.heuristic_parse(@input)
     expect(@uri.to_s).to eq("http://example.com")
+  end
+end
+
+describe Addressable::URI, "when given the input: 'user@domain.com'" do
+  before do
+    @input = "user@domain.com"
+  end
+
+  context "for heuristic parse" do
+    it "should remain 'mailto:user@domain.com'" do
+      uri = Addressable::URI.heuristic_parse("mailto:#{@input}")
+      expect(uri.to_s).to eq("mailto:user@domain.com")
+    end
+
+    it "should have a scheme of 'mailto'" do
+      uri = Addressable::URI.heuristic_parse(@input)
+      expect(uri.to_s).to   eq("mailto:user@domain.com")
+      expect(uri.scheme).to eq("mailto")
+    end
+
+    it "should remain 'acct:user@domain.com'" do
+      uri = Addressable::URI.heuristic_parse("acct:#{@input}")
+      expect(uri.to_s).to eq("acct:user@domain.com")
+    end
+
+    context "HTTP" do
+      before do
+        @uri = Addressable::URI.heuristic_parse("http://#{@input}/")
+      end
+
+      it "should remain 'http://user@domain.com/'" do
+        expect(@uri.to_s).to eq("http://user@domain.com/")
+      end
+
+      it "should have the username 'user' for HTTP basic authentication" do
+        expect(@uri.user).to eq("user")
+      end
+    end
   end
 end
 

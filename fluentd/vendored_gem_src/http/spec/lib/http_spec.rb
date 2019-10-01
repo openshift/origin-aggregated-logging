@@ -55,38 +55,17 @@ RSpec.describe HTTP do
     end
 
     context "with a large request body" do
-      %w[global null per_operation].each do |timeout|
-        context "with a #{timeout} timeout" do
-          [16_000, 16_500, 17_000, 34_000, 68_000].each do |size|
-            [0, rand(0..100), rand(100..1000)].each do |fuzzer|
-              context "with a #{size} body and #{fuzzer} of fuzzing" do
-                let(:client) { HTTP.timeout(timeout, :read => 2, :write => 2, :connect => 2) }
+      let(:request_body) { "“" * 1_000_000 } # use multi-byte character
 
-                let(:characters) { ("A".."Z").to_a }
-                let(:request_body) do
-                  Array.new(size + fuzzer) { |i| characters[i % characters.length] }.join
-                end
+      [:null, 6, {:read => 2, :write => 2, :connect => 2}].each do |timeout|
+        context "with `.timeout(#{timeout.inspect})`" do
+          let(:client) { HTTP.timeout(timeout) }
 
-                it "returns a large body" do
-                  response = client.post("#{dummy.endpoint}/echo-body", :body => request_body)
+          it "writes the whole body" do
+            response = client.post "#{dummy.endpoint}/echo-body", :body => request_body
 
-                  expect(response.body.to_s).to eq(request_body)
-                  expect(response.headers["Content-Length"].to_i).to eq(request_body.bytesize)
-                end
-
-                context "when bytesize != length" do
-                  let(:characters) { ("A".."Z").to_a.push("“") }
-
-                  it "returns a large body" do
-                    body = {:data => request_body}
-                    response = client.post("#{dummy.endpoint}/echo-body", :json => body)
-
-                    expect(CGI.unescape(response.body.to_s)).to eq(body.to_json)
-                    expect(response.headers["Content-Length"].to_i).to eq(body.to_json.bytesize)
-                  end
-                end
-              end
-            end
+            expect(response.body.to_s).to eq(request_body.b)
+            expect(response.headers["Content-Length"].to_i).to eq request_body.bytesize
           end
         end
       end
@@ -194,7 +173,7 @@ RSpec.describe HTTP do
 
     context "with encoding option" do
       it "respects option" do
-        response = HTTP.get "#{dummy.endpoint}/iso-8859-1", "encoding" => Encoding::BINARY
+        response = HTTP.get "#{dummy.endpoint}/iso-8859-1", :encoding => Encoding::BINARY
         expect(response.to_s.encoding).to eq(Encoding::BINARY)
       end
     end
@@ -202,7 +181,7 @@ RSpec.describe HTTP do
 
   context "passing a string encoding type" do
     it "finds encoding" do
-      response = HTTP.get dummy.endpoint, "encoding" => "ascii"
+      response = HTTP.get dummy.endpoint, :encoding => "ascii"
       expect(response.to_s.encoding).to eq(Encoding::ASCII)
     end
   end
@@ -255,15 +234,15 @@ RSpec.describe HTTP do
 
   describe ".basic_auth" do
     it "fails when options is not a Hash" do
-      expect { HTTP.basic_auth "[FOOBAR]" }.to raise_error
+      expect { HTTP.basic_auth "[FOOBAR]" }.to raise_error(NoMethodError)
     end
 
     it "fails when :pass is not given" do
-      expect { HTTP.basic_auth :user => "[USER]" }.to raise_error
+      expect { HTTP.basic_auth :user => "[USER]" }.to raise_error(KeyError)
     end
 
     it "fails when :user is not given" do
-      expect { HTTP.basic_auth :pass => "[PASS]" }.to raise_error
+      expect { HTTP.basic_auth :pass => "[PASS]" }.to raise_error(KeyError)
     end
 
     it "sets Authorization header with proper BasicAuth value" do
@@ -305,7 +284,16 @@ RSpec.describe HTTP do
   end
 
   describe ".timeout" do
-    context "without timeout type" do
+    context "specifying a null timeout" do
+      subject(:client) { HTTP.timeout :null }
+
+      it "sets timeout_class to Null" do
+        expect(client.default_options.timeout_class).
+          to be HTTP::Timeout::Null
+      end
+    end
+
+    context "specifying per operation timeouts" do
       subject(:client) { HTTP.timeout :read => 123 }
 
       it "sets timeout_class to PerOperation" do
@@ -319,46 +307,18 @@ RSpec.describe HTTP do
       end
     end
 
-    context "with :null type" do
-      subject(:client) { HTTP.timeout :null, :read => 123 }
-
-      it "sets timeout_class to Null" do
-        expect(client.default_options.timeout_class).
-          to be HTTP::Timeout::Null
-      end
-    end
-
-    context "with :per_operation type" do
-      subject(:client) { HTTP.timeout :per_operation, :read => 123 }
-
-      it "sets timeout_class to PerOperation" do
-        expect(client.default_options.timeout_class).
-          to be HTTP::Timeout::PerOperation
-      end
-
-      it "sets given timeout options" do
-        expect(client.default_options.timeout_options).
-          to eq :read_timeout => 123
-      end
-    end
-
-    context "with :global type" do
-      subject(:client) { HTTP.timeout :global, :read => 123 }
+    context "specifying a global timeout" do
+      subject(:client) { HTTP.timeout 123 }
 
       it "sets timeout_class to Global" do
         expect(client.default_options.timeout_class).
           to be HTTP::Timeout::Global
       end
 
-      it "sets given timeout options" do
+      it "sets given timeout option" do
         expect(client.default_options.timeout_options).
-          to eq :read_timeout => 123
+          to eq :global_timeout => 123
       end
-    end
-
-    it "fails with unknown timeout type" do
-      expect { HTTP.timeout(:foobar, :read => 123) }.
-        to raise_error(ArgumentError, /foobar/)
     end
   end
 
@@ -470,13 +430,33 @@ RSpec.describe HTTP do
         expect(response.to_s).to eq("#{body}-deflated")
       end
     end
+
+    context "with :normalize_uri" do
+      it "normalizes URI" do
+        response = HTTP.get "#{dummy.endpoint}/hello world"
+        expect(response.to_s).to eq("hello world")
+      end
+
+      it "uses the custom URI Normalizer method" do
+        client = HTTP.use(:normalize_uri => {:normalizer => :itself.to_proc})
+        response = client.get("#{dummy.endpoint}/hello world")
+        expect(response.status).to eq(400)
+      end
+
+      it "uses the default URI normalizer" do
+        client = HTTP.use :normalize_uri
+        expect(HTTP::URI::NORMALIZER).to receive(:call).and_call_original
+        response = client.get("#{dummy.endpoint}/hello world")
+        expect(response.to_s).to eq("hello world")
+      end
+    end
   end
 
   it "unifies socket errors into HTTP::ConnectionError" do
     expect { HTTP.get "http://thishostshouldnotexists.com" }.
       to raise_error HTTP::ConnectionError
 
-    expect { HTTP.get "http://127.0.0.1:000" }.
+    expect { HTTP.get "http://127.0.0.1:111" }.
       to raise_error HTTP::ConnectionError
   end
 end

@@ -1,3 +1,104 @@
+## 4.1.1 (2019-03-12)
+
+* Add `HTTP::Headers::ACCEPT_ENCODING` constant.
+  ([@ixti])
+
+
+## 4.1.0 (2019-03-11)
+
+* [#533](https://github.com/httprb/http/pull/533)
+  Add URI normalizer feature that allows to swap default URI normalizer.
+  ([@mamoonraja])
+
+
+## 4.0.5 (2019-02-15)
+
+* Backport [#532](https://github.com/httprb/http/pull/532) from master.
+  Fix pipes support in request bodies.
+  ([@ixti])
+
+
+## 4.0.4 (2019-02-12)
+
+* Backport [#506](https://github.com/httprb/http/pull/506) from master.
+  Skip auto-deflate when there is no body.
+  ([@Bonias])
+
+
+## 4.0.3 (2019-01-18)
+
+* Fix missing URL in response wrapped by auto inflate.
+  ([@ixti])
+
+* Provide `HTTP::Request#inspect` method for debugging purposes.
+  ([@ixti])
+
+
+## 4.0.2 (2019-01-15)
+
+* [#506](https://github.com/httprb/http/pull/506)
+  Fix instrumentation feature.
+  ([@paul])
+
+
+## 4.0.1 (2019-01-14)
+
+* [#515](https://github.com/httprb/http/pull/515)
+  Fix `#build_request` and `#request` to respect default options.
+  ([@RickCSong])
+
+
+## 4.0.0 (2018-10-15)
+
+* [#482](https://github.com/httprb/http/pull/482)
+  [#499](https://github.com/httprb/http/pull/499)
+  Introduce new features injection API with 2 new feaures: instrumentation
+  (compatible with ActiveSupport::Notification) and logging.
+  ([@paul])
+
+* [#473](https://github.com/httprb/http/pull/473)
+  Handle early responses.
+  ([@janko-m])
+
+* [#468](https://github.com/httprb/http/pull/468)
+  Rewind `HTTP::Request::Body#source` once `#each` is complete.
+  ([@ixti])
+
+* [#467](https://github.com/httprb/http/pull/467)
+  Drop Ruby 2.2 support.
+  ([@ixti])
+
+* [#436](https://github.com/httprb/http/pull/436)
+  Raise ConnectionError when writing to socket fails.
+  ([@janko-m])
+
+* [#438](https://github.com/httprb/http/pull/438)
+  Expose `HTTP::Request::Body#source`.
+  ([@janko-m])
+
+* [#446](https://github.com/httprb/http/pull/446)
+  Simplify setting a timeout.
+  ([@mikegee])
+
+* [#451](https://github.com/httprb/http/pull/451)
+  Reduce memory usage when reading response body.
+  ([@janko-m])
+
+* [#458](https://github.com/httprb/http/pull/458)
+  Extract HTTP::Client#build_request method.
+  ([@tycoon])
+
+* [#462](https://github.com/httprb/http/pull/462)
+  Fix HTTP::Request#headline to allow two leading slashes in path.
+  ([@scarfacedeb])
+
+* [#454](https://github.com/httprb/http/pull/454)
+  [#464](https://github.com/httprb/http/pull/464)
+  [#384](https://github.com/httprb/http/issues/384)
+  Fix #readpartial not respecting max length argument.
+  ([@janko-m], [@marshall-lee])
+
+
 ## 3.3.0 (2018-04-25)
 
 This version backports some of the fixes and improvements made to development
@@ -668,3 +769,6 @@ end
 [@scarfacedeb]: https://github.com/scarfacedeb
 [@mikegee]: https://github.com/mikegee
 [@tycoon]: https://github.com/tycooon
+[@paul]: https://github.com/paul
+[@RickCSong]: https://github.com/RickCSong
+[@mamoonraja]: https://github.com/mamoonraja

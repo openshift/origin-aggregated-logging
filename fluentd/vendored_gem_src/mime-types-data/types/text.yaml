@@ -144,6 +144,15 @@
     - text/example
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/flexfec
+  encoding: quoted-printable
+  xrefs:
+    rfc:
+    - rfc8627
+    template:
+    - text/flexfec
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/fwdred
   encoding: quoted-printable
   xrefs:
@@ -798,6 +807,15 @@
     - text/vnd.si.uricatalogue
     notes:
     - "- OBSOLETED by request"
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/vnd.sosi
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Petter_Reinholdtsen
+    template:
+    - text/vnd.sosi
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/vnd.sun.j2me.app-descriptor

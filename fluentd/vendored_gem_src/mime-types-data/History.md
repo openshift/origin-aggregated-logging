@@ -1,5 +1,12 @@
 # MIME Types Changes by Version
 
+## 3.2019.0904 / 2019-09-04
+
+*   Updated the IANA media registry entries as of release date.
+
+*   Moved the `.ai` extension from `application/postscript` to `application/pdf`.
+    [#23][] fixing [#22][].
+
 ## 3.2019.0331 / 2019-03-31
 
 *   Updated the IANA media registry entries as of release date.
@@ -102,7 +109,7 @@
 
 *   Updated the IANA media registry entries as of release date:
 
-    *  Updated metadata for application/scim+json, audio/G711-0, text/markdown. 
+    *  Updated metadata for application/scim+json, audio/G711-0, text/markdown.
 
     *  Added application/cdni, application/csvm+json, application/rfc+xml,
        application/vnd.3gpp.access-transfer-events+xml,

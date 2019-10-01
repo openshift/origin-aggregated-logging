@@ -132,7 +132,7 @@ module Fluent
 
         patterns = [@path]
         patterns.unshift @additional_resume_path if @additional_resume_path
-        Dir.glob(patterns) do |path|
+        Dir.glob(escaped_patterns(patterns)) do |path|
           next unless File.file?(path)
 
           log.debug { "restoring buffer file: path = #{path}" }
@@ -146,7 +146,7 @@ module Fluent
           end
 
           begin
-            chunk = Fluent::Plugin::Buffer::FileChunk.new(m, path, mode) # file chunk resumes contents of metadata
+            chunk = Fluent::Plugin::Buffer::FileChunk.new(m, path, mode, compress: @compress) # file chunk resumes contents of metadata
           rescue Fluent::Plugin::Buffer::FileChunk::FileChunkError => e
             handle_broken_files(path, mode, e)
             next
@@ -182,6 +182,15 @@ module Fluent
         log.error "found broken chunk file during resume. Deleted corresponding files:", :path => path, :mode => mode, :err_msg => e.message
         # After support 'backup_dir' feature, these files are moved to backup_dir instead of unlink.
         File.unlink(path, path + '.meta') rescue nil
+      end
+
+      private
+
+      def escaped_patterns(patterns)
+        patterns.map { |pattern|
+          # '{' '}' are special character in Dir.glob
+          pattern.gsub(/[\{\}]/) { |c| "\\#{c}" }
+        }
       end
     end
   end

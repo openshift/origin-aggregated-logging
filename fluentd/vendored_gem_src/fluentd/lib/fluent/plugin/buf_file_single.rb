@@ -88,14 +88,6 @@ module Fluent
           end
         end
 
-        type_of_owner = Plugin.lookup_type_from_class(@_owner.class)
-        if @@buffer_paths.has_key?(@path) && !called_in_test?
-          type_using_this_path = @@buffer_paths[@path]
-          raise Fluent::ConfigError, "Other '#{type_using_this_path}' plugin already uses same buffer path: type = #{type_of_owner}, buffer path = #{@path}"
-        end
-
-        @@buffer_paths[@path] = type_of_owner
-
         specified_directory_exists = File.exist?(@path) && File.directory?(@path)
         unexisting_path_for_directory = !File.exist?(@path) && !@path.include?('.*')
 
@@ -124,6 +116,13 @@ module Fluent
           @multi_workers_available = false
         end
 
+        type_of_owner = Plugin.lookup_type_from_class(@_owner.class)
+        if @@buffer_paths.has_key?(@path) && !called_in_test?
+          type_using_this_path = @@buffer_paths[@path]
+          raise Fluent::ConfigError, "Other '#{type_using_this_path}' plugin already uses same buffer path: type = #{type_of_owner}, buffer path = #{@path}"
+        end
+
+        @@buffer_paths[@path] = type_of_owner
         @dir_permission = if @dir_permission
                             @dir_permission.to_i(8)
                           else
@@ -155,7 +154,7 @@ module Fluent
 
         patterns = [@path]
         patterns.unshift @additional_resume_path if @additional_resume_path
-        Dir.glob(patterns) do |path|
+        Dir.glob(escaped_patterns(patterns)) do |path|
           next unless File.file?(path)
 
           log.debug { "restoring buffer file: path = #{path}" }
@@ -168,7 +167,7 @@ module Fluent
           end
 
           begin
-            chunk = Fluent::Plugin::Buffer::FileSingleChunk.new(m, path, mode, @key_in_path)
+            chunk = Fluent::Plugin::Buffer::FileSingleChunk.new(m, path, mode, @key_in_path, compress: @compress)
             chunk.restore_size(@chunk_format) if @calc_num_records
           rescue Fluent::Plugin::Buffer::FileSingleChunk::FileChunkError => e
             handle_broken_files(path, mode, e)
@@ -205,6 +204,15 @@ module Fluent
         log.error "found broken chunk file during resume. Delete corresponding files:", path: path, mode: mode, err_msg: e.message
         # After support 'backup_dir' feature, these files are moved to backup_dir instead of unlink.
         File.unlink(path) rescue nil
+      end
+
+      private
+
+      def escaped_patterns(patterns)
+        patterns.map { |pattern|
+          # '{' '}' are special character in Dir.glob
+          pattern.gsub(/[\{\}]/) { |c| "\\#{c}" }
+        }
       end
     end
   end
