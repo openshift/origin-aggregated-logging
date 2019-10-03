@@ -434,10 +434,6 @@ function flush_fluentd_pos_files() {
     os::cmd::expect_success "oal_sudo rm -f /var/log/journal.pos /var/log/journal_pos.json"
 }
 
-function flush_rsyslog_pos_files() {
-    os::cmd::expect_success "oal_sudo rm -f /var/lib/rsyslog.pod/imfile-state* /var/lib/rsyslog.pod/imjournal.state"
-}
-
 # return 0 if given file has size ge given size, otherwise, return 1
 function file_has_size() {
     local f=$1
@@ -722,18 +718,6 @@ get_fluentd_pod_log() {
     fi
 }
 
-# rsyslog may have pod logs and logs in the file
-get_rsyslog_pod_log() {
-    local pod=${1:-$( get_running_pod rsyslog )}
-    local container=${2:-rsyslog}
-    oc logs -c $container $pod 2>&1
-    if [ $container = rsyslog ] ; then
-        oc exec -c $container $pod -- logs 2>&1 || oal_sudo cat /var/log/rsyslog/rsyslog.log.* /var/log/rsyslog/rsyslog.log || :
-    else
-        oal_sudo cat /var/lib/rsyslog.pod/logrotate.log /var/log/rsyslog/logrotate.log || :
-    fi
-}
-
 get_mux_pod_log() {
     local pod=${1:-$( get_running_pod mux )}
     local logfile=${2:-/var/log/fluentd/fluentd.log}
@@ -753,14 +737,6 @@ get_all_logging_pod_logs() {
     oc -n ${LOGGING_NS} describe pod $p > $ARTIFACT_DIR/$p.describe 2>&1 || :
     oc -n ${LOGGING_NS} get pod $p -o yaml > $ARTIFACT_DIR/$p.yaml 2>&1 || :
     for container in $(oc get po $p -o jsonpath='{.spec.containers[*].name}') ; do
-      if [ $container = rsyslog ] ; then
-        get_rsyslog_pod_log $p $container > $ARTIFACT_DIR/$p.$container.log 2>&1
-        continue
-      fi
-      if [ $container = logrotate ] ; then
-        get_rsyslog_pod_log $p $container > $ARTIFACT_DIR/$p.$container.log 2>&1
-        continue
-      fi
       case "$p" in
         logging-fluentd-*|fluentd-*) get_fluentd_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
         logging-mux-*) get_mux_pod_log $p > $ARTIFACT_DIR/$p.$container.log 2>&1 ;;
@@ -799,32 +775,6 @@ start_fluentd() {
     os::cmd::try_until_text "oc get pods -l component=fluentd" "^(logging-)*fluentd-.* Running " $wait_time
 }
 
-stop_rsyslog() {
-    local rpod=${1:-$( get_running_pod rsyslog )}
-    local wait_time=${2:-$(( 2 * minute ))}
-
-    oc label node -l logging-infra-rsyslog=true --overwrite logging-infra-rsyslog=false
-    os::cmd::try_until_text "oc get $rsyslog_ds -o jsonpath='{ .status.numberReady }'" "0" $wait_time
-    # not sure if it is a bug or a flake, but sometimes .status.numberReady is 0, the rsyslog pod hangs around
-    # in the Terminating state for many seconds, which seems to cause problems with subsequent tests
-    # so, we have to wait for the pod to completely disappear - we cannot rely on .status.numberReady == 0
-    if [ -n "${rpod:-}" ] ; then
-        os::cmd::try_until_failure "oc get pod $rpod > /dev/null 2>&1" $wait_time
-    fi
-}
-
-start_rsyslog() {
-    local cleanfirst=${1:-false}
-    local wait_time=${2:-$(( 2 * minute ))}
-
-    if [ "$cleanfirst" != false ] ; then
-        flush_rsyslog_pos_files
-        oal_sudo rm -f /var/log/rsyslog/* /var/lib/rsyslog.pod/*
-    fi
-    oc label node -l logging-infra-rsyslog=false --overwrite logging-infra-rsyslog=true
-    os::cmd::try_until_text "oc get pods -l component=rsyslog" "^(logging-)*rsyslog-.* Running " $wait_time
-}
-
 get_fluentd_ds_name() {
     if oc -n ${LOGGING_NS} get daemonset fluentd -o name > /dev/null 2>&1 ; then
         echo daemonset/fluentd
@@ -844,9 +794,6 @@ get_fluentd_cm_name() {
 }
 
 fluentd_cm=${fluentd_cm:-$(get_fluentd_cm_name)}
-
-# Hardcode daemonset/rsyslog for the case the rsyslog pod does not exist.
-rsyslog_ds=${rsyslog_ds:-daemonset/rsyslog}
 
 enable_cluster_logging_operator() {
     if oc -n ${LOGGING_NS} get deploy cluster-logging-operator > /dev/null 2>&1 ; then

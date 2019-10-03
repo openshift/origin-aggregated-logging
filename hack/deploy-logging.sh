@@ -161,7 +161,7 @@ switch_to_admin_user() {
 }
 
 # what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-4.2}
+MASTER_VERSION=${MASTER_VERSION:-4.3}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
@@ -207,27 +207,21 @@ update_images_in_clo_yaml() {
     local c_img=$( construct_image_name logging-curator5 $version )
     local f_img=$( construct_image_name logging-fluentd $version )
     local op_img=$( construct_image_name oauth-proxy $version )
-    local r_img=$( construct_image_name logging-rsyslog $version )
     sed -e "/name: ELASTICSEARCH_IMAGE/,/value:/s,value:.*\$,value: ${es_img}," \
         -e "/name: KIBANA_IMAGE/,/value:/s,value:.*\$,value: ${k_img}," \
         -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${c_img}," \
         -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${f_img}," \
         -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${op_img}," \
-        -e "/name: RSYSLOG_IMAGE/,/value:/s,value:.*\$,value: ${r_img}," \
         -e "s, image:.*cluster-logging-operator.*\$, image: ${clo_img}," \
         -e "s, containerImage:.*cluster-logging-operator.*\$, containerImage: ${clo_img}," \
         $filearg
 }
 
 wait_for_logging_is_running() {
-    # we expect a fluentd or rsyslog running on each node
+    # we expect a fluentd running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
     if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-        if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
-            collector=rsyslog
-        else
-            collector=fluentd
-        fi
+        collector=fluentd
     else
         collector=$( oc get clusterlogging instance -o jsonpath='{.spec.collection.logs.type}' )
     fi
@@ -476,7 +470,7 @@ if [ -n "${LOGGING_IMAGE_PULL_POLICY:-}" ] ; then
         if ! oc get deploy/kibana > /dev/null 2>&1 ; then
             return 1
         fi
-        if ! oc get ds/fluentd > /dev/null 2>&1 && ! oc get ds/rsyslog > /dev/null 2>&1 ; then
+        if ! oc get ds/fluentd > /dev/null 2>&1 ; then
             return 1
         fi
         if ! oc get cronjob/curator > /dev/null 2>&1 ; then
