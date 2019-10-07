@@ -141,7 +141,7 @@ if [ -n "${TEST_SUITES:-}" ] ; then
 fi
 oc process -p TEST_ROOT=$testroot \
     -p TEST_NAMESPACE_NAME=$( oc project -q ) \
-    -p TEST_IMAGE=$testimage \
+    -p TEST_IMAGE=$testimage -p IMAGE_FORMAT="${IMAGE_FORMAT:-}" \
     ${artifact_dir_arg:-} ${test_suites_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 
