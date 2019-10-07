@@ -236,11 +236,6 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     fi
 fi
 
-# Disable process_kubernetes_events if TRANSFORM_EVENTS is false client.
-if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
-    sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
-fi
-
 if [ "${AUDIT_CONTAINER_ENGINE:-}" = "true" ] ; then
     cp -f $CFG_DIR/input-pre-audit-log.conf $CFG_DIR/openshift
     cp -f $CFG_DIR/filter-pre-a-audit-exclude.conf $CFG_DIR/openshift
