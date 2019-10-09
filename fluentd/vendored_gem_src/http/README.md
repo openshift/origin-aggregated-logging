@@ -1,15 +1,16 @@
 # ![http.rb](https://raw.github.com/httprb/http.rb/master/logo.png)
 
 [![Gem Version](https://badge.fury.io/rb/http.svg)](https://rubygems.org/gems/http)
-[![Build Status](https://secure.travis-ci.org/httprb/http.svg?branch=master)](https://travis-ci.org/httprb/http)
-[![Code Climate](https://codeclimate.com/github/httprb/http.svg?branch=master)](https://codeclimate.com/github/httprb/http)
-[![Coverage Status](https://coveralls.io/repos/httprb/http/badge.svg?branch=master)](https://coveralls.io/r/httprb/http)
+[![Build Status](https://secure.travis-ci.org/httprb/http.svg?branch=4-x-stable)](https://travis-ci.org/httprb/http)
+[![Code Climate](https://codeclimate.com/github/httprb/http.svg?branch=4-x-stable)](https://codeclimate.com/github/httprb/http)
+[![Coverage Status](https://coveralls.io/repos/httprb/http/badge.svg?branch=4-x-stable)](https://coveralls.io/r/httprb/http)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/httprb/http/blob/master/LICENSE.txt)
 
-_NOTE: This is the 3.x **stable** branch.  For the 4.x **development** branch, please see:_
+[Documentation]
 
-https://github.com/httprb/http/
+_NOTE: This is the 4.x **stable** branch.  For the 3.x **stable** branch, please see:_
 
+https://github.com/httprb/http/tree/3-x-stable
 
 ## About
 
@@ -108,13 +109,15 @@ require "http"
 
 ## Documentation
 
-[Please see the http.rb wiki](https://github.com/httprb/http/wiki)
+[Please see the http.rb wiki][documentation]
 for more detailed documentation and usage notes.
 
 The following API documentation is also available:
 
 * [YARD API documentation](http://www.rubydoc.info/gems/http/frames)
 * [Chainable module (all chainable methods)](http://www.rubydoc.info/gems/http/HTTP/Chainable)
+
+[documentation]: https://github.com/httprb/http/wiki
 
 ### Basic Usage
 
@@ -161,9 +164,9 @@ and call `#readpartial` on it repeatedly until it returns `nil`:
 This library aims to support and is [tested against][travis] the following Ruby
 versions:
 
-* Ruby 2.2.x
 * Ruby 2.3.x
 * Ruby 2.4.x
+* Ruby 2.5.x
 * JRuby 9.1.x.x
 
 If something doesn't work on one of these versions, it's a bug.

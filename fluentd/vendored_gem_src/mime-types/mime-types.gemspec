@@ -1,14 +1,14 @@
 # -*- encoding: utf-8 -*-
-# stub: mime-types 3.2.2 ruby lib
+# stub: mime-types 3.3 ruby lib
 
 Gem::Specification.new do |s|
   s.name = "mime-types".freeze
-  s.version = "3.2.2"
+  s.version = "3.3"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0".freeze) if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib".freeze]
   s.authors = ["Austin Ziegler".freeze]
-  s.date = "2018-08-13"
+  s.date = "2019-09-05"
   s.description = "The mime-types library provides a library and registry for information about\nMIME content type definitions. It can be used to determine defined filename\nextensions for MIME types, or to use filename extensions to look up the likely\nMIME type definitions.\n\nVersion 3.0 is a major release that requires Ruby 2.0 compatibility and removes\ndeprecated functions. The columnar registry format introduced in 2.6 has been\nmade the primary format; the registry data has been extracted from this library\nand put into {mime-types-data}[https://github.com/mime-types/mime-types-data].\nAdditionally, mime-types is now licensed exclusively under the MIT licence and\nthere is a code of conduct in effect. There are a number of other smaller\nchanges described in the History file.".freeze
   s.email = ["halostatue@gmail.com".freeze]
   s.extra_rdoc_files = ["Code-of-Conduct.md".freeze, "Contributing.md".freeze, "History.md".freeze, "Licence.md".freeze, "Manifest.txt".freeze, "README.rdoc".freeze]
@@ -39,8 +39,8 @@ Gem::Specification.new do |s|
       s.add_development_dependency(%q<fivemat>.freeze, ["~> 1.3"])
       s.add_development_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_development_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-      s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
-      s.add_development_dependency(%q<hoe>.freeze, ["~> 3.17"])
+      s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
+      s.add_development_dependency(%q<hoe>.freeze, ["~> 3.18"])
     else
       s.add_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
       s.add_dependency(%q<minitest>.freeze, ["~> 5.11"])
@@ -57,8 +57,8 @@ Gem::Specification.new do |s|
       s.add_dependency(%q<fivemat>.freeze, ["~> 1.3"])
       s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-      s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
-      s.add_dependency(%q<hoe>.freeze, ["~> 3.17"])
+      s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
+      s.add_dependency(%q<hoe>.freeze, ["~> 3.18"])
     end
   else
     s.add_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
@@ -76,8 +76,8 @@ Gem::Specification.new do |s|
     s.add_dependency(%q<fivemat>.freeze, ["~> 1.3"])
     s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
     s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
-    s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 6"])
-    s.add_dependency(%q<hoe>.freeze, ["~> 3.17"])
+    s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
+    s.add_dependency(%q<hoe>.freeze, ["~> 3.18"])
   end
 end
 

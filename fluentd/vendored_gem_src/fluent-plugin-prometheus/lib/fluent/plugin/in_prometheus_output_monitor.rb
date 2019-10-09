@@ -5,6 +5,7 @@ require 'fluent/plugin/prometheus'
 module Fluent::Plugin
   class PrometheusOutputMonitorInput < Fluent::Input
     Fluent::Plugin.register_input('prometheus_output_monitor', self)
+    include Fluent::Plugin::PrometheusLabelParser
 
     helpers :timer
 
@@ -44,7 +45,7 @@ module Fluent::Plugin
       hostname = Socket.gethostname
       expander = Fluent::Plugin::Prometheus.placeholder_expander(log)
       placeholders = expander.prepare_placeholders({'hostname' => hostname, 'worker_id' => fluentd_worker_id})
-      @base_labels = Fluent::Plugin::Prometheus.parse_labels_elements(conf)
+      @base_labels = parse_labels_elements(conf)
       @base_labels.each do |key, value|
         unless value.is_a?(String)
           raise Fluent::ConfigError, "record accessor syntax is not available in prometheus_output_monitor"
@@ -64,12 +65,33 @@ module Fluent::Plugin
       super
 
       @metrics = {
-        buffer_queue_length: @registry.gauge(
-          :fluentd_output_status_buffer_queue_length,
-          'Current buffer queue length.'),
+        # Buffer metrics
         buffer_total_queued_size: @registry.gauge(
           :fluentd_output_status_buffer_total_bytes,
-          'Current total size of queued buffers.'),
+          'Current total size of stage and queue buffers.'),
+        buffer_stage_length: @registry.gauge(
+          :fluentd_output_status_buffer_stage_length,
+          'Current length of stage buffers.'),
+        buffer_stage_byte_size: @registry.gauge(
+          :fluentd_output_status_buffer_stage_byte_size,
+          'Current total size of stage buffers.'),
+        buffer_queue_length: @registry.gauge(
+          :fluentd_output_status_buffer_queue_length,
+          'Current length of queue buffers.'),
+        buffer_queue_byte_size: @registry.gauge(
+          :fluentd_output_status_queue_byte_size,
+          'Current total size of queue buffers.'),
+        buffer_available_buffer_space_ratios: @registry.gauge(
+          :fluentd_output_status_buffer_available_space_ratio,
+          'Ratio of available space in buffer.'),
+        buffer_newest_timekey: @registry.gauge(
+          :fluentd_output_status_buffer_newest_timekey,
+          'Newest timekey in buffer.'),
+        buffer_oldest_timekey: @registry.gauge(
+          :fluentd_output_status_buffer_oldest_timekey,
+          'Oldest timekey in buffer.'),
+
+        # Output metrics
         retry_counts: @registry.gauge(
           :fluentd_output_status_retry_count,
           'Current retry counts.'),
@@ -112,8 +134,17 @@ module Fluent::Plugin
       }
 
       monitor_info = {
-        'buffer_queue_length' => @metrics[:buffer_queue_length],
+        # buffer metrics
         'buffer_total_queued_size' => @metrics[:buffer_total_queued_size],
+        'buffer_stage_length' => @metrics[:buffer_stage_length],
+        'buffer_stage_byte_size' => @metrics[:buffer_stage_byte_size],
+        'buffer_queue_length' => @metrics[:buffer_queue_length],
+        'buffer_queue_byte_size' => @metrics[:buffer_queue_byte_size],
+        'buffer_available_buffer_space_ratios' => @metrics[:buffer_available_buffer_space_ratios],
+        'buffer_newest_timekey' => @metrics[:buffer_newest_timekey],
+        'buffer_oldest_timekey' => @metrics[:buffer_oldest_timekey],
+
+        # output metrics
         'retry_count' => @metrics[:retry_counts],
       }
       instance_vars_info = {

@@ -125,6 +125,28 @@ RSpec.describe HTTP::Request::Body do
       end
     end
 
+    context "when body is a pipe" do
+      let(:ios)  { IO.pipe }
+      let(:body) { ios[0] }
+
+      around do |example|
+        writer = Thread.new(ios[1]) do |io|
+          io << "abcdef"
+          io.close
+        end
+
+        begin
+          example.run
+        ensure
+          writer.join
+        end
+      end
+
+      it "yields chunks of content" do
+        expect(chunks.inject("", :+)).to eq("abcdef")
+      end
+    end
+
     context "when body is an Enumerable IO" do
       let(:data) { "a" * 16 * 1024 + "b" * 10 * 1024 }
       let(:body) { StringIO.new data }
@@ -154,6 +176,35 @@ RSpec.describe HTTP::Request::Body do
 
       it "yields elements" do
         expect(chunks).to eq %w[bees cows]
+      end
+    end
+  end
+
+  describe "#==" do
+    context "when sources are equivalent" do
+      let(:body1) { HTTP::Request::Body.new("content") }
+      let(:body2) { HTTP::Request::Body.new("content") }
+
+      it "returns true" do
+        expect(body1).to eq body2
+      end
+    end
+
+    context "when sources are not equivalent" do
+      let(:body1) { HTTP::Request::Body.new("content") }
+      let(:body2) { HTTP::Request::Body.new(nil) }
+
+      it "returns false" do
+        expect(body1).not_to eq body2
+      end
+    end
+
+    context "when objects are not of the same class" do
+      let(:body1) { HTTP::Request::Body.new("content") }
+      let(:body2) { "content" }
+
+      it "returns false" do
+        expect(body1).not_to eq body2
       end
     end
   end

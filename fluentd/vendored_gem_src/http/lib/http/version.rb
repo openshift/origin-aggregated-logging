@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module HTTP
-  VERSION = "3.3.0"
+  VERSION = "4.1.1"
 end

@@ -1,24 +1,18 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/ClassLength, Style/RedundantSelf
+# rubocop:disable Metrics/ClassLength
 
 require "http/headers"
 require "openssl"
 require "socket"
 require "http/uri"
-require "http/feature"
-require "http/features/auto_inflate"
-require "http/features/auto_deflate"
 
 module HTTP
   class Options
     @default_socket_class     = TCPSocket
     @default_ssl_socket_class = OpenSSL::SSL::SSLSocket
     @default_timeout_class    = HTTP::Timeout::Null
-    @available_features       = {
-      :auto_inflate => Features::AutoInflate,
-      :auto_deflate => Features::AutoDeflate
-    }
+    @available_features       = {}
 
     class << self
       attr_accessor :default_socket_class, :default_ssl_socket_class, :default_timeout_class
@@ -33,14 +27,22 @@ module HTTP
         @defined_options ||= []
       end
 
+      def register_feature(name, impl)
+        @available_features[name] = impl
+      end
+
       protected
 
-      def def_option(name, &interpreter)
+      def def_option(name, reader_only: false, &interpreter)
         defined_options << name.to_sym
         interpreter ||= lambda { |v| v }
 
-        attr_accessor name
-        protected :"#{name}="
+        if reader_only
+          attr_reader name
+        else
+          attr_accessor name
+          protected :"#{name}="
+        end
 
         define_method(:"with_#{name}") do |value|
           dup { |opts| opts.send(:"#{name}=", instance_exec(value, &interpreter)) }
@@ -70,12 +72,12 @@ module HTTP
       opts_w_defaults.each { |(k, v)| self[k] = v }
     end
 
-    def_option :headers do |headers|
-      self.headers.merge(headers)
+    def_option :headers do |new_headers|
+      headers.merge(new_headers)
     end
 
-    def_option :cookies do |cookies|
-      cookies.each_with_object self.cookies.dup do |(k, v), jar|
+    def_option :cookies do |new_cookies|
+      new_cookies.each_with_object cookies.dup do |(k, v), jar|
         cookie = k.is_a?(Cookie) ? k : Cookie.new(k.to_s, v.to_s)
         jar[cookie.name] = cookie.cookie_value
       end
@@ -85,7 +87,7 @@ module HTTP
       self.encoding = Encoding.find(encoding)
     end
 
-    def_option :features do |features|
+    def_option :features, :reader_only => true do |new_features|
       # Normalize features from:
       #
       #     [{feature_one: {opt: 'val'}}, :feature_two]
@@ -93,7 +95,7 @@ module HTTP
       # into:
       #
       #     {feature_one: {opt: 'val'}, feature_two: {}}
-      features = features.each_with_object({}) do |feature, h|
+      normalized_features = new_features.each_with_object({}) do |feature, h|
         if feature.is_a?(Hash)
           h.merge!(feature)
         else
@@ -101,7 +103,7 @@ module HTTP
         end
       end
 
-      self.features.merge(features)
+      features.merge(normalized_features)
     end
 
     def features=(features)
@@ -118,12 +120,14 @@ module HTTP
     end
 
     %w[
-      proxy params form json body follow response
+      proxy params form json body response
       socket_class nodelay ssl_socket_class ssl_context ssl
-      persistent keep_alive_timeout timeout_class timeout_options
+      keep_alive_timeout timeout_class timeout_options
     ].each do |method_name|
       def_option method_name
     end
+
+    def_option :follow, :reader_only => true
 
     def follow=(value)
       @follow =
@@ -134,6 +138,8 @@ module HTTP
         else argument_error! "Unsupported follow options: #{value}"
         end
     end
+
+    def_option :persistent, :reader_only => true
 
     def persistent=(value)
       @persistent = value ? HTTP::URI.parse(value).origin : nil

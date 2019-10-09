@@ -495,6 +495,24 @@ class BufferFileChunkTest < Test::Unit::TestCase
     end
   end
 
+  test 'ensure to remove metadata file if #write_metadata raise an error because of disk full' do
+    chunk_path = File.join(@chunkdir, 'test.*.log')
+    stub(Fluent::UniqueId).hex(anything) { 'id' } # to fix chunk id
+
+    any_instance_of(Fluent::Plugin::Buffer::FileChunk) do |klass|
+      stub(klass).write_metadata(anything) do |v|
+        raise 'disk full'
+      end
+    end
+
+    err = assert_raise(Fluent::Plugin::Buffer::BufferOverflowError) do
+      Fluent::Plugin::Buffer::FileChunk.new(gen_metadata, chunk_path, :create)
+    end
+
+    assert_false File.exist?(File.join(@chunkdir, 'test.bid.log.meta'))
+    assert_match(/create buffer metadata/, err.message)
+  end
+
   sub_test_case 'chunk with file for staged chunk' do
     setup do
       @chunk_id = gen_test_chunk_id
@@ -855,6 +873,7 @@ class BufferFileChunkTest < Test::Unit::TestCase
       assert_equal @gzipped_src, c.read(compressed: :gzip)
 
       io = StringIO.new
+      io.set_encoding(Encoding::ASCII_8BIT)
       c.write_to(io, compressed: :gzip)
       assert_equal @gzipped_src, io.string
     end

@@ -3,6 +3,8 @@
 require "zlib"
 require "tempfile"
 
+require "http/request/body"
+
 module HTTP
   module Features
     class AutoDeflate < Feature
@@ -16,20 +18,39 @@ module HTTP
         raise Error, "Only gzip and deflate methods are supported" unless %w[gzip deflate].include?(@method)
       end
 
+      def wrap_request(request)
+        return request unless method
+        return request if request.body.size.zero?
+
+        # We need to delete Content-Length header. It will be set automatically by HTTP::Request::Writer
+        request.headers.delete(Headers::CONTENT_LENGTH)
+        request.headers[Headers::CONTENT_ENCODING] = method
+
+        Request.new(
+          :version => request.version,
+          :verb => request.verb,
+          :uri => request.uri,
+          :headers => request.headers,
+          :proxy => request.proxy,
+          :body => deflated_body(request.body),
+          :uri_normalizer => request.uri_normalizer
+        )
+      end
+
       def deflated_body(body)
         case method
         when "gzip"
           GzippedBody.new(body)
         when "deflate"
           DeflatedBody.new(body)
-        else
-          raise ArgumentError, "Unsupported deflate method: #{method}"
         end
       end
 
-      class CompressedBody
-        def initialize(body)
-          @body       = body
+      HTTP::Options.register_feature(:auto_deflate, self)
+
+      class CompressedBody < HTTP::Request::Body
+        def initialize(uncompressed_body)
+          @body       = uncompressed_body
           @compressed = nil
         end
 

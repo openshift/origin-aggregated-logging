@@ -421,6 +421,15 @@
     - audio/example
   registered: true
 - !ruby/object:MIME::Type
+  content-type: audio/flexfec
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc8627
+    template:
+    - audio/flexfec
+  registered: true
+- !ruby/object:MIME::Type
   content-type: audio/fwdred
   encoding: base64
   xrefs:

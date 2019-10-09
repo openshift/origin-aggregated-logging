@@ -112,6 +112,15 @@
     - video/example
   registered: true
 - !ruby/object:MIME::Type
+  content-type: video/flexfec
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc8627
+    template:
+    - video/flexfec
+  registered: true
+- !ruby/object:MIME::Type
   content-type: video/gl
   encoding: base64
   extensions:
@@ -884,6 +893,15 @@
     - John_Wolfe
     template:
     - video/vnd.vivo
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: video/vnd.youtube.yt
+  encoding: base64
+  xrefs:
+    person:
+    - Google
+    template:
+    - video/vnd.youtube.yt
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/VP8

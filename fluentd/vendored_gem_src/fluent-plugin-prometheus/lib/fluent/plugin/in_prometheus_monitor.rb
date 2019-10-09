@@ -5,6 +5,7 @@ require 'fluent/plugin/prometheus'
 module Fluent::Plugin
   class PrometheusMonitorInput < Fluent::Plugin::Input
     Fluent::Plugin.register_input('prometheus_monitor', self)
+    include Fluent::Plugin::PrometheusLabelParser
 
     helpers :timer
 
@@ -25,7 +26,7 @@ module Fluent::Plugin
       hostname = Socket.gethostname
       expander = Fluent::Plugin::Prometheus.placeholder_expander(log)
       placeholders = expander.prepare_placeholders({'hostname' => hostname, 'worker_id' => fluentd_worker_id})
-      @base_labels = Fluent::Plugin::Prometheus.parse_labels_elements(conf)
+      @base_labels = parse_labels_elements(conf)
       @base_labels.each do |key, value|
         unless value.is_a?(String)
           raise Fluent::ConfigError, "record accessor syntax is not available in prometheus_monitor"
@@ -45,6 +46,12 @@ module Fluent::Plugin
     def start
       super
 
+      @buffer_newest_timekey = @registry.gauge(
+        :fluentd_status_buffer_newest_timekey,
+        'Newest timekey in buffer.')
+      @buffer_oldest_timekey = @registry.gauge(
+        :fluentd_status_buffer_oldest_timekey,
+        'Oldest timekey in buffer.')
       buffer_queue_length = @registry.gauge(
         :fluentd_status_buffer_queue_length,
         'Current buffer queue length.')
@@ -65,10 +72,18 @@ module Fluent::Plugin
 
     def update_monitor_info
       @monitor_agent.plugins_info_all.each do |info|
+        label = labels(info)
+
         @monitor_info.each do |name, metric|
           if info[name]
-            metric.set(labels(info), info[name])
+            metric.set(label, info[name])
           end
+        end
+
+        timekeys = info["buffer_timekeys"]
+        if timekeys && !timekeys.empty?
+          @buffer_newest_timekey.set(label, timekeys.max)
+          @buffer_oldest_timekey.set(label, timekeys.min)
         end
       end
     end

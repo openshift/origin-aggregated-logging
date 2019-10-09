@@ -127,6 +127,7 @@ application/vnd.ms-excel
 -
 -
 -
+-
 font/sfnt
 -
 font/woff
@@ -309,6 +310,7 @@ application/x-mathematica-old
 -
 -
 -
+-
 application/x-quicktimeplayer
 -
 -
@@ -317,6 +319,7 @@ application/x-quicktimeplayer
 -
 -
 application/remote-printing
+-
 -
 -
 -
@@ -411,6 +414,7 @@ application/smil+xml
 -
 -
 -
+-
 application/x-toolbook
 -
 -
@@ -453,6 +457,8 @@ application/x-VMSBACKUP
 -
 -
 -
+-
+application/vnd.3gpp.mcvideo-info+xml
 -
 -
 -
@@ -517,6 +523,12 @@ application/x-VMSBACKUP
 -
 -
 application/vnd.aristanetworks.swi
+-
+-
+-
+-
+-
+-
 -
 -
 -
@@ -798,6 +810,11 @@ application/vnd.afpc.modca
 -
 -
 application/vnd.visionary
+-
+-
+-
+-
+-
 -
 -
 -
@@ -1383,6 +1400,9 @@ application/vnd.nokia.ncd
 -
 -
 -
+video/vnd.youtube.yt
+-
+-
 -
 -
 -
@@ -1759,6 +1779,7 @@ application/x400-bp
 -
 -
 -
+-
 audio/qcelp
 -
 -
@@ -1802,6 +1823,16 @@ x-drawing/dwf
 image/x-bmp
 -
 image/x-cmu-raster
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
 -
 -
 -
@@ -1983,6 +2014,7 @@ application/ecmascript
 -
 -
 -
+-
 application/javascript
 -
 -
@@ -2055,6 +2087,7 @@ model/vnd.flatland.3dml
 -
 -
 -
+-
 text/rtf
 -
 -
@@ -2076,7 +2109,9 @@ video/x-dl
 -
 -
 -
+-
 video/x-gl
+-
 -
 -
 -

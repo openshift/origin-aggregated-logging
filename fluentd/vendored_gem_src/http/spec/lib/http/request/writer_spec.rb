@@ -74,5 +74,25 @@ RSpec.describe HTTP::Request::Writer do
         ].join
       end
     end
+
+    context "when server won't accept any more data" do
+      before do
+        expect(io).to receive(:write).and_raise(Errno::EPIPE)
+      end
+
+      it "aborts silently" do
+        writer.stream
+      end
+    end
+
+    context "when writing to socket raises an exception" do
+      before do
+        expect(io).to receive(:write).and_raise(Errno::ECONNRESET)
+      end
+
+      it "raises a ConnectionError" do
+        expect { writer.stream }.to raise_error(HTTP::ConnectionError)
+      end
+    end
   end
 end

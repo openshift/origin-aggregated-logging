@@ -127,6 +127,7 @@ rfc^rfc6726|template^application/fdt+xml
 person^Grahame_Grieve^HL7|template^application/fhir+json
 person^Grahame_Grieve^HL7|template^application/fhir+xml
 rfc^rfc4047|template^application/fits
+rfc^rfc8627|template^application/flexfec
 notes^- DEPRECATED in favor of font/sfnt|person^ISO-IEC_JTC1^Levantovsky|rfc^rfc8081|template^application/font-sfnt
 rfc^rfc3073|template^application/font-tdpfr
 notes^- DEPRECATED in favor of font/woff|person^W3C|rfc^rfc8081|template^application/font-woff
@@ -225,6 +226,7 @@ rfc^rfc5854|template^application/metalink4+xml
 rfc^rfc6207|template^application/mets+xml
 person^ASAM^Thomas_Thomsen|template^application/MF4
 rfc^rfc3830|template^application/mikey
+person^Bryan_Blank^NCGIS|template^application/mipc
 person^ATSC|template^application/mmt-aei+xml
 person^ATSC|template^application/mmt-usd+xml
 rfc^rfc6207|template^application/mods+xml
@@ -265,7 +267,7 @@ rfc^rfc4839|template^application/oebps-package+xml
 rfc^rfc5334^rfc7845|template^application/ogg
 -
 -
-draft^RFC-ietf-core-object-security-16|template^application/oscore
+rfc^rfc8613|template^application/oscore
 person^Ecma_International_Helpdesk|template^application/oxps
 rfc^rfc6940|template^application/p2p-overlay+xml
 rfc^rfc5109
@@ -282,8 +284,8 @@ rfc^rfc3863|template^application/pidf+xml
 rfc^rfc5262|template^application/pidf-diff+xml
 rfc^rfc5967|template^application/pkcs10
 person^IETF|template^application/pkcs12
-draft^RFC-ietf-lamps-rfc5751-bis-12|rfc^rfc7114|template^application/pkcs7-mime
-draft^RFC-ietf-lamps-rfc5751-bis-12|template^application/pkcs7-signature
+rfc^rfc7114^rfc8551|template^application/pkcs7-mime
+rfc^rfc8551|template^application/pkcs7-signature
 rfc^rfc5958|template^application/pkcs8
 rfc^rfc8351|template^application/pkcs8-encrypted
 rfc^rfc5877|template^application/pkix-attr-cert
@@ -346,7 +348,7 @@ rfc^rfc5055|template^application/scvp-cv-request
 rfc^rfc5055|template^application/scvp-cv-response
 rfc^rfc5055|template^application/scvp-vp-request
 rfc^rfc5055|template^application/scvp-vp-response
-rfc^rfc4566|template^application/sdp
+draft^RFC-ietf-mmusic-rfc4566bis-37|template^application/sdp
 rfc^rfc8417|template^application/secevent+jwt
 rfc^rfc8428|template^application/senml+cbor
 rfc^rfc8428|template^application/senml+json
@@ -371,6 +373,7 @@ rfc^rfc5228|template^application/sieve
 rfc^rfc4661|template^application/simple-filter+xml
 rfc^rfc3842|template^application/simple-message-summary
 person^_3GPP|template^application/simpleSymbolContainer
+person^Bryan_Blank^NCGIS|template^application/sipc
 -
 person^Terry_Crowley|template^application/slate
 notes^- OBSOLETED in favor of application/smil+xml|rfc^rfc4536|template^application/smil
@@ -390,6 +393,7 @@ rfc^rfc6207|template^application/sru+xml
 rfc^rfc4267|template^application/ssml+xml
 -
 person^Chet_Ensign^OASIS|template^application/stix+json
+person^David_Waltermire^ISO-IEC_JTC1^Ron_Brill|template^application/swid+xml
 rfc^rfc5934|template^application/tamp-apex-update
 rfc^rfc5934|template^application/tamp-apex-update-confirm
 rfc^rfc5934|template^application/tamp-community-update
@@ -454,7 +458,8 @@ person^Frederic_Firmin|template^application/vnd.3gpp.mcptt-ue-config+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcptt-ue-init-config+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcptt-user-profile+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-affiliation-command+xml
-person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-affiliation-info+xml
+notes^- OBSOLETED in favor of application/vnd.3gpp.mcvideo-info+xml|person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-affiliation-info+xml
+person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-info+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-location-info+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-mbms-usage-info+xml
 person^Frederic_Firmin|template^application/vnd.3gpp.mcvideo-service-config+xml
@@ -500,6 +505,7 @@ person^Kim_Scarborough|template^application/vnd.amazon.mobi8-ebook
 person^Gary_Sands|template^application/vnd.americandynamics.acc
 person^Kevin_Blumberg|template^application/vnd.amiga.ami
 person^Mike_Amundsen|template^application/vnd.amundsen.maze+xml
+person^Greg_Kaiser|template^application/vnd.android.ota
 -
 person^Kerrick_Staley|template^application/vnd.anki
 person^Hiroyoshi_Mori|template^application/vnd.anser-web-certificate-issue-initiation
@@ -528,6 +534,7 @@ person^Vladimir_Vysotsky|template^application/vnd.avistar+xml
 person^Giacomo_Guilizzoni|template^application/vnd.balsamiq.bmml+xml
 person^Giacomo_Guilizzoni|template^application/vnd.balsamiq.bmpr
 person^José_Del_Romano|template^application/vnd.banana-accounting
+person^William_Lupton|template^application/vnd.bbf.usp.error
 person^William_Lupton|template^application/vnd.bbf.usp.msg
 person^William_Lupton|template^application/vnd.bbf.usp.msg+json
 person^Jegulsky|template^application/vnd.bekitzur-stech+json
@@ -538,6 +545,8 @@ person^Thomas_Holmstrom|template^application/vnd.blueice.multipass
 person^Mike_Foley|template^application/vnd.bluetooth.ep.oob
 person^Mark_Powell|template^application/vnd.bluetooth.le.oob
 person^Tadashi_Gotoh|template^application/vnd.bmi
+person^Bryan_Blank^NCGIS|template^application/vnd.bpf
+person^Bryan_Blank^NCGIS|template^application/vnd.bpf3
 person^Philippe_Imoucha|template^application/vnd.businessobjects
 person^Brent_Moore|template^application/vnd.byu.uapi+json
 person^Joerg_Falkenberg|template^application/vnd.cab-jscript
@@ -549,6 +558,7 @@ person^Shuji_Fujii|template^application/vnd.century-systems.tcp_stream
 person^Glenn_Howes|template^application/vnd.chemdraw+xml
 person^Kim_Scarborough|template^application/vnd.chess-pgn
 person^Chunyun_Xiong|template^application/vnd.chipnuts.karaoke-mmd
+person^Hidekazu_Enjo|template^application/vnd.ciedi
 person^Ulrich_Kortenkamp|template^application/vnd.cinderella
 person^Pascal_Mayeux|template^application/vnd.cirpack.isdn-ext
 person^Rintze_M._Zelle|template^application/vnd.citationstyles.style+xml
@@ -580,6 +590,8 @@ person^Andrew_Burt|template^application/vnd.crick.clicker.palette
 person^Andrew_Burt|template^application/vnd.crick.clicker.template
 person^Andrew_Burt|template^application/vnd.crick.clicker.wordbank
 person^Jim_Spiller|template^application/vnd.criticaltools.wbs+xml
+person^Fränz_Friederes|template^application/vnd.cryptii.pipe+json
+person^Connor_Horman|template^application/vnd.crypto-shade-file
 person^Bayard_Kohlhepp|template^application/vnd.ctc-posml
 person^Jim_Ancona|template^application/vnd.ctct.ws+xml
 person^Michael_Sweet|template^application/vnd.cups-pdf
@@ -819,6 +831,7 @@ person^Per_Ersson|template^application/vnd.ipunplugged.rcprofile
 person^Martin_Knowles|template^application/vnd.irepository.package+xml
 person^Satish_Navarajan|template^application/vnd.is-xpr
 person^Ryan_Brinkman|template^application/vnd.isac.fcs
+person^Frank_Wiebeler|template^application/vnd.iso11783-10+zip
 person^Brijesh_Kumar|template^application/vnd.jam
 person^Kiyofusa_Fujii|template^application/vnd.japannet-directory-service
 person^Jun_Yoshitake|template^application/vnd.japannet-jpnstore-wakeup
@@ -846,12 +859,16 @@ person^Jack_Bennett|template^application/vnd.kidspiration
 person^Hemant_Thakkar|template^application/vnd.Kinar
 person^Pete_Cole|template^application/vnd.koan
 person^Michael_J._Donahue|template^application/vnd.kodak-descriptor
+person^Bryan_Blank^NCGIS|template^application/vnd.las
 person^Rob_Bailey|template^application/vnd.las.las+json
 person^Rob_Bailey|template^application/vnd.las.las+xml
+person^Bryan_Blank^NCGIS|template^application/vnd.laszip
 person^Mark_C_Fralick|template^application/vnd.leap+json
 person^Brett_McDowell|template^application/vnd.liberty-request+xml
 person^Catherine_E._White|template^application/vnd.llamagraphics.life-balance.desktop
 person^Catherine_E._White|template^application/vnd.llamagraphics.life-balance.exchange+xml
+person^Victor_Kuchynsky|template^application/vnd.logipipe.circuit+zip
+person^Sten_Linnarsson|template^application/vnd.loom
 person^Paul_Wattenberger|template^application/vnd.lotus-1-2-3
 person^Paul_Wattenberger|template^application/vnd.lotus-approach
 person^Paul_Wattenberger|template^application/vnd.lotus-freelance
@@ -1239,11 +1256,13 @@ person^Steve_Webb|template^application/vnd.seemail
 person^Anders_Hansson|template^application/vnd.sema
 person^Anders_Hansson|template^application/vnd.semd
 person^Anders_Hansson|template^application/vnd.semf
+person^Connor_Horman|template^application/vnd.shade-save-file
 person^Guy_Selzler|template^application/vnd.shana.informed.formdata
 person^Guy_Selzler|template^application/vnd.shana.informed.formtemplate
 person^Guy_Selzler|template^application/vnd.shana.informed.interchange
 person^Guy_Selzler|template^application/vnd.shana.informed.package
 person^Ben_Ramsey|template^application/vnd.shootproof+json
+person^Ronald_Jacobs|template^application/vnd.shopkick+json
 person^Uwe_Hermann|template^application/vnd.sigrok.session
 person^Patrick_Koh|template^application/vnd.SimTech-MindMapper
 person^Kevin_Swiber|template^application/vnd.siren+json
@@ -1332,6 +1351,7 @@ person^Biplab_Sarkar^Lyndsey_Ferguson|template^application/vnd.vectorworks
 person^James_Wigger|template^application/vnd.vel+json
 person^Petr_Peterka|template^application/vnd.verimatrix.vcas
 person^Massimo_Bertoli|template^application/vnd.veryant.thin
+person^Jim_Zubov|template^application/vnd.ves.encrypted
 person^Robert_Hess|template^application/vnd.vidsoft.vidconference
 person^Troy_Sandal|template^application/vnd.visio
 person^Gayatri_Aravindakumar|template^application/vnd.visionary
@@ -1380,7 +1400,7 @@ person^Takehiro_Sukizaki|template^application/vnd.yamaha.through-ngn
 person^Takehiro_Sukizaki|template^application/vnd.yamaha.tunnel-udpencap
 person^Jens_Jorgensen|template^application/vnd.yaoweme
 person^Mr._Yellow|template^application/vnd.yellowriver-custom-menu
-person^Laura_Wood|template^application/vnd.youtube.yt
+notes^- OBSOLETED in favor of video/vnd.youtube.yt|person^Laura_Wood|template^application/vnd.youtube.yt
 person^Rene_Grothmann|template^application/vnd.zul
 person^Micheal_Hewett|template^application/vnd.zzazz.deck+xml
 rfc^rfc4267|template^application/voicexml+xml
@@ -1655,6 +1675,7 @@ rfc^rfc5188|template^audio/EVRCWB0
 rfc^rfc5188|template^audio/EVRCWB1
 person^Kyunghun_Jung^_3GPP|template^audio/EVS
 rfc^rfc4735|template^audio/example
+rfc^rfc8627|template^audio/flexfec
 rfc^rfc6354|template^audio/fwdred
 rfc^rfc7655|template^audio/G711-0
 rfc^rfc5404|rfc-errata^3245|template^audio/G719
@@ -1812,13 +1833,23 @@ person^David_Singer^ISO-IEC_JTC1|template^image/heic
 person^David_Singer^ISO-IEC_JTC1|template^image/heic-sequence
 person^David_Singer^ISO-IEC_JTC1|template^image/heif
 person^David_Singer^ISO-IEC_JTC1|template^image/heif-sequence
+person^ISO-IEC_JTC1^ITU-T|template^image/hej2k
+person^ISO-IEC_JTC1^ITU-T|template^image/hsj2
 rfc^rfc1314
 person^DICOM_Standards_Committee^David_Clunie|template^image/jls
 rfc^rfc3745|template^image/jp2
 rfc^rfc2045^rfc2046
+person^ISO-IEC_JTC1^ITU-T|template^image/jph
+person^ISO-IEC_JTC1^ITU-T|template^image/jphc
 rfc^rfc3745|template^image/jpm
 rfc^rfc3745|template^image/jpx
 person^ISO-IEC_JTC1^ITU-T|template^image/jxr
+person^ISO-IEC_JTC1^ITU-T|template^image/jxrA
+person^ISO-IEC_JTC1^ITU-T|template^image/jxrS
+person^ISO-IEC_JTC1|template^image/jxs
+person^ISO-IEC_JTC1|template^image/jxsc
+person^ISO-IEC_JTC1|template^image/jxsi
+person^ISO-IEC_JTC1|template^image/jxss
 person^Khronos^Mark_Callow|uri^http://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/#mimeregistration
 person^Ilya_Ferber|template^image/naplps
 -
@@ -1980,6 +2011,7 @@ notes^- OBSOLETED in favor of application/ecmascript|rfc^rfc4329|template^text/e
 rfc^rfc6849|template^text/encaprtp
 rfc^rfc1896
 rfc^rfc4735|template^text/example
+rfc^rfc8627|template^text/flexfec
 rfc^rfc6354|template^text/fwdred
 rfc^rfc6787|template^text/grammar-ref-list
 person^Robin_Berjon^W3C|template^text/html
@@ -2040,6 +2072,7 @@ person^Feiyu_Xie|template^text/vnd.net2phone.commcenter.command
 rfc^rfc5707|template^text/vnd.radisys.msml-basic-layout
 person^Pierre_Papin|template^text/vnd.senx.warpscript
 notes^- OBSOLETED by request|person^Nicholas_Parks_Young|template^text/vnd.si.uricatalogue
+person^Petter_Reinholdtsen|template^text/vnd.sosi
 person^Gary_Adams|template^text/vnd.sun.j2me.app-descriptor
 person^David_Lee_Lambert|template^text/vnd.trolltech.linguist
 person^WAP-Forum|template^text/vnd.wap.si
@@ -2076,6 +2109,7 @@ rfc^rfc3555|template^video/CelB
 rfc^rfc6469|template^video/DV
 rfc^rfc6849|template^video/encaprtp
 rfc^rfc4735|template^video/example
+rfc^rfc8627|template^video/flexfec
 -
 rfc^rfc4587|template^video/H261
 rfc^rfc3555|template^video/H263
@@ -2148,6 +2182,7 @@ person^David_Petersen|template^video/vnd.sealed.swf
 person^David_Petersen|template^video/vnd.sealedmedia.softseal.mov
 person^Michael_A_Dolan|template^video/vnd.uvvu.mp4
 person^John_Wolfe|template^video/vnd.vivo
+person^Google|template^video/vnd.youtube.yt
 rfc^rfc7741|template^video/VP8
 -
 -

@@ -139,6 +139,7 @@ Thanks to everyone else who has contributed to mime-types:
 * Hans de Graaff
 * Henrik Hodne
 * Jeremy Evans
+* John Gardner
 * Juanito Fatas
 * Łukasz Śliwa
 * Keerthi Siva

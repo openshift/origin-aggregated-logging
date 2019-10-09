@@ -4,6 +4,7 @@ require "forwardable"
 
 require "http/form_data"
 require "http/options"
+require "http/feature"
 require "http/headers"
 require "http/connection"
 require "http/redirector"
@@ -41,16 +42,19 @@ module HTTP
       uri     = make_request_uri(uri, opts)
       headers = make_request_headers(opts)
       body    = make_request_body(opts, headers)
-      proxy   = opts.proxy
 
-      HTTP::Request.new(
-        :verb         => verb,
-        :uri          => uri,
-        :headers      => headers,
-        :proxy        => proxy,
-        :body         => body,
-        :auto_deflate => opts.feature(:auto_deflate)
+      req = HTTP::Request.new(
+        :verb           => verb,
+        :uri            => uri,
+        :uri_normalizer => opts.feature(:normalize_uri)&.normalizer,
+        :proxy          => opts.proxy,
+        :headers        => headers,
+        :body           => body
       )
+
+      opts.features.inject(req) do |request, (_name, feature)|
+        feature.wrap_request(request)
+      end
     end
 
     # @!method persistent?
@@ -78,9 +82,12 @@ module HTTP
         :proxy_headers => @connection.proxy_response_headers,
         :connection    => @connection,
         :encoding      => options.encoding,
-        :auto_inflate  => options.feature(:auto_inflate),
         :uri           => req.uri
       )
+
+      res = options.features.inject(res) do |response, (_name, feature)|
+        feature.wrap_response(response)
+      end
 
       @connection.finish_response if req.verb == :head
       @state = :clean
@@ -151,14 +158,6 @@ module HTTP
       unless cookies.empty?
         cookies = opts.headers.get(Headers::COOKIE).concat(cookies).join("; ")
         headers[Headers::COOKIE] = cookies
-      end
-
-      if (auto_deflate = opts.feature(:auto_deflate))
-        # We need to delete Content-Length header. It will be set automatically
-        # by HTTP::Request::Writer
-        headers.delete(Headers::CONTENT_LENGTH)
-
-        headers[Headers::CONTENT_ENCODING] = auto_deflate.method
       end
 
       headers
