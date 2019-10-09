@@ -153,10 +153,7 @@ get_pod_logs() {
   if [ "$collector_folder" == "$2" ]	
   then	
     collector=fluentd
-    if [[ "${pod}" =~ .*rsyslog.* ]] ; then
-      collector=rsyslog
-    fi
-    oc exec $1 -c $collector -- logs --all | nice xz >> $logs_folder/$pod.log.xz
+    oc exec $1 -c $collector -- logs | nice xz >> $logs_folder/$pod.log.xz
   fi
 }
 
@@ -167,10 +164,6 @@ check_collector_connectivity() {
   es_port=$(oc get pod $pod  -o jsonpath='{.spec.containers[0].env[?(@.name=="ES_PORT")].value}')
   collector=fluent
   container=fluentd
-  if [[ "${pod}" =~ .*rsyslog.* ]] ; then
-    collector=rsyslog
-    container=rsyslog
-  fi
   echo "  with ca" >> $collector_folder/$pod
   oc exec $pod -c $container -- curl -ILvs --key /etc/$collector/keys/key --cert /etc/$collector/keys/cert --cacert /etc/$collector/keys/ca -XGET https://$es_host:$es_port &>> $collector_folder/$pod
   echo "  without ca" >> $collector_folder/$pod
@@ -181,9 +174,6 @@ check_collector_persistence() {
   local pod=$1
   echo --Persistence stats for pod $pod >> $collector_folder/$pod
   collector=fluentd
-  if [[ "${pod}" =~ .*rsyslog.* ]] ; then
-    collector=rsyslog
-  fi
   fbstoragePath=$(oc get daemonset $collector -o jsonpath='{.spec.template.spec.containers[0].volumeMounts[?(@.name=="filebufferstorage")].mountPath}')
   if [ -z "$fbstoragePath" ] ; then
     echo No filebuffer storage defined >>  $collector_folder/$pod
@@ -195,7 +185,7 @@ check_collector_persistence() {
 
 check_collector() {
   echo -- Checking Collector health
-  pods="$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name}) $(oc get pods -l logging-infra=rsyslog -o jsonpath={.items[*].metadata.name})"
+  pods="$(oc get pods -l logging-infra=fluentd -o jsonpath={.items[*].metadata.name})"
   mkdir $collector_folder
   for pod in $pods
   do

@@ -219,13 +219,10 @@ function switch_to_admin_user() {
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
 docker_suffix='.centos7'
 # use .fedora if you really must build the fedora version
-rsyslog_docker_suffix=${RSYSLOG_DOCKER_SUFFIX:-}
 if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
   docker_suffix=''
-  rsyslog_docker_suffix=''
 fi
 dockerfile="Dockerfile${docker_suffix}"
-rsyslog_dockerfile="Dockerfile${rsyslog_docker_suffix}"
 
 name_suf="5"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
@@ -240,7 +237,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
-    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter rsyslog"
+    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter"
     for ii in $(seq 1 10) ; do
         notfound=
         for obj in $names ; do
@@ -290,18 +287,6 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
     dir=""
     img=""
   done
-
-  pull_ubi_if_needed rsyslog/${rsyslog_dockerfile}
-  if image_needs_private_repo rsyslog/${rsyslog_dockerfile} ; then
-    repodir=$( get_private_repo_dir )
-    mountarg="-mount $repodir:/etc/yum.repos.d/"
-  else
-    mountarg=""
-  fi
-  set +x
-  echo building image rsyslog - this may take a few minutes until you see any output . . .
-  OS_BUILD_IMAGE_ARGS="$mountarg -f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog" rsyslog
-  set -x
 
   pull_ubi_if_needed openshift/ci-operator/build-image/Dockerfile.full
   if image_needs_private_repo openshift/ci-operator/build-image/Dockerfile.full ; then
@@ -363,7 +348,7 @@ login_to_registry "127.0.0.1:${LOCAL_PORT}"
 
 for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch${name_suf:-}" \
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
-  "${tag_prefix}logging-eventrouter" "${tag_prefix}logging-rsyslog" \
+  "${tag_prefix}logging-eventrouter" \
   "openshift/logging-ci-test-runner" ; do
   remote_image="127.0.0.1:${registry_port}/$image"
   # can't use podman here - imagebuilder stores the images in the local docker registry

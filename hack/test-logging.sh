@@ -166,14 +166,13 @@ done
 echo before patching kibana
 oc get pods -o wide
 
-# the ci test pod, kibana pod, and fluentd/rsyslog pod, all have to run on the same node
+# the ci test pod, kibana pod, and fluentd pod, all have to run on the same node
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
 
 # make sure nodeSelectors are set correctly if restarted later by CLO
 oc patch clusterlogging instance --type=json --patch '[
     {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-ci-test":"true"}},
-    {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
     {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
