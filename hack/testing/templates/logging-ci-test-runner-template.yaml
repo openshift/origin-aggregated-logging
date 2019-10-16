@@ -21,6 +21,15 @@ objects:
       imagePullPolicy: Always
       securityContext:
         privileged: true
+      env:
+      - name: IMAGE_FORMAT
+        value: "${IMAGE_FORMAT}"
+      - name: SUITE
+        value: "${TEST_SUITES}"
+      - name: ARTIFACT_DIR
+        value: "${ARTIFACT_DIR}"
+      - name: KUBECONFIG
+        value: "/tmp/admin.kubeconfig"
       command:
       - bash
       - -c
@@ -44,14 +53,7 @@ objects:
           # image was built with source already on it
           cd "${TEST_ROOT}"
         fi
-        cp /tmp/secret/admin.kubeconfig.orig /tmp/admin.kubeconfig
-        export KUBECONFIG=/tmp/admin.kubeconfig
-        set +u
-        # the below is a template parameter evaluation, not a shell
-        # variable evaluation
-        export ARTIFACT_DIR=${ARTIFACT_DIR}
-        set -u
-        export SUITE="${TEST_SUITES}"
+        cp /tmp/secret/admin.kubeconfig.orig $KUBECONFIG
         . openshift/ci-operator/build-image/launch-e2e-test.sh
 
       volumeMounts:
@@ -144,5 +146,8 @@ parameters:
 - description: test suites to run
   value: '.*'
   name: TEST_SUITES
+- description: IMAGE_FORMAT is used to construct image names - set by CI if used
+  value: ""
+  name: IMAGE_FORMAT
 labels:
   test: "true"
