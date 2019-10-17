@@ -389,12 +389,12 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     CLO_DIR=${CLO_DIR:-$GOPATH/src/github.com/openshift/cluster-logging-operator}
     if [ ! -d $CLO_DIR ] ; then
         CLO_DIR=$ARTIFACT_DIR/clo
-        get_operator_files $CLO_DIR cluster-logging-operator ${CLO_REPO:-openshift} ${CLO_BRANCH:-master}
+        get_operator_files $CLO_DIR cluster-logging-operator ${CLO_REPO:-openshift} ${CLO_BRANCH:-release-4.2}
     fi
     EO_DIR=${EO_DIR:-$CLO_DIR/vendor/github.com/openshift/elasticsearch-operator}
     if [ ! -d $EO_DIR ] ; then
         EO_DIR=$ARTIFACT_DIR/eo
-        get_operator_files $EO_DIR elasticsearch-operator ${EO_REPO:-openshift} ${EO_BRANCH:-master}
+        get_operator_files $EO_DIR elasticsearch-operator ${EO_REPO:-openshift} ${EO_BRANCH:-release-4.2}
     fi
     if [ "${USE_OLM:-false}" = true ] ; then
         deploy_logging_using_olm
