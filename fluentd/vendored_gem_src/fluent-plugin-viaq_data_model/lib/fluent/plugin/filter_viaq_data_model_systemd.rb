@@ -68,7 +68,7 @@ module ViaqDataModelFilterSystemd
 
   JOURNAL_TIME_FIELDS = ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP']
 
-  def process_journal_fields(tag, time, record, fmtr_type)
+  def process_journal_fields(tag, time, record, fmtr)
     systemd_t = {}
     JOURNAL_FIELD_MAP_SYSTEMD_T.each do |jkey, key|
       if record.key?(jkey)
@@ -104,7 +104,7 @@ module ViaqDataModelFilterSystemd
         break
       end
     end
-    case fmtr_type
+    case fmtr.type
     when :sys_journal
       record['message'] = record['MESSAGE']
       if record['_HOSTNAME'].eql?('localhost') && @docker_hostname
@@ -136,7 +136,7 @@ module ViaqDataModelFilterSystemd
       else
         record['hostname'] = record['_HOSTNAME']
       end
-      transform_eventrouter(tag, record)
+      transform_eventrouter(tag, record, fmtr)
     end
   end
 end
