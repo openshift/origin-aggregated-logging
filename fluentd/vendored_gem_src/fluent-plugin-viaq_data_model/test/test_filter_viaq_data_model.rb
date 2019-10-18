@@ -884,6 +884,37 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       dellist = 'host,pid,ident,event,verb'.split(',')
       dellist.each{|field| assert_nil(rec[field])}
     end
+    test 'process a k8s json-file record with event from eventrouter, per formatter setting' do
+      ENV['IPADDR4'] = '127.0.0.1'
+      ENV['IPADDR6'] = '::1'
+      ENV['FLUENTD_VERSION'] = 'fversion'
+      ENV['DATA_VERSION'] = 'dversion'
+      input = {'kubernetes'=>{'host'=>'k8shost'},'stream'=>'stderr','time'=>@timestamp_str,'log'=>'mymessage'}
+      input = add_event(input)
+      rec = emit_with_tag('kubernetes.var.log.containers.name.name_this_that_other_log', input, '
+        <formatter>
+          tag "kubernetes.var.log.containers**"
+          type k8s_json_file
+          remove_keys log,stream
+          process_kubernetes_events true
+        </formatter>
+        pipeline_type collector
+        process_kubernetes_events false
+      ')
+      assert_equal('ADDED', rec['kubernetes']['event']['verb'])
+      assert_equal('event message', rec['message'])
+      assert_equal('mymessage', rec['pipeline_metadata']['collector']['original_raw_message'])
+      assert_equal('unknown', rec['level'])
+      assert_equal('2017-07-27T17:23:46.216527+00:00', rec['@timestamp'])
+      assert_equal('127.0.0.1', rec['pipeline_metadata']['collector']['ipaddr4'])
+      assert_equal('::1', rec['pipeline_metadata']['collector']['ipaddr6'])
+      assert_equal('fluent-plugin-systemd', rec['pipeline_metadata']['collector']['inputname'])
+      assert_equal('fluentd', rec['pipeline_metadata']['collector']['name'])
+      assert_equal('fversion dversion', rec['pipeline_metadata']['collector']['version'])
+      assert_equal(@timestamp_str, rec['pipeline_metadata']['collector']['received_at'])
+      dellist = 'host,pid,ident,event,verb'.split(',')
+      dellist.each{|field| assert_nil(rec[field])}
+    end
     test 'process a k8s json-file record with a string valued timestamp' do
       ENV['IPADDR4'] = '127.0.0.1'
       ENV['IPADDR6'] = '::1'

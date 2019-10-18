@@ -119,6 +119,8 @@ module Fluent
       config_param :tag, :string
       desc 'remove these keys from the record - same as record_transformer "remove_keys" field'
       config_param :remove_keys, :string, default: nil
+      desc 'enable/disable processing of kubernetes events'
+      config_param :process_kubernetes_events, :bool, default: nil
     end
 
     desc 'Which part of the pipeline is this - collector, normalizer, etc. for pipeline_metadata'
@@ -178,7 +180,6 @@ module Fluent
         @formatters.each do |fmtr|
           matcher = ViaqMatchClass.new(fmtr.tag, nil)
           fmtr.instance_eval{ @params[:matcher] = matcher }
-          fmtr.instance_eval{ @params[:fmtr_type] = fmtr.type }
           if fmtr.remove_keys
             fmtr.instance_eval{ @params[:fmtr_remove_keys] = fmtr.remove_keys.split(',') }
           else
@@ -193,6 +194,8 @@ module Fluent
             fmtr_func = method(:process_k8s_json_file_fields)
           end
           fmtr.instance_eval{ @params[:fmtr_func] = fmtr_func }
+          proc_k8s_ev = fmtr.process_kubernetes_events.nil? ? @process_kubernetes_events : fmtr.process_kubernetes_events
+          fmtr.instance_eval{ @params[:process_kubernetes_events] = proc_k8s_ev }
         end
         @formatter_cache = {}
         @formatter_cache_nomatch = {}
@@ -200,7 +203,7 @@ module Fluent
       begin
         @docker_hostname = File.open('/etc/docker-hostname') { |f| f.readline }.rstrip
       rescue
-        @docker_hostname = nil
+        @docker_hostname = ENV['NODE_NAME'] || nil
       end
       @ipaddr4 = ENV['IPADDR4'] || '127.0.0.1'
       @ipaddr6 = nil
@@ -303,7 +306,7 @@ module Fluent
       retlevel || 'unknown'
     end
 
-    def process_sys_var_log_fields(tag, time, record, fmtr_type = nil)
+    def process_sys_var_log_fields(tag, time, record, fmtr = nil)
       record['systemd'] = {"t" => {"PID" => record['pid']}, "u" => {"SYSLOG_IDENTIFIER" => record['ident']}}
       if record[@dest_time_name].nil? # e.g. already has @timestamp
         # handle the case where the time reported in /var/log/messages is for a previous year
@@ -320,7 +323,7 @@ module Fluent
       end
     end
 
-    def process_k8s_json_file_fields(tag, time, record, fmtr_type = nil)
+    def process_k8s_json_file_fields(tag, time, record, fmtr = nil)
       record['message'] = record['message'] || record['log']
       record['level'] = normalize_level(record['level'], nil)
       if record.key?('kubernetes') && record['kubernetes'].respond_to?(:fetch) && \
@@ -339,7 +342,7 @@ module Fluent
         end
         record['time'] = rectime.utc.to_datetime.rfc3339(6)
       end
-      transform_eventrouter(tag, record)
+      transform_eventrouter(tag, record, fmtr)
     end
 
     def check_for_match_and_format(tag, time, record)
@@ -355,7 +358,7 @@ module Fluent
           return
         end
       end
-      fmtr.fmtr_func.call(tag, time, record, fmtr.fmtr_type)
+      fmtr.fmtr_func.call(tag, time, record, fmtr)
 
       if record[@dest_time_name].nil? && record['time'].nil?
         record['time'] = Time.at(time).utc.to_datetime.rfc3339(6)
@@ -449,8 +452,8 @@ module Fluent
       end
     end
 
-    def transform_eventrouter(tag, record)
-      return unless @process_kubernetes_events
+    def transform_eventrouter(tag, record, fmtr)
+      return if fmtr.nil? || !fmtr.process_kubernetes_events
       if record.key?("event") && record["event"].respond_to?(:key?)
         if record.key?("verb")
           record["event"]["verb"] = record.delete("verb")

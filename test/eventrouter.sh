@@ -67,7 +67,7 @@ cleanup() {
             oc logs $evpod > $ARTIFACT_DIR/$evpod.log 2>&1
         fi
     fi
-    # turn off fluentd eventrouter mode
+    # remove TRANSFORM_EVENTS
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     oc set env $fluentd_ds TRANSFORM_EVENTS- 2>&1 | artifact_out
     start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
@@ -79,11 +79,6 @@ cleanup() {
     exit $return_code
 }
 trap "cleanup" EXIT
-
-# put fluentd in eventrouter mode
-stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc set env $fluentd_ds TRANSFORM_EVENTS=true 2>&1 | artifact_out
-start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
 deploy_eventrouter
 evpod=$( get_running_pod eventrouter )
@@ -164,3 +159,41 @@ if ! os::cmd::try_until_text "curl_es $esopssvc /.operations.*/_count?q=kubernet
     exit 1
 fi
 
+# disable eventrouter mode
+stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+oc set env $fluentd_ds TRANSFORM_EVENTS=false 2>&1 | artifact_out
+start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
+
+oc apply -f - <<EOF
+{
+    "apiVersion": "v1",
+    "count": 1,
+    "eventTime": null,
+    "involvedObject": {
+        "apiVersion": "apps.openshift.io/v1",
+        "kind": "DeploymentConfig",
+        "name": "2eventroutertest2",
+        "namespace": "default"
+    },
+    "kind": "Event",
+    "message": "2eventroutertest2",
+    "metadata": {
+        "name": "2eventroutertest2",
+        "namespace": "default"
+    },
+    "reason": "DeploymentCreated",
+    "reportingComponent": "",
+    "reportingInstance": "",
+    "source": {
+        "component": "deploymentconfig-controller"
+    },
+    "type": "Info"
+}
+EOF
+
+if ! os::cmd::try_until_text "curl_es $esopssvc /.operations.*/_count?q=event.metadata.name:2eventroutertest2 | get_count_from_json" "^1\$" $FLUENTD_WAIT_TIME ; then
+    os::log::error the event 2eventroutertest2 was processed as a kubernetes event even though TRANSFORM_EVENTS=false
+    curl_es $esopssvc /.operations.*/_search?q=event.metadata.name:2eventroutertest2\&pretty > $ARTIFACT_DIR/info-search-2.json 2>&1 || :
+    curl_es $esopssvc /.operations.*/_search?q=kubernetes.event.metadata.name:2eventroutertest2\&pretty > $ARTIFACT_DIR/info-search-3.json 2>&1 || :
+    exit 1
+fi
