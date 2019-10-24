@@ -182,7 +182,7 @@ function login_to_registry() {
       username=kubeadmin
     fi
   fi
-  podman login --tls-verify=false -u "$username" -p "$token" "$1" > /dev/null
+  docker login -u "$username" -p "$token" "$1" > /dev/null
 }
 
 function push_image() {
