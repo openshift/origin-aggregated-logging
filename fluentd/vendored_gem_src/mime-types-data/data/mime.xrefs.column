@@ -245,6 +245,7 @@ rfc^rfc6231|template^application/msc-ivr+xml
 rfc^rfc6505|template^application/msc-mixer+xml
 person^Paul_Lindner|template^application/msword
 rfc^rfc8520|template^application/mud+json
+draft^RFC-ietf-core-multipart-ct-04|template^application/multipart-core
 rfc^rfc4539|template^application/mxf
 person^Eric_Prudhommeaux^W3C|template^application/n-quads
 person^Eric_Prudhommeaux^W3C|template^application/n-triples
@@ -712,6 +713,7 @@ person^Steve_Zilles|template^application/vnd.fdf
 person^Chad_Trabant|template^application/vnd.fdsn.mseed
 person^Chad_Trabant|template^application/vnd.fdsn.seed
 person^Holstage|template^application/vnd.ffsns
+person^Steve_Gilberd|template^application/vnd.ficlab.flb+zip
 person^Harms_Moeller|template^application/vnd.filmit.zfc
 person^Ingo_Hammann|template^application/vnd.fints
 person^Alex_Dubov|template^application/vnd.firemonkeys.cloudcell
@@ -2055,6 +2057,7 @@ person^Charles_Plessy|template^text/vnd.debian.copyright
 person^Dan_Bradley|template^text/vnd.DMClientScript
 person^Michael_Lagally^Peter_Siebert|template^text/vnd.dvb.subtitle
 person^Stefan_Eilemann|template^text/vnd.esmertec.theme-descriptor
+person^Steve_Gilberd|template^text/vnd.ficlab.flt
 -
 person^John-Mark_Gurney|template^text/vnd.fly
 person^Kari_E._Hurtta|template^text/vnd.fmi.flexstor

@@ -1,10 +1,8 @@
-# frozen_string_literal: true
-
 module Faraday
   class Adapter
     # Sends requests to a Rack app.
     #
-    # @example
+    # Examples
     #
     #   class MyRackApp
     #     def call(env)
@@ -19,7 +17,7 @@ module Faraday
       dependency 'rack/test'
 
       # not prefixed with "HTTP_"
-      SPECIAL_HEADERS = %w[CONTENT_LENGTH CONTENT_TYPE].freeze
+      SPECIAL_HEADERS = %w[ CONTENT_LENGTH CONTENT_TYPE ]
 
       def initialize(faraday_app, rack_app)
         super(faraday_app)
@@ -29,45 +27,31 @@ module Faraday
 
       def call(env)
         super
-        rack_env = build_rack_env(env)
+        rack_env = {
+          :method => env[:method],
+          :input  => env[:body].respond_to?(:read) ? env[:body].read : env[:body],
+          'rack.url_scheme' => env[:url].scheme
+        }
 
-        env[:request_headers]&.each do |name, value|
+        env[:request_headers].each do |name, value|
           name = name.upcase.tr('-', '_')
           name = "HTTP_#{name}" unless SPECIAL_HEADERS.include? name
           rack_env[name] = value
-        end
+        end if env[:request_headers]
 
         timeout  = env[:request][:timeout] || env[:request][:open_timeout]
         response = if timeout
-                     Timer.timeout(timeout, Faraday::TimeoutError) do
-                       execute_request(env, rack_env)
-                     end
-                   else
-                     execute_request(env, rack_env)
-                   end
-
-        if (req = env[:request]).stream_response?
-          warn "Streaming downloads for #{self.class.name} " \
-            'are not yet implemented.'
-          req.on_data.call(response.body, response.body.bytesize)
+          Timer.timeout(timeout, Faraday::Error::TimeoutError) { execute_request(env, rack_env) }
+        else
+          execute_request(env, rack_env)
         end
 
         save_response(env, response.status, response.body, response.headers)
         @app.call env
       end
 
-      private
-
       def execute_request(env, rack_env)
         @session.request(env[:url].to_s, rack_env)
-      end
-
-      def build_rack_env(env)
-        {
-          method: env[:method],
-          input: env[:body].respond_to?(:read) ? env[:body].read : env[:body],
-          'rack.url_scheme' => env[:url].scheme
-        }
       end
     end
   end

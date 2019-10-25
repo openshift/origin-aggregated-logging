@@ -89,6 +89,13 @@ See `filter-viaq_data_model.conf` for an example filter configuration.
 * `keep_empty_fields` - comma delimited string - default `''`
   * Always keep these top level fields, even if they are empty
   * `keep_empty_fields message` - keep the `message` field, even if empty
+* `process_kubernetes_events` - boolean - default `true`
+  * If a record looks like a kubernetes event that has been added by the
+  * eventrouter, add its fields under `kubernetes.event`
+  * A record is considered to be a kubernetes eventrouter event if the
+  * record has a top level field called `event` and it is a Hash.  If you
+  * are not sure if this is always true, then define a specific tag or tags
+  * and use a per-formatter `process_kubernetes_events` setting, below
 * `use_undefined` - boolean - default `false`
   * If `true`, move fields not specified in `default_keep_fields` and
   `extra_keep_fields` to the `undefined` top level field.  If you use
@@ -140,8 +147,16 @@ See `filter-viaq_data_model.conf` for an example filter configuration.
     * `sys_var_log` - a record read from `/var/log/messages`
     * `k8s_json_file` - a record read from a `/var/log/containers/*.log` JSON
       formatted container log file
-    * `tag` - the Fluentd tag pattern to match for these records
-    * `remove_keys` - comma delimited list of keys to remove from the record
+  * `tag` - the Fluentd tag pattern to match for these records
+  * `remove_keys` - comma delimited list of keys to remove from the record
+  * `process_kubernetes_events` - boolean - defaults to the global setting above
+    * If a record looks like a kubernetes event that has been added by the
+    * eventrouter, add its fields under `kubernetes.event`
+    * A record is considered to be a kubernetes eventrouter event if the
+    * record has a top level field called `event` and it is a Hash.
+    * This per-formatter setting will override the global setting (see above)
+    * This allows you to set the global setting to `false`, then only process
+    * kubernetes events for this formatter matching this set of `tag` patterns.
 * `pipeline_type` - which part of the pipeline is this? `collector` or
   `normalizer` - the default is `collector`
 * `elasticsearch_index_name` - how to construct Elasticsearch index names or

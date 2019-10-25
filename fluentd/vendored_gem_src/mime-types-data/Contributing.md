@@ -126,6 +126,7 @@ Thanks to everyone else who has contributed to mime-types:
 * Aaron Patterson
 * Aggelos Avgerinos
 * Andre Pankratz
+* Andrey Eremin
 * Andy Brody
 * Arnaud Meuret
 * Bradley Meck

@@ -1,56 +1,51 @@
-# frozen_string_literal: true
-
 module Faraday
   class Adapter
-    # @example
+    # Examples
+    #
     #   test = Faraday::Connection.new do
     #     use Faraday::Adapter::Test do |stub|
-    #       # Define matcher to match the request
+    #       # simply define matcher to match the request
     #       stub.get '/resource.json' do
     #         # return static content
     #         [200, {'Content-Type' => 'application/json'}, 'hi world']
     #       end
-    #
+    #       
     #       # response with content generated based on request
     #       stub.get '/showget' do |env|
     #         [200, {'Content-Type' => 'text/plain'}, env[:method].to_s]
     #       end
-    #
-    #       # A regular expression can be used as matching filter
+    #       
+    #       # regular expression can be used as matching filter
     #       stub.get /\A\/items\/(\d+)\z/ do |env, meta|
-    #         # in case regular expression is used, an instance of MatchData
-    #         # can be received
-    #         [200,
-    #          {'Content-Type' => 'text/plain'},
-    #          "showing item: #{meta[:match_data][1]}"
-    #         ]
+    #         # in case regular expression is used an instance of MatchData can be received
+    #         [200, {'Content-Type' => 'text/plain'}, "showing item: #{meta[:match_data][1]}"]
     #       end
     #     end
     #   end
-    #
+    #   
     #   resp = test.get '/resource.json'
     #   resp.body # => 'hi world'
-    #
+    #   
     #   resp = test.get '/showget'
     #   resp.body # => 'get'
-    #
+    #   
     #   resp = test.get '/items/1'
     #   resp.body # => 'showing item: 1'
-    #
+    #   
     #   resp = test.get '/items/2'
     #   resp.body # => 'showing item: 2'
+    #
+
     class Test < Faraday::Adapter
       attr_accessor :stubs
 
-      # A stack of Stubs
       class Stubs
         class NotFound < StandardError
         end
 
         def initialize
-          # { get: [Stub, Stub] }
-          @stack = {}
-          @consumed = {}
+          # {:get => [Stub, Stub]}
+          @stack, @consumed = {}, {}
           yield(self) if block_given?
         end
 
@@ -59,8 +54,7 @@ module Faraday
         end
 
         def match(request_method, host, path, headers, body)
-          return false unless @stack.key?(request_method)
-
+          return false if !@stack.key?(request_method)
           stack = @stack[request_method]
           consumed = (@consumed[request_method] ||= [])
 
@@ -80,15 +74,15 @@ module Faraday
           new_stub(:head, path, headers, &block)
         end
 
-        def post(path, body = nil, headers = {}, &block)
+        def post(path, body=nil, headers = {}, &block)
           new_stub(:post, path, headers, body, &block)
         end
 
-        def put(path, body = nil, headers = {}, &block)
+        def put(path, body=nil, headers = {}, &block)
           new_stub(:put, path, headers, body, &block)
         end
 
-        def patch(path, body = nil, headers = {}, &block)
+        def patch(path, body=nil, headers = {}, &block)
           new_stub(:patch, path, headers, body, &block)
         end
 
@@ -104,32 +98,26 @@ module Faraday
         def verify_stubbed_calls
           failed_stubs = []
           @stack.each do |method, stubs|
-            next if stubs.empty?
-
-            failed_stubs.concat(
-              stubs.map do |stub|
+            unless stubs.size == 0
+              failed_stubs.concat(stubs.map {|stub|
                 "Expected #{method} #{stub}."
-              end
-            )
+              })
+            end
           end
-          raise failed_stubs.join(' ') unless failed_stubs.empty?
+          raise failed_stubs.join(" ") unless failed_stubs.size == 0
         end
 
         protected
 
-        def new_stub(request_method, path, headers = {}, body = nil, &block)
+        def new_stub(request_method, path, headers = {}, body=nil, &block)
           normalized_path, host =
             if path.is_a?(Regexp)
               path
             else
-              [
-                Faraday::Utils.normalize_path(path),
-                Faraday::Utils.URI(path).host
-              ]
+              [Faraday::Utils.normalize_path(path), Faraday::Utils.URI(path).host]
             end
 
-          stub = Stub.new(host, normalized_path, headers, body, block)
-          (@stack[request_method] ||= []) << stub
+          (@stack[request_method] ||= []) << Stub.new(host, normalized_path, headers, body, block)
         end
 
         def matches?(stack, host, path, headers, body)
@@ -141,42 +129,32 @@ module Faraday
         end
       end
 
-      # Stub request
-      # rubocop:disable Style/StructInheritance
       class Stub < Struct.new(:host, :path, :params, :headers, :body, :block)
-        # rubocop:enable Style/StructInheritance
         def initialize(host, full, headers, body, block)
-          path, query = full.respond_to?(:split) ? full.split('?') : full
-          params =
-            if query
-              Faraday::Utils.parse_nested_query(query)
-            else
-              {}
-            end
-
+          path, query = full.respond_to?(:split) ? full.split("?") : full
+          params = query ?
+            Faraday::Utils.parse_nested_query(query) :
+            {}
           super(host, path, params, headers, body, block)
         end
 
         def matches?(request_host, request_uri, request_headers, request_body)
           request_path, request_query = request_uri.split('?')
-          request_params =
-            if request_query
-              Faraday::Utils.parse_nested_query(request_query)
-            else
-              {}
-            end
-          # meta is a hash used as carrier
+          request_params = request_query ?
+            Faraday::Utils.parse_nested_query(request_query) :
+            {}
+          # meta is a hash use as carrier
           # that will be yielded to consumer block
           meta = {}
-          [(host.nil? || host == request_host) &&
+          return (host.nil? || host == request_host) &&
             path_match?(request_path, meta) &&
             params_match?(request_params) &&
             (body.to_s.size.zero? || request_body == body) &&
-            headers_match?(request_headers), meta]
+            headers_match?(request_headers), meta
         end
 
         def path_match?(request_path, meta)
-          if path.is_a?(Regexp)
+          if path.is_a? Regexp
             !!(meta[:match_data] = path.match(request_path))
           else
             path == request_path
@@ -200,7 +178,7 @@ module Faraday
         end
       end
 
-      def initialize(app, stubs = nil, &block)
+      def initialize(app, stubs=nil, &block)
         super(app)
         @stubs = stubs || Stubs.new
         configure(&block) if block
@@ -214,31 +192,20 @@ module Faraday
         super
         host = env[:url].host
         normalized_path = Faraday::Utils.normalize_path(env[:url])
-        params_encoder = env.request.params_encoder ||
-                         Faraday::Utils.default_params_encoder
+        params_encoder = env.request.params_encoder || Faraday::Utils.default_params_encoder
 
-        stub, meta = stubs.match(env[:method], host, normalized_path,
-                                 env.request_headers, env[:body])
-
-        unless stub
-          raise Stubs::NotFound, "no stubbed request for #{env[:method]} "\
-                                 "#{normalized_path} #{env[:body]}"
-        end
-
-        env[:params] = if (query = env[:url].query)
-                         params_encoder.decode(query)
-                       else
-                         {}
-                       end
-        block_arity = stub.block.arity
-        status, headers, body =
-          if block_arity >= 0
-            stub.block.call(*[env, meta].take(block_arity))
-          else
+        stub, meta = stubs.match(env[:method], host, normalized_path, env.request_headers, env[:body])
+        if stub
+          env[:params] = (query = env[:url].query) ?
+            params_encoder.decode(query) : {}
+          block_arity = stub.block.arity
+          status, headers, body = (block_arity >= 0) ?
+            stub.block.call(*[env, meta].take(block_arity)) :
             stub.block.call(env, meta)
-          end
-        save_response(env, status, body, headers)
-
+          save_response(env, status, body, headers)
+        else
+          raise Stubs::NotFound, "no stubbed request for #{env[:method]} #{normalized_path} #{env[:body]}"
+        end
         @app.call(env)
       end
     end
