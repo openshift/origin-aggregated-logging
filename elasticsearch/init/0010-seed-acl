@@ -17,16 +17,16 @@
 
 source "logging"
 
-force=${FORCE_SEED_ACL:-''}
+force=${FORCE_SEED_ACL:-"true"}
 config=${ES_CONF}/elasticsearch.yml
 index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
 
-if [ -n "${force}" ] ; then
+if [ "${force}" = "false" ] ; then
   docs=(roles rolesmapping actiongroups internalusers config)
   for d in $docs; do
-    resp=$(es_util --query=${index}/$d/0 -w %{response_code} | cut -d '}' -f2)
+    resp=$(es_util --query=${index}/$d/0 -w %{response_code} --output /dev/null)
     #re-seed acls if any of them are missing
-    if [ "${resp}" != "200"]; then
+    if [ "${resp}" != "200" ]; then
       info "Missing ACL document '${d}'. Reseeding all ACL documents"
       force="true"
       break
@@ -36,6 +36,6 @@ else
   info "Forcing the seeding of ACL documents"
 fi
 
-if [ -z "${force}" ] ; then
+if [ "${force}" = "true" ] ; then
   es_seed_acl
 fi
