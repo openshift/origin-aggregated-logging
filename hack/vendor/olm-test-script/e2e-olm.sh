@@ -77,7 +77,7 @@ PKG=$(sed '/^#!.*$/d' $MANIFEST_DIR/*package.yaml | indent packageName)
 CSV=$(sed '/^#!.*$/d' $MANIFEST_DIR/$VERSION/*version.yaml | sed 's/namespace: placeholder/namespace: '$TEST_NAMESPACE'/' |grep -v -- "---" |  indent apiVersion)
 
 if [ -n "${OPERATOR_IMAGE:-}" ] ; then
-  CSV=$(echo "$CSV" | sed -e "s~containerImage:.*+~containerImage: ${OPERATOR_IMAGE}~" | indent apiVersion)
+  CSV=$(echo "$CSV" | sed -e "s~containerImage:.*~containerImage: ${OPERATOR_IMAGE}~" | indent apiVersion)
   CSV=$(echo "$CSV" | sed -e "s~image:.*~image: ${OPERATOR_IMAGE}\n~" | indent ApiVersion)
 fi
 
