@@ -245,6 +245,7 @@ application/msc-ivr+xml
 application/msc-mixer+xml
 application/msword doc dot wrd
 application/mud+json
+application/multipart-core
 application/mxf mxf
 application/n-quads
 application/n-triples
@@ -273,7 +274,7 @@ application/p2p-overlay+xml
 application/parityfec
 application/passport
 application/patch-ops-error+xml xer
-application/pdf ai pdf
+application/pdf pdf ai
 application/PDX
 application/pem-certificate-chain
 application/pgp-encrypted pgp gpg
@@ -295,7 +296,7 @@ application/pkix-pkipath pkipath
 application/pkixcmp pki
 application/pls+xml pls
 application/poc-settings+xml
-application/postscript eps ps
+application/postscript eps ps ai
 application/powerpoint ppt pps pot
 application/ppsp-tracker+json
 application/pro_eng
@@ -712,6 +713,7 @@ application/vnd.fdf fdf
 application/vnd.fdsn.mseed mseed
 application/vnd.fdsn.seed dataless seed
 application/vnd.ffsns
+application/vnd.ficlab.flb+zip
 application/vnd.filmit.zfc
 application/vnd.fints
 application/vnd.firemonkeys.cloudcell
@@ -2055,6 +2057,7 @@ text/vnd.debian.copyright
 text/vnd.DMClientScript
 text/vnd.dvb.subtitle sub
 text/vnd.esmertec.theme-descriptor
+text/vnd.ficlab.flt
 text/vnd.flatland.3dml
 text/vnd.fly fly
 text/vnd.fmi.flexstor flx

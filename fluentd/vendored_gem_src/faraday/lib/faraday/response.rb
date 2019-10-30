@@ -1,9 +1,6 @@
-# frozen_string_literal: true
-
 require 'forwardable'
 
 module Faraday
-  # Response represents an HTTP response from making an HTTP request.
   class Response
     # Used for simple response middleware.
     class Middleware < Faraday::Middleware
@@ -23,9 +20,9 @@ module Faraday
     extend Forwardable
     extend MiddlewareRegistry
 
-    register_middleware File.expand_path('response', __dir__),
-                        raise_error: [:RaiseError, 'raise_error'],
-                        logger: [:Logger, 'logger']
+    register_middleware File.expand_path('../response', __FILE__),
+      :raise_error => [:RaiseError, 'raise_error'],
+      :logger => [:Logger, 'logger']
 
     def initialize(env = nil)
       @env = Env.from(env) if env
@@ -33,6 +30,8 @@ module Faraday
     end
 
     attr_reader :env
+
+    def_delegators :env, :to_hash
 
     def status
       finished? ? env.status : nil
@@ -55,37 +54,32 @@ module Faraday
       !!env
     end
 
-    def on_complete(&block)
-      if !finished?
-        @on_complete_callbacks << block
+    def on_complete
+      if not finished?
+        @on_complete_callbacks << Proc.new
       else
         yield(env)
       end
-      self
+      return self
     end
 
     def finish(env)
-      raise 'response already finished' if finished?
-
+      raise "response already finished" if finished?
       @env = env.is_a?(Env) ? env : Env.from(env)
       @on_complete_callbacks.each { |callback| callback.call(@env) }
-      self
+      return self
     end
 
     def success?
       finished? && env.success?
     end
 
-    def to_hash
-      {
-        status: env.status, body: env.body,
-        response_headers: env.response_headers
-      }
-    end
-
     # because @on_complete_callbacks cannot be marshalled
     def marshal_dump
-      finished? ? to_hash : nil
+      !finished? ? nil : {
+        :status => @env.status, :body => @env.body,
+        :response_headers => @env.response_headers
+      }
     end
 
     def marshal_load(env)
@@ -96,9 +90,8 @@ module Faraday
     # Useful for applying request params after restoring a marshalled Response.
     def apply_request(request_env)
       raise "response didn't finish yet" unless finished?
-
       @env = Env.from(request_env).update(@env)
-      self
+      return self
     end
   end
 end

@@ -2378,6 +2378,15 @@
     - application/mud+json
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/multipart-core
+  encoding: base64
+  xrefs:
+    draft:
+    - RFC-ietf-core-multipart-ct-04
+    template:
+    - application/multipart-core
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/mxf
   friendly:
     en: Material Exchange Format
@@ -2679,8 +2688,8 @@
     en: Adobe Portable Document Format
   encoding: base64
   extensions:
-  - ai
   - pdf
+  - ai
   xrefs:
     rfc:
     - rfc8118
@@ -2939,6 +2948,7 @@
   extensions:
   - eps
   - ps
+  - ai
   xrefs:
     rfc:
     - rfc2045
@@ -7105,6 +7115,15 @@
     - Holstage
     template:
     - application/vnd.ffsns
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.ficlab.flb+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Steve_Gilberd
+    template:
+    - application/vnd.ficlab.flb+zip
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.filmit.zfc
