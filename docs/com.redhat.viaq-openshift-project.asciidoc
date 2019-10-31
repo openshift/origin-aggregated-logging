@@ -197,6 +197,16 @@ to correlate data with the data stored in Elasticsearch, this field
 will give you the exact document corresponding to the record.
 
 
+==== viaq_index_name
+
+type: keyword
+
+example: project.my-cool-project-in-lab04.748e92c2-70d7-11e9-b387-000d3af2d83b.2019.05.09
+
+Index name in which this message will be stored in the elastic search.
+The value of this field is generated based on the source of the message. 
+
+
 
 '''
 [[exported-fields-rsyslog]]
