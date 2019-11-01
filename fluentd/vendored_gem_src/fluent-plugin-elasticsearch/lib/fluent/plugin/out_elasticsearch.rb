@@ -91,7 +91,7 @@ EOC
     config_param :ssl_verify , :bool, :default => true
     config_param :client_key, :string, :default => nil
     config_param :client_cert, :string, :default => nil
-    config_param :client_key_pass, :string, :default => nil
+    config_param :client_key_pass, :string, :default => nil, :secret => true
     config_param :ca_file, :string, :default => nil
     config_param :ssl_version, :enum, list: [:SSLv23, :TLSv1, :TLSv1_1, :TLSv1_2], :default => :TLSv1
     config_param :remove_keys, :string, :default => nil
@@ -218,6 +218,8 @@ EOC
         @dump_proc = Yajl.method(:dump)
       end
 
+      raise Fluent::ConfigError, "`password` must be present if `user` is present" if @user && @password.nil?
+
       if @user && m = @user.match(/%{(?<user>.*)}/)
         @user = URI.encode_www_form_component(m["user"])
       end
@@ -251,9 +253,13 @@ EOC
       if @last_seen_major_version == 6 && @type_name != DEFAULT_TYPE_NAME_ES_7x
         log.info "Detected ES 6.x: ES 7.x will only accept `_doc` in type_name."
       end
-      if @last_seen_major_version >= 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
-        log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+      if @last_seen_major_version == 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+        log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
         @type_name = '_doc'.freeze
+      end
+      if @last_seen_major_version >= 8 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+        log.info "Detected ES 8.x or above: This parameter has no effect."
+        @type_name = nil
       end
 
       if @validate_client_version && !Fluent::Engine.dry_run_mode
@@ -454,7 +460,6 @@ EOC
     end
 
     def get_connection_options(con_host=nil)
-      raise "`password` must be present if `user` is present" if @user && !@password
 
       hosts = if con_host || @hosts
         (con_host || @hosts).split(',').map do |host_str|
@@ -569,7 +574,11 @@ EOC
     def expand_placeholders(chunk)
       logstash_prefix = extract_placeholders(@logstash_prefix, chunk)
       index_name = extract_placeholders(@index_name, chunk)
-      type_name = extract_placeholders(@type_name, chunk)
+      if @type_name
+        type_name = extract_placeholders(@type_name, chunk)
+      else
+        type_name = nil
+      end
       return logstash_prefix, index_name, type_name
     end
 
@@ -688,14 +697,20 @@ EOC
         if @last_seen_major_version == 6
           log.warn "Detected ES 6.x: `@type_name` will be used as the document `_type`."
           target_type = type_name
-        elsif @last_seen_major_version >= 7
-          log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+        elsif @last_seen_major_version == 7
+          log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
+        elsif @last_seen_major_version >=8
+          log.warn "Detected ES 8.x or above: document type will not be used."
+          target_type = nil
         end
       else
-        if @last_seen_major_version >= 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
-          log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+        if @last_seen_major_version == 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+          log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
+        elsif @last_seen_major_version >= 8
+          log.warn "Detected ES 8.x or above: document type will not be used."
+          target_type = nil
         else
           target_type = type_name
         end
@@ -703,7 +718,7 @@ EOC
 
       meta.clear
       meta["_index".freeze] = target_index
-      meta["_type".freeze] = target_type
+      meta["_type".freeze] = target_type unless @last_seen_major_version >= 8
 
       if @pipeline
         meta["pipeline".freeze] = @pipeline

@@ -132,6 +132,10 @@ In your Fluentd configuration, use `@type elasticsearch`. Additional configurati
 </match>
 ```
 
+NOTE: `type_name` parameter will be used fixed `_doc` value for Elasticsearch 7.
+
+NOTE: `type_name` parameter will make no effect for Elasticsearch 8.
+
 ### Index templates
 
 This plugin creates Elasticsearch indices by merely writing to them. Consider using [Index Templates](https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html) to gain control of what get indexed and how. See [this example](https://github.com/uken/fluent-plugin-elasticsearch/issues/33#issuecomment-38693282) for a good starting point.
@@ -892,6 +896,25 @@ port 9200
 reload_connections true
 sniffer_class_name Fluent::Plugin::ElasticsearchSimpleSniffer
 reload_after 100
+```
+
+#### Tips
+
+The included sniffer class does not required `out_elasticsearch`.
+You should tell Fluentd where the sniffer class exists.
+
+If you use td-agent, you must put the following lines into `TD_AGENT_DEFAULT` file:
+
+```
+sniffer=$(td-agent-gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb)
+TD_AGENT_OPTIONS="--use-v1-config -r $sniffer"
+```
+
+If you use Fluentd directly, you must pass the following lines as Fluentd command line option:
+
+```
+sniffer=$(td-agent-gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb)
+$ fluentd -r $sniffer" [AND YOUR OTHER OPTIONS]
 ```
 
 ### Reload After

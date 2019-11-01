@@ -3,8 +3,10 @@ ffi-compiler 1.0.1 http://wiki.github.com/ffi/ffi
 fluent-config-regexp-type 1.0.0 https://github.com/okkez/fluent-config-regexp-type
 fluentd 1.7.4 https://www.fluentd.org/
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
+fluent-plugin-gelf-hs 1.0.8 https://github.com/bodhi-space/fluent-plugin-gelf-hs
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
 fluent-plugin-splunk-hec 1.1.2 https://github.com/splunk/fluent-plugin-splunk-hec
+gelf 3.1.0 https://github.com/graylog-labs/gelf-rb
 http-accept 1.7.0 https://github.com/ioquatix/http-accept
 http-parser 1.2.1 https://github.com/cotag/http-parser
 jemalloc 5.2.0 https://github.com/jemalloc/jemalloc/releases/download/5.2.0/jemalloc-5.2.0.tar.bz2
@@ -16,13 +18,13 @@ rubygem-domain_name 0.5.20190701 https://github.com/knu/ruby-domain_name
 rubygem-elasticsearch 7.3.0 http://github.com/elasticsearch/elasticsearch-ruby
 rubygem-elasticsearch-api 7.3.0 https://github.com/elasticsearch/elasticsearch-ruby/tree/master/elasticsearch-api
 rubygem-elasticsearch-transport 7.3.0 https://github.com/elasticsearch/elasticsearch-ruby/tree/master/elasticsearch-transport
-rubygem-excon 0.67.0 https://github.com/excon/excon
+rubygem-excon 0.68.0 https://github.com/excon/excon
 rubygem-faraday 0.17.0 https://github.com/lostisland/faraday
 rubygem-ffi 1.11.1 http://wiki.github.com/ffi/ffi
 rubygem-fluent-mixin-config-placeholders 0.4.0 https://github.com/tagomoris/fluent-mixin-config-placeholders
-rubygem-fluent-plugin-elasticsearch 3.5.5 https://github.com/uken/fluent-plugin-elasticsearch
+rubygem-fluent-plugin-elasticsearch 3.5.6 https://github.com/uken/fluent-plugin-elasticsearch
 rubygem-fluent-plugin-kubernetes_metadata_filter 2.4.0 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
-rubygem-fluent-plugin-prometheus 1.6.1 https://github.com/fluent/fluent-plugin-prometheus
+rubygem-fluent-plugin-prometheus 1.7.0 https://github.com/fluent/fluent-plugin-prometheus
 rubygem-fluent-plugin-record-modifier 2.0.1 https://github.com/repeatedly/fluent-plugin-record-modifier
 rubygem-fluent-plugin-remote-syslog 1.1 https://github.com/docebo/fluent-plugin-remote-syslog
 rubygem-fluent-plugin-rewrite-tag-filter 2.2.0 https://github.com/fluent/fluent-plugin-rewrite-tag-filter
@@ -32,6 +34,7 @@ rubygem-http 4.2.0 https://github.com/httprb/http
 rubygem-http-cookie 1.0.3 https://github.com/sparklemotion/http-cookie
 rubygem-http-form_data 2.1.1 https://github.com/httprb/form_data.rb
 rubygem-http_parser.rb 0.6.0 http://github.com/tmm1/http_parser.rb
+rubygem-json 2.2.0 http://flori.github.com/json
 rubygem-kubeclient 4.5.0 https://github.com/abonas/kubeclient
 rubygem-lru_redux 1.1.0 https://github.com/SamSaffron/lru_redux
 rubygem-mime-types 3.3 https://github.com/mime-types/ruby-mime-types/

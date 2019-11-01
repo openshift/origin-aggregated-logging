@@ -3,7 +3,7 @@ $:.push File.expand_path('../lib', __FILE__)
 
 Gem::Specification.new do |s|
   s.name          = 'fluent-plugin-elasticsearch'
-  s.version       = '3.5.5'
+  s.version       = '3.5.6'
   s.authors       = ['diogo', 'pitr']
   s.email         = ['pitr.vern@gmail.com', 'me@diogoterror.com']
   s.description   = %q{Elasticsearch output plugin for Fluent event collector}
@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
 
 
   s.add_development_dependency 'rake', '>= 0'
-  s.add_development_dependency 'webmock', '~> 1'
+  s.add_development_dependency 'webmock', '~> 3'
   s.add_development_dependency 'test-unit', '~> 3.1.0'
   s.add_development_dependency 'minitest', '~> 5.8'
   s.add_development_dependency 'flexmock', '~> 2.0'
