@@ -72,23 +72,11 @@ if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
     echo after patching fluentd
     oc get -n ${LOGGING_NS} pods -o wide
     oc get -n ${LOGGING_NS} $fluentd_ds -o yaml > $ARTIFACT_DIR/fluentd_daemonset.yaml
-    # richm 20190117
-    # these tests need ability to create user with token
-    # check-logs test-access-control test-kibana-dashboards test-multi-tenancy
-    # these tests use systemctl or other apps not available in container
-    # test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries test-zzz-rsyslog
-    # fails because there are no logs from apps in the default namespace
-    # test-read-throttling
-    # fails - not sure why - maybe have to run the load generators as separate pods
-    # test-zzzz-bulk-rejection
-    # cannot mount file inside pod into another pod - rewrite to use a configmap or secret
-    # test-viaq-data-model
-    # richm 20191106 - tests broken due to logforwarding
-    # test-debug_level_logs test-fluentd-forward test-remote-syslog
+    # using EXCLUDE_SUITE in Makefile instead - that will completely skip the test, rather
+    # than running it and getting the failure - if you fix a test, be sure to remove
+    # it from the list in Makefile
     expected_failures=(
-	test-debug_level_logs test-fluentd-forward test-remote-syslog
-        test-out_rawtcp test-zzz-duplicate-entries
-        test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
+        NONE
     )
 else
     expected_failures=(
