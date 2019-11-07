@@ -29,8 +29,8 @@ case "$( go version 2>&1 || : )" in
 *go1.10.*) needgo= ;;
 esac
 if [ -n "$needgo" ] ; then
-    sudo curl https://dl.google.com/go/go1.10.5.linux-amd64.tar.gz -o go1.10.5.linux-amd64.tar.gz
-    sudo tar -C /usr/local -xzf go1.10.5.linux-amd64.tar.gz
+    sudo curl https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz -o go1.13.4.linux-amd64.tar.gz
+    sudo tar -C /usr/local -xzf go1.13.4.linux-amd64.tar.gz
     export PATH=/usr/local/go/bin:$PATH
 fi
 type -p dep || { sudo curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh ; }
