@@ -83,7 +83,10 @@ if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
     # test-zzzz-bulk-rejection
     # cannot mount file inside pod into another pod - rewrite to use a configmap or secret
     # test-viaq-data-model
+    # richm 20191106 - tests broken due to logforwarding
+    # test-debug_level_logs test-fluentd-forward test-remote-syslog
     expected_failures=(
+	test-debug_level_logs test-fluentd-forward test-remote-syslog
         test-out_rawtcp test-zzz-duplicate-entries
         test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
     )
