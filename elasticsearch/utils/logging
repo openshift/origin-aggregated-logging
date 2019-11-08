@@ -14,7 +14,7 @@ case $LOGLEVEL in
 esac
 
 # the deployment mounts the secrets at this location - not necessarily the same
-# as $ES_CONF
+# as $ES_PATH_CONF
 secret_dir=/etc/elasticsearch/secret
 provided_secret_dir=/etc/openshift/elasticsearch/secret
 
@@ -117,7 +117,7 @@ wait_for_port_open() {
     rm -f $LOG_FILE
     # test for ES to be up first and that our SG index has been created
     info "Checking if Elasticsearch is ready"
-    while ! response_code=$(es_util --query=/ \
+    while ! response_code=$(es_util --query="/" \
         ${DEBUG:+-v} -s \
         --request HEAD --head \
         --max-time $max_time \
@@ -194,5 +194,20 @@ copy_keys_to_secretdir() {
     fi
 
     cp $provided_secret_dir/* $secret_dir/
+    chmod 0600 $secret_dir/*
   fi
+}
+
+get_security_conf_index() {
+  local es_config_file=${ES_PATH_CONF}/elasticsearch.yml
+  local index=$( python -c 'import sys,yaml
+hsh = yaml.load(open(sys.argv[1]))
+if "searchguard" in hsh and "config_index_name" in hsh["searchguard"]:
+  print hsh["searchguard"]["config_index_name"]
+elif "opendistro_security" in hsh and "config_index_name" in hsh["opendistro_security"]:
+  print hsh["opendistro_security"]["config_index_name"]
+else:
+  print "unknown_security_index"
+' $es_config_file )
+  echo $index
 }

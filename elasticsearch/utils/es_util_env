@@ -6,3 +6,18 @@ fi
 
 ES_BASE=${ES_BASE:-https://localhost:9200}
 curl_get='curl -s -X GET --cacert /etc/elasticsearch/secret/admin-ca --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key'
+
+
+get_security_conf_index() {
+  local es_config_file=${ES_PATH_CONF}/elasticsearch.yml
+  local index=$( python -c 'import sys,yaml
+hsh = yaml.load(open(sys.argv[1]))
+if "searchguard" in hsh and "config_index_name" in hsh["searchguard"]:
+  print hsh["searchguard"]["config_index_name"]
+elif "opendistro_security" in hsh and "config_index_name" in hsh["opendistro_security"]:
+  print hsh["opendistro_security"]["config_index_name"]
+else:
+  print "unknown_security_index"
+' $es_config_file )
+  echo $index
+}

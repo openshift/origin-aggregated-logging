@@ -1,8 +1,8 @@
 # list of plugins to be installed
-if [ -z "${OSE_ES_URL:-}" ] ; then
-   OSE_ES_URL=https://github.com/fabric8io/openshift-elasticsearch-plugin/releases/download/openshift-elasticsearch-plugin-${OSE_ES_VER}/openshift-elasticsearch-plugin-${OSE_ES_VER}.zip
+if [ -z "${OPENDISTRO_URL:-}" ] ; then
+   OPENDISTRO_URL=${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
 fi
 if [ -z "${PROMETHEUS_EXPORTER_URL:-}" ] ; then
     PROMETHEUS_EXPORTER_URL=https://github.com/lukas-vlcek/elasticsearch-prometheus-exporter/releases/download/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 fi
-es_plugins=($OSE_ES_URL $PROMETHEUS_EXPORTER_URL)
+es_plugins=($OPENDISTRO_URL $PROMETHEUS_EXPORTER_URL)
