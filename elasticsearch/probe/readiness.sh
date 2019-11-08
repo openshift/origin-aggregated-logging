@@ -42,9 +42,22 @@ function check_if_ready() {
   fi
 }
 
+function check_for_init_running() {
+  test -f ${HOME}/init_running
+}
+
 function check_for_init_complete() {
   test -f ${HOME}/init_complete
 }
 
+function show_failures() {
+  if [ -f ${HOME}/init_failures ]; then
+    cat ${HOME}/init_failures
+  else
+    # this should never happen"
+    echo "Elasticsearch node is in unknown state"
+  fi
+}
+
 check_if_ready "/" "Elasticsearch node is not ready to accept HTTP requests yet"
-check_for_init_complete || cat ${HOME}/init_failures
+check_for_init_complete || ( check_for_init_running && echo "Elasticsearch node is initializing" ) || show_failures
