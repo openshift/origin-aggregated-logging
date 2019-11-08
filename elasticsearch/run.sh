@@ -81,18 +81,22 @@ build_jks_truststores
 ./init.sh &
 
 # this is because the deployment mounts the configmap at /usr/share/java/elasticsearch/config
-cp /usr/share/java/elasticsearch/config/* $ES_CONF
+cp /usr/share/java/elasticsearch/config/* $ES_PATH_CONF
 
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 
-#bz1627086 - These options should be removable after 5.x"
-es5x_java_opts="-Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.type=unpooled"
+GC_LOG_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/gc.log
 
-export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false ${es5x_java_opts:-}"
+ERR_FILE_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/error.log
+
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Xloggc:$GC_LOG_LOCATION -XX:ErrorFile=$ERR_FILE_LOCATION"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
+
+# if we use java9 or later, we'll also have to configure this:
+# -:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=2,filesize=64m
 
 DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
 
-exec ${ES_HOME}/bin/elasticsearch -E path.conf=$ES_CONF
+exec ${ES_HOME}/bin/elasticsearch

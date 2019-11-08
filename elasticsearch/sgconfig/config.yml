@@ -1,4 +1,4 @@
-searchguard:
+opendistro_security:
   dynamic:
     http:
       xff:
