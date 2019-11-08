@@ -3,7 +3,7 @@ FROM rhscl/ruby-25-rhel7:latest as builder
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.7.3 \
+    FLUENTD_VERSION=1.7.4 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -43,7 +43,7 @@ RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/
 FROM rhel7:7-released
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.7.3 \
+    FLUENTD_VERSION=1.7.4 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
@@ -78,11 +78,11 @@ COPY --from=builder /contents /contents
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
-ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
+ADD lib/parser_viaq_host_audit/lib/*.rb /etc/fluent/plugin/
 COPY utils/** /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \

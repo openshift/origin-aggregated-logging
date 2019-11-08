@@ -1,16 +1,18 @@
 #!/bin/bash
 
-source "$(dirname "${BASH_SOURCE}")/lib/init.sh"
+set -euxo pipefail
 
-set -x
-
-workdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
+tmpworkdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
 function cleanup() {
   return_code=$?
-  set +x
-  os::util::describe_return_code "${return_code}"
+  set +e
+  if [ "${return_code:-1}" -eq 0 ] ; then
+    echo Success
+  else
+    echo Failure - error code $return_code
+  fi
   if [ -z "${WORKDIR:-}" ] ; then
-    rm -rf "$workdir"
+    rm -rf "${tmpworkdir:-nosuchfileordirectory}"
   fi
   if [ -n "${forwarding_pid:-}" ] ; then
     kill -15 ${forwarding_pid}
@@ -37,6 +39,7 @@ function image_needs_private_repo() {
 
 CI_REGISTRY=${CI_REGISTRY:-registry.svc.ci.openshift.org}
 CI_CLUSTER_NAME=${CI_CLUSTER_NAME:-api-ci-openshift-org:443}
+CUSTOM_IMAGE_TAG=${CUSTOM_IMAGE_TAG:-latest}
 
 function get_context_for_cluster() {
   set +o pipefail > /dev/null
@@ -109,7 +112,7 @@ function pull_ubi_if_needed() {
 INTERNAL_REPO_DIR=${INTERNAL_REPO_DIR:-}
 function get_private_repo_dir() {
   if [ -z "${INTERNAL_REPO_DIR:-}" ] ; then
-    pushd $workdir > /dev/null
+    pushd $tmpworkdir > /dev/null
     if [ ! -d repos ] ; then
       mkdir repos
       if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/shared-secrets/mirror/ops-mirror.pem ] ; then
@@ -120,26 +123,36 @@ function get_private_repo_dir() {
         fi
         cp shared-secrets/mirror/ops-mirror.pem repos
       fi
-      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo ]; then
-        cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
-      elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo ]; then
-        cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo repos
-      elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo ]; then
-        cp $GOPATH/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo repos
+      local releasedir=${GOPATH:-nosuchdir}/src/github.com/openshift/release
+      if [ -d $releasedir ] ; then
+        pushd $releasedir > /dev/null
+        git pull -q
+        popd > /dev/null
       else
         if [ ! -d release ] ; then
-          git clone -q https://github.com/openshift/release
+            git clone -q https://github.com/openshift/release
         fi
-        cp release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
+        releasedir=release
       fi
+      local repofile
+      for repofile in \
+        $releasedir/core-services/release-controller/_repos/ocp-4.3-default.repo \
+        $releasedir/core-services/release-controller/_repos/ocp-4.2-default.repo \
+        $releasedir/core-services/release-controller/_repos/ocp-4.1-default.repo ; do
+        if [ -f $repofile ] ; then
+            cp $repofile repos
+            break
+        fi
+      done
       touch repos/redhat.repo
       chmod 0444 repos/redhat.repo
-      sed -i 's,= ops-mirror.pem,= /etc/yum.repos.d/ops-mirror.pem,' repos/*.repo
+      sed -i -e 's,^sslclientkey.*$,sslclientkey = /etc/yum.repos.d/ops-mirror.pem,' \
+              -e 's,^sslclientcert.*$,sslclientcert = /etc/yum.repos.d/ops-mirror.pem,' repos/*.repo
     fi
     INTERNAL_REPO_DIR=$( pwd )/repos
     popd > /dev/null
-  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.2-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.0-default.repo ] ; then
-    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.2-default.repo and ocp-4.1-default.repo and ocp-4.0-default.repo
+  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.3-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.2-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo ] ; then
+    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.3-default.repo and ocp-4.2-default.repo and ocp-4.1-default.repo
     exit 1
   fi
   echo $INTERNAL_REPO_DIR
@@ -182,7 +195,7 @@ function login_to_registry() {
       username=kubeadmin
     fi
   fi
-  podman login --tls-verify=false -u "$username" -p "$token" "$1" > /dev/null
+  docker login -u "$username" -p "$token" "$1" > /dev/null
 }
 
 function push_image() {
@@ -226,6 +239,9 @@ dockerfile="Dockerfile${docker_suffix}"
 
 name_suf="5"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
+
+IMAGE_BUILDER=${IMAGE_BUILDER:-imagebuilder}
+IMAGE_BUILDER_OPTS=${IMAGE_BUILDER_OPTS:-}
 
 # NOTE: imagestream/buildconfig builds do not work unless we
 # can find a safe and secure way to mount the private key
@@ -280,10 +296,8 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
       mountarg=""
     fi
 
-    set +x
     echo building image $img - this may take a few minutes until you see any output . . .
-    OS_BUILD_IMAGE_ARGS="$mountarg -f $dir/${dockerfile}" os::build::image "${tag_prefix}$img" $dir
-    set -x
+    $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f $dir/${dockerfile} -t "${tag_prefix}$img:${CUSTOM_IMAGE_TAG}" $dir
     dir=""
     img=""
   done
@@ -295,10 +309,8 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
   else
     mountarg=""
   fi
-  set +x
   echo building image logging-ci-test-runner - this may take a few minutes until you see any output . . .
-  OS_BUILD_IMAGE_ARGS="$mountarg -f openshift/ci-operator/build-image/Dockerfile.full" os::build::image "openshift/logging-ci-test-runner" .
-  set -x
+  $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f openshift/ci-operator/build-image/Dockerfile.full -t openshift/logging-ci-test-runner:${CUSTOM_IMAGE_TAG} .
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
@@ -330,7 +342,7 @@ fi
 LOCAL_PORT=${LOCAL_PORT:-5000}
 
 echo "Setting up port-forwarding to remote $registry_svc ..."
-oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $workdir/pf-oal.log 2>&1 &
+oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $tmpworkdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
 for ii in $(seq 1 10) ; do
@@ -358,7 +370,7 @@ for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch$
   echo "Pushing image ${image} to ${remote_image}..."
   rc=1
   for ii in $( seq 1 5 ) ; do
-    if push_image ${image}:latest ${remote_image}:latest ; then
+    if push_image ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG} ; then
       rc=0
       break
     fi
@@ -367,7 +379,7 @@ for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch$
     sleep 1
   done
   if [ $rc = 1 -a $ii = 5 ] ; then
-    echo ERROR: giving up push of ${image}:latest to ${remote_image}:latest after 5 tries
+    echo ERROR: giving up push of ${image}:${CUSTOM_IMAGE_TAG} to ${remote_image}:${CUSTOM_IMAGE_TAG} after 5 tries
     exit 1
   fi
 done

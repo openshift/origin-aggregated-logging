@@ -634,6 +634,15 @@
     - text/vnd.esmertec.theme-descriptor
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/vnd.ficlab.flt
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Steve_Gilberd
+    template:
+    - text/vnd.ficlab.flt
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/vnd.flatland.3dml
   encoding: quoted-printable
   obsolete: true
