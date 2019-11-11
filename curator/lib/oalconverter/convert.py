@@ -147,7 +147,7 @@ class LegacyConfigConverter():
                 except Exception as error:
                     raise ValueError('[{0}] is not a valid regular expression. Message from compiler: {1}'.format(project, error))
             else:
-                if project == '.kibana' or project == '.operations' or project == '.defaults' or project == '.searchguard':
+                if project == '.kibana' or project == '.operations' or project == '.defaults' or project == '.searchguard' or project == '.audit':
                     continue
                 # check project's name validity
                 if len(project) > self.projectmaxlen:
