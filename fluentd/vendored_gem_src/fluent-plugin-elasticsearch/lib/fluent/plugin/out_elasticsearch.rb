@@ -2,6 +2,10 @@
 require 'date'
 require 'excon'
 require 'elasticsearch'
+begin
+  require 'elasticsearch/xpack'
+rescue LoadError
+end
 require 'json'
 require 'uri'
 begin
@@ -14,10 +18,12 @@ require 'fluent/event'
 require 'fluent/error'
 require 'fluent/time'
 require 'fluent/log-ext'
+require 'zlib'
 require_relative 'elasticsearch_constants'
 require_relative 'elasticsearch_error'
 require_relative 'elasticsearch_error_handler'
 require_relative 'elasticsearch_index_template'
+require_relative 'elasticsearch_index_lifecycle_management'
 begin
   require_relative 'oj_serializer'
 rescue LoadError
@@ -44,6 +50,8 @@ module Fluent::Plugin
 
     RequestInfo = Struct.new(:host, :index)
 
+    attr_reader :alias_indexes
+
     helpers :event_emitter, :compat_parameters, :record_accessor
 
     Fluent::Plugin.register_output('elasticsearch', self)
@@ -54,6 +62,7 @@ module Fluent::Plugin
     DEFAULT_TYPE_NAME = "fluentd".freeze
     DEFAULT_RELOAD_AFTER = -1
     TARGET_BULK_BYTES = 20 * 1024 * 1024
+    DEFAULT_POLICY_ID = "logstash-policy"
 
     config_param :host, :string,  :default => 'localhost'
     config_param :port, :integer, :default => 9200
@@ -91,7 +100,7 @@ EOC
     config_param :ssl_verify , :bool, :default => true
     config_param :client_key, :string, :default => nil
     config_param :client_cert, :string, :default => nil
-    config_param :client_key_pass, :string, :default => nil
+    config_param :client_key_pass, :string, :default => nil, :secret => true
     config_param :ca_file, :string, :default => nil
     config_param :ssl_version, :enum, list: [:SSLv23, :TLSv1, :TLSv1_1, :TLSv1_2], :default => :TLSv1
     config_param :remove_keys, :string, :default => nil
@@ -105,6 +114,7 @@ EOC
     config_param :customize_template, :hash, :default => nil
     config_param :rollover_index, :string, :default => false
     config_param :index_date_pattern, :string, :default => "now/d"
+    config_param :index_separator, :string, :default => "-"
     config_param :deflector_alias, :string, :default => nil
     config_param :index_prefix, :string, :default => "logstash"
     config_param :application_name, :string, :default => "default"
@@ -139,6 +149,10 @@ EOC
     config_param :ignore_exceptions, :array, :default => [], value_type: :string, :desc => "Ignorable exception list"
     config_param :exception_backup, :bool, :default => true, :desc => "Chunk backup flag when ignore exception occured"
     config_param :bulk_message_request_threshold, :size, :default => TARGET_BULK_BYTES
+    config_param :compression_level, :enum, {list: [:no_compression, :best_speed, :best_compression, :default_compression], :default => :no_compression}
+    config_param :enable_ilm, :bool, :default => false
+    config_param :ilm_policy_id, :string, :default => DEFAULT_POLICY_ID
+    config_param :ilm_policy, :hash, :default => {}
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -148,6 +162,7 @@ EOC
 
     include Fluent::ElasticsearchIndexTemplate
     include Fluent::Plugin::ElasticsearchConstants
+    include Fluent::Plugin::ElasticsearchIndexLifecycleManagement
 
     def initialize
       super
@@ -157,7 +172,7 @@ EOC
       compat_parameters_convert(conf, :buffer)
 
       super
-      raise Fluent::ConfigError, "'tag' in chunk_keys is required." if not @chunk_key_tag
+      raise Fluent::ConfigError, "'tag' or '_index' in chunk_keys is required." if not @buffer_config.chunk_keys.include? "tag" and not @buffer_config.chunk_keys.include? "_index"
 
       @time_parser = create_time_parser
       @backend_options = backend_options
@@ -181,24 +196,25 @@ EOC
       raise Fluent::ConfigError, "'max_retry_putting_template' must be greater than or equal to zero." if @max_retry_putting_template < 0
       raise Fluent::ConfigError, "'max_retry_get_es_version' must be greater than or equal to zero." if @max_retry_get_es_version < 0
 
-      # Raise error when using host placeholders and template features at same time.
+      # Dump log when using host placeholders and template features at same time.
       valid_host_placeholder = placeholder?(:host_placeholder, @host)
       if valid_host_placeholder && (@template_name && @template_file || @templates)
-        raise Fluent::ConfigError, "host placeholder and template installation are exclusive features."
+        if @verify_es_version_at_startup
+          raise Fluent::ConfigError, "host placeholder, template installation, and verify Elasticsearch version at startup are exclusive feature at same time. Please specify verify_es_version_at_startup as `false` when host placeholder and template installation are enabled."
+        end
+        log.info "host placeholder and template installation makes your Elasticsearch cluster a bit slow down(beta)."
       end
 
+      @alias_indexes = []
       if !Fluent::Engine.dry_run_mode
         if @template_name && @template_file
-          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
-            if @customize_template
-              if @rollover_index
-                raise Fluent::ConfigError, "'deflector_alias' must be provided if 'rollover_index' is set true ." if not @deflector_alias
-              end
-              template_custom_install(@template_name, @template_file, @template_overwrite, @customize_template, @index_prefix, @rollover_index, @deflector_alias, @application_name, @index_date_pattern)
-            else
-              template_install(@template_name, @template_file, @template_overwrite)
-            end
+          if @rollover_index
+            raise Fluent::ConfigError, "'deflector_alias' must be provided if 'rollover_index' is set true ." if not @deflector_alias
           end
+          if @enable_ilm
+            raise Fluent::ConfigError, "'rollover_index' and 'deflector_alias' must be provided if 'enable_ilm' is set true ." if !@deflector_alias &&!@deflector_alias
+          end
+          verify_ilm_working if @enable_ilm
         elsif @templates
           retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
             templates_hash_install(@templates, @template_overwrite)
@@ -217,6 +233,8 @@ EOC
       rescue LoadError
         @dump_proc = Yajl.method(:dump)
       end
+
+      raise Fluent::ConfigError, "`password` must be present if `user` is present" if @user && @password.nil?
 
       if @user && m = @user.match(/%{(?<user>.*)}/)
         @user = URI.encode_www_form_component(m["user"])
@@ -251,9 +269,13 @@ EOC
       if @last_seen_major_version == 6 && @type_name != DEFAULT_TYPE_NAME_ES_7x
         log.info "Detected ES 6.x: ES 7.x will only accept `_doc` in type_name."
       end
-      if @last_seen_major_version >= 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
-        log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+      if @last_seen_major_version == 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+        log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
         @type_name = '_doc'.freeze
+      end
+      if @last_seen_major_version >= 8 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+        log.info "Detected ES 8.x or above: This parameter has no effect."
+        @type_name = nil
       end
 
       if @validate_client_version && !Fluent::Engine.dry_run_mode
@@ -307,6 +329,18 @@ EOC
           alias_method :split_request?, :split_request_size_check?
         end
       end
+
+      version_arr = Elasticsearch::Transport::VERSION.split('.')
+
+      if (version_arr[0].to_i < 7) || (version_arr[0].to_i == 7 && version_arr[1].to_i < 2)
+        if compression
+          raise Fluent::ConfigError, <<-EOC
+            Cannot use compression with elasticsearch-transport plugin version < 7.2.0
+            Your elasticsearch-transport plugin version version is #{Elasticsearch::Transport::VERSION}.
+            Please consider to upgrade ES client.
+          EOC
+        end
+      end
     end
 
     def placeholder?(name, param)
@@ -315,6 +349,23 @@ EOC
         true
       rescue Fluent::ConfigError
         false
+      end
+    end
+
+    def compression
+      !(@compression_level == :no_compression)
+    end
+
+    def compression_strategy
+      case @compression_level
+      when :default_compression
+        Zlib::DEFAULT_COMPRESSION
+      when :best_compression
+        Zlib::BEST_COMPRESSION
+      when :best_speed
+        Zlib::BEST_SPEED
+      else
+        Zlib::NO_COMPRESSION
       end
     end
 
@@ -418,7 +469,14 @@ EOC
         if local_reload_connections && @reload_after > DEFAULT_RELOAD_AFTER
           local_reload_connections = @reload_after
         end
-        headers = { 'Content-Type' => @content_type.to_s }.merge(@custom_headers)
+
+        gzip_headers = if compression
+                         {'Content-Encoding' => 'gzip'}
+                       else
+                         {}
+                       end
+        headers = { 'Content-Type' => @content_type.to_s }.merge(@custom_headers).merge(gzip_headers)
+
         transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(connection_options.merge(
                                                                             options: {
                                                                               reload_connections: local_reload_connections,
@@ -436,6 +494,7 @@ EOC
                                                                               },
                                                                               sniffer_class: @sniffer_class,
                                                                               serializer_class: @serializer_class,
+                                                                              compression: compression,
                                                                             }), &adapter_conf)
         Elasticsearch::Client.new transport: transport
       end
@@ -454,7 +513,6 @@ EOC
     end
 
     def get_connection_options(con_host=nil)
-      raise "`password` must be present if `user` is present" if @user && !@password
 
       hosts = if con_host || @hosts
         (con_host || @hosts).split(',').map do |host_str|
@@ -569,8 +627,22 @@ EOC
     def expand_placeholders(chunk)
       logstash_prefix = extract_placeholders(@logstash_prefix, chunk)
       index_name = extract_placeholders(@index_name, chunk)
-      type_name = extract_placeholders(@type_name, chunk)
-      return logstash_prefix, index_name, type_name
+      if @type_name
+        type_name = extract_placeholders(@type_name, chunk)
+      else
+        type_name = nil
+      end
+      if @deflector_alias
+        deflector_alias = extract_placeholders(@deflector_alias, chunk)
+      else
+        deflector_alias = nil
+      end
+      if @application_name
+        application_name = extract_placeholders(@application_name, chunk)
+      else
+        application_name = nil
+      end
+      return logstash_prefix, index_name, type_name, deflector_alias, application_name
     end
 
     def multi_workers_ready?
@@ -644,7 +716,7 @@ EOC
     end
 
     def process_message(tag, meta, header, time, record, extracted_values)
-      logstash_prefix, index_name, type_name = extracted_values
+      logstash_prefix, index_name, type_name, deflector_alias, application_name = extracted_values
 
       if @flatten_hashes
         record = flatten_record(record)
@@ -688,14 +760,20 @@ EOC
         if @last_seen_major_version == 6
           log.warn "Detected ES 6.x: `@type_name` will be used as the document `_type`."
           target_type = type_name
-        elsif @last_seen_major_version >= 7
-          log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+        elsif @last_seen_major_version == 7
+          log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
+        elsif @last_seen_major_version >=8
+          log.warn "Detected ES 8.x or above: document type will not be used."
+          target_type = nil
         end
       else
-        if @last_seen_major_version >= 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
-          log.warn "Detected ES 7.x or above: `_doc` will be used as the document `_type`."
+        if @last_seen_major_version == 7 && @type_name != DEFAULT_TYPE_NAME_ES_7x
+          log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
+        elsif @last_seen_major_version >= 8
+          log.warn "Detected ES 8.x or above: document type will not be used."
+          target_type = nil
         else
           target_type = type_name
         end
@@ -703,7 +781,7 @@ EOC
 
       meta.clear
       meta["_index".freeze] = target_index
-      meta["_type".freeze] = target_type
+      meta["_type".freeze] = target_type unless @last_seen_major_version >= 8
 
       if @pipeline
         meta["pipeline".freeze] = @pipeline
@@ -729,13 +807,46 @@ EOC
       [parent_object, path[-1]]
     end
 
+    # gzip compress data
+    def gzip(string)
+      wio = StringIO.new("w")
+      w_gz = Zlib::GzipWriter.new(wio, strategy = compression_strategy)
+      w_gz.write(string)
+      w_gz.close
+      wio.string
+    end
+
     # send_bulk given a specific bulk request, the original tag,
     # chunk, and bulk_message_count
     def send_bulk(data, tag, chunk, bulk_message_count, extracted_values, info)
+      logstash_prefix, index_name, type_name, deflector_alias, application_name = extracted_values
+      if @template_name && @template_file
+        if @alias_indexes.include? deflector_alias
+          log.debug("Index alias #{deflector_alias} already exists (cached)")
+        else
+          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
+            if @customize_template
+              template_custom_install(@template_name, @template_file, @template_overwrite, @customize_template, @enable_ilm, deflector_alias, @ilm_policy_id, info.host)
+            else
+              template_install(@template_name, @template_file, @template_overwrite, @enable_ilm, deflector_alias, @ilm_policy_id, info.host)
+            end
+            create_rollover_alias(@index_prefix, @rollover_index, deflector_alias, application_name, @index_date_pattern, @index_separator, @enable_ilm, @ilm_policy_id, @ilm_policy, info.host)
+          end
+          @alias_indexes << deflector_alias unless deflector_alias.nil?
+        end
+      end
+
       begin
 
         log.on_trace { log.trace "bulk request: #{data}" }
-        response = client(info.host).bulk body: data, index: info.index
+
+        prepared_data = if compression
+                          gzip(data)
+                        else
+                          data
+                        end
+
+        response = client(info.host).bulk body: prepared_data, index: info.index
         log.on_trace { log.trace "bulk response: #{response}" }
 
         if response['errors']

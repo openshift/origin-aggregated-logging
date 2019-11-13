@@ -1,6 +1,24 @@
 ## Changelog [[tags]](https://github.com/uken/fluent-plugin-elasticsearch/tags)
 
 ### [Unreleased]
+### 3.6.1
+- retry upsert on recoverable error. (#667)
+- Allow `_index` in chunk_keys (#665)
+- Support compression feature (#664)
+
+### 3.6.0
+- Set order in newly created templates (#660)
+- Merge Support index lifecycle management into master (#659)
+- Support template installation with host placeholder (#654)
+- Support index lifecycle management (#651)
+
+### 3.5.6
+- Support elasticsearch8 removal of mapping types (#656)
+- Upgrade webmock to 3 (#652)
+- Suppress `ruby -c` warnings (#649)
+- Add tips for sniffer class (#644)
+- Make `client_key_pass` secret (#637)
+- Validate `user` and `password` early (#636)
 
 ### 3.5.5
 - Fix arguments order of `assert_equal` (#635)
