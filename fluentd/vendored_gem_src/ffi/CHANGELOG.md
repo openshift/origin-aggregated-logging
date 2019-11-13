@@ -1,3 +1,18 @@
+1.11.2 / 2019-11-11
+-------------------
+
+Added:
+* Add DragonFlyBSD as a platform. #724
+
+Changed:
+* Sort all types.conf files, so that files and changes are easier to compare.
+* Regenerated type conf for freebsd12 and x86_64-linux targets. #722
+* Remove MACOSX_DEPLOYMENT_TARGET that was targeting very old version 10.4. #647
+* Fix library name mangling for non glibc Linux/UNIX. #727
+* Fix compiler warnings raised by ruby-2.7
+* Update libffi to latest master.
+
+
 1.11.1 / 2019-05-20
 -------------------
 
@@ -8,6 +23,7 @@ Changed:
 
 1.11.0 / 2019-05-17
 -------------------
+This version was yanked on 2019-05-20 to fix an install issue on ruby-1.9.3. #700
 
 Added:
 * Add ability to disable or force use of system libffi. #669

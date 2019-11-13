@@ -135,6 +135,8 @@ module Fluent
     #   tag "**"
     #   name_type project_full
     # </elasticsearch_index_name>
+    # audit_full - ".audit.YYYY.MM.DD"
+    # audit_prefix - ".audit"
     # operations_full - ".operations.YYYY.MM.DD"
     # operations_prefix - ".operations"
     # project_full - "project.${kubernetes.namespace_name}.${kubernetes.namespace_id}.YYYY.MM.DD"
@@ -148,7 +150,7 @@ module Fluent
       desc 'create index names for records with this tag pattern'
       config_param :tag, :string
       desc 'type of index name to create'
-      config_param :name_type, :enum, list: [:operations_full, :project_full, :operations_prefix, :project_prefix]
+      config_param :name_type, :enum, list: [:operations_full, :project_full, :operations_prefix, :project_prefix, :audit_full, :audit_prefix]
     end
     desc 'Store the Elasticsearch index name in this field'
     config_param :elasticsearch_index_name_field, :string, default: 'viaq_index_name'
@@ -390,7 +392,7 @@ module Fluent
         if ein.matcher.match(tag)
           found = true
           return unless ein.enabled
-          if ein.name_type == :operations_full || ein.name_type == :project_full
+          if ein.name_type == :operations_full || ein.name_type == :project_full || ein.name_type == :audit_full
             field_name = @elasticsearch_index_name_field
             need_time = true
           else
@@ -399,6 +401,8 @@ module Fluent
           end
 
           case ein.name_type
+          when :audit_full, :audit_prefix
+            prefix = ".audit"
           when :operations_full, :operations_prefix
             prefix = ".operations"
           when :project_full, :project_prefix
