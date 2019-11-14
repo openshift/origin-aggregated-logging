@@ -20,6 +20,7 @@ source "logging"
 wait_for_port_open
 failed=0
 
+touch ${HOME}/init_running
 pushd "${ES_HOME}/init"
   files=$(ls --hide common | sort)
   for init_file in ${files}; do
@@ -29,6 +30,7 @@ pushd "${ES_HOME}/init"
   done
 popd
 
+rm -f ${HOME}/init_running
 if [ $failed -eq 0 ]; then
   touch ${HOME}/init_complete
 fi
