@@ -5,6 +5,8 @@ approvers:
   - richm
   - lukas-vlcek
   - nhosoi
+  - alanconway
+  - igor-karpukhin
 reviewers:
   - bparees
   - jcantrill
@@ -12,3 +14,5 @@ reviewers:
   - richm
   - nhosoi
   - lukas-vlcek
+  - alanconway
+  - igor-karpukhin
