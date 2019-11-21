@@ -33,7 +33,8 @@ module Fluent
       if not conf['remote_syslog']
         raise Fluent::ConfigError.new("remote syslog required")
       end
-      @socket = UDPSocket.new
+      addrfamily = IPAddr.new(IPSocket.getaddress(@remote_syslog)).ipv4? ? ::Socket::AF_INET : ::Socket::AF_INET6
+      @socket = UDPSocket.new(addrfamily)
       @packet = SyslogProtocol::Packet.new
       if remove_tag_prefix = conf['remove_tag_prefix']
           @remove_tag_prefix = Regexp.new('^' + Regexp.escape(remove_tag_prefix))
