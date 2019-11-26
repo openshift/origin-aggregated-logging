@@ -366,8 +366,8 @@ for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch$
   # can't use podman here - imagebuilder stores the images in the local docker registry
   # but podman cannot see them - so use docker for tagging for now
   #podman tag ${image}:latest ${remote_image}:latest
-  docker tag ${image} ${remote_image}
-  echo "Pushing image ${image} to ${remote_image}..."
+  docker tag ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG}
+  echo "Pushing image ${image}:${CUSTOM_IMAGE_TAG} to ${remote_image}:${CUSTOM_IMAGE_TAG}..."
   rc=1
   for ii in $( seq 1 5 ) ; do
     if push_image ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG} ; then
