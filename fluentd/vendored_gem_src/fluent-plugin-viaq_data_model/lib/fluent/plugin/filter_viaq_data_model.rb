@@ -447,6 +447,10 @@ module Fluent
     end
 
     def transform_eventrouter(tag, record)
+      if ENV['CDM_DEBUG']
+        log.error("transform_eventrouter [#{@process_kubernetes_events} [#{tag}] [#{record}]")
+      fi
+
       return unless @process_kubernetes_events
       if record.key?("event") && record["event"].respond_to?(:key?)
         if record.key?("verb")
