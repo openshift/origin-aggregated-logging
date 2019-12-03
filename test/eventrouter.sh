@@ -64,13 +64,14 @@ cleanup() {
     if [ $return_code -ne 0 ] ; then
         oc get pods -o wide
         get_all_logging_pod_logs
+        oc extract cm/fluentd --to=$ARTIFACT_DIR/
         if [ -n "${evpod:-}" ] ; then
             oc logs $evpod > $ARTIFACT_DIR/$evpod.log 2>&1
         fi
     fi
     # turn off fluentd eventrouter mode
     stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-    oc set env $fluentd_ds TRANSFORM_EVENTS- DEBUG- VERBOSE- CDM_DEBUG- 2>&1 | artifact_out
+    oc set env $fluentd_ds TRANSFORM_EVENTS- DEBUG- VERBOSE- CDM_DEBUG- LOGGING_FILE_AGE- LOGGING_FILE_SIZE- 2>&1 | artifact_out
     start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     oc process -f ${OS_O_A_L_DIR}/hack/testing/templates/eventrouter_template.yaml | \
         oc delete -f - 2>&1 | artifact_out
@@ -83,7 +84,7 @@ trap "cleanup" EXIT
 
 # put fluentd in eventrouter mode
 stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc set env $fluentd_ds TRANSFORM_EVENTS=true 2>&1 | artifact_out
+oc set env $fluentd_ds TRANSFORM_EVENTS=true DEBUG=true VERBOSE=true LOGGING_FILE_AGE=30 LOGGING_FILE_SIZE=10240000 2>&1 | artifact_out
 start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
 deploy_eventrouter
