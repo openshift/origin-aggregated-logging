@@ -83,7 +83,7 @@ trap "cleanup" EXIT
 
 # put fluentd in eventrouter mode
 stop_fluentd "" $FLUENTD_WAIT_TIME 2>&1 | artifact_out
-oc set env $fluentd_ds TRANSFORM_EVENTS=true DEBUG=true VERBOSE=true CDM_DEBUG=true 2>&1 | artifact_out
+oc set env $fluentd_ds TRANSFORM_EVENTS=true 2>&1 | artifact_out
 start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
 
 deploy_eventrouter
