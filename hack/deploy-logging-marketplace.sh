@@ -55,6 +55,37 @@ wait_for_condition()
     return 0
 }
 
+# what numeric version does master correspond to?
+MASTER_VERSION=${MASTER_VERSION:-4.1}
+# what namespace to use for operator images?
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
+# for dev purposes, image builds will typically be pushed to this namespace
+OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
+construct_image_name() {
+    local component="$1"
+    local tagsuffix="${2:-latest}"
+    # if running in CI environment, IMAGE_FORMAT will look like this:
+    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # stable is the imagestream containing the images built for this PR, or
+    # otherwise the most recent image
+    if [ -n "${IMAGE_FORMAT:-}" ] ; then
+        if [ -n "${LOGGING_IMAGE_STREAM:-}" ] ; then
+            local match=/stable:
+            local replace="/${LOGGING_IMAGE_STREAM}:"
+            IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
+        fi
+        echo ${IMAGE_FORMAT/'${component}'/$component}
+    elif [ "${USE_CUSTOM_IMAGES:-true}" = false ] ; then
+        echo $EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:$component
+    elif oc -n ${OPENSHIFT_BUILD_NAMESPACE} get istag origin-${component}:$tagsuffix > /dev/null 2>&1 ; then
+        oc -n ${OPENSHIFT_BUILD_NAMESPACE} get istag origin-${component}:$tagsuffix -o jsonpath='{.image.dockerImageReference}'
+    else
+        # fallback to latest externally available image
+        echo $EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:$component
+    fi
+}
+
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     USE_CUSTOM_IMAGES=${USE_CUSTOM_IMAGES:-true}
 elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
@@ -150,13 +181,12 @@ if [ "$USE_CUSTOM_IMAGES" = true ] ; then
         # docker.io/openshift/origin-logging-elasticsearch5:latest
         # to this:
         # $imageprefix/pipeline:logging-elasticsearch5
-        imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
-        oc set env deploy/cluster-logging-operator --list | grep _IMAGE= | \
-        sed -e 's,docker.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' \
-            -e 's,quay.io/openshift/origin-logging-\(..*\):latest,'"$imageprefix"'pipeline:logging-\1,' | \
-        oc set env -e - deploy/cluster-logging-operator
-        # special handling for rsyslog for now
-        oc set env deploy/cluster-logging-operator RSYSLOG_IMAGE=${imageprefix}pipeline:logging-rsyslog
+        oc set env deploy/cluster-logging-operator \
+           ELASTICSEARCH_IMAGE=$( construct_image_name logging-elasticsearch5 ) \
+           KIBANA_IMAGE=$( construct_image_name logging-kibana5 ) \
+           CURATOR_IMAGE=$( construct_image_name logging-curator5 ) \
+           FLUENTD_IMAGE=$( construct_image_name logging-fluentd ) \
+           RSYSLOG_IMAGE=$( construct_image_name logging-rsyslog )
     elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         # running in a dev env with imagestream builds
         OPENSHIFT_BUILD_NAMESPACE=openshift
