@@ -5,11 +5,13 @@
 source es_util_env
 
 date
-$curl_get "$ES_BASE/_cat/health?v"
-$curl_get "$ES_BASE/_cat/nodes?v"
-$curl_get "$ES_BASE/_cat/indices?v" 2>&1 | grep -vE "^green"
-$curl_get "$ES_BASE/_cat/indices?v" 2>&1 | grep "searchguard"
-$curl_get "$ES_BASE/_cat/count?v"
+NODATE=true health
+es_util --query="_cat/nodes?v"
+NODATE=true indices | grep -vE "^green"
+NODATE=true indices | grep "searchguard"
+es_util --query="_cat/count?v"
+NODATE=true thread_pool
 sleep 5
-$curl_get "$ES_BASE/_cat/count?v"
+es_util --query="_cat/count?v"
+NODATE=true thread_pool
 date
