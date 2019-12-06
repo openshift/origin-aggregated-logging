@@ -45,8 +45,6 @@ CONF
 set -o pipefail
 unset passwd
 rm -rf /tmp/lib
-# init scripts need these permissions/ownership
-chown -R elasticsearch:elasticsearch ${HOME}/sgconfig
-chmod -R u+w ${HOME}/sgconfig
-chown -R elasticsearch:elasticsearch ${ES_HOME}/index_templates
-chmod -R u+w ${ES_HOME}/index_templates
+# init scripts need these permissions/ownership because they write
+# these files/dirs in place
+chmod -R u+w,g+w ${HOME}/sgconfig ${ES_HOME}/index_templates

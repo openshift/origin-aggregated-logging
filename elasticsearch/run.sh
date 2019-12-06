@@ -99,4 +99,7 @@ info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
 
+if [ ! -d /elasticsearch/persistent/${CLUSTER_NAME}/logs ] ; then
+    mkdir -p /elasticsearch/persistent/${CLUSTER_NAME}/logs
+fi
 exec ${ES_HOME}/bin/elasticsearch
