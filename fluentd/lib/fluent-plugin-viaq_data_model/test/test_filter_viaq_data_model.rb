@@ -110,6 +110,16 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
         ')
       }
     end
+    test 'static elasticsearch_index_name without static_index_name' do
+      assert_raise(Fluent::ConfigError) {
+        d = create_driver('
+      <elasticsearch_index_name>
+        tag "**"
+        name_type static
+      </elasticsearch_index_name>
+        ')
+      }
+    end
   end
 
   sub_test_case 'filtering' do
@@ -1159,6 +1169,31 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
         elasticsearch_index_prefix_field my_index_prefix
       ')
       assert_equal('.operations', rec['my_index_prefix'])
+    end
+    test 'construct a static index prefix with named field' do
+      rec = emit_with_tag('journal.system', normal_input, '
+        <formatter>
+          tag "journal.system**"
+          type sys_journal
+          remove_keys log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID
+        </formatter>
+        <formatter>
+          tag "kubernetes.journal.container**"
+          type k8s_journal
+          remove_keys log,stream,MESSAGE,_SOURCE_REALTIME_TIMESTAMP,__REALTIME_TIMESTAMP,CONTAINER_ID,CONTAINER_ID_FULL,CONTAINER_NAME,PRIORITY,_BOOT_ID,_CAP_EFFECTIVE,_CMDLINE,_COMM,_EXE,_GID,_HOSTNAME,_MACHINE_ID,_PID,_SELINUX_CONTEXT,_SYSTEMD_CGROUP,_SYSTEMD_SLICE,_SYSTEMD_UNIT,_TRANSPORT,_UID,_AUDIT_LOGINUID,_AUDIT_SESSION,_SYSTEMD_OWNER_UID,_SYSTEMD_SESSION,_SYSTEMD_USER_UNIT,CODE_FILE,CODE_FUNCTION,CODE_LINE,ERRNO,MESSAGE_ID,RESULT,UNIT,_KERNEL_DEVICE,_KERNEL_SUBSYSTEM,_UDEV_SYSNAME,_UDEV_DEVNODE,_UDEV_DEVLINK,SYSLOG_FACILITY,SYSLOG_IDENTIFIER,SYSLOG_PID
+        </formatter>
+        <elasticsearch_index_name>
+          tag "journal.system** system.var.log** **_default_** **_openshift_** **_openshift-infra_** mux.ops"
+          name_type static
+          static_index_name foo-bar
+        </elasticsearch_index_name>
+        <elasticsearch_index_name>
+          tag "**"
+          name_type project_prefix
+        </elasticsearch_index_name>
+        elasticsearch_index_prefix_field my_index_prefix
+      ')
+      assert_equal('foo-bar', rec['my_index_prefix'])
     end
     test 'construct an operations index name with named field' do
       rec = emit_with_tag('journal.system', normal_input, '

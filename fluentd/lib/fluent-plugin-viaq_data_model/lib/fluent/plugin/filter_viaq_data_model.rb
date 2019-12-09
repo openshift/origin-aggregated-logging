@@ -141,6 +141,8 @@ module Fluent
     # operations_prefix - ".operations"
     # project_full - "project.${kubernetes.namespace_name}.${kubernetes.namespace_id}.YYYY.MM.DD"
     # project_prefix - "project.${kubernetes.namespace_name}.${kubernetes.namespace_id}"
+    # static - Records will always be written to the index/alias defined by 'static_index_name'. 'static_index_name'
+    #         is required when name_type='static' 
     # index names will be processed in the order specified, so make sure more specific matches
     # come before more general matches e.g. make sure tag "**" is last
     desc 'Construct Elasticsearch index names or prefixes based on the matching tags pattern and type'
@@ -150,7 +152,8 @@ module Fluent
       desc 'create index names for records with this tag pattern'
       config_param :tag, :string
       desc 'type of index name to create'
-      config_param :name_type, :enum, list: [:operations_full, :project_full, :operations_prefix, :project_prefix, :audit_full, :audit_prefix]
+      config_param :name_type, :enum, list: [:operations_full, :project_full, :operations_prefix, :project_prefix, :audit_full, :audit_prefix, :static]
+      config_param :static_index_name, :string, default: ''
     end
     desc 'Store the Elasticsearch index name in this field'
     config_param :elasticsearch_index_name_field, :string, default: 'viaq_index_name'
@@ -218,6 +221,9 @@ module Fluent
       # create the elasticsearch index name tag matchers
       unless @elasticsearch_index_names.empty?
         @elasticsearch_index_names.each do |ein|
+          if ein.name_type == :static && ein.static_index_name.empty?
+            raise Fluent::ConfigError, "'static' elasticsearch_index_name configurations must define 'static_index_name'"
+          end
           matcher = ViaqMatchClass.new(ein.tag, nil)
           ein.instance_eval{ @params[:matcher] = matcher }
         end
@@ -401,6 +407,8 @@ module Fluent
           end
 
           case ein.name_type
+          when :static
+            prefix = ein.static_index_name
           when :audit_full, :audit_prefix
             prefix = ".audit"
           when :operations_full, :operations_prefix
