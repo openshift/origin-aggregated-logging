@@ -15,3 +15,4 @@ RUN for d in $(ls $WORKDIR) ; do \
         scl enable rh-ruby25 -- bundle install ; \
     popd ; \
     done
+RUN /tmp/run.sh
