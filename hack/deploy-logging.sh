@@ -160,8 +160,18 @@ switch_to_admin_user() {
     fi
 }
 
+get_cluster_version_maj_min() {
+    local clusterver=$( oc get clusterversion -o jsonpath='{.items[0].status.desired.version}' )
+    if [[ "$clusterver" =~ ^([1-9]+)[.]([0-9]+)[.] ]] ; then
+        CLUSTER_MAJ_VER=${BASH_REMATCH[1]}
+        CLUSTER_MIN_VER=${BASH_REMATCH[2]}
+        CLUSTER_MAJ_MIN=${CLUSTER_MAJ_VER}.${CLUSTER_MIN_VER}
+    fi
+}
+
+get_cluster_version_maj_min
 # what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-4.3}
+MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.4}}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
@@ -257,16 +267,16 @@ deploy_logging_using_olm() {
     fi
 
     local eoimg=${EO_IMAGE:-$( construct_image_name elasticsearch-operator latest )}
-    cp -r ${EO_DIR}/manifests/${MASTER_VERSION} $manifest
+    cp -r ${EO_DIR}/manifests/${EO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${EO_DIR}/manifests/*.package.yaml $manifest
-    update_images_in_clo_yaml $manifest/${MASTER_VERSION}/elasticsearch-operator.*.clusterserviceversion.yaml $eoimg
+    update_images_in_clo_yaml $manifest/${EO_MANIFEST_VER:-$MASTER_VERSION}/elasticsearch-operator.*.clusterserviceversion.yaml $eoimg
     for pkg in $manifest/*.package.yaml ; do
         sed -e 's/name: \([0-9.][0-9.]*\)$/name: "\1"/' -i $pkg
     done
     SUFFIX="-eo" \
     CONFIGMAP_NAME=eo-olm \
     NAMESPACE=${ESO_NS} \
-    VERSION=${MASTER_VERSION} \
+    VERSION=${EO_MANIFEST_VER:-$MASTER_VERSION} \
     OPERATOR_IMAGE=$eoimg \
     MANIFEST_DIR=${manifest} \
     TEST_NAMESPACE=${ESO_NS} \
@@ -275,9 +285,9 @@ deploy_logging_using_olm() {
 
     local cloimg=${CLO_IMAGE:-$( construct_image_name cluster-logging-operator latest )}
     rm -rf $manifest/*
-    cp -r ${CLO_DIR}/manifests/${MASTER_VERSION} $manifest
+    cp -r ${CLO_DIR}/manifests/${CLO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${CLO_DIR}/manifests/*.package.yaml $manifest
-    update_images_in_clo_yaml $manifest/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml $cloimg
+    update_images_in_clo_yaml $manifest/${CLO_MANIFEST_VER:-$MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml $cloimg
     for pkg in $manifest/*.package.yaml ; do
         sed -e 's/name: \([0-9.][0-9.]*\)$/name: "\1"/' -i $pkg
     done
@@ -285,7 +295,7 @@ deploy_logging_using_olm() {
     CONFIGMAP_NAME=clo-olm \
     CREATE_OPERATORGROUP=${CREATE_OPERATORGROUP} \
     NAMESPACE=${LOGGING_NS} \
-    VERSION=${MASTER_VERSION} \
+    VERSION=${CLO_MANIFEST_VER:-$MASTER_VERSION} \
     OPERATOR_IMAGE=$cloimg \
     MANIFEST_DIR=${manifest} \
     TEST_NAMESPACE=${LOGGING_NS} \
@@ -385,11 +395,15 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
         CLO_DIR=$ARTIFACT_DIR/clo
         get_operator_files $CLO_DIR cluster-logging-operator ${CLO_REPO:-openshift} ${CLO_BRANCH:-master}
     fi
+    # get clo version from manifests directory
+    CLO_MANIFEST_VER=$( find $CLO_DIR/manifests -maxdepth 1 -type d -regex '.*/manifests/[1-9]+[.][0-9]+' -printf %f )
     EO_DIR=${EO_DIR:-$CLO_DIR/vendor/github.com/openshift/elasticsearch-operator}
     if [ ! -d $EO_DIR ] ; then
         EO_DIR=$ARTIFACT_DIR/eo
         get_operator_files $EO_DIR elasticsearch-operator ${EO_REPO:-openshift} ${EO_BRANCH:-master}
     fi
+    # get eo version from manifests directory
+    EO_MANIFEST_VER=$( find $EO_DIR/manifests -maxdepth 1 -type d -regex '.*/manifests/[1-9]+[.][0-9]+' -printf %f )
     if [ "${USE_OLM:-false}" = true ] ; then
         deploy_logging_using_olm
     else
