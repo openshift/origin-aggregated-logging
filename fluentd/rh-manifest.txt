@@ -16,12 +16,12 @@ rubygem-domain_name 0.5.20190701 https://github.com/knu/ruby-domain_name
 rubygem-elasticsearch 7.4.0 http://github.com/elasticsearch/elasticsearch-ruby
 rubygem-elasticsearch-api 7.4.0 https://github.com/elasticsearch/elasticsearch-ruby/tree/master/elasticsearch-api
 rubygem-elasticsearch-transport 7.4.0 https://github.com/elasticsearch/elasticsearch-ruby/tree/master/elasticsearch-transport
-rubygem-excon 0.68.0 https://github.com/excon/excon
-rubygem-faraday 0.17.0 https://github.com/lostisland/faraday
-rubygem-ffi 1.11.2 https://github.com/ffi/ffi/wiki
+rubygem-excon 0.70.0 https://github.com/excon/excon
+rubygem-faraday 0.17.1 https://lostisland.github.io/faraday
+rubygem-ffi 1.11.3 https://github.com/ffi/ffi/wiki
 rubygem-fluent-mixin-config-placeholders 0.4.0 https://github.com/tagomoris/fluent-mixin-config-placeholders
-rubygem-fluent-plugin-elasticsearch 3.6.1 https://github.com/uken/fluent-plugin-elasticsearch
-rubygem-fluent-plugin-kubernetes_metadata_filter 2.4.0 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
+rubygem-fluent-plugin-elasticsearch 3.7.1 https://github.com/uken/fluent-plugin-elasticsearch
+rubygem-fluent-plugin-kubernetes_metadata_filter 2.4.1 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
 rubygem-fluent-plugin-prometheus 1.7.0 https://github.com/fluent/fluent-plugin-prometheus
 rubygem-fluent-plugin-record-modifier 2.0.1 https://github.com/repeatedly/fluent-plugin-record-modifier
 rubygem-fluent-plugin-remote-syslog 1.1 https://github.com/docebo/fluent-plugin-remote-syslog
@@ -56,5 +56,5 @@ rubygem-unf 0.1.4 https://github.com/knu/ruby-unf
 rubygem-unf_ext 0.0.7.6 https://github.com/knu/ruby-unf_ext
 rubygem-uuidtools 2.1.5 https://github.com/sporkmonger/uuidtools
 rubygem-yajl-ruby 1.4.1 http://github.com/brianmario/yajl-ruby
-serverengine 2.1.1 https://github.com/fluent/serverengine
+serverengine 2.2.0 https://github.com/fluent/serverengine
 strptime 0.2.3 https://github.com/nurse/strptime
