@@ -91,6 +91,7 @@ Current maintainers: @cosmo0920
   + [enable_ilm](#enable_ilm)
   + [ilm_policy_id](#ilm_policy_id)
   + [ilm_policy](#ilm_policy)
+* [Configuration - Elasticsearch Input](#configuration---elasticsearch-input)
 * [Troubleshooting](#troubleshooting)
   + [Cannot send events to elasticsearch](#cannot-send-events-to-elasticsearch)
   + [Cannot see detailed failure log](#cannot-see-detailed-failure-log)
@@ -433,9 +434,14 @@ for example: <logstash-default-{now/d}-000001>. Overriding this changes the roll
 "now/w{xxxx.ww}" would create weekly rollover indexes instead of daily.
 
 This setting only takes effect when combined with the [rollover_index](#rollover_index) setting.
+
+And rollover\_index is also used in Lifecycle Index Management(ILM) feature.
 ```
 index_date_pattern "now/w{xxxx.ww}" # defaults to "now/d"
 ```
+
+If empty string(`""`) is specified in `index_date_patter`, index date pattern is not used.
+Elasticsearch plugin just creates <`index_prefix`-`application_name`-000001> rollover index instead of <`index_prefix`-`application_name`-`{index_date_pattern}`-000001>.
 
 If [customize_template](#customize_template) is set, then this parameter will be in effect otherwise ignored.
 
@@ -794,11 +800,11 @@ http_backend typhoeus
 ```
 
 ### compression_level
-You can add gzip compression of output data. In this case `default_compression`, `best_compression` or `best speed` option should be chosen. 
+You can add gzip compression of output data. In this case `default_compression`, `best_compression` or `best speed` option should be chosen.
 By default there is no compression, default value for this option is `no_compression`
 ```
 compression_level best_compression
-``` 
+```
 
 ### prefer_oj_serializer
 
@@ -1157,6 +1163,10 @@ Specify ILM policy contents as Hash.
 Default value is `{}`.
 
 **NOTE:** This parameter requests to install elasticsearch-xpack gem.
+
+## Configuration - Elasticsearch Input
+
+See [Elasticsearch Input plugin document](README.ElasticsearchInput.md)
 
 ## Troubleshooting
 
