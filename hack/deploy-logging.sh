@@ -347,6 +347,10 @@ disable_olm() {
     fi
 }
 
+get_latest_ver_from_manifest_dir() {
+    find "$1" -maxdepth 1 -type d -regex '.*/manifests/[1-9]+[.][0-9]+' -printf '%f\n' | sort -n | tail -1
+}
+
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 
 switch_to_admin_user
@@ -396,14 +400,14 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
         get_operator_files $CLO_DIR cluster-logging-operator ${CLO_REPO:-openshift} ${CLO_BRANCH:-master}
     fi
     # get clo version from manifests directory
-    CLO_MANIFEST_VER=$( find $CLO_DIR/manifests -maxdepth 1 -type d -regex '.*/manifests/[1-9]+[.][0-9]+' -printf %f )
+    CLO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $CLO_DIR/manifests )
     EO_DIR=${EO_DIR:-$CLO_DIR/vendor/github.com/openshift/elasticsearch-operator}
     if [ ! -d $EO_DIR ] ; then
         EO_DIR=$ARTIFACT_DIR/eo
         get_operator_files $EO_DIR elasticsearch-operator ${EO_REPO:-openshift} ${EO_BRANCH:-master}
     fi
     # get eo version from manifests directory
-    EO_MANIFEST_VER=$( find $EO_DIR/manifests -maxdepth 1 -type d -regex '.*/manifests/[1-9]+[.][0-9]+' -printf %f )
+    EO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $EO_DIR/manifests )
     if [ "${USE_OLM:-false}" = true ] ; then
         deploy_logging_using_olm
     else
