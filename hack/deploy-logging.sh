@@ -387,6 +387,9 @@ fi
 
 oc project ${LOGGING_NS}
 
+EO_BRANCH=${EO_BRANCH:-release-4.3}
+CLO_BRANCH=${CLO_BRANCH:-release-4.3}
+
 if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     expectedes=$( awk '/nodeCount:/ {print $2}' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} )
 else
