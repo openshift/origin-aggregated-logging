@@ -200,18 +200,6 @@ else
     rm -f $CFG_DIR/openshift/input-pre-debug.conf
 fi
 
-# bug https://bugzilla.redhat.com/show_bug.cgi?id=1437952
-# pods unable to be terminated because fluentd has them busy
-if [ -d /var/lib/docker/containers ] ; then
-    # If oci-umount is fixed, we can remove this.
-    if [ -n "${VERBOSE:-}" ] ; then
-        echo "umounts of dead containers will fail. Ignoring..."
-        umount /var/lib/docker/containers/*/shm || :
-    else
-        umount /var/lib/docker/containers/*/shm > /dev/null 2>&1 || :
-    fi
-fi
-
 if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     # The symlink is a workaround for https://github.com/openshift/origin-aggregated-logging/issues/604
     found=
