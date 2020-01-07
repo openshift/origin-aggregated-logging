@@ -1,0 +1,35 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.cursorPaginationOptionKeys = new Set(['limit', 'cursor']);
+exports.cursorPaginationEnabledMethods = new Map(); // method : paginatedResponseProperty
+exports.timelinePaginationOptionKeys = new Set(['oldest', 'latest', 'inclusive']);
+exports.timelinePaginationEnabledMethods = new Set();
+exports.traditionalPagingOptionKeys = new Set(['page', 'count']);
+exports.traditionalPagingEnabledMethods = new Set();
+exports.cursorPaginationEnabledMethods.set('apps.permissions.resources.list', 'resources');
+exports.timelinePaginationEnabledMethods.add('channels.history');
+exports.cursorPaginationEnabledMethods.set('channels.list', 'channels');
+exports.cursorPaginationEnabledMethods.set('conversations.history', 'messages');
+exports.timelinePaginationEnabledMethods.add('conversations.history');
+exports.cursorPaginationEnabledMethods.set('conversations.list', 'channels');
+exports.cursorPaginationEnabledMethods.set('conversations.members', 'members');
+exports.cursorPaginationEnabledMethods.set('conversations.replies', 'messages');
+exports.timelinePaginationEnabledMethods.add('conversations.replies');
+exports.cursorPaginationEnabledMethods.set('files.info', 'comments');
+exports.traditionalPagingEnabledMethods.add('files.list');
+exports.timelinePaginationEnabledMethods.add('groups.history');
+exports.cursorPaginationEnabledMethods.set('groups.list', 'groups');
+exports.timelinePaginationEnabledMethods.add('im.history');
+exports.cursorPaginationEnabledMethods.set('im.list', 'ims');
+exports.timelinePaginationEnabledMethods.add('mpim.history');
+exports.cursorPaginationEnabledMethods.set('mpim.list', 'groups');
+exports.cursorPaginationEnabledMethods.set('reactions.list', 'items');
+exports.traditionalPagingEnabledMethods.add('reactions.list');
+exports.traditionalPagingEnabledMethods.add('search.all');
+exports.traditionalPagingEnabledMethods.add('search.files');
+exports.traditionalPagingEnabledMethods.add('search.messages');
+exports.cursorPaginationEnabledMethods.set('stars.list', 'items');
+exports.traditionalPagingEnabledMethods.add('stars.list');
+exports.cursorPaginationEnabledMethods.set('users.conversations', 'channels');
+exports.cursorPaginationEnabledMethods.set('users.list', 'members');
+//# sourceMappingURL=methods.js.map

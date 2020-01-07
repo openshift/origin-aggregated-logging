@@ -1,0 +1,1 @@
+.progress{background-color:#DFE5E8;overflow:hidden;min-height:8px}.progress-bar{transition:width .6s ease;background:#1B78B3;min-height:8px}.progress-bar .label{margin-left:7px;font-size:14px;font-weight:900}.progress-bar[aria-valuenow="1"],.progress-bar[aria-valuenow="2"]{min-width:3%}.progress-bar[aria-valuenow="0"]{color:#243641;min-width:3%;background:transparent}

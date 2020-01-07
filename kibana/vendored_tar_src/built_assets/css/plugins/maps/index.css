@@ -1,0 +1,262 @@
+/* GIS plugin styles */
+#maps-plugin {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: column;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden; }
+
+.mapFullScreen {
+  height: 100vh !important; }
+
+#react-maps-root {
+  -webkit-box-flex: 1;
+  -webkit-flex-grow: 1;
+      -ms-flex-positive: 1;
+          flex-grow: 1;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: column;
+      -ms-flex-direction: column;
+          flex-direction: column; }
+
+.mapContainer {
+  -webkit-box-flex: 1;
+  -webkit-flex-grow: 1;
+      -ms-flex-positive: 1;
+          flex-grow: 1; }
+
+.mapboxgl-popup {
+  z-index: 100;
+  border-color: #FFF; }
+
+.mapboxgl-popup-content {
+  background-color: #FFF; }
+
+.mapboxgl-popup-tip {
+  border-top-color: #FFF !important; }
+
+.euiColorPicker__emptySwatch {
+  position: relative; }
+
+.mapMapWrapper {
+  background-color: #FFF;
+  position: relative; }
+
+.mapMapLayerPanel {
+  background-color: #fafbfd;
+  width: 0;
+  overflow: hidden; }
+  .mapMapLayerPanel > * {
+    width: 440px; }
+  .mapMapLayerPanel-isVisible {
+    width: 440px;
+    -webkit-transition: width 250ms cubic-bezier(0.694, 0.0482, 0.335, 1);
+    transition: width 250ms cubic-bezier(0.694, 0.0482, 0.335, 1); }
+
+.mapLayerAddpanel__card .euiCard__content {
+  padding-top: 0 !important; }
+
+.mapLayerAddpanel__card .euiCard__top + .euiCard__content {
+  padding-top: 2px !important; }
+
+/**
+ * 1. Firefox and IE don't respect bottom padding of overflow scrolling flex items.
+ *    So we instead strip out the bottom padding and add the same amount as a margin
+ *    to the last child element.
+ */
+.mapLayerPanel__header,
+.mapLayerPanel__body,
+.mapLayerPanel__footer {
+  padding: 16px; }
+
+.mapLayerPanel__body {
+  -webkit-flex-basis: 1px;
+      -ms-flex-preferred-size: 1px;
+          flex-basis: 1px;
+  /* Fixes scrolling for Firefox */
+  padding-bottom: 0;
+  /* 1 */ }
+  .mapLayerPanel__body > *:last-child {
+    margin-bottom: 16px;
+    /* 1 */ }
+
+.mapLayerPanel__header {
+  -webkit-box-shadow: 0 16px 16px -8px #FFF;
+          box-shadow: 0 16px 16px -8px #FFF;
+  z-index: 2; }
+
+.mapLayerPanel__sourceDetails {
+  margin-left: 32px; }
+
+.mapLayerPanel__sourceDetail {
+  margin-bottom: 0px !important; }
+
+.mapLayerPanel__footer {
+  -webkit-box-shadow: 0 -16px 16px -8px #FFF;
+          box-shadow: 0 -16px 16px -8px #FFF;
+  z-index: 2;
+  border-top: 1px solid #D3DAE6; }
+
+.mapJoinItem {
+  position: relative;
+  background: #f8f9fb;
+  border-radius: 4px;
+  padding: 4px; }
+  .mapJoinItem .mapJoinItem__inner {
+    scrollbar-width: thin;
+    overflow-x: auto; }
+    .mapJoinItem .mapJoinItem__inner::-webkit-scrollbar {
+      width: 16px;
+      height: 16px; }
+    .mapJoinItem .mapJoinItem__inner::-webkit-scrollbar-thumb {
+      background-color: rgba(105, 112, 125, 0.5);
+      border: 6px solid transparent;
+      background-clip: content-box; }
+    .mapJoinItem .mapJoinItem__inner::-webkit-scrollbar-corner, .mapJoinItem .mapJoinItem__inner::-webkit-scrollbar-track {
+      background-color: transparent; }
+  .mapJoinItem:hover .mapJoinItem__delete, .mapJoinItem:focus .mapJoinItem__delete {
+    visibility: visible;
+    opacity: 1; }
+
+.mapJoinItem__delete {
+  -webkit-box-shadow: 0 2px 2px -1px rgba(152, 162, 179, 0.3), 0 1px 5px -2px rgba(152, 162, 179, 0.3);
+          box-shadow: 0 2px 2px -1px rgba(152, 162, 179, 0.3), 0 1px 5px -2px rgba(152, 162, 179, 0.3);
+  position: absolute;
+  right: 0;
+  top: 50%;
+  margin-right: -8px;
+  margin-top: -12px;
+  background: #FFF;
+  padding: 4px;
+  visibility: hidden;
+  opacity: 0; }
+
+.mapAlphaRange .euiFieldNumber {
+  max-width: 5.5em !important; }
+
+/**
+ * 1. The overlay captures mouse events even if it's empty space. To counter-act this,
+ *    we remove all pointer events from the overlay then add them back on the
+ *    individual widgets.
+ */
+.mapWidgetOverlay {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  pointer-events: none;
+  /* 1 */ }
+
+.mapWidgetOverlay__rightSide {
+  min-width: 17rem;
+  max-width: 24rem; }
+
+.mapWidgetControl {
+  max-height: 100%;
+  overflow: hidden;
+  padding-bottom: 8px;
+  border-color: transparent !important;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -webkit-flex-direction: column;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  pointer-events: all;
+  /* 1 */ }
+  .mapWidgetControl.mapWidgetControl-hasShadow {
+    -webkit-box-shadow: 0 40px 64px 0 rgba(65, 78, 101, 0.1), 0 24px 32px 0 rgba(65, 78, 101, 0.1), 0 16px 16px 0 rgba(65, 78, 101, 0.1), 0 8px 8px 0 rgba(65, 78, 101, 0.1), 0 4px 4px 0 rgba(65, 78, 101, 0.1), 0 2px 2px 0 rgba(65, 78, 101, 0.1);
+            box-shadow: 0 40px 64px 0 rgba(65, 78, 101, 0.1), 0 24px 32px 0 rgba(65, 78, 101, 0.1), 0 16px 16px 0 rgba(65, 78, 101, 0.1), 0 8px 8px 0 rgba(65, 78, 101, 0.1), 0 4px 4px 0 rgba(65, 78, 101, 0.1), 0 2px 2px 0 rgba(65, 78, 101, 0.1); }
+  .mapWidgetControl .mapWidgetControl__header {
+    padding: 8px 16px;
+    -webkit-flex-shrink: 0;
+        -ms-flex-negative: 0;
+            flex-shrink: 0; }
+
+.mapAttributionControl {
+  padding: 0 4px; }
+
+.mapLayerControl {
+  scrollbar-width: thin;
+  overflow-y: auto;
+  -webkit-flex-basis: auto !important;
+      -ms-flex-preferred-size: auto !important;
+          flex-basis: auto !important; }
+  .mapLayerControl::-webkit-scrollbar {
+    width: 16px;
+    height: 16px; }
+  .mapLayerControl::-webkit-scrollbar-thumb {
+    background-color: rgba(105, 112, 125, 0.5);
+    border: 6px solid transparent;
+    background-clip: content-box; }
+  .mapLayerControl::-webkit-scrollbar-corner, .mapLayerControl::-webkit-scrollbar-track {
+    background-color: transparent; }
+
+.mapTocEntry {
+  padding: 8px 16px;
+  position: relative; }
+
+.mapTocEntry-visible {
+  opacity: 1; }
+
+.mapTocEntry-notVisible {
+  opacity: 0.5; }
+
+.mapTocEntry__grab {
+  margin-left: 4px; }
+
+.mapTocEntry__grab:hover {
+  cursor: -webkit-grab;
+  cursor: grab; }
+
+/**
+ * 1. The overlay captures mouse events even if it's empty space. To counter-act this,
+ *    we remove all pointer events from the overlay then add them back on the
+ *    individual widgets.
+ */
+.mapViewControl__coordinates {
+  padding: 4px 8px;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  pointer-events: none; }
+
+.mapViewControl__gotoButton {
+  min-width: 0;
+  pointer-events: all;
+  /* 1 */ }
+
+.mapColorGradient {
+  width: 100%;
+  height: 4px;
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0; }
+
+.mapStaticDynamicSylingOption__dynamicSizeHack {
+  width: calc(100% - 48px); }
+
+.mapColorPicker {
+  padding-top: 9px; }
+  .mapColorPicker .euiColorPickerPopUp {
+    z-index: 3000; }
+/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9pbmRleC5zY3NzIiwiLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL3gtcGFjay9wbHVnaW5zL21hcHMvcHVibGljL19tYWluLnNjc3MiLCIuLi8uLi8uLi8uLi8uLi8uLi9ub2RlX21vZHVsZXMvQGVsYXN0aWMvZXVpL3NyYy9nbG9iYWxfc3R5bGluZy92YXJpYWJsZXMvX2NvbG9ycy5zY3NzIiwiLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL3gtcGFjay9wbHVnaW5zL21hcHMvcHVibGljL2NvbXBvbmVudHMvZ2lzX21hcC9fZ2lzX21hcC5zY3NzIiwiLi4vLi4vLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL0BlbGFzdGljL2V1aS9zcmMvZ2xvYmFsX3N0eWxpbmcvZnVuY3Rpb25zL19jb2xvcnMuc2NzcyIsIi4uLy4uLy4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy9AZWxhc3RpYy9ldWkvc3JjL2dsb2JhbF9zdHlsaW5nL3ZhcmlhYmxlcy9fYW5pbWF0aW9ucy5zY3NzIiwiLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL3gtcGFjay9wbHVnaW5zL21hcHMvcHVibGljL2NvbXBvbmVudHMvbGF5ZXJfYWRkcGFuZWwvX2xheWVyX2FkZHBhbmVsLnNjc3MiLCIuLi8uLi8uLi8uLi9ub2RlX21vZHVsZXMveC1wYWNrL3BsdWdpbnMvbWFwcy9wdWJsaWMvY29tcG9uZW50cy9sYXllcl9wYW5lbC9fbGF5ZXJfcGFuZWwuc2NzcyIsIi4uLy4uLy4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy9AZWxhc3RpYy9ldWkvc3JjL2dsb2JhbF9zdHlsaW5nL3ZhcmlhYmxlcy9fc2l6ZS5zY3NzIiwiLi4vLi4vLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL0BlbGFzdGljL2V1aS9zcmMvZ2xvYmFsX3N0eWxpbmcvbWl4aW5zL19zaGFkb3cuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9jb21wb25lbnRzL2xheWVyX3BhbmVsL2pvaW5fZWRpdG9yL3Jlc291cmNlcy9fam9pbi5zY3NzIiwiLi4vLi4vLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL0BlbGFzdGljL2V1aS9zcmMvZ2xvYmFsX3N0eWxpbmcvdmFyaWFibGVzL19ib3JkZXJzLnNjc3MiLCIuLi8uLi8uLi8uLi8uLi8uLi9ub2RlX21vZHVsZXMvQGVsYXN0aWMvZXVpL3NyYy9nbG9iYWxfc3R5bGluZy9taXhpbnMvX2hlbHBlcnMuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9jb21wb25lbnRzL2xheWVyX3BhbmVsL3NldHRpbmdzX3BhbmVsL19zZXR0aW5nc19wYW5lbC5zY3NzIiwiLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL3gtcGFjay9wbHVnaW5zL21hcHMvcHVibGljL2NvbXBvbmVudHMvd2lkZ2V0X292ZXJsYXkvX3dpZGdldF9vdmVybGF5LnNjc3MiLCIuLi8uLi8uLi8uLi8uLi8uLi9ub2RlX21vZHVsZXMvQGVsYXN0aWMvZXVpL3NyYy9nbG9iYWxfc3R5bGluZy92YXJpYWJsZXMvX3pfaW5kZXguc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9jb21wb25lbnRzL3dpZGdldF9vdmVybGF5L2F0dHJpYnV0aW9uX2NvbnRyb2wvX2F0dHJpYnV0aW9uX2NvbnRyb2wuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9jb21wb25lbnRzL3dpZGdldF9vdmVybGF5L2xheWVyX2NvbnRyb2wvX2xheWVyX2NvbnRyb2wuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9jb21wb25lbnRzL3dpZGdldF9vdmVybGF5L2xheWVyX2NvbnRyb2wvbGF5ZXJfdG9jL3RvY19lbnRyeS9fdG9jX2VudHJ5LnNjc3MiLCIuLi8uLi8uLi8uLi9ub2RlX21vZHVsZXMveC1wYWNrL3BsdWdpbnMvbWFwcy9wdWJsaWMvY29tcG9uZW50cy93aWRnZXRfb3ZlcmxheS92aWV3X2NvbnRyb2wvX3ZpZXdfY29udHJvbC5zY3NzIiwiLi4vLi4vLi4vLi4vbm9kZV9tb2R1bGVzL3gtcGFjay9wbHVnaW5zL21hcHMvcHVibGljL3NoYXJlZC9pY29ucy9fY29sb3JfZ3JhZGllbnQuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9zaGFyZWQvbGF5ZXJzL3N0eWxlcy9jb21wb25lbnRzL19zdGF0aWNfZHluYW1pY19zdHlsZV9yb3cuc2NzcyIsIi4uLy4uLy4uLy4uL25vZGVfbW9kdWxlcy94LXBhY2svcGx1Z2lucy9tYXBzL3B1YmxpYy9zaGFyZWQvbGF5ZXJzL3N0eWxlcy9jb21wb25lbnRzL3ZlY3Rvci9jb2xvci9fc3RhdGljX2NvbG9yX3NlbGVjdGlvbi5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUdBLHVCQUF1QjtBQ0h2QjtFQUNFLHFCQUFhO0VBQWIsc0JBQWE7RUFBYixxQkFBYTtFQUFiLGNBQWE7RUFDYiw2QkFBc0I7RUFBdEIsOEJBQXNCO0VBQXRCLCtCQUFzQjtNQUF0QiwyQkFBc0I7VUFBdEIsdUJBQXNCO0VBQ3RCLGNBQWE7RUFDYixZQUFXO0VBQ1gsaUJBQWdCLEVBQ2pCOztBQUVEO0VBQ0UseUJBQXdCLEVBQ3pCOztBQUVEO0VBQ0Usb0JBQVk7RUFBWixxQkFBWTtNQUFaLHFCQUFZO1VBQVosYUFBWTtFQUNaLHFCQUFhO0VBQWIsc0JBQWE7RUFBYixxQkFBYTtFQUFiLGNBQWE7RUFDYiw2QkFBc0I7RUFBdEIsOEJBQXNCO0VBQXRCLCtCQUFzQjtNQUF0QiwyQkFBc0I7VUFBdEIsdUJBQXNCLEVBQ3ZCOztBQUtEO0VBQ0Usb0JBQVk7RUFBWixxQkFBWTtNQUFaLHFCQUFZO1VBQVosYUFB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 */

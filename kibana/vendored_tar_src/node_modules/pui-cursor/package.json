@@ -1,0 +1,63 @@
+{
+  "name": "pui-cursor",
+  "version": "3.0.5",
+  "description": "immutable cursor implementation for react",
+  "main": "cursor.js",
+  "scripts": {
+    "test": "gulp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pivotal-cf/pui-cursor.git"
+  },
+  "keywords": [
+    "cursor"
+  ],
+  "author": "Pivotal, Inc",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pivotal-cf/pui-cursor/issues"
+  },
+  "homepage": "https://github.com/pivotal-cf/pui-cursor",
+  "devDependencies": {
+    "babel-core": "^6.7.5",
+    "babel-eslint": "^6.0.2",
+    "babel-loader": "^6.2.4",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-plugin-transform-object-rest-spread": "^6.6.5",
+    "babel-plugin-transform-runtime": "^6.7.5",
+    "babel-polyfill": "^6.7.4",
+    "babel-preset-es2015": "^6.6.0",
+    "bluebird": "^2.10.2",
+    "del": "^2.2.0",
+    "foreman": "^1.3.0",
+    "gulp": "^3.9.0",
+    "gulp-babel": "^6.1.2",
+    "gulp-babel-istanbul": "^1.0.0",
+    "gulp-eslint": "^1.1.1",
+    "gulp-header": "^1.2.2",
+    "gulp-if": "^2.0.0",
+    "gulp-jasmine": "^2.4.2",
+    "gulp-jasmine-browser": "^1.7.1",
+    "gulp-load-plugins": "^0.10.0",
+    "gulp-plumber": "^1.0.0",
+    "gulp-util": "^3.0.7",
+    "jquery": "^2.1.3",
+    "jsdom": "^10.1.0",
+    "merge-stream": "^0.1.7",
+    "mock-promises": "^0.6.0",
+    "npm": "^2.8.3",
+    "phantomjs-prebuilt": "^2.1.14",
+    "require-dir": "^0.3.0",
+    "run-sequence": "^1.0.2",
+    "webpack": "^1.12.12",
+    "webpack-stream": "^3.1.0"
+  },
+  "dependencies": {
+    "babel-runtime": "^6.6.1",
+    "immutability-helper": "^2.0.0",
+    "lodash.flow": "^3.2.1",
+    "lodash.isobject": "^3.0.2",
+    "warning": "^2.1.0"
+  }
+}

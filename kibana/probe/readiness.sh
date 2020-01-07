@@ -16,18 +16,17 @@
 # limitations under the License.
 #
 
-KIBANA_REST_BASEURL=http://localhost:5601
+KIBANA_REST_BASEURL=http://localhost:5601/app/kibana
 EXPECTED_RESPONSE_CODE=200
 max_time="${max_time:-4}"
 
 response_code="$(
     curl --silent                          \
-         --request HEAD                    \
          --head                            \
          --output /dev/null                \
          --max-time "${max_time}"          \
          --write-out '%{response_code}'    \
-         "${KIBANA_REST_BASEURL}/"
+         "${KIBANA_REST_BASEURL}"
 )"
 
 if [ "${response_code}" == "${EXPECTED_RESPONSE_CODE}" ]; then

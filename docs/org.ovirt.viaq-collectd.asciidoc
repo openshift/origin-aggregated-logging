@@ -26,7 +26,13 @@ The fields are grouped in the following categories:
 
 The top level fields are common to every application, and may be present in every record.
 For the Elasticsearch template, this is what populates the actual mappings
-of _default_ in the template's mapping section.
+of either the `\_default_` type (in ES 5.x or earlier) or the only single `_doc` type (in ES 6.x or later)
+in the template's mapping section.
+
+Read more about Elasticsearch index types deprecation:
+
+- https://www.elastic.co/guide/en/elasticsearch/reference/6.0/default-mapping.html[Default mapping deprecation in ES 6.x]
+- https://www.elastic.co/guide/en/elasticsearch/reference/6.0/removal-of-types.html[Removal of mappings types in ES 6.x]
 
 
 
@@ -190,6 +196,16 @@ An intended use of this field is that if you use another logging
 store or application other than Elasticsearch, but you still need
 to correlate data with the data stored in Elasticsearch, this field
 will give you the exact document corresponding to the record.
+
+
+==== viaq_index_name
+
+type: keyword
+
+example: project.my-cool-project-in-lab04.748e92c2-70d7-11e9-b387-000d3af2d83b.2019.05.09
+
+Index name in which this message will be stored within the Elasticsearch.
+The value of this field is generated based on the source of the message. 
 
 
 
