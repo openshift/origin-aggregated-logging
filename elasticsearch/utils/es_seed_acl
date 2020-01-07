@@ -8,12 +8,13 @@ MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
 info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
-config=${ES_CONF}/elasticsearch.yml
-index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
-
 function sgadmin {
-  ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
-    -i $index \
+  secadmincmd=${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
+  if [ -f ${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh ] ; then
+    secadmincmd=${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh
+  fi
+  $secadmincmd \
+    -i $( get_security_conf_index ) \
     -h ${ES_CLUSTER_HOST} \
     -p ${ES_CLUSTER_PORT} \
     -ks /etc/elasticsearch/secret/admin.jks \

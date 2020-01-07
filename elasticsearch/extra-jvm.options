@@ -1,0 +1,5 @@
+-XX:+UnlockExperimentalVMOptions
+-XX:+UseCGroupMemoryLimitForHeap
+-XX:MaxRAMFraction=2
+-XX:InitialRAMFraction=2
+-XX:MinRAMFraction=2
