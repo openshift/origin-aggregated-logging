@@ -1,5 +1,3 @@
-/*! Copyright Elasticsearch B.V. and/or license to Elasticsearch B.V. under one or more contributor license agreements
- * Licensed under the Elastic License; you may not use this file except in compliance with the Elastic License. */
 /**
  * designed to emulate root-element stretching and overflow
  * prevention previously handled in kbn_chrome.less
@@ -16,182 +14,6 @@
   background-position: 10px 14px;
   background-size: 120px 42px;
   background-repeat: no-repeat;
-}
-
-
-/* Functional styling;
- * These styles are required for noUiSlider to function.
- * You don't need to change these rules to apply your design.
- */
-.noUi-target,
-.noUi-target * {
--webkit-touch-callout: none;
--webkit-user-select: none;
--ms-touch-action: none;
-	touch-action: none;
--ms-user-select: none;
--moz-user-select: none;
-	user-select: none;
--webkit-box-sizing: border-box;
-        box-sizing: border-box;
-}
-.noUi-target {
-	position: relative;
-	direction: ltr;
-}
-.noUi-base {
-	width: 100%;
-	height: 100%;
-	position: relative;
-	z-index: 1; /* Fix 401 */
-}
-.noUi-origin {
-	position: absolute;
-	right: 0;
-	top: 0;
-	left: 0;
-	bottom: 0;
-}
-.noUi-handle {
-	position: relative;
-	z-index: 1;
-}
-.noUi-stacking .noUi-handle {
-/* This class is applied to the lower origin when
-   its values is > 50%. */
-	z-index: 10;
-}
-.noUi-state-tap .noUi-origin {
--webkit-transition: left 0.3s, top 0.3s;
-	transition: left 0.3s, top 0.3s;
-}
-.noUi-state-drag * {
-	cursor: inherit !important;
-}
-
-/* Painting and performance;
- * Browsers can paint handles in their own layer.
- */
-.noUi-base,
-.noUi-handle {
-	-webkit-transform: translate3d(0,0,0);
-	transform: translate3d(0,0,0);
-}
-
-/* Slider size and handle placement;
- */
-.noUi-horizontal {
-	height: 18px;
-}
-.noUi-horizontal .noUi-handle {
-	width: 34px;
-	height: 28px;
-	left: -17px;
-	top: -6px;
-}
-.noUi-vertical {
-	width: 18px;
-}
-.noUi-vertical .noUi-handle {
-	width: 28px;
-	height: 34px;
-	left: -6px;
-	top: -17px;
-}
-
-/* Styling;
- */
-.noUi-background {
-	background: #FAFAFA;
-	-webkit-box-shadow: inset 0 1px 1px #f0f0f0;
-	        box-shadow: inset 0 1px 1px #f0f0f0;
-}
-.noUi-connect {
-	background: #3FB8AF;
-	-webkit-box-shadow: inset 0 0 3px rgba(51,51,51,0.45);
-	        box-shadow: inset 0 0 3px rgba(51,51,51,0.45);
--webkit-transition: background 450ms;
-	transition: background 450ms;
-}
-.noUi-origin {
-	border-radius: 2px;
-}
-.noUi-target {
-	border-radius: 4px;
-	border: 1px solid #D3D3D3;
-	-webkit-box-shadow: inset 0 1px 1px #F0F0F0, 0 3px 6px -5px #BBB;
-	        box-shadow: inset 0 1px 1px #F0F0F0, 0 3px 6px -5px #BBB;
-}
-.noUi-target.noUi-connect {
-	-webkit-box-shadow: inset 0 0 3px rgba(51,51,51,0.45), 0 3px 6px -5px #BBB;
-	        box-shadow: inset 0 0 3px rgba(51,51,51,0.45), 0 3px 6px -5px #BBB;
-}
-
-/* Handles and cursors;
- */
-.noUi-draggable {
-	cursor: w-resize;
-}
-.noUi-vertical .noUi-draggable {
-	cursor: n-resize;
-}
-.noUi-handle {
-	border: 1px solid #D9D9D9;
-	border-radius: 3px;
-	background: #FFF;
-	cursor: default;
-	-webkit-box-shadow: inset 0 0 1px #FFF,
-				inset 0 1px 7px #EBEBEB,
-				0 3px 6px -3px #BBB;
-	        box-shadow: inset 0 0 1px #FFF,
-				inset 0 1px 7px #EBEBEB,
-				0 3px 6px -3px #BBB;
-}
-.noUi-active {
-	-webkit-box-shadow: inset 0 0 1px #FFF,
-				inset 0 1px 7px #DDD,
-				0 3px 6px -3px #BBB;
-	        box-shadow: inset 0 0 1px #FFF,
-				inset 0 1px 7px #DDD,
-				0 3px 6px -3px #BBB;
-}
-
-/* Handle stripes;
- */
-.noUi-handle:before,
-.noUi-handle:after {
-	content: "";
-	display: block;
-	position: absolute;
-	height: 14px;
-	width: 1px;
-	background: #E8E7E6;
-	left: 14px;
-	top: 6px;
-}
-.noUi-handle:after {
-	left: 17px;
-}
-.noUi-vertical .noUi-handle:before,
-.noUi-vertical .noUi-handle:after {
-	width: 14px;
-	height: 1px;
-	left: 6px;
-	top: 14px;
-}
-.noUi-vertical .noUi-handle:after {
-	top: 17px;
-}
-
-/* Disabled state;
- */
-[disabled].noUi-connect,
-[disabled] .noUi-connect {
-	background: #B8B8B8;
-}
-[disabled].noUi-origin,
-[disabled] .noUi-handle {
-	cursor: not-allowed;
 }
 
 /**
@@ -3359,140 +3181,6 @@ main {
 .kuiViewContentItem {
   padding-left: 20px;
   padding-right: 20px; }
-
-
-/* Base;
- *
- */
-.noUi-pips,
-.noUi-pips * {
--webkit-box-sizing: border-box;
-        box-sizing: border-box;
-}
-.noUi-pips {
-	position: absolute;
-	color: #999;
-}
-
-/* Values;
- *
- */
-.noUi-value {
-	position: absolute;
-	text-align: center;
-}
-.noUi-value-sub {
-	color: #ccc;
-	font-size: 10px;
-}
-
-/* Markings;
- *
- */
-.noUi-marker {
-	position: absolute;
-	background: #CCC;
-}
-.noUi-marker-sub {
-	background: #AAA;
-}
-.noUi-marker-large {
-	background: #AAA;
-}
-
-/* Horizontal layout;
- *
- */
-.noUi-pips-horizontal {
-	padding: 10px 0;
-	height: 80px;
-	top: 100%;
-	left: 0;
-	width: 100%;
-}
-.noUi-value-horizontal {
-	-webkit-transform: translate3d(-50%,50%,0);
-	transform: translate3d(-50%,50%,0);
-}
-
-.noUi-marker-horizontal.noUi-marker {
-	margin-left: -1px;
-	width: 2px;
-	height: 5px;
-}
-.noUi-marker-horizontal.noUi-marker-sub {
-	height: 10px;
-}
-.noUi-marker-horizontal.noUi-marker-large {
-	height: 15px;
-}
-
-/* Vertical layout;
- *
- */
-.noUi-pips-vertical {
-	padding: 0 10px;
-	height: 100%;
-	top: 0;
-	left: 100%;
-}
-.noUi-value-vertical {
-	-webkit-transform: translate3d(0,-50%,0);
-	transform: translate3d(0,-50%,0);
-	padding-left: 25px;
-}
-
-.noUi-marker-vertical.noUi-marker {
-	width: 5px;
-	height: 2px;
-	margin-top: -1px;
-}
-.noUi-marker-vertical.noUi-marker-sub {
-	width: 10px;
-}
-.noUi-marker-vertical.noUi-marker-large {
-	width: 15px;
-}
-
-.filterEditor {
-  position: absolute;
-  width: 600px;
-  z-index: 101;
-}
-.filterEditor__labelBar {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-align: center;
-  -webkit-align-items: center;
-      -ms-flex-align: center;
-          align-items: center;
-  -webkit-box-pack: justify;
-  -webkit-justify-content: space-between;
-      -ms-flex-pack: justify;
-          justify-content: space-between;
-}
-.filterEditor__wideField {
-  min-width: 0;
-}
-.filterEditorParamsInput {
-  min-width: 100px;
-}
-.uiSelectChoices--autoWidth {
-  width: auto !important;
-  min-width: 100% !important;
-}
-.uiSelectMatch--restrictToParent .ui-select-match-item {
-  max-width: 100%;
-}
-.uiSelectMatch--pillWithTooltip {
-  display: block;
-  margin-right: 16px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
 
 /*!
  * Bootstrap v3.3.6 (http://getbootstrap.com)
@@ -8015,140 +7703,12 @@ filter-bar {
   background: #292b33;
 }
 
-.noUi-tooltip {
-	display: block;
-	position: absolute;
-	border: 1px solid #D9D9D9;
-	border-radius: 3px;
-	background: #fff;
-	padding: 5px;
-	text-align: center;
+.filterEditor {
+  position: absolute;
+  width: 600px;
+  z-index: 101;
 }
-
-.noUi-horizontal .noUi-handle-lower .noUi-tooltip {
-	top: -32px;
-}
-.noUi-horizontal .noUi-handle-upper .noUi-tooltip {
-	bottom: -32px;
-}
-.noUi-vertical .noUi-handle-lower .noUi-tooltip {
-	left: 120%;
-}
-.noUi-vertical .noUi-handle-upper .noUi-tooltip {
-	right: 120%;
-}
-
-.kbn-timepicker {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: end;
-  -webkit-justify-content: flex-end;
-      -ms-flex-pack: end;
-          justify-content: flex-end;
-  /**
-   * 1. Override kuiLocalNav styles.
-   */
-  /**
-   * Avoid last nav overlapping collapse button
-   */
-}
-.kbn-timepicker .kbn-timepicker-content {
-  width: 100%;
-  max-width: 600px;
-}
-.kbn-timepicker [kbn-time-input] {
-  text-align: center;
-}
-.kbn-timepicker .kbn-timepicker-modes {
-  text-transform: capitalize;
-}
-.kbn-timepicker .kbn-timepicker-section {
-  float: left;
-}
-.kbn-timepicker .kbn-timepicker-section + .kbn-timepicker-section {
-  padding-left: 15px;
-}
-.kbn-timepicker .kbn-timepicker-quick-section {
-  width: 25%;
-}
-.kbn-timepicker .kbn-timepicker-body {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-align: top;
-  -webkit-align-items: top;
-      -ms-flex-align: top;
-          align-items: top;
-  -webkit-box-pack: stretch;
-  -webkit-justify-content: stretch;
-      -ms-flex-pack: stretch;
-          justify-content: stretch;
-  width: 100%;
-}
-@media (max-width: 660px) {
-  .kbn-timepicker .kbn-timepicker-body {
-    -webkit-box-orient: vertical;
-    -webkit-box-direction: normal;
-    -webkit-flex-direction: column;
-        -ms-flex-direction: column;
-            flex-direction: column;
-  }
-}
-.kbn-timepicker .kbn-timepicker-body-column {
-  width: 100%;
-}
-.kbn-timepicker .kbn-timepicker-form-header {
-  margin-bottom: 0 !important;
-}
-.kbn-timepicker .kbn-timepicker-actions {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: end;
-  -webkit-justify-content: flex-end;
-      -ms-flex-pack: end;
-          justify-content: flex-end;
-  -webkit-box-align: baseline;
-  -webkit-align-items: baseline;
-      -ms-flex-align: baseline;
-          align-items: baseline;
-}
-.kbn-timepicker .kbn-timepicker-action-item,
-.kbn-timepicker .kbn-timepicker-submit-button {
-  margin-left: 10px;
-}
-.kbn-timepicker .kbn-timepicker-submit-button {
-  min-width: 100px;
-}
-.kbn-timepicker .kbn-refresh-section {
-  float: left;
-  padding: 0px 15px;
-}
-.kbn-timepicker .kbn-timepicket-alert {
-  width: 100px;
-}
-.kbn-timepicker .kbn-timepicker-error {
-  color: #BD271E;
-}
-.kbn-timepicker .kbn-timepicker-title {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: justify;
-  -webkit-justify-content: space-between;
-      -ms-flex-pack: justify;
-          justify-content: space-between;
-}
-.kbn-timepicker .kbn-timepicker-title__text {
-  margin-bottom: 0 !important;
-  /* 1 */
-}
-.kbn-timepicker .kbn-timepicker-title__section {
+.filterEditor__labelBar {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -8157,20 +7717,30 @@ filter-bar {
   -webkit-align-items: center;
       -ms-flex-align: center;
           align-items: center;
+  -webkit-box-pack: justify;
+  -webkit-justify-content: space-between;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
 }
-.kbn-timepicker .nav:last-child {
-  margin-right: 24px;
+.filterEditor__wideField {
+  min-width: 0;
 }
-.kbn-timepicker .refresh-interval {
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
+.filterEditorParamsInput {
+  min-width: 100px;
 }
-.kbn-timepicker .refresh-interval-active {
-  background-color: #006BB4;
-  color: #FFF;
+.uiSelectChoices--autoWidth {
+  width: auto !important;
+  min-width: 100% !important;
 }
-.navbar-timepicker-time-desc > .fa-clock-o {
-  padding-right: 5px;
+.uiSelectMatch--restrictToParent .ui-select-match-item {
+  max-width: 100%;
+}
+.uiSelectMatch--pillWithTooltip {
+  display: block;
+  margin-right: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 /*!
@@ -10211,96 +9781,138 @@ filter-bar {
   content: "\F06A";
 }
 
-.sharePanelContent {
-  padding: 16px;
+.kbn-timepicker {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: end;
+  -webkit-justify-content: flex-end;
+      -ms-flex-pack: end;
+          justify-content: flex-end;
+  /**
+   * 1. Override kuiLocalNav styles.
+   */
+  /**
+   * Avoid last nav overlapping collapse button
+   */
 }
-.sharePanel__copyAnchor {
+.kbn-timepicker .kbn-timepicker-content {
+  width: 100%;
+  max-width: 600px;
+}
+.kbn-timepicker [kbn-time-input] {
+  text-align: center;
+}
+.kbn-timepicker .kbn-timepicker-modes {
+  text-transform: capitalize;
+}
+.kbn-timepicker .kbn-timepicker-section {
+  float: left;
+}
+.kbn-timepicker .kbn-timepicker-section + .kbn-timepicker-section {
+  padding-left: 15px;
+}
+.kbn-timepicker .kbn-timepicker-quick-section {
+  width: 25%;
+}
+.kbn-timepicker .kbn-timepicker-body {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: top;
+  -webkit-align-items: top;
+      -ms-flex-align: top;
+          align-items: top;
+  -webkit-box-pack: stretch;
+  -webkit-justify-content: stretch;
+      -ms-flex-pack: stretch;
+          justify-content: stretch;
   width: 100%;
 }
-.sharePanel__button {
+@media (max-width: 660px) {
+  .kbn-timepicker .kbn-timepicker-body {
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -webkit-flex-direction: column;
+        -ms-flex-direction: column;
+            flex-direction: column;
+  }
+}
+.kbn-timepicker .kbn-timepicker-body-column {
   width: 100%;
 }
-
-.react-grid-layout {
-  position: relative;
-  -webkit-transition: height 200ms ease;
-  transition: height 200ms ease;
+.kbn-timepicker .kbn-timepicker-form-header {
+  margin-bottom: 0 !important;
 }
-.react-grid-item {
-  -webkit-transition: all 200ms ease;
-  transition: all 200ms ease;
-  -webkit-transition-property: left, top;
-  transition-property: left, top;
+.kbn-timepicker .kbn-timepicker-actions {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: end;
+  -webkit-justify-content: flex-end;
+      -ms-flex-pack: end;
+          justify-content: flex-end;
+  -webkit-box-align: baseline;
+  -webkit-align-items: baseline;
+      -ms-flex-align: baseline;
+          align-items: baseline;
 }
-.react-grid-item.cssTransforms {
-  -webkit-transition-property: -webkit-transform;
-  transition-property: -webkit-transform;
-  transition-property: transform;
-  transition-property: transform, -webkit-transform;
+.kbn-timepicker .kbn-timepicker-action-item,
+.kbn-timepicker .kbn-timepicker-submit-button {
+  margin-left: 10px;
 }
-.react-grid-item.resizing {
-  z-index: 1;
-  will-change: width, height;
+.kbn-timepicker .kbn-timepicker-submit-button {
+  min-width: 100px;
 }
-
-.react-grid-item.react-draggable-dragging {
-  -webkit-transition: none;
-  transition: none;
-  z-index: 3;
-  will-change: transform;
+.kbn-timepicker .kbn-refresh-section {
+  float: left;
+  padding: 0px 15px;
 }
-
-.react-grid-item.react-grid-placeholder {
-  background: red;
-  opacity: 0.2;
-  -webkit-transition-duration: 100ms;
-          transition-duration: 100ms;
-  z-index: 2;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  -o-user-select: none;
-  user-select: none;
+.kbn-timepicker .kbn-timepicket-alert {
+  width: 100px;
 }
-
-.react-grid-item > .react-resizable-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  bottom: 0;
-  right: 0;
-  cursor: se-resize;
+.kbn-timepicker .kbn-timepicker-error {
+  color: #BD271E;
 }
-
-.react-grid-item > .react-resizable-handle::after {
-  content: "";
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 5px;
-  height: 5px;
-  border-right: 2px solid rgba(0, 0, 0, 0.4);
-  border-bottom: 2px solid rgba(0, 0, 0, 0.4);
+.kbn-timepicker .kbn-timepicker-title {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: justify;
+  -webkit-justify-content: space-between;
+      -ms-flex-pack: justify;
+          justify-content: space-between;
 }
-
-.react-resizable {
-  position: relative;
+.kbn-timepicker .kbn-timepicker-title__text {
+  margin-bottom: 0 !important;
+  /* 1 */
 }
-.react-resizable-handle {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  bottom: 0;
-  right: 0;
-  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2IDYiIHN0eWxlPSJiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmYwMCIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSI2cHgiIGhlaWdodD0iNnB4Ij48ZyBvcGFjaXR5PSIwLjMwMiI+PHBhdGggZD0iTSA2IDYgTCAwIDYgTCAwIDQuMiBMIDQgNC4yIEwgNC4yIDQuMiBMIDQuMiAwIEwgNiAwIEwgNiA2IEwgNiA2IFoiIGZpbGw9IiMwMDAwMDAiLz48L2c+PC9zdmc+');
-  background-position: bottom right;
-  padding: 0 3px 3px 0;
-  background-repeat: no-repeat;
-  background-origin: content-box;
-  -webkit-box-sizing: border-box;
-          box-sizing: border-box;
-  cursor: se-resize;
+.kbn-timepicker .kbn-timepicker-title__section {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+      -ms-flex-align: center;
+          align-items: center;
 }
-
-.react-vis-magic-css-import-rule{display:inherit}.rv-treemap{font-size:12px;position:relative}.rv-treemap__leaf{overflow:hidden;position:absolute}.rv-treemap__leaf--circle{-webkit-box-align:center;-webkit-align-items:center;-ms-flex-align:center;align-items:center;border-radius:100%;display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:center;-webkit-justify-content:center;-ms-flex-pack:center;justify-content:center}.rv-treemap__leaf__content{overflow:hidden;padding:10px;text-overflow:ellipsis}.rv-xy-plot{color:#c3c3c3;position:relative}.rv-xy-plot canvas{pointer-events:none}.rv-xy-plot .rv-xy-canvas{pointer-events:none;position:absolute}.rv-xy-plot__inner{display:block}.rv-xy-plot__axis__line{fill:none;stroke-width:2px;stroke:#e6e6e9}.rv-xy-plot__axis__tick__line{stroke:#e6e6e9}.rv-xy-plot__axis__tick__text{fill:#6b6b76;font-size:11px}.rv-xy-plot__axis__title text{fill:#6b6b76;font-size:11px}.rv-xy-plot__grid-lines__line{stroke:#e6e6e9}.rv-xy-plot__circular-grid-lines__line{fill-opacity:0;stroke:#e6e6e9}.rv-xy-plot__series,.rv-xy-plot__series path{pointer-events:all}.rv-xy-plot__circular-grid-lines__line{fill-opacity:0;stroke:#e6e6e9}.rv-xy-plot__series,.rv-xy-plot__series path{pointer-events:all}.rv-xy-plot__series--line{fill:none;stroke:#000;stroke-width:2px}.rv-crosshair{position:absolute;font-size:11px;pointer-events:none}.rv-crosshair__line{background:#47d3d9;width:1px}.rv-crosshair__inner{position:absolute;text-align:left;top:0}.rv-crosshair__inner__content{border-radius:4px;background:#3a3a48;color:#fff;font-size:12px;padding:7px 10px;-webkit-box-shadow:0 2px 4px rgba(0,0,0,0.5);box-shadow:0 2px 4px rgba(0,0,0,0.5)}.rv-crosshair__inner--left{right:4px}.rv-crosshair__inner--right{left:4px}.rv-crosshair__title{font-weight:bold;white-space:nowrap}.rv-crosshair__item{white-space:nowrap}.rv-hint{position:absolute;pointer-events:none}.rv-hint__content{border-radius:4px;padding:7px 10px;font-size:12px;background:#3a3a48;-webkit-box-shadow:0 2px 4px rgba(0,0,0,0.5);box-shadow:0 2px 4px rgba(0,0,0,0.5);color:#fff;text-align:left;white-space:nowrap}.rv-discrete-color-legend{-webkit-box-sizing:border-box;box-sizing:border-box;overflow-y:auto;font-size:12px}.rv-discrete-color-legend.horizontal{white-space:nowrap}.rv-discrete-color-legend-item{color:#3a3a48;border-radius:1px;padding:9px 10px}.rv-discrete-color-legend-item.horizontal{display:inline-block}.rv-discrete-color-legend-item.horizontal .rv-discrete-color-legend-item__title{margin-left:0;display:block}.rv-discrete-color-legend-item__color{background:#dcdcdc;display:inline-block;height:2px;vertical-align:middle;width:14px}.rv-discrete-color-legend-item__title{margin-left:10px}.rv-discrete-color-legend-item.disabled{color:#b8b8b8}.rv-discrete-color-legend-item.clickable{cursor:pointer}.rv-discrete-color-legend-item.clickable:hover{background:#f9f9f9}.rv-search-wrapper{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-orient:vertical;-webkit-box-direction:normal;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column}.rv-search-wrapper__form{-webkit-box-flex:0;-webkit-flex:0;-ms-flex:0;flex:0}.rv-search-wrapper__form__input{width:100%;color:#a6a6a5;border:1px solid #e5e5e4;padding:7px 10px;font-size:12px;-webkit-box-sizing:border-box;box-sizing:border-box;border-radius:2px;margin:0 0 9px;outline:0}.rv-search-wrapper__contents{-webkit-box-flex:1;-webkit-flex:1;-ms-flex:1;flex:1;overflow:auto}.rv-continuous-color-legend{font-size:12px}.rv-continuous-color-legend .rv-gradient{height:4px;border-radius:2px;margin-bottom:5px}.rv-continuous-size-legend{font-size:12px}.rv-continuous-size-legend .rv-bubbles{text-align:justify;overflow:hidden;margin-bottom:5px;width:100%}.rv-continuous-size-legend .rv-bubble{background:#d8d9dc;display:inline-block;vertical-align:bottom}.rv-continuous-size-legend .rv-spacer{display:inline-block;font-size:0;line-height:0;width:100%}.rv-legend-titles{height:16px;position:relative}.rv-legend-titles__left,.rv-legend-titles__right,.rv-legend-titles__center{position:absolute;white-space:nowrap;overflow:hidden}.rv-legend-titles__center{display:block;text-align:center;width:100%}.rv-legend-titles__right{right:0}.rv-radial-chart .rv-xy-plot__series--label{pointer-events:none}
+.kbn-timepicker .nav:last-child {
+  margin-right: 24px;
+}
+.kbn-timepicker .refresh-interval {
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+.kbn-timepicker .refresh-interval-active {
+  background-color: #006BB4;
+  color: #FFF;
+}
+.navbar-timepicker-time-desc > .fa-clock-o {
+  padding-right: 5px;
+}
 

@@ -23,7 +23,7 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
 
-ARG MAVEN_REPO_URL=http://repo1.maven.org/maven2/
+ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
 
 RUN packages="java-${JAVA_VER}-openjdk-headless \
               PyYAML  \

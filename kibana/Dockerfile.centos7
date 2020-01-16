@@ -27,7 +27,9 @@ ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD run.sh utils ${HOME}/
 RUN sed -i -e 's/"node":.*/"node": "'$(${NODE_PATH}/node --version | sed 's/v//')'"/' package.json && \
     mkdir -p node && \
-    ln -s ${NODE_PATH} node/bin
+    ln -s ${NODE_PATH} node/bin && \
+    mkdir -p ${HOME}/x-pack && \
+    ln -s ${HOME}/x-pack ${HOME}/node_modules/x-pack
 RUN bin/kibana --optimize
 
 WORKDIR ${HOME}
