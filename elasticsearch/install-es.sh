@@ -30,6 +30,8 @@ cat extra-jvm.options >> ${ES_PATH_CONF}/jvm.options
 groupadd -r elasticsearch -g 1000
 useradd -r -g elasticsearch -d ${ES_HOME} -u 1000 \
             -s /sbin/nologin -c "You know, for search" elasticsearch
+chown -R elasticsearch:elasticsearch ${ES_PATH_CONF}
+chmod -R 777 ${ES_PATH_CONF}
 mkdir -p ${ES_HOME}/data
 chown elasticsearch:elasticsearch ${ES_HOME}/data
 chmod 0777 ${ES_HOME}/data

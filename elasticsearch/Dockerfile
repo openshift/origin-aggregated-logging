@@ -6,7 +6,7 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_PATH_CONF=/etc/elasticsearch/ \
+ENV ES_PATH_CONF=/tmp/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
     ES_VER=6.8.1.redhat-6 \
     HOME=/opt/app-root/src \

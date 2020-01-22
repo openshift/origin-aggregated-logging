@@ -57,6 +57,6 @@ if [ -z "${QUERY:-}" ]; then
   QUERY="$INDEX/$TYPE?$OPTIONS"
 fi
 
-curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+curl -s -k --cert ${ES_PATH_CONF}/secret/admin-cert --key ${ES_PATH_CONF}/secret/admin-key \
      ${CONTENT_TYPE:+"-H"} ${CONTENT_TYPE:+"Content-type:"}${CONTENT_TYPE:-} \
      "$ES_BASE/$QUERY" "$@"
