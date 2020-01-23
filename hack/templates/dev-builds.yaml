@@ -14,8 +14,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-elasticsearch5
-    name: logging-elasticsearch5
+      build: logging-elasticsearch6
+    name: logging-elasticsearch6
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -28,8 +28,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-kibana5
-    name: logging-kibana5
+      build: logging-kibana6
+    name: logging-kibana6
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -56,13 +56,13 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      app: logging-elasticsearch5
-    name: logging-elasticsearch5
+      app: logging-elasticsearch6
+    name: logging-elasticsearch6
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-elasticsearch5:latest
+        name: logging-elasticsearch6:latest
     resources: {}
     source:
       contextDir: elasticsearch

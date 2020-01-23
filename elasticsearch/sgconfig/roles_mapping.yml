@@ -1,4 +1,4 @@
-sg_role_kibana:
+kibana_server:
   users:
     - 'CN=system.logging.kibana,OU=OpenShift,O=Logging'
 

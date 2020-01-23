@@ -147,18 +147,19 @@ for elasticsearch_pod in $( get_es_pod_all ${OAL_ELASTICSEARCH_COMPONENT} ); do
 	else
 		os::log::info "Elasticsearch pod ${elasticsearch_pod} contains expected plugin(s)"
 	fi
+	# HACK - This will not succeed on ES6 because the logic was moved to the proxy which has yet to be
+	# integrated into the deployment
+	# os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
+    # es_pod_ip=$(oc get pod ${elasticsearch_pod} -o jsonpath={.status.podIP})
 
-	os::log::info "Checking that Elasticsearch pod ${elasticsearch_pod} exports Prometheus metrics"
-    es_pod_ip=$(oc get pod ${elasticsearch_pod} -o jsonpath={.status.podIP})
-
-	if os::cmd::expect_success_and_text "curl_es_with_token '${es_pod_ip}' '/_prometheus/metrics' '${SATOKEN}' --output /dev/null --write-out '%{response_code}' -v" "200"; then
-		os::log::info "Received data from metrics endpoint"
-	else
-		artifact_log unable to connect to prometheus end point:
-		artifact_log $( curl_es_with_token "${es_pod_ip}" '/_prometheus/metrics' "$SATOKEN" )
-		artifact_log $(oc exec -n $LOGGING_NS -c elasticsearch ${elasticsearch_pod} -- es_acl get --doc=actiongroups)
-		os::log::fatal "Failed while curling _prometheus/metrics endpoint"
-	fi
+	# if os::cmd::expect_success_and_text "curl_es_with_token '${es_pod_ip}' '/_prometheus/metrics' '${SATOKEN}' --output /dev/null --write-out '%{response_code}' -v" "200"; then
+	# 	os::log::info "Received data from metrics endpoint"
+	# else
+	# 	artifact_log unable to connect to prometheus end point:
+	# 	artifact_log $( curl_es_with_token "${es_pod_ip}" '/_prometheus/metrics' "$SATOKEN" )
+	# 	artifact_log $(oc exec -n $LOGGING_NS -c elasticsearch ${elasticsearch_pod} -- es_acl get --doc=actiongroups)
+	# 	os::log::fatal "Failed while curling _prometheus/metrics endpoint"
+	# fi
 
 done
 

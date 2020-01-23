@@ -190,6 +190,11 @@ construct_image_name() {
             local match=/stable:
             local replace="/${LOGGING_IMAGE_STREAM}:"
             IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
+
+            if [ -n "${LOGGING_IMAGE_STREAM_NS:-}" ] ; then
+                local ns=$(echo ${IMAGE_FORMAT} | cut -d '/' -f 2)
+                IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
+            fi
         fi
         echo ${IMAGE_FORMAT/'${component}'/$component}
     elif [ "${USE_CUSTOM_IMAGES:-true}" = false ] ; then
@@ -212,8 +217,8 @@ update_images_in_clo_yaml() {
     else
         filearg="-i $yamlfile"
     fi
-    local es_img=$( construct_image_name logging-elasticsearch5 $version )
-    local k_img=$( construct_image_name logging-kibana5 $version )
+    local es_img=$( construct_image_name logging-elasticsearch6 $version )
+    local k_img=$( construct_image_name logging-kibana6 $version )
     local c_img=$( construct_image_name logging-curator5 $version )
     local f_img=$( construct_image_name logging-fluentd $version )
     local op_img=$( construct_image_name oauth-proxy $version )
@@ -230,22 +235,17 @@ update_images_in_clo_yaml() {
 wait_for_logging_is_running() {
     # we expect a fluentd running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
-    if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-        collector=fluentd
-    else
-        collector=$( oc get clusterlogging instance -o jsonpath='{.spec.collection.logs.type}' )
-    fi
     # we expect $nodeCount elasticsearch pods
     wait_func() {
+        local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
+        if [ $expectedes -ne ${actuales:-0} ] ; then
+            return 1
+        fi
         if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
             return 1
         fi
-        local actualcollectors=$( oc get pods -l component=$collector 2> /dev/null | grep -c "${collector}.*Running" )
+        local actualcollectors=$( oc get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
         if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-            return 1
-        fi
-        local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
-        if [ $expectedes -ne ${actuales:-0} ] ; then
             return 1
         fi
         # if we got here, everything is as it should be
@@ -266,7 +266,8 @@ deploy_logging_using_olm() {
         CREATE_OPERATORGROUP=false
     fi
 
-    local eoimg=${EO_IMAGE:-$( construct_image_name elasticsearch-operator latest )}
+    OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"feature-es6x"}
+    local eoimg=${EO_IMAGE:-$( LOGGING_IMAGE_STREAM_NS=ocp LOGGING_IMAGE_STREAM=$OPERATOR_LOGGING_IMAGE_STREAM construct_image_name elasticsearch-operator latest )}
     cp -r ${EO_DIR}/manifests/${EO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${EO_DIR}/manifests/*.package.yaml $manifest
     update_images_in_clo_yaml $manifest/${EO_MANIFEST_VER:-$MASTER_VERSION}/elasticsearch-operator.*.clusterserviceversion.yaml $eoimg
@@ -283,7 +284,7 @@ deploy_logging_using_olm() {
     TARGET_NAMESPACE=all \
     hack/vendor/olm-test-script/e2e-olm.sh
 
-    local cloimg=${CLO_IMAGE:-$( construct_image_name cluster-logging-operator latest )}
+    local cloimg=${CLO_IMAGE:-$( LOGGING_IMAGE_STREAM_NS=ocp LOGGING_IMAGE_STREAM=$OPERATOR_LOGGING_IMAGE_STREAM construct_image_name cluster-logging-operator latest )}
     rm -rf $manifest/*
     cp -r ${CLO_DIR}/manifests/${CLO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${CLO_DIR}/manifests/*.package.yaml $manifest
