@@ -135,7 +135,7 @@ class LegacyConfigConverter():
         regex = '|'.join(
             map(lambda project: project if legacy_config[project][self.RAW_REGEX] else self.format_regex(project), projects)
             +
-            map(lambda project: self.format_regex(project), ['.searchguard', '.kibana']))
+            map(lambda project: self.format_regex(project), ['.security', '.kibana']))
         return self.generate_action(unit, count, regex, exclude=True)
 
     def validate_internal_config(self, config):
@@ -147,7 +147,7 @@ class LegacyConfigConverter():
                 except Exception as error:
                     raise ValueError('[{0}] is not a valid regular expression. Message from compiler: {1}'.format(project, error))
             else:
-                if project == '.kibana' or project == '.operations' or project == '.defaults' or project == '.searchguard' or project == '.audit':
+                if project == '.kibana' or project == '.operations' or project == '.defaults' or project == '.security' or project == '.audit':
                     continue
                 # check project's name validity
                 if len(project) > self.projectmaxlen:

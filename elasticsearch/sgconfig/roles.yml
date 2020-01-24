@@ -3,9 +3,12 @@ sg_role_kibana:
     - CLUSTER_MONITOR
     - CLUSTER_COMPOSITE_OPS
   indices:
-    '?kibana':
+    '?kibana*':
       '*':
         - INDICES_ALL
+    '*':
+      '*':
+        - indices:admin/aliases/get
 
 sg_role_prometheus:
   cluster:

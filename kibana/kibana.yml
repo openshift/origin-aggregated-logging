@@ -112,21 +112,5 @@ logging.quiet: true
 # Specifies locale to be used for all localizable strings, dates and number formats.
 #i18n.locale: "en"
 
-# X-Pack and provided plugin settings/disabling
-index_management.enabled: false
-rollup.enabled: false
-xpack.apm.enabled: false
-xpack.ccr.enabled: false
-xpack.graph.enabled: false
-#xpack.grokdebugger.enabled: false
-xpack.ilm.enabled: false
-#xpack.infra.enabled: false
-xpack.infra.sources.default.logAlias: project.*,.operations.*
-xpack.maps.enabled: false
-xpack.ml.enabled: false
-xpack.monitoring.enabled: false
-xpack.remote_clusters.enabled: false
-xpack.reporting.enabled: false
-#xpack.searchprofiler.enabled: false
-xpack.spaces.enabled: false
-xpack.uptime.enabled: false
+# Allow anonymous access to Kibana server status API and status page -- for readiness probe
+status.allowAnonymous: true

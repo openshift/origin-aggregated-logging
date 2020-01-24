@@ -237,7 +237,7 @@ if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
 fi
 dockerfile="Dockerfile${docker_suffix}"
 
-name_suf="5"
+name_suf="6"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
 
 IMAGE_BUILDER=${IMAGE_BUILDER:-imagebuilder}
