@@ -4,7 +4,7 @@ build-images:
 .PHONY: build-images
 
 test:
-	EXCLUDE_SUITE="upgrade|zzz-rsyslog|debug_level_logs|fluentd-forward|remote-syslog|out_rawtcp|zzz-duplicate-entries|read-throttling|viaq-data-model|zzzz-bulk-rejection" hack/testing/entrypoint.sh
+	EXCLUDE_SUITE="eventrouter|upgrade|zzz-rsyslog|debug_level_logs|fluentd-forward|remote-syslog|out_rawtcp|zzz-duplicate-entries|read-throttling|viaq-data-model|zzzz-bulk-rejection" hack/testing/entrypoint.sh
 .PHONY: test
 
 test-upgrade:

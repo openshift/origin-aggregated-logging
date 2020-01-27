@@ -221,14 +221,16 @@ function run_suite() {
 	os::test::junit::declare_suite_end
 
 	os::log::info "Logging test suite ${suite_name} started at $( date )"
-	ops_cluster=${ENABLE_OPS_CLUSTER:-"true"}
+	ops_cluster=${ENABLE_OPS_CLUSTER:-"false"}
 	if OS_TMP_ENV_SET= LOG_DIR= ARTIFACT_DIR= "${test}" "${ops_cluster}"; then
 		os::log::info "Logging test suite ${suite_name} succeeded at $( date )"
 		if grep -q "${suite_name}" <<<"${expected_failures[@]}"; then
 			os::log::warning "Logging suite ${suite_name} is expected to fail"
 		fi
 	else
+		os::log::warning "==================  FAILED TEST ===================="
 		os::log::warning "Logging test suite ${suite_name} failed at $( date )"
+		os::log::warning "==================  FAILED TEST ===================="
 		if grep -q "${suite_name}" <<<"${expected_failures[@]}"; then
 			os::log::info "Logging suite ${suite_name} failure result ignored"
 		else

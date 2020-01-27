@@ -41,13 +41,12 @@ if [ -n "${ARTIFACT_DIR:-}" ] ; then
     unset ARTIFACT_DIR
 fi
 
-if ENABLE_OPS_CLUSTER=false TEST_ONLY=${TEST_ONLY:-true} \
-    SKIP_TEARDOWN=true JUNIT_REPORT=true make test ; then
-    rc=0
-    echo PASS > ${SAVE_ARTIFACT_DIR:-/tmp}/logging-test-result
+if TEST_ONLY=${TEST_ONLY:-true} SKIP_TEARDOWN=true JUNIT_REPORT=true make test ; then
+  rc=0
+  echo PASS > ${SAVE_ARTIFACT_DIR:-/tmp}/logging-test-result
 else
-    rc=1
-    echo FAIL > ${SAVE_ARTIFACT_DIR:-/tmp}/logging-test-result
+  rc=1
+  echo FAIL > ${SAVE_ARTIFACT_DIR:-/tmp}/logging-test-result
 fi
 echo logging tests finished at $( date --rfc-3339=sec )
 
