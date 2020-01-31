@@ -26,7 +26,7 @@ REPLICA_SHARDS=${REPLICA_SHARDS:-0}
 
 RETRY_COUNT=${RETRY_COUNT:-300}		# how many times
 RETRY_INTERVAL=${RETRY_INTERVAL:-1}	# how often (in sec)
-ES_REST_BASEURL=${ES_REST_BASEURL:-https://localhost:9200}
+ES_REST_BASEURL=${ES_REST_BASEURL:-https://$HOSTNAME:9200}
 LOG_FILE=${LOG_FILE:-elasticsearch_connect_log.txt}
 retry=$RETRY_COUNT
 max_time=$(( RETRY_COUNT * RETRY_INTERVAL ))	# should be integer
