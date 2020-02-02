@@ -56,7 +56,7 @@ module Fluent
           raise ConfigError, "formatter_type must be text_per_line formatter"
         end
 
-        validate_target = "host=#{@host}/host_with_port=#{@host_with_port}/hostname=#{@hostname}/facility=#{@facility}/severity=#{@severity}/program=#{@program}"
+        validate_target = "host=#{@host}/host_with_port=#{@host_with_port}/facility=#{@facility}/severity=#{@severity}/program=#{@program}"
         placeholder_validate!(:remote_syslog, validate_target)
         @senders = []
       end
