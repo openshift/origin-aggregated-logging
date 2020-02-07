@@ -1,0 +1,11 @@
+#!/bin/bash -eu
+#
+# Utility to dump the indices of the cluster via the _cat APIs. The
+# size of the indices is reported in MBs.
+#
+source es_util_env
+
+if [ "${NODATE:-false}" = false ] ; then
+    date
+fi
+es_util --query="_cat/aliases?v&bytes=m"

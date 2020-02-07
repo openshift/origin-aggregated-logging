@@ -29,3 +29,9 @@ sg_role_jaeger:
     - 'CN=user.jaeger,OU=OpenShift,O=Logging'
   backendroles:
     - 'jaeger'
+
+project_user:    
+  readonly: true    
+  users:    
+    - '*'    
+

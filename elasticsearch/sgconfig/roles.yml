@@ -161,3 +161,21 @@ sg_project_operations:
         - indices:admin/mappings/fields/get*
         - indices:admin/validate/query*
         - indices:admin/get*
+
+# To support multi-tenancy. User's access to indices is restricted to indices belonging to the user's projects, enforced by DLS.    
+project_user:    
+  readonly: true    
+  cluster:
+    - CLUSTER_COMPOSITE_OPS_RO
+  indices:    
+    app:    
+      '*':    
+        - READ    
+        - indices:data/read/search
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.namespace}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name.keyword'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+    logs.app:    
+      '*':    
+        - READ    
+        - indices:data/read/search
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.namespace}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name.keyword'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+

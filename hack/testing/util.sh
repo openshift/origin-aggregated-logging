@@ -236,6 +236,9 @@ function get_test_user_token() {
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
     test_ip="127.0.0.1"
+    user_projects=$(oc get projects  -o jsonpath='{.items[*].metadata.name}')
+    user_project_num=$(echo $user_projects | wc -w)
+    user_project_list=$(echo $user_projects | sed -e "s/ /,/g")
     oc login --username=system:admin > /dev/null
     oc project "${current_project}" > /dev/null
 }
@@ -321,9 +324,11 @@ function curl_es_pod_with_token() {
     local test_token="$3"
     shift; shift; shift;
     local args=( "${@:-}" )
+    local authtoken="-H Authorization: Bearer $test_token"
+    local xff="-H X-Forwarded-For:127.0.0.1"
     oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
-                             -H "Authorization: Bearer $test_token" \
-                             -H "X-Forwarded-For: 127.0.0.1" \
+                             $authtoken \
+                             $xff \
                              "https://localhost:9200${endpoint}"
 }
 
@@ -371,10 +376,14 @@ function curl_es_pod_with_token_and_input() {
     local test_token="$3"
     shift; shift; shift
     local args=( "${@:-}" )
+    local authtoken="-H Authorization: Bearer $test_token"
+    local contenttype="-H Content-type:application/json"
+    local xff="-H X-Forwarded-For:127.0.0.1"
 
     oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
-                             -H "Authorization: Bearer $test_token" \
-                             -H "Content-type: application/json" \
+                             $xff         \
+                             $authtoken   \
+                             $contenttype \
                              "https://localhost:9200${endpoint}"
 }
 
