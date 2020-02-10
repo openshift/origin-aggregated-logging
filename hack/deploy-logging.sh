@@ -32,6 +32,12 @@
 
 set -eux
 
+#HACK to temp override upgrade job
+if [ -z ${OPENSHIFT_BUILD_NAMESPACE:-''} -a -z ${IMAGE_FORMAT:-''} -a "${USE_CUSTOM_IMAGES:-false}" == "true" ] ; then
+    echo "Exiting gracefully as this run is assumed to be for upgrade"
+    exit 0
+fi
+
 logging_err_exit() {
     set +e
     {
@@ -196,6 +202,10 @@ construct_image_name() {
                 IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
             fi
         fi
+        if [ "$component" = "oauth-proxy" ] ; then
+            #HACK - remove me
+            IMAGE_FORMAT='registry.svc.ci.openshift.org/ocp/4.4:${component}'
+        fi
         echo ${IMAGE_FORMAT/'${component}'/$component}
     elif [ "${USE_CUSTOM_IMAGES:-true}" = false ] ; then
         echo $EXTERNAL_REGISTRY/$EXT_REG_IMAGE_NS/$MASTER_VERSION:$component
@@ -235,24 +245,50 @@ update_images_in_clo_yaml() {
 wait_for_logging_is_running() {
     # we expect a fluentd running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
+    echo INFO: Expecting $expectedcollectors collector to start
     # we expect $nodeCount elasticsearch pods
+    es_ready="false"
+    fluent_ready="false"
+    kibana_ready="false"
     wait_func() {
-        local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
+        result=0
+        local actuales=$( oc -n ${LOGGING_NS} get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
         if [ $expectedes -ne ${actuales:-0} ] ; then
-            return 1
+            echo WARN: ${actuales:-0} of $expectedes Running
+            result=1
+        else
+            if [ "$es_ready" != "true" ] ; then
+                echo INFO: Elasticsearch is Running
+                export es_ready="true"
+                #HACK cycle kibana pods
+                #HACK TO figure out why kibana doesn't cycle
+                oc -n ${LOGGING_NS} delete pods -l component=kibana --grace-period=0 --force
+            fi
         fi
-        if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
-            return 1
+        if ! oc -n ${LOGGING_NS} get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
+            echo WARN: Kibana pod not running
+            result=1
+        else
+            if [ "$kibana_ready" != "true" ] ; then
+                echo INFO: Kibana is Running
+                export kibana_ready="true"
+            fi
         fi
-        local actualcollectors=$( oc get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
+        local actualcollectors=$( oc -n ${LOGGING_NS} get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
         if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-            return 1
+            echo WARN: ${actualcollectors:-0} of $expectedcollectors Running
+            result=1
+        else
+            if [ "$fluent_ready" != "true" ] ; then
+                echo INFO: Collectors are Running
+                export fluent_ready="true"
+            fi
         fi
         # if we got here, everything is as it should be
-        return 0
+        return $result
     }
     if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-        echo ERROR: operator did not start pods after 300 seconds
+        echo ERROR: operator did not start pods after $DEFAULT_TIMEOUT seconds
         logging_err_exit
     fi
 }

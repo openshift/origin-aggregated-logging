@@ -8,6 +8,8 @@
 
 set -eux
 
-. hack/deploy-logging.sh
-
-. hack/test-logging.sh
+if [ ${LOGGING_DEPLOY_MODE:-} == "upgrade" ] ; then
+	echo ">>>>>>> Skipping upgrade test for now <<<<<<"
+	exit 0
+fi
+. hack/test-e2e.sh
