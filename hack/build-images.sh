@@ -349,13 +349,13 @@ echo "Setting up port-forwarding to remote $registry_svc ..."
 oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $tmpworkdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
-for ii in $(seq 1 10) ; do
+for ii in $(seq 1 60) ; do
   if [ "$(curl -sk -w '%{response_code}\n' https://localhost:5000 || :)" = 200 ] ; then
     break
   fi
   sleep 1
 done
-if [ $ii = 10 ] ; then
+if [ $ii = 60 ] ; then
   echo ERROR: timeout waiting for port-forward to be available
   exit 1
 fi
