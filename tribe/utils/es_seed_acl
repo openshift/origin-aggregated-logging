@@ -1,0 +1,60 @@
+#!/bin/bash -e
+
+source "logging"
+
+ES_CLUSTER_HOST=${ES_CLUSTER_HOST:-"localhost"}
+ES_CLUSTER_PORT=${ES_CLUSTER_PORT:-9300}
+MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
+
+info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
+
+config=${ES_CONF}/elasticsearch.yml
+index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
+
+function sgadmin {
+  ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
+    -i $index \
+    -h ${ES_CLUSTER_HOST} \
+    -p ${ES_CLUSTER_PORT} \
+    -ks /etc/elasticsearch/secret/admin.jks \
+    -kst JKS \
+    -kspass kspass \
+    -ts /etc/elasticsearch/secret/truststore \
+    -tst JKS \
+    -tspass tspass \
+    -nhnv \
+    -arc \
+    -icl \
+    ${DEBUG:+-dg} ${@:-}
+}
+
+MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
+
+info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
+
+now=0
+numretries=0
+loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
+while ! sgadmin -cd ${HOME}/sgconfig && [ ${now} -lt ${MAX_WAIT_SEED} ]
+do
+    if ! expr $numretries % $loginterval ; then
+        warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"
+        warn "Seeding will continue to fail until the cluster status is YELLOW"
+        info "Remaining red indices: $(QUERY=_cat/indices es_util | grep "^red" | wc -l)"
+    fi
+    numretries=$((numretries+1))
+    sleep 10
+    now=$((now+40)) #wait plus 30s timeout from sgadmin
+done
+
+if [ ${now} -ge ${MAX_WAIT_SEED} ]; then
+    error "Giving up trying to seed ACL"
+    exit 1
+fi
+info "Seeded the searchguard ACL index"
+
+info "Disabling auto replication"
+sgadmin -dra
+
+info "Updating replica count to ${REPLICA_SHARDS}"
+sgadmin -us ${REPLICA_SHARDS}

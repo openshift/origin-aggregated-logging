@@ -1,0 +1,68 @@
+sg_role_kibana:
+  cluster:
+    - CLUSTER_MONITOR
+    - CLUSTER_COMPOSITE_OPS
+  indices:
+    '?kibana':
+      '*':
+        - INDICES_ALL
+
+sg_role_prometheus:
+  cluster:
+    - METRICS
+  indices:
+    '*':
+      '*':
+        - indices:monitor*
+
+sg_role_fluentd:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_rsyslog:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_curator:
+  cluster:
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - READ
+        - MANAGE
+
+sg_role_admin:
+  indices:
+    '*':
+      '*':
+        - ALL
+  cluster:
+    - CLUSTER_ALL
+
+sg_project_operations:
+  indices:
+    '?operations?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*
+    '*?*?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*

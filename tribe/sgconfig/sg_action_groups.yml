@@ -1,0 +1,138 @@
+UNLIMITED:
+  - "*"
+
+###### INDEX LEVEL ######
+
+INDICES_ALL:
+  - "indices:*"
+
+# for backward compatibility
+ALL:
+  - INDICES_ALL
+
+MANAGE:
+  - "indices:monitor/*"
+  - "indices:admin/*"
+
+CREATE_INDEX:
+  - "indices:admin/create"
+  - "indices:admin/mapping/put"
+
+MANAGE_ALIASES:
+  - "indices:admin/aliases*"
+
+# for backward compatibility
+MONITOR:
+  - INDICES_MONITOR
+  - cluster:monitor/main
+
+INDICES_MONITOR:
+  - "indices:monitor/*"
+
+DATA_ACCESS:
+  - "indices:data/*"
+  - CRUD
+
+WRITE:
+  - "indices:data/write*"
+  - "indices:admin/mapping/put"
+
+READ:
+  - "indices:data/read*"
+  - "indices:admin/mappings/fields/get*"
+
+DELETE:
+  - "indices:data/write/delete*"
+
+CRUD:
+  - READ
+  - WRITE
+
+SEARCH:
+  - "indices:data/read/search*"
+  - "indices:data/read/msearch*"
+  - SUGGEST
+
+SUGGEST:
+  - "indices:data/read/suggest*"
+
+INDEX:
+  - "indices:data/write/index*"
+  - "indices:data/write/update*"
+  - "indices:admin/mapping/put"
+  - "indices:data/write/bulk*"
+
+GET:
+  - "indices:data/read/get*"
+  - "indices:data/read/mget*"
+
+INDEX_ANY_ADMIN:
+  - indices:admin/mappings/fields/get*
+  - indices:admin/validate/query*
+  - indices:admin/get*
+  - "indices:data/read/field_stats"
+  - "indices:data/read/field_caps"
+  - READ
+
+INDEX_KIBANA:
+  - MANAGE
+  - INDEX
+  - READ
+  - DELETE
+INDEX_ANY_KIBANA:
+  - INDEX_ANY_ADMIN
+  - MANAGE
+  - WRITE
+INDEX_OPERATIONS:
+  - INDEX_ANY_ADMIN
+INDEX_ANY_OPERATIONS:
+  - INDEX_ANY_ADMIN
+  - INDICES_MONITOR
+INDEX_PROJECT:
+  - INDEX_ANY_ADMIN
+  - INDEX_ALL
+
+METRICS:
+  - CLUSTER_MONITOR
+USER_ALL_INDEX_OPS:
+  - "indices:data/read/field_caps"
+USER_CLUSTER_OPERATIONS:
+  - CLUSTER_COMPOSITE_OPS_RO
+  - MONITOR
+  - CLUSTER_COMPOSITE_OPS
+
+###### CLUSTER LEVEL ######
+
+# note indicies permissions here because they are
+# 'cluster' level perms
+CLUSTER_ALL:
+  - "cluster:*"
+  - CLUSTER_COMPOSITE_OPS
+
+CLUSTER_MONITOR:
+  - cluster:monitor/*
+CLUSTER_MONITOR_KIBANA:
+  - cluster:monitor/nodes/info
+  - cluster:monitor/health
+  - CLUSTER_COMPOSITE_OPS
+CLUSTER_OPERATIONS:
+  - CLUSTER_ALL
+
+CLUSTER_COMPOSITE_OPS_RO:
+  - "indices:data/read/coordinate-msearch*"
+  - "indices:data/read/field_caps"
+  - "indices:data/read/mget"
+  - "indices:data/read/msearch"
+  - "indices:data/read/mtv"
+  - "indices:data/read/scroll*"
+  - "indices:admin/aliases/exists*"
+  - "indices:admin/aliases/get*"
+
+CLUSTER_COMPOSITE_OPS:
+  - "indices:data/write/bulk"
+  - "indices:admin/aliases*"
+  - CLUSTER_COMPOSITE_OPS_RO
+
+MANAGE_SNAPSHOTS:
+  - "cluster:admin/snapshot/*"
+  - "cluster:admin/repository/*"
