@@ -59,6 +59,11 @@ proxy is required that runs in front of Kibana.
 Curator allows the admin to remove old indices from Elasticsearch on a per-project
 basis.
 
+### Tribe
+
+Tribe allows access to indices and documents stored in Elasticsearch without full control over the cluster.
+While theoretically meant to aggregate multiple clusters together, it is leveraged here just as an access option for limited access.
+
 ### OpenShift Ansible Logging Role (***openshift_logging***)
 
 The [**openshift-ansible**](https://github.com/openshift/openshift-ansible) ```openshift_logging``` role orchestrates the deployment
