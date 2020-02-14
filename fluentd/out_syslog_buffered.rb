@@ -19,7 +19,7 @@ module Fluent
     config_param :severity, :string, :default => 'debug'
     config_param :use_record, :string, :default => nil
     config_param :payload_key, :string, :default => 'message'
-
+    config_param :max_size, :integer, :default => 1024
 
     def initialize
       super
@@ -45,6 +45,9 @@ module Fluent
       @payload_key = conf['payload_key']
       if not @payload_key
         @payload_key = "message"
+      end
+      if conf['max_size']
+        @max_size = conf['max_size'].to_i
       end
       @random_string = SecureRandom.hex
     end
@@ -166,7 +169,7 @@ module Fluent
         end
         if @socket
           begin
-            @socket.write packet.assemble + "\n"
+            @socket.write packet.assemble(@max_size) + "\n"
             @socket.flush
           rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EPIPE, Timeout::Error, OpenSSL::SSL::SSLError => e
             log.warn "out:syslog: connection error by #{@remote_syslog}:#{@port} :#{e}"
