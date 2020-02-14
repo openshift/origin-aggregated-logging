@@ -1,4 +1,7 @@
-# Elasticsearch
+# Elasticsearch Tribe
+
+Contains all utils as Elasticsearch Containers
+Used to allow users access to logs without full control over Elasticsearch
 
 ## Image Utilities
 Following are utilities included in the image to facilitate running commonly used
