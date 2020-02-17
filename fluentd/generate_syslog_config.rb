@@ -23,6 +23,7 @@ def init_environment_vars()
       ['SEVERITY', 'severity', "debug", nil],
       ['USE_RECORD', 'use_record', nil, nil],
       ['PAYLOAD_KEY', 'payload_key', nil, nil],
+      ['MAX_SIZE', 'max_size', nil, nil],
       # TYPE must be vars[-1]
       ['TYPE', 'type', "syslog_buffered", ['syslog_buffered', 'syslog']]
     ]

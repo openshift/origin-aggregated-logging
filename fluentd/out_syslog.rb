@@ -19,7 +19,7 @@ module Fluent
     config_param :severity, :string, :default => 'debug'
     config_param :use_record, :string, :default => nil
     config_param :payload_key, :string, :default => 'message'
-
+    config_param :max_size, :integer, :default => 1024
 
     def initialize
       super
@@ -44,6 +44,9 @@ module Fluent
       @payload_key = conf['payload_key']
       if not @payload_key
         @payload_key = "message"
+      end
+      if conf['max_size']
+        @max_size = conf['max_size'].to_i
       end
       @random_string = SecureRandom.hex
     end
@@ -135,7 +138,7 @@ module Fluent
         else
           record[@payload_key]
         end
-        @socket.send(packet.assemble, 0, @remote_syslog, @port)
+        @socket.send(packet.assemble(@max_size), 0, @remote_syslog, @port)
     }
     end
   end
