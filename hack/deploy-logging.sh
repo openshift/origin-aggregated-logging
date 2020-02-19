@@ -32,12 +32,6 @@
 
 set -eux
 
-#HACK to temp override upgrade job
-if [ -z ${OPENSHIFT_BUILD_NAMESPACE:-''} -a -z ${IMAGE_FORMAT:-''} -a "${USE_CUSTOM_IMAGES:-false}" == "true" ] ; then
-    echo "Exiting gracefully as this run is assumed to be for upgrade"
-    exit 0
-fi
-
 logging_err_exit() {
     set +e
     {
@@ -192,19 +186,15 @@ construct_image_name() {
     # stable is the imagestream containing the images built for this PR, or
     # otherwise the most recent image
     if [ -n "${IMAGE_FORMAT:-}" ] ; then
-        if [ -n "${LOGGING_IMAGE_STREAM:-}" ] ; then
+        if [ "${LOGGING_IMAGE_STREAM:-}" != 'stable' ] ; then
             local match=/stable:
             local replace="/${LOGGING_IMAGE_STREAM}:"
             IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
 
-            if [ -n "${LOGGING_IMAGE_STREAM_NS:-}" ] ; then
+            if [ "${LOGGING_IMAGE_STREAM_NS:-}" != 'ocp' ] ; then
                 local ns=$(echo ${IMAGE_FORMAT} | cut -d '/' -f 2)
                 IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
             fi
-        fi
-        if [ "$component" = "oauth-proxy" ] ; then
-            #HACK - remove me
-            IMAGE_FORMAT='registry.svc.ci.openshift.org/ocp/4.4:${component}'
         fi
         echo ${IMAGE_FORMAT/'${component}'/$component}
     elif [ "${USE_CUSTOM_IMAGES:-true}" = false ] ; then
@@ -302,7 +292,7 @@ deploy_logging_using_olm() {
         CREATE_OPERATORGROUP=false
     fi
 
-    OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"feature-es6x"}
+    OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"stable"}
     local eoimg=${EO_IMAGE:-$( LOGGING_IMAGE_STREAM_NS=ocp LOGGING_IMAGE_STREAM=$OPERATOR_LOGGING_IMAGE_STREAM construct_image_name elasticsearch-operator latest )}
     cp -r ${EO_DIR}/manifests/${EO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${EO_DIR}/manifests/*.package.yaml $manifest
