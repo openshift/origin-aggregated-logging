@@ -253,7 +253,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
-    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter"
+    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator5 eventrouter"
     for ii in $(seq 1 10) ; do
         notfound=
         for obj in $names ; do
