@@ -1,0 +1,29 @@
+opendistro_security:
+  dynamic:
+    http:
+      xff:
+        enabled: true
+        remoteIpHeader: 'x-forwarded-for'
+        trustedProxies: '.*'
+        internalProxies: '.*'
+    authc:
+      openshift_domain:
+        enabled: true
+        order: 0
+        http_authenticator:
+          challenge: false
+          type: extended-proxy
+          config:
+            user_header: 'x-forwarded-user'
+            roles_header: 'x-forwarded-roles'
+            attr_header_prefix: 'x-ocp-'
+        authentication_backend:
+          type: noop
+      authentication_domain_basic_internal:
+        enabled: true
+        order: 1
+        http_authenticator:
+          type: clientcert
+          challenge: false
+        authentication_backend:
+          type: noop

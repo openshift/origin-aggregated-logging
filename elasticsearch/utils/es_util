@@ -39,6 +39,17 @@ TYPE=${TYPE:-"_search"}
 SIZE=${SIZE:-10}
 SORT=${SORT:-"@timestamp:desc"}
 OPTIONS=${OPTIONS:-"size=$SIZE&sort=$SORT&pretty"}
+# so if you want to use es_util with no content type, call it like this:
+# CONTENT_TYPE= .. es_util --query=...
+# to use your own custom content type, you can either set
+# CONTENT_TYPE="application/ndjson" .. es_util --query="" -X POST ...
+# or provide your own headers
+# CONTENT_TYPE= .. es_util --query="" -X POST -H "Content-type:application/ndjson" ...
+# by default we use Content-type:application/json because ES6 requires it for most
+# of the sorts of es util commands we use
+if [ -z "${CONTENT_TYPE+set}" ] ; then
+    CONTENT_TYPE="application/json"
+fi
 
 ES_BASE=${ES_BASE:-https://localhost:9200}
 
@@ -46,4 +57,6 @@ if [ -z "${QUERY:-}" ]; then
   QUERY="$INDEX/$TYPE?$OPTIONS"
 fi
 
-curl -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key "$ES_BASE/$QUERY" "$@"
+curl -s -k --cert ${ES_PATH_CONF}/secret/admin-cert --key ${ES_PATH_CONF}/secret/admin-key \
+     ${CONTENT_TYPE:+"-H"} ${CONTENT_TYPE:+"Content-type:"}${CONTENT_TYPE:-} \
+     "$ES_BASE/$QUERY" "$@"

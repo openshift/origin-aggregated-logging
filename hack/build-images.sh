@@ -237,7 +237,7 @@ if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
 fi
 dockerfile="Dockerfile${docker_suffix}"
 
-name_suf="5"
+name_suf="6"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
 
 IMAGE_BUILDER=${IMAGE_BUILDER:-imagebuilder}
@@ -280,16 +280,30 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
     exit 0
 fi
 
+# first of pair is name of subdir for component
+# second is base name of image to build
+# e.g. 'fluentd logging-fluentd' means build the image from the fluentd/
+# subdir, and name the image something/logging-fluentd:${tag}
+REPO_IMAGE_LIST="${REPO_IMAGE_LIST:-fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
+    kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
+    eventrouter logging-eventrouter logging-ci-test-runner logging-ci-test-runner}"
+
 if [ "${PUSH_ONLY:-false}" = false ] ; then
   dir=""
   img=""
-  for item in fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
-    kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
-    eventrouter logging-eventrouter ; do
+  for item in $REPO_IMAGE_LIST; do
     if [ -z "$dir" ] ; then dir=$item ; continue ; fi
     img=$item
-    pull_ubi_if_needed $dir/${dockerfile}
-    if image_needs_private_repo $dir/${dockerfile} ; then
+    if [ $img = logging-ci-test-runner ] ; then
+      dfpath=openshift/ci-operator/build-image/Dockerfile.full
+      dir=.
+      fullimagename=openshift/logging-ci-test-runner:${CUSTOM_IMAGE_TAG}
+    else
+      dfpath=$dir/$dockerfile
+      fullimagename="${tag_prefix}$img:${CUSTOM_IMAGE_TAG}"
+    fi
+    pull_ubi_if_needed $dfpath
+    if image_needs_private_repo $dfpath ; then
       repodir=$( get_private_repo_dir )
       mountarg="-mount $repodir:/etc/yum.repos.d/"
     else
@@ -297,20 +311,10 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
     fi
 
     echo building image $img - this may take a few minutes until you see any output . . .
-    $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f $dir/${dockerfile} -t "${tag_prefix}$img:${CUSTOM_IMAGE_TAG}" $dir
+    $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f $dfpath -t "$fullimagename" $dir
     dir=""
     img=""
   done
-
-  pull_ubi_if_needed openshift/ci-operator/build-image/Dockerfile.full
-  if image_needs_private_repo openshift/ci-operator/build-image/Dockerfile.full ; then
-    repodir=$( get_private_repo_dir )
-    mountarg="-mount $repodir:/etc/yum.repos.d/"
-  else
-    mountarg=""
-  fi
-  echo building image logging-ci-test-runner - this may take a few minutes until you see any output . . .
-  $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f openshift/ci-operator/build-image/Dockerfile.full -t openshift/logging-ci-test-runner:${CUSTOM_IMAGE_TAG} .
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
@@ -345,13 +349,13 @@ echo "Setting up port-forwarding to remote $registry_svc ..."
 oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $tmpworkdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
-for ii in $(seq 1 10) ; do
+for ii in $(seq 1 60) ; do
   if [ "$(curl -sk -w '%{response_code}\n' https://localhost:5000 || :)" = 200 ] ; then
     break
   fi
   sleep 1
 done
-if [ $ii = 10 ] ; then
+if [ $ii = 60 ] ; then
   echo ERROR: timeout waiting for port-forward to be available
   exit 1
 fi

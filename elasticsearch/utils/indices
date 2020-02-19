@@ -5,5 +5,7 @@
 #
 source es_util_env
 
-date
-$curl_get "$ES_BASE/_cat/indices?v&bytes=m"
+if [ "${NODATE:-false}" = false ] ; then
+    date
+fi
+es_util --query="_cat/indices?v&bytes=m"

@@ -35,8 +35,8 @@ fi
 images=(
   ${PREFIX}logging-curator5
   ${PREFIX}logging-fluentd
-  ${PREFIX}logging-elasticsearch5
-  ${PREFIX}logging-kibana5
+  ${PREFIX}logging-elasticsearch6
+  ${PREFIX}logging-kibana6
   ${PREFIX}logging-eventrouter
 )
 

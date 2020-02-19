@@ -1,0 +1,163 @@
+# For users which use kibana, access to indices must be granted separately
+kibana_user:
+  readonly: true
+  cluster:
+    - INDICES_MONITOR
+    - CLUSTER_COMPOSITE_OPS
+  indices:
+    '?kibana':
+      '*':
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+    '?kibana-6':
+      '*':
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+    '?kibana_*':
+      '*':
+        - MANAGE
+        - INDEX
+        - READ
+        - DELETE
+    '?tasks':
+      '*':
+        - INDICES_ALL
+    '?management-beats':
+      '*':
+        - INDICES_ALL        
+    '*':
+      '*':
+        - indices:data/read/field_caps*
+        - indices:admin/mappings/get*
+        - indices:admin/get
+        
+# For the kibana server
+kibana_server:
+  readonly: true
+  cluster:
+      - CLUSTER_MONITOR
+      - CLUSTER_COMPOSITE_OPS
+      - indices:admin/template*
+      - indices:data/read/scroll*
+  indices:
+    '?kibana':
+      '*':
+        - INDICES_ALL
+    '?kibana-6':
+      '*':
+        - INDICES_ALL
+    '?kibana_*':
+      '*':
+        - INDICES_ALL
+    '?reporting*':
+      '*':
+        - INDICES_ALL
+    '?monitoring*':
+      '*':
+        - INDICES_ALL
+    '?tasks':
+      '*':
+        - INDICES_ALL
+    '*':
+      '*':
+        - "indices:admin/aliases*"
+sg_role_prometheus:
+  cluster:
+    - METRICS
+  indices:
+    '*':
+      '*':
+        - indices:monitor*
+
+sg_role_fluentd:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_rsyslog:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_curator:
+  cluster:
+    - CLUSTER_MONITOR
+    - MANAGE
+  indices:
+    '*':
+      '*':
+        - READ
+        - MANAGE
+
+sg_role_admin:
+  indices:
+    '*':
+      '*':
+        - ALL
+  cluster:
+    - CLUSTER_ALL
+
+sg_role_jaeger:
+  cluster:
+    - indices:data/write/bulk
+    - SEARCH
+    - CLUSTER_MONITOR
+    - MANAGE
+  indices:
+    '*jaeger-span-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-service-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+
+sg_project_operations:
+  indices:
+    '?operations?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*
+    '*?*?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*

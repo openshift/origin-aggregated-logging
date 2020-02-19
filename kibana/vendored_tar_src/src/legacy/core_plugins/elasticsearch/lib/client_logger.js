@@ -1,0 +1,61 @@
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.clientLogger = clientLogger;
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+function clientLogger(server) {
+  return class ElasticsearchClientLogging {
+    constructor() {
+      this.tags = [];
+      this.logQueries = false;
+    }
+    // additional tags to differentiate connection
+
+
+    error(err) {
+      server.log(['error', 'elasticsearch'].concat(this.tags), err);
+    }
+
+    warning(message) {
+      server.log(['warning', 'elasticsearch'].concat(this.tags), message);
+    }
+
+    trace(method, options, query, _response, statusCode) {
+      /* Check if query logging is enabled
+       * It requires Kibana to be configured with verbose logging turned on. */
+      if (this.logQueries) {
+        const methodAndPath = `${method} ${options.path}`;
+        const queryDsl = query ? query.trim() : '';
+        server.log(['elasticsearch', 'query', 'debug'].concat(this.tags), [statusCode, methodAndPath, queryDsl].join('\n'));
+      }
+    }
+
+    // elasticsearch-js expects the following functions to exist
+
+    info() {}
+
+    debug() {}
+
+    close() {}
+  };
+}

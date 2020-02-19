@@ -2,10 +2,14 @@
   "aliases": {
     ".all": {}
   },
+  "index_patterns": [
+    "infra-*",
+    "audit.infra-*"
+  ],
   "mappings": {
-    "_default_": {
+    "_doc": {
       "_meta": {
-        "version": "2019.12.16.0"
+        "version": "2020.01.23.0"
       },
       "date_detection": false,
       "dynamic_templates": [
@@ -970,6 +974,5 @@
   "order": 10,
   "settings": {
     "index.refresh_interval": "5s"
-  },
-  "template": ".operations.*"
+  }
 }

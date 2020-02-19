@@ -1,0 +1,89 @@
+#!/bin/bash
+
+log::info(){
+  echo " [INFO] $@"
+}
+
+log::error(){
+  echo "[ERROR] $@"
+}
+log::fatal(){
+  echo "[ERROR] $@"
+  exit 1
+}
+
+millisecond=1
+second=$(( 1000 * millisecond ))
+minute=$(( 60 * second ))
+
+try_until_success() {
+  local cmd=$1
+  local timeout=$2
+  local interval=${3:-0.2}
+  local now=$(date +%s%3N)
+  local expire=$(($now + $timeout))
+  while [ $now -lt $expire ]; do
+    if $($cmd) ; then
+      return 0
+    fi  
+    sleep $interval
+    now=$(date +%s%3N)
+  done
+  return 1
+}
+
+try_until_text() {
+  local cmd=$1
+  local expected=$2
+  local timeout=$3
+  local interval=${4:-0.2}
+  local now=$(date +%s%3N)
+  local expire=$(($now + $timeout))
+  while [ $now -lt $expire ]; do
+    result=$(eval "$cmd")
+    if [ "${result}" == "${expected}" ] ; then
+      return 0
+    fi  
+    sleep $interval
+    now=$(date +%s%3N)
+  done
+  log::error "try_until_text expired for '$cmd' == '$expected'"
+  return 1
+}
+
+try_until_failure() {
+  local cmd=$1
+  local timeout=$2
+  local interval=${3:-0.2}
+  local now=$(date +%s%3N)
+  local expire=$(($now + $timeout))
+  echo "trying_until_failure cmd: '$cmd'"
+  while [ $now -lt $expire ]; do
+    if ! $($cmd) ; then
+      return 0
+    fi  
+    sleep $interval
+    now=$(date +%s%N)
+  done
+  return 1
+}
+
+get_all_logging_pod_logs() {
+  set +e
+  local outdir=${1:-$ARTIFACT_DIR}
+  local p
+  local container
+  for p in $(oc get pods -n ${LOGGING_NS} -o jsonpath='{.items[*].metadata.name}') ; do
+    oc -n ${LOGGING_NS} describe pod $p > $outdir/$p.describe 2>&1 || :
+    oc -n ${LOGGING_NS} get pod $p -o yaml > $outdir/$p.yaml 2>&1 || :
+    for container in $(oc -n ${LOGGING_NS} get po $p -o jsonpath='{.spec.containers[*].name}') ; do
+      oc logs -n ${LOGGING_NS} -c $container $p > $outdir/$p.$container.log 2>&1
+      case "$container" in
+        fluentd*) oc exec -n ${LOGGING_NS} $p -- logs > $outdir/$p.$container.exec.log 2>&1 ;;
+        elasticsearch*) oc exec -n ${LOGGING_NS} -c elasticsearch $p  -- logs > $outdir/$p.$container.exec.log 2>&1 ;;
+        *) continue ;;
+      esac
+    done
+  done
+  set -e
+}

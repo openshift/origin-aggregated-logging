@@ -4,11 +4,11 @@ build-images:
 .PHONY: build-images
 
 test:
-	EXCLUDE_SUITE="upgrade|zzz-rsyslog|debug_level_logs|fluentd-forward|remote-syslog|out_rawtcp|zzz-duplicate-entries|read-throttling|viaq-data-model|zzzz-bulk-rejection" hack/testing/entrypoint.sh
+	./openshift/ci-operator/build-image/setup-logging-for-e2e.sh
 .PHONY: test
 
 test-upgrade:
-	SUITE=test-upgrade hack/testing/entrypoint.sh
+	./openshift/ci-operator/build-image/setup-logging-for-e2e.sh
 .PHONY: test-upgrade
 
 test-pre-upgrade:

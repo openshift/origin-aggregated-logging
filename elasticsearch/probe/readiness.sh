@@ -21,7 +21,7 @@ export NSS_SDB_USE_CACHE=no
 # TODO: try re-use code from ./run.sh
 ES_REST_BASEURL=https://localhost:9200
 EXPECTED_RESPONSE_CODE=200
-secret_dir=/etc/elasticsearch/secret
+secret_dir=${ES_PATH_CONF}/secret
 max_time=${READINESS_PROBE_TIMEOUT:-30}
 
 function check_if_ready() {
