@@ -30,7 +30,10 @@
 # If you have a specific CLO or EO image you want to use, specify them by using
 # CLO_IMAGE and EO_IMAGE.
 
-set -eux
+set -euo pipefail
+if [ "${DEBUG:-}" = "true" ]; then
+	set -x
+fi
 
 logging_err_exit() {
     set +e
@@ -186,12 +189,12 @@ construct_image_name() {
     # stable is the imagestream containing the images built for this PR, or
     # otherwise the most recent image
     if [ -n "${IMAGE_FORMAT:-}" ] ; then
-        if [ "${LOGGING_IMAGE_STREAM:-}" != 'stable' ] ; then
+        if [ -n "${LOGGING_IMAGE_STREAM:-}" -a "${LOGGING_IMAGE_STREAM:-}" != 'stable' ] ; then
             local match=/stable:
             local replace="/${LOGGING_IMAGE_STREAM}:"
             IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
 
-            if [ "${LOGGING_IMAGE_STREAM_NS:-}" != 'ocp' ] ; then
+            if [ -n "${LOGGING_IMAGE_STREAM_NS:-}" -a "${LOGGING_IMAGE_STREAM_NS:-}" != 'ocp' ] ; then
                 local ns=$(echo ${IMAGE_FORMAT} | cut -d '/' -f 2)
                 IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
             fi
