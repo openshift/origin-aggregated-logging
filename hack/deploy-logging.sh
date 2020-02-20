@@ -179,6 +179,7 @@ EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
 
 construct_image_name() {
+    echo "in construct_image_name(), shell flags: $-"
     local component="$1"
     local tagsuffix="${2:-latest}"
     # if running in CI environment, IMAGE_FORMAT will look like this:
