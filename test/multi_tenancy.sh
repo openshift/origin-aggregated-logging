@@ -11,6 +11,9 @@
 # cat msearch.json | curl https://localhost:9200/_msearch -XPOST --data-binary @-
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
+current_dir=$(dirname "${BASH_SOURCE[0]}" )
+repo_dir=${repodir:-"$current_dir/../"}
+test_name=$(basename $0)
 trap os::test::junit::reconcile_output EXIT
 os::util::environment::use_sudo
 
@@ -18,30 +21,37 @@ os::test::junit::declare_suite_start "test/multi_tenancy"
 
 LOGGING_PROJECT=${LOGGING_NS:-openshift-logging}
 PROJECTS="multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 multi-tenancy-4"
-espod=$( get_es_pod es )
-esopspod=$( get_es_pod es-ops )
-esopspod=${esopspod:-$espod}
-
-# HACK HACK HACK
-# remove this once we have real multi-tenancy, multi-index support
-function hack_msearch_access() {
-    LOGGING_PROJECT=${LOGGING_PROJECT} ${OS_O_A_L_DIR}/hack/enable-kibana-msearch-access.sh "$@"
-}
 
 delete_users=""
 cleanup_msearch_access=""
 
 function cleanup() {
+    local return_code="$?"
+    cleanup_es
     set +e
-    os::log::info "Performing cleanup..."
-    for user in $cleanup_msearch_access ; do
-        hack_msearch_access $user 2>&1 | artifact_out
-    done
+	if [ "${DO_CLEANUP:-true}" == "true" ] ; then
+		mkdir -p $ARTIFACT_DIR/$test_name
+		oc -n $LOGGING_NS get configmap elasticsearch -o jsonpath={.data} --ignore-not-found > $ARTIFACT_DIR/$test_name/elasticsearch-configmap.log ||:
+		get_all_logging_pod_logs $ARTIFACT_DIR/$test_name
+
+		os::log::info "Removing test namespaces...."
+		oc delete ns/openshift-logging ns/openshift-operators-redhat --force --grace-period=0
+		for item in "ns/openshift-logging" "ns/openshift-operators-redhat"; do
+			os::cmd::try_until_failure "oc get ${item}" "$((1 * $minute))"
+		done
+	fi
+    exit $return_code
+}
+
+# useful for local testing, just cleanup the ES instance.
+function cleanup_es() {
+    set +e
+    os::log::info "Performing ES cleanup..."
     for user in $delete_users ; do
         oc delete user $user 2>&1 | artifact_out
     done
     if [ -n "${espod:-}" ] ; then
-        curl_es_pod $espod /project.multi-tenancy-* -XDELETE 2>&1 | artifact_out
+        curl_es_pod $espod /logs-app-* -XDELETE 2>&1 | artifact_out
     fi
     for proj in $PROJECTS ; do
         oc delete project $proj 2>&1 | artifact_out
@@ -52,6 +62,16 @@ function cleanup() {
 }
 
 trap cleanup EXIT
+# enable for local testing
+#trap cleanup_es EXIT
+
+if [ "${DO_SETUP:-true}" == "true" ] ; then
+	os::log::info "Deploying cluster logging..."
+	${repo_dir}/hack/deploy-logging.sh
+fi
+espod=$( get_es_pod es )
+esopspod=$( get_es_pod es-ops )
+esopspod=${esopspod:-$espod}
 
 function create_user_and_assign_to_projects() {
     local current_project; current_project="$( oc project -q )"
@@ -77,23 +97,23 @@ function create_user_and_assign_to_projects() {
 function add_message_to_index() {
 
     local namespace=$1
-    local project_uuid=$( oc get project $1 -o jsonpath='{ .metadata.uid }' )
-    local index="project.$1.$project_uuid.$(date -u +'%Y.%m.%d')"
-    local pod=$3
+    local index="logs-app-00001"
+    local pod=$2
+    local aliasname=$3
 
     local xff="-H X-Forwarded-For:127.0.0.1"
     local xocpns='-H X-Ocp-Namespace:'"$namespace"
     local contenttype="-H Content-Type:application/json"
 
     local payload="{\"log\":\"log message 1\",\"stream\":\"stderr\",\"time\":\"2014-09-25T21:15:03.499185026Z\",\"kubernetes\":{\"namespace_name\":\"$namespace\",\"pod_name\":\"synthetic-logger-0.25lps-pod\"},\"docker\":{\"container_id\":\"container123\"}}"
-    local alias="{\"actions\":[{\"add\":{\"index\":\"$index\",\"alias\":\"app\"}}]}"
+    local alias="{\"actions\":[{\"add\":{\"index\":\"$index\",\"alias\":\"$aliasname\"}}]}"
 
     # add index
-    os::log::debug $( curl_es_pod "$pod" "/$index/multi-tenancy-test/" -XPOST $xff $xocpns $contenttype -d "$payload" | python -mjson.tool 2>&1 )
+    os::log::info $( curl_es_pod "$pod" "/$index/_doc/" -XPOST $xff $xocpns $contenttype -d "$payload" | python -mjson.tool 2>&1 )
     # add alias
-    os::log::debug $( curl_es_pod "$pod" "/_aliases" -XPOST $xff $xocpns $contenttype -d "$alias" | python -mjson.tool 2>&1 )
+    os::log::info $( curl_es_pod "$pod" "/_aliases" -XPOST $xff $xocpns $contenttype -d "$alias" | python -mjson.tool 2>&1 )
     
-    os::log::debug $(curl_es_pod "$pod" "/app/multi-tenancy-test/_search" -XGET | python -mjson.tool)
+    os::log::info $( curl_es_pod "$pod" "/$aliasname/_doc/_search" -XGET | python -mjson.tool 2>&1 )
 }
 
 function test_user_has_proper_access() {
@@ -135,36 +155,36 @@ function test_user_has_proper_access() {
     # verify normal user has no access to default indices
     os::log::info See if user $user is denied /project.default.*
     get_test_user_token $user $pw false
-    nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_token | \
+    nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to project.default.* indices
-        curl_es_pod_with_token $espod "/project.default.*/_count" $test_token | python -mjson.tool
+        curl_es_pod_with_token $espod "/project.default.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | python -mjson.tool
         exit 1
     fi
 
     # verify normal user has no access to .operations
     os::log::info See if user $user is denied /.operations.*
     get_test_user_token $user $pw false
-    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | \
+    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices
-        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token | python -mjson.tool
+        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | python -mjson.tool
         exit 1
     fi
 }
 
-curl_es_pod $espod /project.multi-tenancy-* -XDELETE > /dev/null
+curl_es_pod $espod /logs-app* -XDELETE | artifact_out
 
 for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     os::log::info Creating project $proj
     oc adm new-project $proj --node-selector='' 2>&1 | artifact_out
     os::cmd::try_until_success "oc get project $proj" 2>&1 | artifact_out
     os::log::info Creating test index and entry for $proj
-    add_message_to_index $proj "" $espod
+    add_message_to_index $proj $espod logs-app
 done
-os::log::info Creating project multi-tenancy-4
+os::log::info Creating project multi-tenancy-4 2>&1 | artifact_out
 oc adm new-project multi-tenancy-4 --node-selector='' 2>&1 | artifact_out
 os::cmd::try_until_success "oc get project multi-tenancy-4" 2>&1 | artifact_out
 
@@ -189,6 +209,8 @@ create_users $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW false \
              $LOG_NORMAL_USER3 $LOG_NORMAL_USER3_PW false \
              $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW false 2>&1 | artifact_out
 
+delete_users="$LOG_NORMAL_USER1 $LOG_NORMAL_USER2 $LOG_NORMAL_USER3 $LOG_NORMAL_USER4"
+
 create_user_and_assign_to_projects $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_NORMAL_USER2 $LOG_NORMAL_USER2_PW multi-tenancy-1 
 create_user_and_assign_to_projects $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW multi-tenancy-4 
@@ -197,10 +219,10 @@ oc login --username=system:admin > /dev/null
 oc project $LOGGING_PROJECT > /dev/null
 
 # loguser1 has access to two documents
-test_user_has_proper_access $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW app
+test_user_has_proper_access $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW logs-app
 # loguser2 has access to one document
-test_user_has_proper_access $LOG_NORMAL_USER2 $LOG_NORMAL_USER2_PW app
+test_user_has_proper_access $LOG_NORMAL_USER2 $LOG_NORMAL_USER2_PW logs-app
 # loguser3 has access to no ducuments as user has access to no projects
-test_user_has_proper_access $LOG_NORMAL_USER3 $LOG_NORMAL_USER3_PW app
+test_user_has_proper_access $LOG_NORMAL_USER3 $LOG_NORMAL_USER3_PW logs-app
 # loguser4 has access to no documents as there are no documents matching the project
-test_user_has_proper_access $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW app 0
+test_user_has_proper_access $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW logs-app 0

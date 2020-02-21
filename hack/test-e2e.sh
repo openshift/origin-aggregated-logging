@@ -10,7 +10,7 @@ OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"stable"}
 # we do not want that
 set -f
 # EXCLUDE_SUITE="${EXCLUDE_SUITE:-"$^"}"
-INCLUDE_SUITE="test-010-*"
+INCLUDE_SUITE="test-010-*|multi-tenancy"
 set +f
 # log::info "Excluding tests: '${EXCLUDE_SUITE}'"
 # for test in $( find "${current_dir}/testing" -type f -name 'test-*.sh' | grep -Ev "${EXCLUDE_SUITE}" | sort); do
