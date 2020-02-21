@@ -1,0 +1,20 @@
+.dshAppContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dshStartScreen {
+  text-align: center;
+  margin: $euiSize auto;
+  max-width: 800px;
+  width: 100%;
+  background: $euiColorEmptyShade;
+  padding: $euiSizeXXL;
+  border-radius: $euiBorderRadius;
+}
+
+.dshSaveModal,
+.dshCloneModal {
+  max-width: 450px;
+}

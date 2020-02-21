@@ -22,41 +22,23 @@ update_config_from_env_vars() {
   conf_dir=$1
   kibana_vars=(
       console.enabled
-      console.proxyConfig
-      console.proxyFilter
       elasticsearch.customHeaders
+      elasticsearch.hosts
+      elasticsearch.logQueries
       elasticsearch.password
       elasticsearch.pingTimeout
       elasticsearch.preserveHost
       elasticsearch.requestHeadersWhitelist
       elasticsearch.requestTimeout
       elasticsearch.shardTimeout
-      elasticsearch.ssl.ca
-      elasticsearch.ssl.cert
+      elasticsearch.startupTimeout
       elasticsearch.ssl.certificate
       elasticsearch.ssl.certificateAuthorities
       elasticsearch.ssl.key
-      elasticsearch.ssl.keyPassphrase
       elasticsearch.ssl.verificationMode
-      elasticsearch.ssl.verify
-      elasticsearch.startupTimeout
-      elasticsearch.tribe.customHeaders
-      elasticsearch.tribe.password
-      elasticsearch.tribe.pingTimeout
-      elasticsearch.tribe.requestHeadersWhitelist
-      elasticsearch.tribe.requestTimeout
-      elasticsearch.tribe.ssl.ca
-      elasticsearch.tribe.ssl.cert
-      elasticsearch.tribe.ssl.certificate
-      elasticsearch.tribe.ssl.certificateAuthorities
-      elasticsearch.tribe.ssl.key
-      elasticsearch.tribe.ssl.keyPassphrase
-      elasticsearch.tribe.ssl.verificationMode
-      elasticsearch.tribe.ssl.verify
-      elasticsearch.tribe.url
-      elasticsearch.tribe.username
-      elasticsearch.url
       elasticsearch.username
+      i18n.locale
+      index_management.enabled
       kibana.defaultAppId
       kibana.index
       logging.dest
@@ -64,35 +46,32 @@ update_config_from_env_vars() {
       logging.silent
       logging.verbose
       ops.interval
-      path.data
       pid.file
-      regionmap
-      regionmap.includeElasticMapsService
+      rollup.enabled
       server.basePath
-      server.customResponseHeaders
-      server.defaultRoute
       server.host
       server.maxPayloadBytes
       server.name
       server.port
-      server.ssl.cert
+      server.rewriteBasePath
       server.ssl.certificate
-      server.ssl.certificateAuthorities
-      server.ssl.cipherSuites
-      server.ssl.clientAuthentication
-      server.customResponseHeaders
       server.ssl.enabled
       server.ssl.key
-      server.ssl.keyPassphrase
-      server.ssl.redirectHttpFromPort
-      server.ssl.supportedProtocols
-      status.allowAnonymous
-      status.v6ApiFormat
-      tilemap.options.attribution
-      tilemap.options.maxZoom
-      tilemap.options.minZoom
-      tilemap.options.subdomains
-      tilemap.url
+      xpack.apm.enabled
+      xpack.ccr.enabled
+      xpack.graph.enabled
+      xpack.grokdebugger.enabled
+      xpack.ilm.enabled
+      xpack.infra.enabled
+      xpack.infra.sources.default.logAlias
+      xpack.maps.enabled
+      xpack.ml.enabled
+      xpack.monitoring.enabled
+      xpack.remote_clusters.enabled
+      xpack.reporting.enabled
+      xpack.searchprofiler.enabled
+      xpack.spaces.enabled
+      xpack.uptime.enabled
   )
   conf_file=${conf_dir}/kibana.yml
   echo "#The following values dynamically added from environment variable overrides:"

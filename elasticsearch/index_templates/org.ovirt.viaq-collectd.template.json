@@ -2,13 +2,14 @@
   "aliases": {
     ".all": {}
   },
+  "index_patterns": "project.ovirt-metrics-*",
   "mappings": {
-    "_default_": {
+    "_doc": {
       "_all": {
         "enabled": false
       },
       "_meta": {
-        "version": "2019.12.16.0"
+        "version": "2020.01.23.0"
       },
       "_source": {
         "enabled": false
@@ -1269,6 +1270,5 @@
   "order": 20,
   "settings": {
     "index.refresh_interval": "5s"
-  },
-  "template": "project.ovirt-metrics-*"
+  }
 }

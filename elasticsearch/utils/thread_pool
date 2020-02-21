@@ -1,0 +1,10 @@
+#!/bin/bash -eu
+#
+# Utility to check the overall state of the cluster via various _cat APIs.
+#
+source es_util_env
+
+if [ "${NODATE:-false}" = false ] ; then
+    date
+fi
+es_util --query="_cat/thread_pool/write?v&h=node_name,completed,active,rejected,queue,largest,size,queue_size,min,max"

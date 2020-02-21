@@ -18,15 +18,14 @@
 source "logging"
 
 force=${FORCE_SEED_ACL:-''}
-config=${ES_CONF}/elasticsearch.yml
-index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
+index=$( get_security_conf_index )
 
 if [ -n "${force}" ] ; then
   docs=(roles rolesmapping actiongroups internalusers config)
   for d in $docs; do
     resp=$(es_util --query=${index}/$d/0 -w %{response_code} | cut -d '}' -f2)
     #re-seed acls if any of them are missing
-    if [ "${resp}" != "200"]; then
+    if [ "${resp}" != "200" ]; then
       info "Missing ACL document '${d}'. Reseeding all ACL documents"
       force="true"
       break

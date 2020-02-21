@@ -1,16 +1,11 @@
+OPERATOR_LOGGING_IMAGE_STREAM?=stable
 # Build the Docker images for Origin Aggregated Logging
 build-images:
 	hack/build-images.sh
 .PHONY: build-images
 
 test:
-	EXCLUDE_SUITE="upgrade|zzz-rsyslog|debug_level_logs|fluentd-forward|remote-syslog|out_rawtcp|zzz-duplicate-entries|read-throttling|viaq-data-model|zzzz-bulk-rejection" hack/testing/entrypoint.sh
+	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM) ./hack/test-e2e.sh
 .PHONY: test
 
-test-upgrade:
-	SUITE=test-upgrade hack/testing/entrypoint.sh
-.PHONY: test-upgrade
-
-test-pre-upgrade:
-	SUITE=test-pre-upgrade hack/testing/entrypoint.sh
 .PHONY: test-pre-upgrade

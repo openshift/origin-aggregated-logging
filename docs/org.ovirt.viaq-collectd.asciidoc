@@ -202,10 +202,15 @@ will give you the exact document corresponding to the record.
 
 type: keyword
 
-example: project.my-cool-project-in-lab04.748e92c2-70d7-11e9-b387-000d3af2d83b.2019.05.09
+example: container.app-write
 
-Index name in which this message will be stored within the Elasticsearch.
-The value of this field is generated based on the source of the message. 
+For Elasticsearch 6.x and later this is a name of a write index alias. The value depends on a log type
+of this message. Detailed documentation is found at
+https://github.com/openshift/enhancements/blob/master/enhancements/cluster-logging/cluster-logging-es-rollover-data-design.md#data-model
+
+For Elasticsearch 5.x and earlier an index name in which this message will be stored within the Elasticsearch.
+The value of this field is generated based on the source of the message. Example of the value
+is 'project.my-cool-project-in-lab04.748e92c2-70d7-11e9-b387-000d3af2d83b.2019.05.09'.
 
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # this grants the given user access to _msearch on the given projects
-# the /sg/roles/0 should look like this:
+# the /security/roles/0 should look like this:
 #         "hack_for_user_access_loguser": {
 #             "cluster": [],
 #             "indices": {
@@ -155,21 +155,15 @@ fi
 
 role_name="multi_index_access_for_user_$user"
 
-config_index_name=$( oc exec -c elasticsearch -n $LOGGING_PROJECT $espod -- python -c "import yaml; print yaml.load(open('/usr/share/java/elasticsearch/config/elasticsearch.yml'))['searchguard']['config_index_name']" )
-if [ -z "$config_index_name" ] ; then
-    echo Error: could not extract the searchguard index name from $espod /usr/share/java/elasticsearch/config/elasticsearch.yml
-    exit 1
-fi
-
-sg_index=$( oc exec -c elasticsearch -n $LOGGING_PROJECT $espod -- bash -c "eval 'echo $config_index_name'" )
-if [ -z "$sg_index" ] ; then
-    echo Error: could not convert "$config_index_name" in $espod to the searchguard index name
+security_index=$( oc exec -c elasticsearch -n $LOGGING_PROJECT $espod -- bash -c "source /usr/local/bin/es_util_env ; get_security_conf_index" )
+if [ -z "$security_index" ] ; then
+    echo Error: could not extract the security index name from $espod
     exit 1
 fi
 
 echo Input looks good - fixing ACLs . . .
 
-curl_es $espod /$sg_index/roles/0 | PROJECTS="$@" UUIDS="${uuids:-}" python -c '
+curl_es $espod /$security_index/roles/0 | PROJECTS="$@" UUIDS="${uuids:-}" python -c '
 import json
 import sys
 import os
@@ -189,10 +183,10 @@ else:
         hsh[role_name]["indices"][pat1] = {"*": perm}
         hsh[role_name]["indices"][pat2] = {"*": perm}
 json.dump(hsh, sys.stdout)
-' | curl_es_input $espod /$sg_index/roles/0 -XPUT -d@- | \
+' | curl_es_input $espod /$security_index/roles/0 -XPUT -d@- | \
         curl_output
 
-curl_es $espod /$sg_index/rolesmapping/0 | PROJECTS="$@" python -c '
+curl_es $espod /$security_index/rolesmapping/0 | PROJECTS="$@" python -c '
 import json
 import sys
 import os
@@ -206,7 +200,7 @@ if not projects:
 else:
     hsh[role_name] = {"users":[user_name]}
 json.dump(hsh, sys.stdout)
-' | curl_es_input $espod /$sg_index/rolesmapping/0 -XPUT -d@- | \
+' | curl_es_input $espod /$security_index/rolesmapping/0 -XPUT -d@- | \
         curl_output
 
 echo . . . Done

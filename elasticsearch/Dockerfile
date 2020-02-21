@@ -1,4 +1,4 @@
-FROM elasticsearch:5.6.16
+FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -6,28 +6,38 @@ EXPOSE 9200
 EXPOSE 9300
 USER 0
 
-ENV ES_CONF=/etc/elasticsearch/ \
+ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
-    ES_VER=5.6.16 \
+    ES_VER=6.8.1.redhat-6 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
+    JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
-    OSE_ES_VER=5.6.16.2-redhat-1 \
-    PROMETHEUS_EXPORTER_VER=5.6.16.0-redhat-1 \
+    PROMETHEUS_EXPORTER_VER=6.8.1.0-redhat-1 \
+    OPENDISTRO_VER=0.10.1.0-redhat-1 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
     RECOVER_AFTER_TIME=5m \
-    RELEASE_STREAM=prod \
     DHE_TMP_KEY_SIZE=2048 \
-    container=oci
+    RELEASE_STREAM=origin
 
-ARG OSE_ES_VER=5.6.16.2-redhat-1
-ARG OSE_ES_URL
-ARG PROMETHEUS_EXPORTER_VER=5.6.16.0-redhat-1
-ARG PROMETHEUS_EXPORTER_URL
-ARG MAVEN_REPO_URL=http://download-node-02.eng.bos.redhat.com/brewroot/repos/lpc-rhel-7-maven-build/latest/maven/
+ARG MAVEN_REPO_URL=http://download.eng.bos.redhat.com/brewroot/repos/lpc-openjdk-11-rhel-7-maven-build/latest/maven/
+
+RUN packages="java-${JAVA_VER}-openjdk-headless \
+              PyYAML  \
+              hostname \
+              openssl \
+              zip \
+              unzip" && \
+    yum install -y --setopt=tsflags=nodocs ${packages} && \
+    rpm -V ${packages} && \
+    yum clean all
+
+ADD extra-jvm.options install-es.sh /var/tmp
+
+RUN /var/tmp/install-es.sh
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
@@ -37,7 +47,9 @@ ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
 ADD init.sh run.sh prep-install.${RELEASE_STREAM} install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
-RUN ln -s /usr/local/bin/logging ${HOME}/logging
+
+ARG PROMETHEUS_EXPORTER_URL=${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
+ARG OPENDISTRO_URL=${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
 
 RUN ${HOME}/install.sh
 

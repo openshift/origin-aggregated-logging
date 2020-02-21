@@ -30,7 +30,10 @@
 # If you have a specific CLO or EO image you want to use, specify them by using
 # CLO_IMAGE and EO_IMAGE.
 
-set -eux
+set -euo pipefail
+if [ "${DEBUG:-}" = "true" ]; then
+	set -x
+fi
 
 logging_err_exit() {
     set +e
@@ -186,10 +189,15 @@ construct_image_name() {
     # stable is the imagestream containing the images built for this PR, or
     # otherwise the most recent image
     if [ -n "${IMAGE_FORMAT:-}" ] ; then
-        if [ -n "${LOGGING_IMAGE_STREAM:-}" ] ; then
+        if [ -n "${LOGGING_IMAGE_STREAM:-}" -a "${LOGGING_IMAGE_STREAM:-}" != 'stable' ] ; then
             local match=/stable:
             local replace="/${LOGGING_IMAGE_STREAM}:"
             IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
+
+            if [ -n "${LOGGING_IMAGE_STREAM_NS:-}" -a "${LOGGING_IMAGE_STREAM_NS:-}" != 'ocp' ] ; then
+                local ns=$(echo ${IMAGE_FORMAT} | cut -d '/' -f 2)
+                IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
+            fi
         fi
         echo ${IMAGE_FORMAT/'${component}'/$component}
     elif [ "${USE_CUSTOM_IMAGES:-true}" = false ] ; then
@@ -212,8 +220,8 @@ update_images_in_clo_yaml() {
     else
         filearg="-i $yamlfile"
     fi
-    local es_img=$( construct_image_name logging-elasticsearch5 $version )
-    local k_img=$( construct_image_name logging-kibana5 $version )
+    local es_img=$( construct_image_name logging-elasticsearch6 $version )
+    local k_img=$( construct_image_name logging-kibana6 $version )
     local c_img=$( construct_image_name logging-curator5 $version )
     local f_img=$( construct_image_name logging-fluentd $version )
     local op_img=$( construct_image_name oauth-proxy $version )
@@ -230,29 +238,50 @@ update_images_in_clo_yaml() {
 wait_for_logging_is_running() {
     # we expect a fluentd running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
-    if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-        collector=fluentd
-    else
-        collector=$( oc get clusterlogging instance -o jsonpath='{.spec.collection.logs.type}' )
-    fi
+    echo INFO: Expecting $expectedcollectors collector to start
     # we expect $nodeCount elasticsearch pods
+    es_ready="false"
+    fluent_ready="false"
+    kibana_ready="false"
     wait_func() {
-        if ! oc get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
-            return 1
-        fi
-        local actualcollectors=$( oc get pods -l component=$collector 2> /dev/null | grep -c "${collector}.*Running" )
-        if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-            return 1
-        fi
-        local actuales=$( oc get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
+        result=0
+        local actuales=$( oc -n ${LOGGING_NS} get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
         if [ $expectedes -ne ${actuales:-0} ] ; then
-            return 1
+            echo WARN: ${actuales:-0} of $expectedes Running
+            result=1
+        else
+            if [ "$es_ready" != "true" ] ; then
+                echo INFO: Elasticsearch is Running
+                export es_ready="true"
+                #HACK cycle kibana pods
+                #HACK TO figure out why kibana doesn't cycle
+                oc -n ${LOGGING_NS} delete pods -l component=kibana --grace-period=0 --force
+            fi
+        fi
+        if ! oc -n ${LOGGING_NS} get pods -l component=kibana 2> /dev/null | grep -q 'kibana.* 2/2 .*Running' ; then
+            echo WARN: Kibana pod not running
+            result=1
+        else
+            if [ "$kibana_ready" != "true" ] ; then
+                echo INFO: Kibana is Running
+                export kibana_ready="true"
+            fi
+        fi
+        local actualcollectors=$( oc -n ${LOGGING_NS} get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
+        if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
+            echo WARN: ${actualcollectors:-0} of $expectedcollectors Running
+            result=1
+        else
+            if [ "$fluent_ready" != "true" ] ; then
+                echo INFO: Collectors are Running
+                export fluent_ready="true"
+            fi
         fi
         # if we got here, everything is as it should be
-        return 0
+        return $result
     }
     if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-        echo ERROR: operator did not start pods after 300 seconds
+        echo ERROR: operator did not start pods after $DEFAULT_TIMEOUT seconds
         logging_err_exit
     fi
 }
@@ -266,7 +295,8 @@ deploy_logging_using_olm() {
         CREATE_OPERATORGROUP=false
     fi
 
-    local eoimg=${EO_IMAGE:-$( construct_image_name elasticsearch-operator latest )}
+    OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"stable"}
+    local eoimg=${EO_IMAGE:-$( LOGGING_IMAGE_STREAM_NS=ocp LOGGING_IMAGE_STREAM=$OPERATOR_LOGGING_IMAGE_STREAM construct_image_name elasticsearch-operator latest )}
     cp -r ${EO_DIR}/manifests/${EO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${EO_DIR}/manifests/*.package.yaml $manifest
     update_images_in_clo_yaml $manifest/${EO_MANIFEST_VER:-$MASTER_VERSION}/elasticsearch-operator.*.clusterserviceversion.yaml $eoimg
@@ -283,7 +313,7 @@ deploy_logging_using_olm() {
     TARGET_NAMESPACE=all \
     hack/vendor/olm-test-script/e2e-olm.sh
 
-    local cloimg=${CLO_IMAGE:-$( construct_image_name cluster-logging-operator latest )}
+    local cloimg=${CLO_IMAGE:-$( LOGGING_IMAGE_STREAM_NS=ocp LOGGING_IMAGE_STREAM=$OPERATOR_LOGGING_IMAGE_STREAM construct_image_name cluster-logging-operator latest )}
     rm -rf $manifest/*
     cp -r ${CLO_DIR}/manifests/${CLO_MANIFEST_VER:-$MASTER_VERSION} $manifest
     cp ${CLO_DIR}/manifests/*.package.yaml $manifest
