@@ -10,10 +10,6 @@ os::util::environment::use_sudo
 
 os::test::junit::declare_suite_start "test/utf8-characters"
 
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
-fi
-
 cleanup() {
     local return_code="$?"
     set +e

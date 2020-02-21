@@ -42,7 +42,6 @@
 set -euo pipefail
 
 if [ -n "${DEBUG:-}" ] ; then
-    set -x
     curl_output() {
         python -mjson.tool
     }

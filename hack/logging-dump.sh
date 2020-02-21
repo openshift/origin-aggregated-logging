@@ -22,9 +22,6 @@ then
 fi
 
 set -euo pipefail
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
-fi
 
 declare -a components=()
 

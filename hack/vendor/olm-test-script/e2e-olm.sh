@@ -2,10 +2,6 @@
 
 set -euo pipefail
 
-if [ "${DEBUG:-}" = "true" ]; then
-	set -x
-fi
-
 TEST_NAMESPACE=${TEST_NAMESPACE:-olm-test}
 TARGET_NAMESPACE=${TARGET_NAMESPACE:-olm-test}
 CREATE_OPERATORGROUP=${CREATE_OPERATORGROUP:-"true"}

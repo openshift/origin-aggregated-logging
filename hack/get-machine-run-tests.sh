@@ -639,7 +639,7 @@ ANSIBLE_LOG_PATH=/tmp/ansible-origin.log ansible-playbook -vvv --become         
   \${playbook}
 EOF
 scp $runfile openshiftdevel:/tmp
-ssh -n openshiftdevel "bash -x $runfile"
+ssh -n openshiftdevel "bash $runfile"
 
 #  title: "expose the kubeconfig"
 cat > $runfile <<EOF
