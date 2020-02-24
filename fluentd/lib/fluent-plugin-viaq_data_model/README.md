@@ -166,12 +166,14 @@ See `filter-viaq_data_model.conf` for an example filter configuration.
     it will skip the other index name items.
   * `tag` - the Fluentd tag pattern to match for these records
   * `name_type` - the well known type of index name or prefix to create -
-    `operations_full, project_full, operations_prefix, project_prefix` - The
+    `operations_full, project_full, operations_prefix, project_prefix, static` - The
     `operations_*` types will create a name like `.operations`, and the
     `project_*` types will create a name like
     `project.record['kubernetes']['namespace_name'].record['kubernetes']['namespace_id']`.
     When using the `full` types, a delimiter `.` followed by the date in
     `YYYY.MM.DD` format will be added to the string to make a full index name.
+    When using the `static` type, `static_index_name` is required and records will be written 
+    to the index  defined by `static_index_name`
     When using the `prefix` types, it is assumed that the
     `fluent-plugin-elaticsearch` is used with the `logstash_prefix_key` to
     create the full index name.
