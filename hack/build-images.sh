@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 tmpworkdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
 function cleanup() {

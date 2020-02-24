@@ -13,10 +13,6 @@ FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
 os::test::junit::declare_suite_start "test/viaq-data-model"
 
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
-fi
-
 cleanup() {
     local return_code="$?"
     set +e

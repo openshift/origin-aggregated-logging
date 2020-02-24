@@ -31,14 +31,10 @@
 # CLO_IMAGE and EO_IMAGE.
 
 set -euo pipefail
-if [ "${DEBUG:-}" = "true" ]; then
-	set -x
-fi
 
 logging_err_exit() {
     set +e
     {
-        set -x
         for ns in $LOGGING_NS $ESO_NS ; do
             oc -n $ns get subscription
             oc -n $ns get clusterserviceversion

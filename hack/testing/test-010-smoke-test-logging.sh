@@ -3,9 +3,7 @@
 # are deployable using the latest operators.
 
 set -euo pipefail
-if [ "${DEBUG:-}" = "true" ]; then
-	set -x
-fi
+
 current_dir=$(dirname "${BASH_SOURCE[0]}" )
 repo_dir=${repodir:-"$current_dir/../.."}
 source ${current_dir}/common
