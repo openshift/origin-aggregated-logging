@@ -1,4 +1,4 @@
-FROM rhscl/nodejs-10-rhel7
+FROM registry.access.redhat.com/rhscl/nodejs-10-rhel7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
