@@ -438,6 +438,13 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
         deploy_logging_using_olm
     else
         ESO_NS=$LOGGING_NS
+        # Create static cluster roles and rolebindings
+        local version=$(basename $(find ${CLO_DIR}/manifests -type d | sort -r | head -n 1))
+        oc create -f ${CLO_DIR}/manifests/$version/0100_clusterroles.yaml ||:
+        oc create -f ${CLO_DIR}/manifests/$version/0110_clusterrolebindings.yaml ||:
+        # Create static cluster roles and rolebindings
+        oc create -f ${CLO_DIR}/manifests/$version/0200_roles.yaml ||:
+        oc create -f ${CLO_DIR}/manifests/$version/0210_rolebindings.yaml ||:
         deploy_logging_using_clo_make
     fi
     wait_func() {
