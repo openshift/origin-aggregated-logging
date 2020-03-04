@@ -28,7 +28,7 @@ ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD lib/* ${HOME}/
 ADD patches/ ${HOME}/patches/
-ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
+ADD run.sh utils install.sh prep-install* ${HOME}/
 RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}

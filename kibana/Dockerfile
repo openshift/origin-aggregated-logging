@@ -32,7 +32,7 @@ ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD lib/* ${HOME}/
 ADD patches/ ${HOME}/patches/
-ADD run.sh utils install.sh prep-install.${RELEASE_STREAM} ${HOME}/
+ADD run.sh utils install.sh prep-install* ${HOME}/
 ADD logo-OCP-console-hdr-stacked.svg ${HOME}/kibana/origin-kibana/public/images/logo-okd.svg
 RUN (type -p node || ln -s $(which $NODE_BIN) "/usr/bin/node") && \
     sh ${HOME}/install.sh
