@@ -14,7 +14,7 @@ def init_environment_vars()
     # [2] = default value, if any
     # [3] = allowed values, if any
     vars = [
-      ['HOST', 'remote_syslog', nil, nil],
+      ['HOST', 'host', nil, nil],
       ['PORT', 'port', "514", nil],
       ['HOSTNAME', 'hostname', ENV['HOSTNAME'], nil],
       ['REMOVE_TAG_PREFIX', 'remove_tag_prefix', nil, nil],
@@ -24,7 +24,7 @@ def init_environment_vars()
       ['USE_RECORD', 'use_record', nil, nil],
       ['PAYLOAD_KEY', 'payload_key', nil, nil],
       # TYPE must be vars[-1]
-      ['TYPE', 'type', "syslog_buffered", ['syslog_buffered', 'syslog']]
+      ['TYPE', 'type', 'remote_syslog', nil]
     ]
     t = k.dup
     t.slice! group
