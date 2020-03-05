@@ -1,3 +1,30 @@
+1.12.2 / 2020-02-01
+-------------------
+
+* Fix possible segfault at FFI::Struct#[] and []= after GC.compact . #742
+
+
+1.12.1 / 2020-01-14
+-------------------
+
+Added:
+* Add binary gem support for ruby-2.7 on Windows
+
+
+1.12.0 / 2020-01-14
+-------------------
+
+Added:
+* FFI::VERSION is defined as part of `require 'ffi'` now.
+  It is no longer necessary to `require 'ffi/version'` .
+
+Changed:
+* Update libffi to latest master.
+
+Deprecated:
+* Overwriting struct layouts is now warned and will be disallowed in ffi-2.0. #734, #735
+
+
 1.11.3 / 2019-11-25
 -------------------
 

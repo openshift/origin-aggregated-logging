@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Gem::Specification.new do |spec|
   spec.name          = 'fluent-plugin-splunk-hec'
   spec.version       = File.read('VERSION')
@@ -31,15 +33,21 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 2.3.0'
 
-  spec.add_runtime_dependency 'fluentd', '~> 1.4'
+  spec.add_runtime_dependency 'fluent-plugin-kubernetes_metadata_filter', '~> 2.4.2'
+  spec.add_runtime_dependency 'fluentd', '>= 1.4'
   spec.add_runtime_dependency 'multi_json', '~> 1.13'
-  spec.add_runtime_dependency 'net-http-persistent', '~> 3.0'
+  spec.add_runtime_dependency 'net-http-persistent', '~> 3.1'
+  spec.add_runtime_dependency 'openid_connect', '~> 1.1.8'
+  spec.add_runtime_dependency 'prometheus-client', '< 0.10.0'
+  spec.add_runtime_dependency 'activesupport', '~> 5.2'
+  spec.add_runtime_dependency 'http_parser.rb', '= 0.5.3'
 
   spec.add_development_dependency 'bundler', '~> 2.0'
   spec.add_development_dependency 'rake', '~> 12.0'
   # required by fluent/test.rb
-  spec.add_development_dependency 'test-unit', '~> 3.0'
   spec.add_development_dependency 'minitest', '~> 5.0'
-  spec.add_development_dependency 'webmock', '~> 3.5.0'
+  spec.add_development_dependency 'rubocop', '~> 0.63.1'
   spec.add_development_dependency 'simplecov', '~> 0.16.1'
+  spec.add_development_dependency 'test-unit', '~> 3.0'
+  spec.add_development_dependency 'webmock', '~> 3.5.0'
 end

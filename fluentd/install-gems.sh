@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 # patch files should be of the form
 # $gem_name.sourceNNNN.patch

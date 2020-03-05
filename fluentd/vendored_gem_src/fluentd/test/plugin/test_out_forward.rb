@@ -39,7 +39,7 @@ class ForwardOutputTest < Test::Unit::TestCase
 
   def create_driver(conf=CONFIG)
     Fluent::Test::Driver::Output.new(Fluent::Plugin::ForwardOutput) {
-      attr_reader :sent_chunk_ids, :ack_handler
+      attr_reader :sent_chunk_ids, :ack_handler, :discovery_manager
 
       def initialize
         super
@@ -258,6 +258,30 @@ EOL
       assert_equal "Root", d.instance.tls_cert_logical_store_name
       assert_equal "a909502dd82ae41433e6f83886b00d4277a32a7b", d.instance.tls_cert_thumbprint
     end
+  end
+
+  test 'server is an abbreviation of static type of service_discovery' do
+    @d = d = create_driver(%[
+<server>
+  host 127.0.0.1
+  port 1234
+</server>
+
+<service_discovery>
+  @type static
+
+  <service>
+    host 127.0.0.1
+    port 1235
+  </service>
+</service_discovery>
+    ])
+
+    assert_equal 2, d.instance.discovery_manager.services.size
+    assert_equal '127.0.0.1', d.instance.discovery_manager.services[0].host
+    assert_equal 1234, d.instance.discovery_manager.services[0].port
+    assert_equal '127.0.0.1', d.instance.discovery_manager.services[1].host
+    assert_equal 1235, d.instance.discovery_manager.services[1].port
   end
 
   test 'compress_default_value' do
@@ -647,7 +671,7 @@ EOL
 
     @d = d = create_driver(CONFIG + %[
       require_ack_response true
-      ack_response_timeout 5s
+      ack_response_timeout 1s
       <buffer tag>
         flush_mode immediate
         retry_type periodic
@@ -675,7 +699,7 @@ EOL
       end
     end
 
-    assert_equal (5 + 2), delayed_commit_timeout_value
+    assert_equal (1 + 2), delayed_commit_timeout_value
 
     events = target_input_driver.events
     assert_equal ['test', time, records[0]], events[0]
@@ -942,6 +966,26 @@ EOL
     )
     assert_nothing_raised do
       i.configure(conf)
+    end
+  end
+
+  test 'when out_forward has @id' do
+    # cancel https://github.com/fluent/fluentd/blob/077508ac817b7637307434d0c978d7cdc3d1c534/lib/fluent/plugin_id.rb#L43-L53
+    # it always return true in test
+    mock.proxy(Fluent::Plugin).new_sd(:static, anything) { |v|
+      stub(v).plugin_id_for_test? { false }
+    }.once
+
+    output = Fluent::Test::Driver::Output.new(Fluent::Plugin::ForwardOutput) {
+      def plugin_id_for_test?
+        false
+      end
+    }
+
+    assert_nothing_raised do
+      output.configure(CONFIG + %[
+        @id unique_out_forward
+      ])
     end
   end
 

@@ -29,23 +29,12 @@ module HTTP
       #
       # @return [String, nil]
       def read(length = nil, outbuf = nil)
-        outbuf = outbuf.to_s.clear
-        # buffer in JRuby is sometimes US-ASCII, force to ASCII-8BIT
-        outbuf.force_encoding(Encoding::BINARY)
+        data   = outbuf.clear.force_encoding(Encoding::BINARY) if outbuf
+        data ||= "".b
 
-        while current_io
-          current_io.read(length, @buffer)
-          outbuf << @buffer.force_encoding(Encoding::BINARY)
+        read_chunks(length) { |chunk| data << chunk }
 
-          if length
-            length -= @buffer.bytesize
-            break if length.zero?
-          end
-
-          advance_io
-        end
-
-        outbuf unless length && outbuf.empty?
+        data unless length && data.empty?
       end
 
       # Returns sum of all IO sizes.
@@ -60,6 +49,30 @@ module HTTP
       end
 
       private
+
+      # Yields chunks with total length up to `length`.
+      def read_chunks(length = nil)
+        while (chunk = readpartial(length))
+          yield chunk.force_encoding(Encoding::BINARY)
+
+          next if length.nil?
+
+          length -= chunk.bytesize
+
+          break if length.zero?
+        end
+      end
+
+      # Reads chunk from current IO with length up to `max_length`.
+      def readpartial(max_length = nil)
+        while current_io
+          chunk = current_io.read(max_length, @buffer)
+
+          return chunk if chunk && !chunk.empty?
+
+          advance_io
+        end
+      end
 
       # Returns IO object under the cursor.
       def current_io

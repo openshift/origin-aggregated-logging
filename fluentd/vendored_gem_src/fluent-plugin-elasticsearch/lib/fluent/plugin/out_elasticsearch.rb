@@ -24,6 +24,7 @@ require_relative 'elasticsearch_error'
 require_relative 'elasticsearch_error_handler'
 require_relative 'elasticsearch_index_template'
 require_relative 'elasticsearch_index_lifecycle_management'
+require_relative 'elasticsearch_tls'
 begin
   require_relative 'oj_serializer'
 rescue LoadError
@@ -33,6 +34,7 @@ module Fluent::Plugin
   class ElasticsearchOutput < Output
     class RecoverableRequestFailure < StandardError; end
     class UnrecoverableRequestFailure < Fluent::UnrecoverableError; end
+    class RetryStreamEmitFailure < StandardError; end
 
     # MissingIdFieldError is raised for records that do not
     # include the field for the unique record identifier
@@ -48,11 +50,13 @@ module Fluent::Plugin
       end
     end
 
-    RequestInfo = Struct.new(:host, :index)
+    RequestInfo = Struct.new(:host, :index, :ilm_index)
 
     attr_reader :alias_indexes
+    attr_reader :template_names
+    attr_reader :ssl_version_options
 
-    helpers :event_emitter, :compat_parameters, :record_accessor
+    helpers :event_emitter, :compat_parameters, :record_accessor, :timer
 
     Fluent::Plugin.register_output('elasticsearch', self)
 
@@ -102,7 +106,6 @@ EOC
     config_param :client_cert, :string, :default => nil
     config_param :client_key_pass, :string, :default => nil, :secret => true
     config_param :ca_file, :string, :default => nil
-    config_param :ssl_version, :enum, list: [:SSLv23, :TLSv1, :TLSv1_1, :TLSv1_2], :default => :TLSv1
     config_param :remove_keys, :string, :default => nil
     config_param :remove_keys_on_update, :string, :default => ""
     config_param :remove_keys_on_update_key, :string, :default => nil
@@ -116,7 +119,8 @@ EOC
     config_param :index_date_pattern, :string, :default => "now/d"
     config_param :index_separator, :string, :default => "-"
     config_param :deflector_alias, :string, :default => nil
-    config_param :index_prefix, :string, :default => "logstash"
+    config_param :index_prefix, :string, :default => "logstash",
+                 obsoleted: "This parameter shouldn't be used in 4.0.0 or later. Specify ILM target index with using `index_name' w/o `logstash_format' or 'logstash_prefix' w/ `logstash_format' instead."
     config_param :application_name, :string, :default => "default"
     config_param :templates, :hash, :default => nil
     config_param :max_retry_putting_template, :integer, :default => 10
@@ -149,10 +153,12 @@ EOC
     config_param :ignore_exceptions, :array, :default => [], value_type: :string, :desc => "Ignorable exception list"
     config_param :exception_backup, :bool, :default => true, :desc => "Chunk backup flag when ignore exception occured"
     config_param :bulk_message_request_threshold, :size, :default => TARGET_BULK_BYTES
-    config_param :compression_level, :enum, {list: [:no_compression, :best_speed, :best_compression, :default_compression], :default => :no_compression}
+    config_param :compression_level, :enum, list: [:no_compression, :best_speed, :best_compression, :default_compression], :default => :no_compression
     config_param :enable_ilm, :bool, :default => false
     config_param :ilm_policy_id, :string, :default => DEFAULT_POLICY_ID
     config_param :ilm_policy, :hash, :default => {}
+    config_param :ilm_policy_overwrite, :bool, :default => false
+    config_param :truncate_caches_interval, :time, :default => nil
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -163,6 +169,7 @@ EOC
     include Fluent::ElasticsearchIndexTemplate
     include Fluent::Plugin::ElasticsearchConstants
     include Fluent::Plugin::ElasticsearchIndexLifecycleManagement
+    include Fluent::Plugin::ElasticsearchTLS
 
     def initialize
       super
@@ -172,10 +179,15 @@ EOC
       compat_parameters_convert(conf, :buffer)
 
       super
-      raise Fluent::ConfigError, "'tag' or '_index' in chunk_keys is required." if not @buffer_config.chunk_keys.include? "tag" and not @buffer_config.chunk_keys.include? "_index"
-
+      if placeholder_substitution_needed_for_template?
+        # nop.
+      elsif not @buffer_config.chunk_keys.include? "tag" and
+        not @buffer_config.chunk_keys.include? "_index"
+        raise Fluent::ConfigError, "'tag' or '_index' in chunk_keys is required."
+      end
       @time_parser = create_time_parser
       @backend_options = backend_options
+      @ssl_version_options = set_tls_minmax_version_config(@ssl_version, @ssl_max_version, @ssl_min_version)
 
       if @remove_keys
         @remove_keys = @remove_keys.split(/\s*,\s*/)
@@ -206,19 +218,39 @@ EOC
       end
 
       @alias_indexes = []
+      @template_names = []
       if !dry_run?
         if @template_name && @template_file
-          if @rollover_index
-            raise Fluent::ConfigError, "'deflector_alias' must be provided if 'rollover_index' is set true ." if not @deflector_alias
-          end
           if @enable_ilm
-            raise Fluent::ConfigError, "'rollover_index' and 'deflector_alias' must be provided if 'enable_ilm' is set true ." if !@deflector_alias &&!@deflector_alias
+            raise Fluent::ConfigError, "deflector_alias is prohibited to use with 'logstash_format at same time." if @logstash_format and @deflector_alias
+          end
+          if @ilm_policy.empty? && @ilm_policy_overwrite
+            raise Fluent::ConfigError, "ilm_policy_overwrite can work with non empty ilm_policy. Specify non-empty ilm policy into ilm_policy. "
+          end
+          if @logstash_format || placeholder_substitution_needed_for_template?
+            class << self
+              alias_method :template_installation, :template_installation_actual
+            end
+          else
+            template_installation_actual(@deflector_alias ? @deflector_alias : @index_name, @template_name, @customize_template, @application_name, @index_name)
           end
           verify_ilm_working if @enable_ilm
         elsif @templates
           retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
             templates_hash_install(@templates, @template_overwrite)
           end
+        end
+      end
+
+      @truncate_mutex = Mutex.new
+      if @truncate_caches_interval
+        timer_execute(:out_elasticsearch_truncate_caches, @truncate_caches_interval) do
+          log.info('Clean up the indices and template names cache')
+
+          @truncate_mutex.synchronize {
+            @alias_indexes.clear
+            @template_names.clear
+          }
         end
       end
 
@@ -297,10 +329,6 @@ EOC
         end
       end
 
-      if @buffer_config.flush_thread_count < 2
-        log.warn "To prevent events traffic jam, you should specify 2 or more 'flush_thread_count'."
-      end
-
       # Consider missing the prefix of "$." in nested key specifiers.
       @id_key = convert_compat_id_key(@id_key) if @id_key
       @parent_key = convert_compat_id_key(@parent_key) if @parent_key
@@ -330,9 +358,7 @@ EOC
         end
       end
 
-      version_arr = ::Elasticsearch::Transport::VERSION.split('.')
-
-      if (version_arr[0].to_i < 7) || (version_arr[0].to_i == 7 && version_arr[1].to_i < 2)
+      if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
         if compression
           raise Fluent::ConfigError, <<-EOC
             Cannot use compression with elasticsearch-transport plugin version < 7.2.0
@@ -352,12 +378,17 @@ EOC
     end
 
     def placeholder?(name, param)
-      begin
-        placeholder_validate!(name, param)
-        true
-      rescue Fluent::ConfigError
-        false
+      placeholder_validities = []
+      placeholder_validators(name, param).each do |v|
+        begin
+          v.validate!
+          placeholder_validities << true
+        rescue Fluent::ConfigError => e
+          log.debug("'#{name} #{param}' is tested built-in placeholder(s) but there is no valid placeholder(s). error: #{e}")
+          placeholder_validities << false
+        end
       end
+      placeholder_validities.include?(true)
     end
 
     def compression
@@ -484,6 +515,7 @@ EOC
                          {}
                        end
         headers = { 'Content-Type' => @content_type.to_s }.merge(@custom_headers).merge(gzip_headers)
+        ssl_options = { verify: @ssl_verify, ca_file: @ca_file}.merge(@ssl_version_options)
 
         transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(connection_options.merge(
                                                                             options: {
@@ -494,11 +526,12 @@ EOC
                                                                               transport_options: {
                                                                                 headers: headers,
                                                                                 request: { timeout: @request_timeout },
-                                                                                ssl: { verify: @ssl_verify, ca_file: @ca_file, version: @ssl_version }
+                                                                                ssl: ssl_options,
                                                                               },
                                                                               http: {
                                                                                 user: @user,
-                                                                                password: @password
+                                                                                password: @password,
+                                                                                scheme: @scheme
                                                                               },
                                                                               sniffer_class: @sniffer_class,
                                                                               serializer_class: @serializer_class,
@@ -634,11 +667,22 @@ EOC
 
     def expand_placeholders(chunk)
       logstash_prefix = extract_placeholders(@logstash_prefix, chunk)
+      logstash_dateformat = extract_placeholders(@logstash_dateformat, chunk)
       index_name = extract_placeholders(@index_name, chunk)
       if @type_name
         type_name = extract_placeholders(@type_name, chunk)
       else
         type_name = nil
+      end
+      if @template_name
+        template_name = extract_placeholders(@template_name, chunk)
+      else
+        template_name = nil
+      end
+      if @customize_template
+        customize_template = @customize_template.each_with_object({}) { |(key, value), hash| hash[key] = extract_placeholders(value, chunk) }
+      else
+        customize_template = nil
       end
       if @deflector_alias
         deflector_alias = extract_placeholders(@deflector_alias, chunk)
@@ -650,7 +694,12 @@ EOC
       else
         application_name = nil
       end
-      return logstash_prefix, index_name, type_name, deflector_alias, application_name
+      if @pipeline
+        pipeline = extract_placeholders(@pipeline, chunk)
+      else
+        pipeline = nil
+      end
+      return logstash_prefix, logstash_dateformat, index_name, type_name, template_name, customize_template, deflector_alias, application_name, pipeline
     end
 
     def multi_workers_ready?
@@ -676,9 +725,9 @@ EOC
         begin
           meta, header, record = process_message(tag, meta, header, time, record, extracted_values)
           info = if @include_index_in_url
-                   RequestInfo.new(host, meta.delete("_index".freeze))
+                   RequestInfo.new(host, meta.delete("_index".freeze), meta["_index".freeze])
                  else
-                   RequestInfo.new(host, nil)
+                   RequestInfo.new(host, nil, meta["_index".freeze])
                  end
 
           if split_request?(bulk_message, info)
@@ -724,7 +773,7 @@ EOC
     end
 
     def process_message(tag, meta, header, time, record, extracted_values)
-      logstash_prefix, index_name, type_name, deflector_alias, application_name = extracted_values
+      logstash_prefix, logstash_dateformat, index_name, type_name, _template_name, _customize_template, _deflector_alias, _application_name, pipeline = extracted_values
 
       if @flatten_hashes
         record = flatten_record(record)
@@ -750,7 +799,7 @@ EOC
         target_index = target_index_parent.delete(target_index_child_key)
       elsif @logstash_format
         dt = dt.new_offset(0) if @utc_index
-        target_index = "#{logstash_prefix}#{@logstash_prefix_separator}#{dt.strftime(@logstash_dateformat)}"
+        target_index = "#{logstash_prefix}#{@logstash_prefix_separator}#{dt.strftime(logstash_dateformat)}"
       else
         target_index = index_name
       end
@@ -792,7 +841,7 @@ EOC
       meta["_type".freeze] = target_type unless @last_seen_major_version >= 8
 
       if @pipeline
-        meta["pipeline".freeze] = @pipeline
+        meta["pipeline".freeze] = pipeline
       end
 
       @meta_config_map.each do |record_accessor, meta_key|
@@ -824,24 +873,52 @@ EOC
       wio.string
     end
 
+    def placeholder_substitution_needed_for_template?
+      need_substitution = placeholder?(:host, @host.to_s) ||
+        placeholder?(:index_name, @index_name.to_s) ||
+        placeholder?(:template_name, @template_name.to_s) ||
+        @customize_template&.values&.any? { |value| placeholder?(:customize_template, value.to_s) } ||
+        placeholder?(:logstash_prefix, @logstash_prefix.to_s) ||
+        placeholder?(:logstash_dateformat, @logstash_dateformat.to_s) ||
+        placeholder?(:deflector_alias, @deflector_alias.to_s) ||
+        placeholder?(:application_name, @application_name.to_s)
+      log.debug("Need substitution: #{need_substitution}")
+      need_substitution
+    end
+
+    def template_installation(deflector_alias, template_name, customize_template, application_name, target_index, host)
+      # for safety.
+    end
+
+    def template_installation_actual(deflector_alias, template_name, customize_template, application_name, target_index, host=nil)
+      if template_name && @template_file
+        if @alias_indexes.include? deflector_alias
+          log.debug("Index alias #{deflector_alias} already exists (cached)")
+        elsif @template_names.include? template_name
+          log.debug("Template name #{template_name} already exists (cached)")
+        else
+          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
+            if customize_template
+              template_custom_install(template_name, @template_file, @template_overwrite, customize_template, @enable_ilm, deflector_alias, @ilm_policy_id, host)
+            else
+              template_install(template_name, @template_file, @template_overwrite, @enable_ilm, deflector_alias, @ilm_policy_id, host)
+            end
+            create_rollover_alias(target_index, @rollover_index, deflector_alias, application_name, @index_date_pattern, @index_separator, @enable_ilm, @ilm_policy_id, @ilm_policy, @ilm_policy_overwrite, host)
+          end
+          @alias_indexes << deflector_alias unless deflector_alias.nil?
+          @template_names << template_name unless template_name.nil?
+        end
+      end
+    end
+
     # send_bulk given a specific bulk request, the original tag,
     # chunk, and bulk_message_count
     def send_bulk(data, tag, chunk, bulk_message_count, extracted_values, info)
-      logstash_prefix, index_name, type_name, deflector_alias, application_name = extracted_values
-      if @template_name && @template_file
-        if @alias_indexes.include? deflector_alias
-          log.debug("Index alias #{deflector_alias} already exists (cached)")
-        else
-          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
-            if @customize_template
-              template_custom_install(@template_name, @template_file, @template_overwrite, @customize_template, @enable_ilm, deflector_alias, @ilm_policy_id, info.host)
-            else
-              template_install(@template_name, @template_file, @template_overwrite, @enable_ilm, deflector_alias, @ilm_policy_id, info.host)
-            end
-            create_rollover_alias(@index_prefix, @rollover_index, deflector_alias, application_name, @index_date_pattern, @index_separator, @enable_ilm, @ilm_policy_id, @ilm_policy, info.host)
-          end
-          @alias_indexes << deflector_alias unless deflector_alias.nil?
-        end
+      logstash_prefix, _logstash_dateformat, index_name, _type_name, template_name, customize_template, deflector_alias, application_name, _pipeline = extracted_values
+      if deflector_alias
+        template_installation(deflector_alias, template_name, customize_template, application_name, index_name, info.host)
+      else
+        template_installation(info.ilm_index, template_name, customize_template, application_name, @logstash_format ? logstash_prefix : index_name, info.host)
       end
 
       begin
@@ -862,8 +939,15 @@ EOC
           error.handle_error(response, tag, chunk, bulk_message_count, extracted_values)
         end
       rescue RetryStreamError => e
+        log.trace "router.emit_stream for retry stream doing..."
         emit_tag = @retry_tag ? @retry_tag : tag
-        router.emit_stream(emit_tag, e.retry_stream)
+        # check capacity of buffer space
+        if retry_stream_retryable?
+          router.emit_stream(emit_tag, e.retry_stream)
+        else
+          raise RetryStreamEmitFailure, "buffer is full."
+        end
+        log.trace "router.emit_stream for retry stream done."
       rescue => e
         ignore = @ignore_exception_classes.any? { |clazz| e.class <= clazz }
 
@@ -877,6 +961,10 @@ EOC
         # FIXME: identify unrecoverable errors and raise UnrecoverableRequestFailure instead
         raise RecoverableRequestFailure, "could not push logs to Elasticsearch cluster (#{connection_options_description(info.host)}): #{e.message}" unless ignore
       end
+    end
+
+    def retry_stream_retryable?
+      @buffer.storable?
     end
 
     def is_existing_connection(host)

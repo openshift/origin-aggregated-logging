@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.9'
 
   s.add_dependency "multi_json"
-  s.add_dependency "faraday"
+  s.add_dependency "faraday", '>= 0.14', "< 1"
 
   if defined?(RUBY_VERSION) && RUBY_VERSION < '1.9'
     s.add_dependency "system_timer"
@@ -68,7 +68,7 @@ Gem::Specification.new do |s|
     s.add_development_dependency "elasticsearch-extensions"
     s.add_development_dependency "ruby-prof"    unless defined?(JRUBY_VERSION) || defined?(Rubinius)
     s.add_development_dependency "require-prof" unless defined?(JRUBY_VERSION) || defined?(Rubinius)
-    s.add_development_dependency "simplecov"
+    s.add_development_dependency "simplecov", '~> 0.17', '< 0.18'
     s.add_development_dependency "simplecov-rcov"
     s.add_development_dependency "cane"
   end

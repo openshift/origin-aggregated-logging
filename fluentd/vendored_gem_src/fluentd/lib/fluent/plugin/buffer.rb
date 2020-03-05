@@ -17,8 +17,7 @@
 require 'fluent/plugin/base'
 require 'fluent/plugin/owned_by_mixin'
 require 'fluent/unique_id'
-
-require 'monitor'
+require 'fluent/ext_monitor_require'
 
 module Fluent
   module Plugin
@@ -139,9 +138,12 @@ module Fluent
         # Actually this overhead is very small but this class is generated *per chunk* (and used in hash object).
         # This means that this class is one of the most called object in Fluentd.
         # See https://github.com/fluent/fluentd/pull/2560
+        # But, this optimization has a side effect on Windows due to differing object_id.
+        # This difference causes flood of buffer files.
+        # So, this optimization should be enabled on non-Windows platform.
         def hash
           timekey.object_id
-        end
+        end unless Fluent.windows?
       end
 
       # for tests
@@ -266,10 +268,10 @@ module Fluent
 
         log.on_trace { log.trace "writing events into buffer", instance: self.object_id, metadata_size: metadata_and_data.size }
 
-        staged_bytesize = 0
         operated_chunks = []
         unstaged_chunks = {} # metadata => [chunk, chunk, ...]
         chunks_to_enqueue = []
+        staged_bytesizes_by_chunk = {}
 
         begin
           # sort metadata to get lock of chunks in same order with other threads
@@ -279,7 +281,13 @@ module Fluent
               chunk.mon_enter # add lock to prevent to be committed/rollbacked from other threads
               operated_chunks << chunk
               if chunk.staged?
-                staged_bytesize += adding_bytesize
+                #
+                # https://github.com/fluent/fluentd/issues/2712
+                # write_once is supposed to write to a chunk only once
+                # but this block **may** run multiple times from write_step_by_step and previous write may be rollbacked
+                # So we should be counting the stage_size only for the last successful write
+                #
+                staged_bytesizes_by_chunk[chunk] = adding_bytesize
               elsif chunk.unstaged?
                 unstaged_chunks[metadata] ||= []
                 unstaged_chunks[metadata] << chunk
@@ -326,27 +334,37 @@ module Fluent
 
           # All locks about chunks are released.
 
-          synchronize do
-            # At here, staged chunks may be enqueued by other threads.
-            @stage_size += staged_bytesize
+          #
+          # Now update the stage, stage_size with proper locking
+          # FIX FOR stage_size miscomputation - https://github.com/fluent/fluentd/issues/2712
+          #
+          staged_bytesizes_by_chunk.each do |chunk, bytesize|
+            chunk.synchronize do
+              synchronize { @stage_size += bytesize }
+              log.on_trace { log.trace { "chunk #{chunk.path} size_added: #{bytesize} new_size: #{chunk.bytesize}" } }
+            end
+          end
 
-            chunks_to_enqueue.each do |c|
-              if c.staged? && (enqueue || chunk_size_full?(c))
-                m = c.metadata
-                enqueue_chunk(m)
-                if unstaged_chunks[m]
-                  u = unstaged_chunks[m].pop
+          chunks_to_enqueue.each do |c|
+            if c.staged? && (enqueue || chunk_size_full?(c))
+              m = c.metadata
+              enqueue_chunk(m)
+              if unstaged_chunks[m]
+                u = unstaged_chunks[m].pop
+                u.synchronize do
                   if u.unstaged? && !chunk_size_full?(u)
-                    @stage[m] = u.staged!
-                    @stage_size += u.bytesize
+                    synchronize {
+                      @stage[m] = u.staged!
+                      @stage_size += u.bytesize
+                    }
                   end
                 end
-              elsif c.unstaged?
-                enqueue_unstaged_chunk(c)
-              else
-                # previously staged chunk is already enqueued, closed or purged.
-                # no problem.
               end
+            elsif c.unstaged?
+              enqueue_unstaged_chunk(c)
+            else
+              # previously staged chunk is already enqueued, closed or purged.
+              # no problem.
             end
           end
 

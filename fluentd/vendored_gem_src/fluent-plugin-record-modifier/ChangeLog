@@ -1,3 +1,7 @@
+Release 2.1.0 - 2019/12/18
+
+  * Add <record> keys to whitelist_keys
+
 Release 2.0.1 - 2019/02/06
 
   * Update output plugin to support multi process environment

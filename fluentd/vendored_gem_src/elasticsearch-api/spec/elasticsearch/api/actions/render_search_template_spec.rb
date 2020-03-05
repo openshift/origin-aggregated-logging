@@ -5,17 +5,33 @@
 require 'spec_helper'
 
 describe 'client#render_search_template' do
-
-  let(:expected_args) do
-    [
+  context 'when no id is specified' do
+    let(:expected_args) do
+      [
         'GET',
         '_render/template',
-        { id: 'foo' },
+        {},
         { foo: 'bar' }
-    ]
+      ]
+    end
+
+    it 'performs the request' do
+      expect(client_double.render_search_template(body: { foo: 'bar' })).to eq({})
+    end
   end
 
-  it 'performs the request' do
-    expect(client_double.render_search_template(id: 'foo', body: { foo: 'bar' })).to eq({})
+  context 'when id is specified' do
+    let(:expected_args) do
+      [
+        'GET',
+        '_render/template/foo',
+        {},
+        { foo: 'bar' }
+      ]
+    end
+
+    it 'performs the request' do
+      expect(client_double.render_search_template(id: 'foo', body: { foo: 'bar' })).to eq({})
+    end
   end
 end

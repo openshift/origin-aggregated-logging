@@ -50,6 +50,7 @@ module Fluent::Plugin
                          {}
                        end
         headers = { 'Content-Type' => @content_type.to_s, }.merge(gzip_headers)
+        ssl_options = { verify: @ssl_verify, ca_file: @ca_file}.merge(@ssl_version_options)
         transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(connection_options.merge(
                                                                             options: {
                                                                               reload_connections: @reload_connections,
@@ -59,11 +60,12 @@ module Fluent::Plugin
                                                                               transport_options: {
                                                                                 headers: headers,
                                                                                 request: { timeout: @request_timeout },
-                                                                                ssl: { verify: @ssl_verify, ca_file: @ca_file, version: @ssl_version }
+                                                                                ssl: ssl_options,
                                                                               },
                                                                               http: {
                                                                                 user: @user,
-                                                                                password: @password
+                                                                                password: @password,
+                                                                                scheme: @scheme
                                                                               },
                                                                               compression: compression,
                                                                             }), &adapter_conf)
@@ -246,7 +248,7 @@ module Fluent::Plugin
       # check for '${ ... }'
       #   yes => `eval`
       #   no  => return param
-      return param if (param =~ /\${.+}/).nil?
+      return param if (param.to_s =~ /\${.+}/).nil?
 
       # check for 'tag_parts[]'
         # separated by a delimiter (default '.')

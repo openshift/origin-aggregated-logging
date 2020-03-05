@@ -9,18 +9,9 @@ module Faraday
     attr_reader :response, :wrapped_exception
 
     def initialize(exc, response = nil)
-      @wrapped_exception = nil
-      @response = response
-
-      if exc.respond_to?(:backtrace)
-        super(exc.message)
-        @wrapped_exception = exc
-      elsif exc.respond_to?(:each_key)
-        super("the server responded with status #{exc[:status]}")
-        @response = exc
-      else
-        super(exc.to_s)
-      end
+      @wrapped_exception = nil unless defined?(@wrapped_exception)
+      @response = nil unless defined?(@response)
+      super(exc_msg_and_response!(exc, response))
     end
 
     def backtrace
@@ -32,11 +23,43 @@ module Faraday
     end
 
     def inspect
-      inner = +''
-      inner << " wrapped=#{@wrapped_exception.inspect}" if @wrapped_exception
-      inner << " response=#{@response.inspect}" if @response
-      inner << " #{super}" if inner.empty?
+      inner = ''
+      inner += " wrapped=#{@wrapped_exception.inspect}" if @wrapped_exception
+      inner += " response=#{@response.inspect}" if @response
+      inner += " #{super}" if inner.empty?
       %(#<#{self.class}#{inner}>)
+    end
+
+    protected
+
+    # Pulls out potential parent exception and response hash, storing them in
+    # instance variables.
+    # exc      - Either an Exception, a string message, or a response hash.
+    # response - Hash
+    #              :status  - Optional integer HTTP response status
+    #              :headers - String key/value hash of HTTP response header
+    #                         values.
+    #              :body    - Optional string HTTP response body.
+    #
+    # If a subclass has to call this, then it should pass a string message
+    # to `super`. See NilStatusError.
+    def exc_msg_and_response!(exc, response = nil)
+      if @response.nil? && @wrapped_exception.nil?
+        @wrapped_exception, msg, @response = exc_msg_and_response(exc, response)
+        return msg
+      end
+
+      exc.to_s
+    end
+
+    # Pulls out potential parent exception and response hash.
+    def exc_msg_and_response(exc, response = nil)
+      return [exc, exc.message, response] if exc.respond_to?(:backtrace)
+
+      return [nil, "the server responded with status #{exc[:status]}", exc] \
+        if exc.respond_to?(:each_key)
+
+      [nil, exc.to_s, response]
     end
   end
 
@@ -77,7 +100,7 @@ module Faraday
   end
 
   # A unified client error for timeouts.
-  class TimeoutError < ServerError
+  class TimeoutError < ClientError
     def initialize(exc = 'timeout', response = nil)
       super(exc, response)
     end
@@ -85,32 +108,48 @@ module Faraday
 
   # Raised by Faraday::Response::RaiseError in case of a nil status in response.
   class NilStatusError < ServerError
-    def initialize(_exc, response: nil)
-      message = 'http status could not be derived from the server response'
-      super(message, response)
+    def initialize(exc, response = nil)
+      exc_msg_and_response!(exc, response)
+      @response = unwrap_resp!(@response)
+      super('http status could not be derived from the server response')
     end
+
+    private
+
+    extend Faraday::Deprecate
+
+    def unwrap_resp(resp)
+      if inner = (resp.keys.size == 1 && resp[:response])
+        return unwrap_resp(inner)
+      end
+
+      resp
+    end
+
+    alias_method :unwrap_resp!, :unwrap_resp
+    deprecate('unwrap_resp', nil, '1.0')
   end
 
   # A unified error for failed connections.
-  class ConnectionFailed < Error
+  class ConnectionFailed < ClientError
   end
 
   # A unified client error for SSL errors.
-  class SSLError < Error
+  class SSLError < ClientError
   end
 
   # Raised by FaradayMiddleware::ResponseMiddleware
-  class ParsingError < Error
+  class ParsingError < ClientError
   end
 
   # Exception used to control the Retry middleware.
   #
   # @see Faraday::Request::Retry
-  class RetriableResponse < Error
+  class RetriableResponse < ClientError
   end
 
-  %i[ClientError ConnectionFailed ResourceNotFound
-     ParsingError TimeoutError SSLError RetriableResponse].each do |const|
+  [:ClientError, :ConnectionFailed, :ResourceNotFound,
+    :ParsingError, :TimeoutError, :SSLError, :RetriableResponse].each do |const|
     Error.const_set(
       const,
       DeprecatedClass.proxy_class(Faraday.const_get(const))

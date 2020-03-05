@@ -17,6 +17,7 @@
 require 'net/http'
 require 'uri'
 require 'openssl'
+require 'fluent/tls'
 require 'fluent/plugin/output'
 require 'fluent/plugin_helper/socket'
 
@@ -57,14 +58,14 @@ module Fluent::Plugin
     desc 'The verify mode of TLS'
     config_param :tls_verify_mode, :enum, list: [:none, :peer], default: :peer
     desc 'The default version of TLS'
-    config_param :tls_version, :enum, list: Fluent::PluginHelper::Socket::TLS_SUPPORTED_VERSIONS, default: Fluent::PluginHelper::Socket::TLS_DEFAULT_VERSION
+    config_param :tls_version, :enum, list: Fluent::TLS::SUPPORTED_VERSIONS, default: Fluent::TLS::DEFAULT_VERSION
     desc 'The cipher configuration of TLS'
-    config_param :tls_ciphers, :string, default: Fluent::PluginHelper::Socket::CIPHERS_DEFAULT
+    config_param :tls_ciphers, :string, default: Fluent::TLS::CIPHERS_DEFAULT
 
     desc 'Raise UnrecoverableError when the response is non success, 4xx/5xx'
     config_param :error_response_as_unrecoverable, :bool, default: true
     desc 'The list of retryable response code'
-    config_param :retryable_response_codes, :array, value_type: :integer, default: [503]
+    config_param :retryable_response_codes, :array, value_type: :integer, default: nil
 
     config_section :format do
       config_set_default :@type, 'json'
@@ -89,6 +90,11 @@ module Fluent::Plugin
 
     def configure(conf)
       super
+
+      if @retryable_response_codes.nil?
+        log.warn('Status code 503 is going to be removed from default `retryable_response_codes` from fluentd v2. Please add it by yourself if you wish')
+        @retryable_response_codes = [503]
+      end
 
       @http_opt = setup_http_option
       @proxy_uri = URI.parse(@proxy) if @proxy
@@ -172,7 +178,7 @@ module Fluent::Plugin
     end
 
     def parse_endpoint(chunk)
-      endpoint = extract_placeholders(@endpoint, chunk)    
+      endpoint = extract_placeholders(@endpoint, chunk)
       URI.parse(endpoint)
     end
 
@@ -212,9 +218,9 @@ module Fluent::Plugin
             end
 
       if res.is_a?(Net::HTTPSuccess)
-        log.debug { "#{res.code} #{res.message}#{res.body}" }
+        log.debug { "#{res.code} #{res.message.rstrip}#{res.body.lstrip}" }
       else
-        msg = "#{res.code} #{res.message}#{res.body}"
+        msg = "#{res.code} #{res.message.rstrip} #{res.body.lstrip}"
 
         if @retryable_response_codes.include?(res.code.to_i)
           raise RetryableResponse, msg

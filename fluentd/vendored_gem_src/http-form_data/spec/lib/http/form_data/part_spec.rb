@@ -3,7 +3,7 @@
 RSpec.describe HTTP::FormData::Part do
   let(:body)     { "" }
   let(:opts)     { {} }
-  subject(:part) { HTTP::FormData::Part.new(body, opts) }
+  subject(:part) { HTTP::FormData::Part.new(body, **opts) }
 
   describe "#size" do
     subject { part.size }
