@@ -27,6 +27,7 @@ install -m 660 config/* ${ES_PATH_CONF}
 popd
 sed -i -e 's/^-Xms/#-Xms/' -e 's/^-Xmx/#-Xmx/' ${ES_PATH_CONF}/jvm.options
 cat extra-jvm.options >> ${ES_PATH_CONF}/jvm.options
+chown -R elasticsearch:elasticsearch ${ES_PATH_CONF}
 groupadd -r elasticsearch -g 1000
 useradd -r -g elasticsearch -d ${ES_HOME} -u 1000 \
             -s /sbin/nologin -c "You know, for search" elasticsearch
