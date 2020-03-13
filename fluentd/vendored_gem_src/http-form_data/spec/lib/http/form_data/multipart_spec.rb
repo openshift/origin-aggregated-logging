@@ -57,7 +57,7 @@ RSpec.describe HTTP::FormData::Multipart do
 
     context "with filename set to nil" do
       let(:part) { HTTP::FormData::Part.new("s", :content_type => "mime/type") }
-      let(:form_data) { HTTP::FormData::Multipart.new(:foo => part) }
+      let(:form_data) { HTTP::FormData::Multipart.new({ :foo => part }) }
 
       it "doesn't include a filename" do
         boundary_value = form_data.content_type[/(#{boundary})$/, 1]
@@ -74,7 +74,7 @@ RSpec.describe HTTP::FormData::Multipart do
 
     context "with content type set to nil" do
       let(:part) { HTTP::FormData::Part.new("s") }
-      let(:form_data) { HTTP::FormData::Multipart.new(:foo => part) }
+      let(:form_data) { HTTP::FormData::Multipart.new({ :foo => part }) }
 
       it "doesn't include a filename" do
         boundary_value = form_data.content_type[/(#{boundary})$/, 1]

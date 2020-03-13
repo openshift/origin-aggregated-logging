@@ -1,3 +1,10 @@
+## 2.2.0 (2020-01-09)
+
+* [#28](https://github.com/httprb/form_data/pull/28)
+  Ruby 2.7 compatibility.
+  [@janko][]
+
+
 ## 2.1.1 (2018-06-01)
 
 * [#23](https://github.com/httprb/form_data/pull/23)

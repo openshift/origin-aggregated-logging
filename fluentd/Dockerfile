@@ -3,7 +3,7 @@ FROM rhscl/ruby-25-rhel7:latest as builder
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=1.7.4 \
+    FLUENTD_VERSION=1.9.2 \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
     LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \

@@ -1,6 +1,39 @@
 ## Changelog [[tags]](https://github.com/uken/fluent-plugin-elasticsearch/tags)
 
 ### [Unreleased]
+
+### 4.0.5
+-  add logstash_dateformat as placeholder (#718)
+- Tweak travis.yml for suppressing validator warnings and add CI for Linux Arm64 architecture and macOS 10.14 (#724)
+- Elasticsearch ruby v7.5 (#723)
+- Add Oj serializer testcases for all job (#722)
+- Update documentation for ILM (#721)
+
+### 4.0.4
+- Provide clearing caches timer (#719)
+
+### 4.0.3
+-  Use http.scheme settings for persisent scheme setup (#713)
+
+### 4.0.2
+- Support TLSv1.3 (#710)
+
+### 4.0.1
+- Placeholders for template name and customize template (#708)
+- Add overwriting ilm policy config parameter (#707)
+- Fix a failing ILM config testcase (#706)
+
+### 4.0.0
+- Restructuring ILM related features (#701)
+- Extract placeholders in pipeline parameter (#695)
+- fix typo in `README.md` (#698)
+- Reduce log noise when not using rollover_index (#692)
+
+### 3.8.0
+- Add FAQ for specifying index.codec (#679)
+- Add FAQ for connect_write timeout reached error (#687)
+- Unblocking buffer overflow with block action (#688)
+
 ### 3.7.1
 - Make conpatible for Fluentd v1.8 (#677)
 - Handle flatten_hashes in elasticsearch_dynamic (#675)

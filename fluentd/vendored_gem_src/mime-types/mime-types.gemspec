@@ -1,14 +1,15 @@
 # -*- encoding: utf-8 -*-
-# stub: mime-types 3.3 ruby lib
+# stub: mime-types 3.3.1 ruby lib
 
 Gem::Specification.new do |s|
   s.name = "mime-types".freeze
-  s.version = "3.3"
+  s.version = "3.3.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0".freeze) if s.respond_to? :required_rubygems_version=
+  s.metadata = { "bug_tracker_uri" => "https://github.com/mime-types/ruby-mime-types/issues", "changelog_uri" => "https://github.com/mime-types/ruby-mime-types/blob/master/History.md", "homepage_uri" => "https://github.com/mime-types/ruby-mime-types/", "source_code_uri" => "https://github.com/mime-types/ruby-mime-types/" } if s.respond_to? :metadata=
   s.require_paths = ["lib".freeze]
   s.authors = ["Austin Ziegler".freeze]
-  s.date = "2019-09-05"
+  s.date = "2019-12-26"
   s.description = "The mime-types library provides a library and registry for information about\nMIME content type definitions. It can be used to determine defined filename\nextensions for MIME types, or to use filename extensions to look up the likely\nMIME type definitions.\n\nVersion 3.0 is a major release that requires Ruby 2.0 compatibility and removes\ndeprecated functions. The columnar registry format introduced in 2.6 has been\nmade the primary format; the registry data has been extracted from this library\nand put into {mime-types-data}[https://github.com/mime-types/mime-types-data].\nAdditionally, mime-types is now licensed exclusively under the MIT licence and\nthere is a code of conduct in effect. There are a number of other smaller\nchanges described in the History file.".freeze
   s.email = ["halostatue@gmail.com".freeze]
   s.extra_rdoc_files = ["Code-of-Conduct.md".freeze, "Contributing.md".freeze, "History.md".freeze, "Licence.md".freeze, "Manifest.txt".freeze, "README.rdoc".freeze]
@@ -25,7 +26,7 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
-      s.add_development_dependency(%q<minitest>.freeze, ["~> 5.11"])
+      s.add_development_dependency(%q<minitest>.freeze, ["~> 5.13"])
       s.add_development_dependency(%q<hoe-doofus>.freeze, ["~> 1.0"])
       s.add_development_dependency(%q<hoe-gemspec2>.freeze, ["~> 1.1"])
       s.add_development_dependency(%q<hoe-git>.freeze, ["~> 1.6"])
@@ -40,10 +41,10 @@ Gem::Specification.new do |s|
       s.add_development_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_development_dependency(%q<simplecov>.freeze, ["~> 0.7"])
       s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
-      s.add_development_dependency(%q<hoe>.freeze, ["~> 3.18"])
+      s.add_development_dependency(%q<hoe>.freeze, ["~> 3.20"])
     else
       s.add_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
-      s.add_dependency(%q<minitest>.freeze, ["~> 5.11"])
+      s.add_dependency(%q<minitest>.freeze, ["~> 5.13"])
       s.add_dependency(%q<hoe-doofus>.freeze, ["~> 1.0"])
       s.add_dependency(%q<hoe-gemspec2>.freeze, ["~> 1.1"])
       s.add_dependency(%q<hoe-git>.freeze, ["~> 1.6"])
@@ -58,11 +59,11 @@ Gem::Specification.new do |s|
       s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
       s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
       s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
-      s.add_dependency(%q<hoe>.freeze, ["~> 3.18"])
+      s.add_dependency(%q<hoe>.freeze, ["~> 3.20"])
     end
   else
     s.add_dependency(%q<mime-types-data>.freeze, ["~> 3.2015"])
-    s.add_dependency(%q<minitest>.freeze, ["~> 5.11"])
+    s.add_dependency(%q<minitest>.freeze, ["~> 5.13"])
     s.add_dependency(%q<hoe-doofus>.freeze, ["~> 1.0"])
     s.add_dependency(%q<hoe-gemspec2>.freeze, ["~> 1.1"])
     s.add_dependency(%q<hoe-git>.freeze, ["~> 1.6"])
@@ -77,7 +78,7 @@ Gem::Specification.new do |s|
     s.add_dependency(%q<minitest-rg>.freeze, ["~> 5.2"])
     s.add_dependency(%q<simplecov>.freeze, ["~> 0.7"])
     s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
-    s.add_dependency(%q<hoe>.freeze, ["~> 3.18"])
+    s.add_dependency(%q<hoe>.freeze, ["~> 3.20"])
   end
 end
 

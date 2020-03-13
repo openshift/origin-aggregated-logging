@@ -1,42 +1,56 @@
-# encoding: UTF-8
-# frozen_string_literal: true
-
 module TZInfo
-  # Represents time zones that are defined by rules that set out when
-  # transitions occur.
-  class DataTimezone < InfoTimezone
-    # (see Timezone#period_for)
-    def period_for(time)
-      raise ArgumentError, 'time must be specified' unless time
-      timestamp = Timestamp.for(time)
-      raise ArgumentError, 'time must have a specified utc_offset' unless timestamp.utc_offset
-      info.period_for(timestamp)
-    end
 
-    # (see Timezone#periods_for_local)
-    def periods_for_local(local_time)
-      raise ArgumentError, 'local_time must be specified' unless local_time
-      info.periods_for_local(Timestamp.for(local_time, :ignore))
-    end
-
-    # (see Timezone#transitions_up_to)
-    def transitions_up_to(to, from = nil)
-      raise ArgumentError, 'to must be specified' unless to
-      to_timestamp = Timestamp.for(to)
-      from_timestamp = from && Timestamp.for(from)
-
-      begin
-        info.transitions_up_to(to_timestamp, from_timestamp)
-      rescue ArgumentError => e
-        raise ArgumentError, e.message.gsub('_timestamp', '')
-      end
-    end
-
-    # Returns the canonical {Timezone} instance for this {DataTimezone}.
+  # A Timezone based on a DataTimezoneInfo.
+  #
+  # @private
+  class DataTimezone < InfoTimezone #:nodoc:
+    
+    # Returns the TimezonePeriod for the given UTC time. utc can either be
+    # a DateTime, Time or integer timestamp (Time.to_i). Any timezone 
+    # information in utc is ignored (it is treated as a UTC time).        
     #
-    # For a {DataTimezone}, this is always `self`.
+    # If no TimezonePeriod could be found, PeriodNotFound is raised.
+    def period_for_utc(utc)
+      info.period_for_utc(utc)
+    end
+    
+    # Returns the set of TimezonePeriod instances that are valid for the given
+    # local time as an array. If you just want a single period, use 
+    # period_for_local instead and specify how abiguities should be resolved.
+    # Raises PeriodNotFound if no periods are found for the given time.
+    def periods_for_local(local)
+      info.periods_for_local(local)
+    end
+    
+    # Returns an Array of TimezoneTransition instances representing the times
+    # where the UTC offset of the timezone changes.
     #
-    # @return [Timezone] `self`.
+    # Transitions are returned up to a given date and time up to a given date 
+    # and time, specified in UTC (utc_to).
+    #
+    # A from date and time may also be supplied using the utc_from parameter
+    # (also specified in UTC). If utc_from is not nil, only transitions from 
+    # that date and time onwards will be returned.
+    #
+    # Comparisons with utc_to are exclusive. Comparisons with utc_from are
+    # inclusive. If a transition falls precisely on utc_to, it will be excluded.
+    # If a transition falls on utc_from, it will be included.
+    #
+    # Transitions returned are ordered by when they occur, from earliest to 
+    # latest.
+    #
+    # utc_to and utc_from can be specified using either DateTime, Time or 
+    # integer timestamps (Time.to_i).
+    #
+    # If utc_from is specified and utc_to is not greater than utc_from, then
+    # transitions_up_to raises an ArgumentError exception.
+    def transitions_up_to(utc_to, utc_from = nil)
+      info.transitions_up_to(utc_to, utc_from)
+    end
+    
+    # Returns the canonical zone for this Timezone.
+    #
+    # For a DataTimezone, this is always self.
     def canonical_zone
       self
     end

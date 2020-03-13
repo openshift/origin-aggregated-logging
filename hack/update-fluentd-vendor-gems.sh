@@ -3,7 +3,7 @@
 # - get the latest fluentd gem and latest dependencies
 # - unpack the gems into the fluentd/vendor directory
 
-set -euxo pipefail
+set -euo pipefail
 
 basedir=$( dirname $0 )
 if [ -z "$basedir" ] ; then

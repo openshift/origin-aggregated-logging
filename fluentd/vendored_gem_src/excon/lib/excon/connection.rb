@@ -161,7 +161,7 @@ module Excon
             socket.write(request) # write out request + headers
             while true # write out body with chunked encoding
               chunk = datum[:request_block].call
-              binary_encode(chunk)
+              chunk = binary_encode(chunk)
               if chunk.length > 0
                 socket.write(chunk.length.to_s(16) << CR_NL << chunk << CR_NL)
               else
@@ -180,10 +180,10 @@ module Excon
             end
 
             # if request + headers is less than chunk size, fill with body
-            binary_encode(request)
+            request = binary_encode(request)
             chunk = body.read([datum[:chunk_size] - request.length, 0].max)
             if chunk
-              binary_encode(chunk)
+              chunk = binary_encode(chunk)
               socket.write(request << chunk)
             else
               socket.write(request) # write out request + headers
@@ -262,6 +262,11 @@ module Excon
 
       datum[:connection] = self
 
+      # cleanup data left behind on persistent connection after interrupt
+      if datum[:persistent] && !@persistent_socket_reusable
+        reset
+      end
+
       datum[:stack] = datum[:middlewares].map do |middleware|
         lambda {|stack| middleware.new(stack)}
       end.reverse.inject(self) do |middlewares, middleware|
@@ -270,7 +275,9 @@ module Excon
       datum = datum[:stack].request_call(datum)
 
       unless datum[:pipeline]
+        @persistent_socket_reusable = false
         datum = response(datum)
+        @persistent_socket_reusable = true
 
         if datum[:persistent]
           if key = datum[:response][:headers].keys.detect {|k| k.casecmp('Connection') == 0 }
@@ -344,6 +351,7 @@ module Excon
       if old_socket = sockets.delete(@socket_key)
         old_socket.close rescue nil
       end
+      @persistent_socket_reusable = true
     end
 
     # Generate HTTP request verb methods

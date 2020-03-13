@@ -5,12 +5,10 @@ import java.io.*;
 import java.util.*;
 
 import http_parser.HTTPMethod;
-import http_parser.HTTPParserUrl;
 import http_parser.ParserType;
+import http_parser.lolevel.TestLoaderNG.TestSettings;
 import http_parser.lolevel.TestLoaderNG.Header;
 import http_parser.lolevel.TestLoaderNG.LastHeader;
-
-import primitive.collection.ByteList;
 
 import static http_parser.lolevel.Util.str;
 
@@ -32,10 +30,7 @@ public class Message {
   List<Header> headers;
   boolean should_keep_alive;
 
-  byte[] upgrade;
-  boolean upgrade() {
-    return null != upgrade;
-  }
+  boolean upgrade;
 
   int http_major;
   int http_minor;
@@ -54,7 +49,6 @@ public class Message {
 
   public String toString() {
     StringBuilder b = new StringBuilder();
-    b.append("NAME: "); b.append(name);b.append("\n");
     b.append("type: "); b.append(type);b.append("\n");
     b.append("method: "); b.append(method);b.append("\n");
     b.append("status_code: "); b.append(status_code);b.append("\n");
@@ -103,12 +97,9 @@ public class Message {
         //      //throw new RuntimeException(name);
         //    }
         //   }
-        //String str    = str(b, pos, len);
-        ByteList list = settings.map.get(mes);
-        for (int i=0; i!=len; ++i) {
-          list.add(b.get(pos+i));
-        }
-        //settings.map.put(mes, prev_val + str);
+        String str      = str(b, pos, len);
+        String prev_val = settings.map.get(mes);
+        settings.map.put(mes, prev_val + str);
         //check(value.equals(str), "incorrect "+mes+": "+str);
         if (-1 == pos) {
           throw new RuntimeException("he?");
@@ -127,13 +118,8 @@ public class Message {
 
 
     p.execute(s, buf);
-    if (!p.upgrade) {
-      // call execute again, else parser can't know message is done
-      // if no content length is set.
-      p.execute(s, buf);
-    }
     if (!s.success) {
-      throw new RuntimeException("Test: "+name+" failed");
+      throw new RuntimeException("Test: "+name+"failed");
     }
   } // execute
 
@@ -148,7 +134,7 @@ public class Message {
        */
     p(name);
     for (int i = 2; i != raw.length; ++i) {
-       // p(i);
+      //  p(i);
       HTTPParser   p = new HTTPParser();
       TestSettings s = settings();
       ByteBuffer buf = ByteBuffer.wrap(raw);
@@ -156,24 +142,13 @@ public class Message {
       buf.limit(i);
 
       parse(p,s,buf);
-      if (!p.upgrade) {
-        buf.position(i);
-        buf.limit(olimit);
 
-        parse(p,s,buf);
-        if (!p.upgrade) {
-          parse(p,s,buf);
-        } else {
-          if (!upgrade()) {
-            throw new RuntimeException("Test:"+name+"parsed as upgrade, is not");
-          }
-        }
-      
-      } else {
-        if (!upgrade()) {
-          throw new RuntimeException("Test:"+name+"parsed as upgrade, is not");
-        }
-      }
+      buf.position(i);
+      buf.limit(olimit);
+
+      parse(p,s,buf);
+      parse(p,s,buf);
+
       if (!s.success) {
         p(this);
         throw new RuntimeException("Test: "+name+" failed");
@@ -189,7 +164,10 @@ public class Message {
 
   TestSettings settings() {
     final TestSettings s = new TestSettings(); 
+    s.on_path         = getCB(request_path, "path", s);
+    s.on_query_string = getCB(query_string, "query_string", s);
     s.on_url          = getCB(request_url,  "url", s);
+    s.on_fragment     = getCB(fragment,     "fragment", s);
     s.on_message_begin = new HTTPCallback() {
       public int cb (HTTPParser p) {
         message_begin_called = true;
@@ -231,26 +209,10 @@ public class Message {
     s.on_headers_complete = new HTTPCallback() {
       public int cb (HTTPParser p) {
         headers_complete_called = true;
-        String parsed_path  = null;
-        String parsed_query = null;
-        String parsed_url   = null;
-        String parsed_frag  = null;
-        
-        try {
-          parsed_url   = new String(s.map.get("url").toArray(),          "UTF8");
-
-          HTTPParserUrl u = new HTTPParserUrl();
-          HTTPParser pp = new HTTPParser();
-          ByteBuffer data = Util.buffer(parsed_url);
-          pp.parse_url(data,false, u);
-          
-          parsed_path  = u.getFieldValue(HTTPParser.UrlFields.UF_PATH, data);
-          parsed_query = u.getFieldValue(HTTPParser.UrlFields.UF_QUERY, data);
-          parsed_frag  = u.getFieldValue(HTTPParser.UrlFields.UF_FRAGMENT, data);
-
-        } catch (java.io.UnsupportedEncodingException uee) {
-          throw new RuntimeException(uee);
-        }
+        String parsed_path  = s.map.get("path");
+        String parsed_query = s.map.get("query_string");
+        String parsed_url   = s.map.get("url");
+        String parsed_frag  = s.map.get("fragment");
 
         if (!request_path.equals(parsed_path)) {
           throw new RuntimeException(name+": invalid path: "+parsed_path+" should be: "+request_path);
@@ -358,17 +320,5 @@ public class Message {
   } // settings
   static void p(Object o) {
     System.out.println(o);
-  }
-
-  static class TestSettings extends ParserSettings {
-    public boolean success;
-    Map<String, ByteList> map;
-    TestSettings () {
-      map = new HashMap<String, ByteList>();
-      map.put("path",         new ByteList());
-      map.put("query_string", new ByteList());
-      map.put("url",          new ByteList());
-      map.put("fragment",     new ByteList());
-    }
   }
 }

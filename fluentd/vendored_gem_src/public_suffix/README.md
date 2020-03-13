@@ -190,6 +190,11 @@ Library documentation is auto-generated from the [README](https://github.com/wep
 [Consider subscribing to Tidelift which provides Enterprise support for this project](https://tidelift.com/subscription/pkg/rubygems-public-suffix?utm_source=rubygems-public-suffix&utm_medium=referral&utm_campaign=readme) as part of the Tidelift Subscription. Tidelift subscriptions also help the maintainers by funding the project, which in turn allows us to ship releases, bugfixes, and security updates more often.
 
 
+## Security and Vulnerability Reporting
+
+Full information and description of our security policy please visit [`SECURITY.md`](SECURITY.md)
+
+
 ## Changelog
 
 See the [CHANGELOG.md](CHANGELOG.md) file for details.
@@ -197,6 +202,6 @@ See the [CHANGELOG.md](CHANGELOG.md) file for details.
 
 ## License
 
-Copyright (c) 2009-2019 Simone Carletti. This is Free Software distributed under the MIT license.
+Copyright (c) 2009-2020 Simone Carletti. This is Free Software distributed under the MIT license.
 
 The [Public Suffix List source](https://publicsuffix.org/list/) is subject to the terms of the Mozilla Public License, v. 2.0.

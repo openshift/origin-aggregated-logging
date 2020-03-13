@@ -97,7 +97,16 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
     assert_equal 'john', instance.user
     assert_equal 'doe', instance.password
     assert_equal '/es/', instance.path
-    assert_equal :TLSv1, instance.ssl_version
+    assert_equal Fluent::Plugin::ElasticsearchTLS::DEFAULT_VERSION, instance.ssl_version
+    assert_nil instance.ssl_max_version
+    assert_nil instance.ssl_min_version
+    if Fluent::Plugin::ElasticsearchTLS::USE_TLS_MINMAX_VERSION
+      assert_equal({max_version: OpenSSL::SSL::TLS1_VERSION, min_version: OpenSSL::SSL::TLS1_VERSION},
+                   instance.ssl_version_options)
+    else
+      assert_equal({version: Fluent::Plugin::ElasticsearchTLS::DEFAULT_VERSION},
+                   instance.ssl_version_options)
+    end
     assert_nil instance.client_key
     assert_nil instance.client_cert
     assert_nil instance.client_key_pass
@@ -109,6 +118,8 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
   end
 
   test 'configure compression' do
+    omit "elastisearch-ruby v7.2.0 or later is needed." if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
+
     config = %{
       compression_level best_compression
     }
@@ -118,6 +129,8 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
   end
 
   test 'check compression strategy' do
+    omit "elastisearch-ruby v7.2.0 or later is needed." if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
+
     config = %{
       compression_level best_speed
     }
@@ -127,6 +140,8 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
   end
 
   test 'check content-encoding header with compression' do
+    omit "elastisearch-ruby v7.2.0 or later is needed." if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
+
     config = %{
       compression_level best_compression
     }
@@ -136,6 +151,8 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
   end
 
   test 'check compression option is passed to transport' do
+    omit "elastisearch-ruby v7.2.0 or later is needed." if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
+
     config = %{
       compression_level best_compression
     }
@@ -167,27 +184,6 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
     }
     instance = driver(config, 7).instance
     assert_equal '_doc', instance.type_name
-  end
-
-  sub_test_case 'connection exceptions' do
-    test 'default connection exception' do
-      driver(Fluent::Config::Element.new(
-               'ROOT', '', {
-                 '@type' => 'elasticsearch',
-                 'host' => 'log.google.com',
-                 'port' => 777,
-                 'scheme' => 'https',
-                 'path' => '/es/',
-                 'user' => 'john',
-                 'password' => 'doe',
-               }, [
-                 Fluent::Config::Element.new('buffer', 'tag', {
-                                             }, [])
-               ]
-             ))
-      logs = driver.logs
-      assert_logs_include(logs, /you should specify 2 or more 'flush_thread_count'/, 1)
-    end
   end
 
   def test_defaults
@@ -353,6 +349,8 @@ class ElasticsearchOutputDynamic < Test::Unit::TestCase
   end
 
   def test_writes_to_default_index_with_compression
+    omit "elastisearch-ruby v7.2.0 or later is needed." if Gem::Version.create(::Elasticsearch::Transport::VERSION) < Gem::Version.create("7.2.0")
+
     config = %[
       compression_level default_compression
     ]

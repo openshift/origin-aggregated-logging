@@ -27,8 +27,8 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>= 1.9'
 
-  s.add_dependency "elasticsearch-transport", '7.4.0'
-  s.add_dependency "elasticsearch-api",       '7.4.0'
+  s.add_dependency "elasticsearch-transport", '7.5.0'
+  s.add_dependency "elasticsearch-api",       '7.5.0'
 
   s.add_development_dependency "bundler"
 
@@ -59,7 +59,7 @@ Gem::Specification.new do |s|
     s.add_development_dependency "minitest-reporters"
     s.add_development_dependency "ruby-prof" unless defined?(JRUBY_VERSION) || defined?(Rubinius)
     s.add_development_dependency "require-prof" unless defined?(JRUBY_VERSION) || defined?(Rubinius)
-    s.add_development_dependency "simplecov"
+    s.add_development_dependency "simplecov", '~> 0.17', '< 0.18'
     s.add_development_dependency "simplecov-rcov"
     s.add_development_dependency "cane"
   end

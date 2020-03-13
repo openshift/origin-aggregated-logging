@@ -19,8 +19,7 @@
       "Server": "gws",
       "Content-Length": "219  "
     },
-    "body": "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF=\"http://www.google.com/\">here</A>.\r\n</BODY></HTML>\r\n",
-    "strict": true
+    "body": "<HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF=\"http://www.google.com/\">here</A>.\r\n</BODY></HTML>\r\n"
   },
   {
     "name": "no content-length response",
@@ -39,15 +38,14 @@
       "Content-Type": "text/xml; charset=utf-8",
       "Connection": "close"
     },
-    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <SOAP-ENV:Body>\n    <SOAP-ENV:Fault>\n       <faultcode>SOAP-ENV:Client</faultcode>\n       <faultstring>Client Error</faultstring>\n    </SOAP-ENV:Fault>\n  </SOAP-ENV:Body>\n</SOAP-ENV:Envelope>",
-    "strict": true
+    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  <SOAP-ENV:Body>\n    <SOAP-ENV:Fault>\n       <faultcode>SOAP-ENV:Client</faultcode>\n       <faultstring>Client Error</faultstring>\n    </SOAP-ENV:Fault>\n  </SOAP-ENV:Body>\n</SOAP-ENV:Envelope>"
   },
   {
     "name": "404 no headers no body",
     "type": "HTTP_RESPONSE",
     "raw": "HTTP/1.1 404 Not Found\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
+    "should_keep_alive": true,
+    "message_complete_on_eof": false,
     "http_major": 1,
     "http_minor": 1,
     "status_code": 404,
@@ -56,15 +54,14 @@
 
     },
     "body_size": 0,
-    "body": "",
-    "strict": true
+    "body": ""
   },
   {
     "name": "301 no response phrase",
     "type": "HTTP_RESPONSE",
     "raw": "HTTP/1.1 301\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
+    "should_keep_alive": true,
+    "message_complete_on_eof": false,
     "http_major": 1,
     "http_minor": 1,
     "status_code": 301,
@@ -72,8 +69,7 @@
     "headers": {
 
     },
-    "body": "",
-    "strict": true
+    "body": ""
   },
   {
     "name": "200 trailing space on chunked body",
@@ -90,8 +86,7 @@
       "Transfer-Encoding": "chunked"
     },
     "body_size": 65,
-    "body": "This is the data in the first chunk\r\nand this is the second one\r\n",
-    "strict": true
+    "body": "This is the data in the first chunk\r\nand this is the second one\r\n"
   },
   {
     "name": "no carriage ret",
@@ -107,8 +102,7 @@
       "Content-Type": "text/html; charset=utf-8",
       "Connection": "close"
     },
-    "body": "these headers are from http://news.ycombinator.com/",
-    "strict": true
+    "body": "these headers are from http://news.ycombinator.com/"
   },
   {
     "name": "proxy connection",
@@ -126,8 +120,7 @@
       "Proxy-Connection": "close",
       "Date": "Thu, 31 Dec 2009 20:55:48 +0000"
     },
-    "body": "hello world",
-    "strict": true
+    "body": "hello world"
   },
   {
     "name": "underscore header key",
@@ -145,8 +138,7 @@
       "Content-Length": "0",
       "DCLK_imp": "v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o"
     },
-    "body": "",
-    "strict": true
+    "body": ""
   },
   {
     "name": "bonjourmadame.fr",
@@ -169,8 +161,28 @@
       "Content-Type": "text/html; charset=UTF-8",
       "Connection": "keep-alive"
     },
-    "body": "",
-    "strict": true
+    "body": ""
+  },
+  {
+    "name": "field space",
+    "type": "HTTP_RESPONSE",
+    "raw": "HTTP/1.1 200 OK\r\nServer: Microsoft-IIS/6.0\r\nX-Powered-By: ASP.NET\r\nen-US Content-Type: text/xml\r\nContent-Type: text/xml\r\nContent-Length: 16\r\nDate: Fri, 23 Jul 2010 18:45:38 GMT\r\nConnection: keep-alive\r\n\r\n<xml>hello</xml>",
+    "should_keep_alive": true,
+    "message_complete_on_eof": false,
+    "http_major": 1,
+    "http_minor": 1,
+    "status_code": 200,
+    "num_headers": 7,
+    "headers": {
+      "Server": "Microsoft-IIS/6.0",
+      "X-Powered-By": "ASP.NET",
+      "en-US Content-Type": "text/xml",
+      "Content-Type": "text/xml",
+      "Content-Length": "16",
+      "Date": "Fri, 23 Jul 2010 18:45:38 GMT",
+      "Connection": "keep-alive"
+    },
+    "body": "<xml>hello</xml>"
   },
   {
     "name": "field underscore",
@@ -195,8 +207,7 @@
       "Content-Type": "text/html",
       "Connection": "close"
     },
-    "body": "",
-    "strict": true
+    "body": ""
   },
   {
     "name": "non-ASCII in status line",
@@ -213,163 +224,6 @@
       "Content-Length": "0",
       "Connection": "close"
     },
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "http version 0.9",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/0.9 200 OK\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
-    "http_major": 0,
-    "http_minor": 9,
-    "status_code": 200,
-    "num_headers": 0,
-    "headers": {
-
-    },
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "neither content-length nor transfer-encoding response",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhello world",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 200,
-    "num_headers": 1,
-    "headers": {
-      "Content-Type": "text/plain"
-    },
-    "body": "hello world",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.0 with keep-alive and EOF-terminated 200 status",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.0 200 OK\r\nConnection: keep-alive\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
-    "http_major": 1,
-    "http_minor": 0,
-    "status_code": 200,
-    "num_headers": 1,
-    "headers": {
-      "Connection": "keep-alive"
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.0 with keep-alive and a 204 status",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.0 204 No content\r\nConnection: keep-alive\r\n\r\n",
-    "should_keep_alive": true,
-    "message_complete_on_eof": false,
-    "http_major": 1,
-    "http_minor": 0,
-    "status_code": 204,
-    "num_headers": 1,
-    "headers": {
-      "Connection": "keep-alive"
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.1 with an EOF-terminated 200 status",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.1 200 OK\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": true,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 200,
-    "num_headers": 0,
-    "headers": {
-
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.1 with a 204 status",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.1 204 No content\r\n\r\n",
-    "should_keep_alive": true,
-    "message_complete_on_eof": false,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 204,
-    "num_headers": 0,
-    "headers": {
-
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.1 with a 204 status and keep-alive disabled",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.1 204 No content\r\nConnection: close\r\n\r\n",
-    "should_keep_alive": false,
-    "message_complete_on_eof": false,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 204,
-    "num_headers": 1,
-    "headers": {
-      "Connection": "close"
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "HTTP/1.1 with chunked endocing and a 200 response",
-    "type": "HTTP_RESPONSE",
-    "raw": "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
-    "should_keep_alive": true,
-    "message_complete_on_eof": false,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 200,
-    "num_headers": 1,
-    "headers": {
-      "Transfer-Encoding": "chunked"
-    },
-    "body_size": 0,
-    "body": "",
-    "strict": true
-  },
-  {
-    "name": "field space",
-    "type": "HTTP_RESPONSE",
-    "strict": false,
-    "raw": "HTTP/1.1 200 OK\r\nServer: Microsoft-IIS/6.0\r\nX-Powered-By: ASP.NET\r\nen-US Content-Type: text/xml\r\nContent-Type: text/xml\r\nContent-Length: 16\r\nDate: Fri, 23 Jul 2010 18:45:38 GMT\r\nConnection: keep-alive\r\n\r\n<xml>hello</xml>",
-    "should_keep_alive": true,
-    "message_complete_on_eof": false,
-    "http_major": 1,
-    "http_minor": 1,
-    "status_code": 200,
-    "num_headers": 7,
-    "headers": {
-      "Server": "Microsoft-IIS/6.0",
-      "X-Powered-By": "ASP.NET",
-      "en-US Content-Type": "text/xml",
-      "Content-Type": "text/xml",
-      "Content-Length": "16",
-      "Date": "Fri, 23 Jul 2010 18:45:38 GMT",
-      "Connection": "keep-alive"
-    },
-    "body": "<xml>hello</xml>"
+    "body": ""
   }
 ]

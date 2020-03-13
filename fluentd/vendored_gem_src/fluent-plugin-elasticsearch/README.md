@@ -91,6 +91,8 @@ Current maintainers: @cosmo0920
   + [enable_ilm](#enable_ilm)
   + [ilm_policy_id](#ilm_policy_id)
   + [ilm_policy](#ilm_policy)
+  + [ilm_policy_overwrite](#ilm_policy_overwrite)
+  + [truncate_caches_interval](#truncate_caches_interval)
 * [Configuration - Elasticsearch Input](#configuration---elasticsearch-input)
 * [Troubleshooting](#troubleshooting)
   + [Cannot send events to elasticsearch](#cannot-send-events-to-elasticsearch)
@@ -103,6 +105,8 @@ Current maintainers: @cosmo0920
   + [Random 400 - Rejected by Elasticsearch is occured, why?](#random-400---rejected-by-elasticsearch-is-occured-why)
   + [Fluentd seems to hang if it unable to connect Elasticsearch, why?](#fluentd-seems-to-hang-if-it-unable-to-connect-elasticsearch-why)
   + [Enable Index Lifecycle Management](#enable-index-lifecycle-management)
+  + [How to specify index codec](#how-to-specify-index-codec)
+  + [Cannot push logs to Elasticsearch with connect_write timeout reached, why?](#cannot-push-logs-to-elasticsearch-with-connect_write-timeout-reached-why)
 * [Contact](#contact)
 * [Contributing](#contributing)
 * [Running tests](#running-tests)
@@ -433,15 +437,14 @@ Specify this to override the index date pattern for creating a rollover index. T
 for example: <logstash-default-{now/d}-000001>. Overriding this changes the rollover time period. Setting
 "now/w{xxxx.ww}" would create weekly rollover indexes instead of daily.
 
-This setting only takes effect when combined with the [rollover_index](#rollover_index) setting.
+This setting only takes effect when combined with the [enable_ilm](#enable_ilm) setting.
 
-And rollover\_index is also used in Lifecycle Index Management(ILM) feature.
 ```
 index_date_pattern "now/w{xxxx.ww}" # defaults to "now/d"
 ```
 
-If empty string(`""`) is specified in `index_date_patter`, index date pattern is not used.
-Elasticsearch plugin just creates <`index_prefix`-`application_name`-000001> rollover index instead of <`index_prefix`-`application_name`-`{index_date_pattern}`-000001>.
+If empty string(`""`) is specified in `index_date_pattern`, index date pattern is not used.
+Elasticsearch plugin just creates <`target_index`-`application_name`-000001> rollover index instead of <`target_index`-`application_name`-`{index_date_pattern}`-000001>.
 
 If [customize_template](#customize_template) is set, then this parameter will be in effect otherwise ignored.
 
@@ -456,12 +459,9 @@ If [rollover_index](#rollover_index) is set, then this parameter will be in effe
 
 ### index_prefix
 
-Specify the index prefix for the rollover index to be created.
-```
-index_prefix mylogs # defaults to "logstash"
-```
-
-If [rollover_index](#rollover_index) is set, then this parameter will be in effect otherwise ignored.
+This parameter is marked as obsoleted.
+Consider to use [index_name](#index_name) for specify ILM target index when not using with logstash_format.
+When specifying `logstash_format` as true, consider to use [logstash_prefix](#logstash_prefix) to specify ILM target index prefix.
 
 ### application_name
 
@@ -470,7 +470,7 @@ Specify the application name for the rollover index to be created.
 application_name default # defaults to "default"
 ```
 
-If [rollover_index](#rollover_index) is set, then this parameter will be in effect otherwise ignored.
+If [enable_ilm](#enable_ilm is set, then this parameter will be in effect otherwise ignored.
 
 ### template_overwrite
 
@@ -839,6 +839,18 @@ ssl_version TLSv1_2 # or [SSLv23, TLSv1, TLSv1_1]
 
 :warning: If SSL/TLS enabled, it might have to be required to set ssl\_version.
 
+In Elasticsearch plugin v4.0.2 with Ruby 2.5 or later combination, Elasticsearch plugin also support `ssl_max_version` and `ssl_min_version`.
+
+```
+ssl_max_version TLSv1_3
+ssl_min_version TLSv1_2
+```
+
+Elasticsearch plugin will use TLSv1.2 as minimum ssl version and TLSv1.3 as maximum ssl version on transportation with TLS. Note that when they are used in Elastissearch plugin configuration, *`ssl_version` is not used* to set up TLS version.
+
+If they are *not* specified in the Elasticsearch plugin configuration, the value of `ssl_version` will be *used in `ssl_max_version` and `ssl_min_version`*.
+
+
 ### Proxy Support
 
 Starting with version 0.8.0, this gem uses excon, which supports proxy with environment variables - https://github.com/excon/excon#proxy-support
@@ -1164,6 +1176,22 @@ Default value is `{}`.
 
 **NOTE:** This parameter requests to install elasticsearch-xpack gem.
 
+## ilm_policy_overwrite
+
+Specify whether overwriting ilm policy or not.
+
+Default value is `false`.
+
+**NOTE:** This parameter requests to install elasticsearch-xpack gem.
+
+## truncate_caches_interval
+
+Specify truncating caches interval.
+
+If it is set, timer for clearing `alias_indexes` and `template_names` caches will be launched and executed.
+
+Default value is `nil`.
+
 ## Configuration - Elasticsearch Input
 
 See [Elasticsearch Input plugin document](README.ElasticsearchInput.md)
@@ -1222,6 +1250,13 @@ If you want to use TLS v1.2, please use `ssl_version` parameter like as:
 
 ```
 ssl_version TLSv1_2
+```
+
+or, in v4.0.2 or later with Ruby 2.5 or later combination, the following congiuration is also valid:
+
+```
+ssl_max_version TLSv1_2
+ssl_min_version TLSv1_2
 ```
 
 ### Cannot connect TLS enabled reverse Proxy
@@ -1313,6 +1348,13 @@ If you want to use TLS v1.2, please use `ssl_version` parameter like as:
 
 ```
 ssl_version TLSv1_2
+```
+
+or, in v4.0.2 or later with Ruby 2.5 or later combination, the following congiuration is also valid:
+
+```
+ssl_max_version TLSv1_2
+ssl_min_version TLSv1_2
 ```
 
 ### Declined logs are resubmitted forever, why?
@@ -1591,23 +1633,41 @@ Index lifecycle management is template based index management feature.
 
 Main ILM feature parameters are:
 
-* `rollover_index`
-* `deflector_alias`
+* `index_name` (when logstash_format as false)
+* `logstash_prefix` (when logstash_format as true)
 * `enable_ilm`
 * `ilm_policy_id`
 * `ilm_policy`
 
+* Advanced usage parameters
+  * `application_name`
+  * `index_separator`
+
 They are not all mandatory parameters but they are used for ILM feature in effect.
+
+ILM target index alias is created with `index_name` or an index which is calculated from `logstash_prefix`.
+
+From Elasticsearch plugin v4.0.0, ILM target index will be calculated from `index_name` (normal mode) or `logstash_prefix` (using with `logstash_format`as true).
+
+When using `deflector_alias` parameter, Elasticsearch plugin will create ILM target indices alias with `deflector_alias` instead of `index_name` or an index which is calculated from `logstash_prefix`. This behavior should be kept due to backward ILM feature compatibility.
 
 And also, ILM feature users should specify their Elasticsearch template for ILM enabled indices.
 Because ILM settings are injected into their Elasticsearch templates.
 
+`application_name` and `index_separator` also affect alias index names.
+
+But this parameter is prepared for advanced usage.
+
+It usually should be used with default value which is `default`.
+
+Then, ILM parameters are used in alias index like as:
+
+`<index_name/logstash_prefix><index_separator><application_name>-000001`.
+
+#### Example ILM settings
+
 ```aconf
 index_name fluentd-${tag}
-# Should specify rollover_index as true
-rollover_index true
-deflector_alias fluentd-${tag} # Should specify as same index_name
-index_prefix fluentd
 application_name ${tag}
 index_date_pattern "now/d"
 enable_ilm true
@@ -1616,10 +1676,119 @@ ilm_policy_id fluentd-policy
 # ilm_policy {} # Use default policy
 template_name your-fluentd-template
 template_file /path/to/fluentd-template.json
-customize_template {"<<index_prefix>>": "fluentd"}
+# customize_template {"<<index_prefix>>": "fluentd"}
 ```
 
 Note: This plugin only creates rollover-enabled indices, which are aliases pointing to them and index templates, and creates an ILM policy if enabled.
+
+#### Create ILM indices in each day
+
+If you want to create new index in each day, you should use `logstash_format` style configuration:
+
+```aconf
+logstash_prefix fluentd
+application_name default
+index_date_pattern "now/d"
+enable_ilm true
+# Policy configurations
+ilm_policy_id fluentd-policy
+# ilm_policy {} # Use default policy
+template_name your-fluentd-template
+template_file /path/to/fluentd-template.json
+```
+
+#### Fixed ILM indices
+
+Also, users can use fixed ILM indices configuration.
+If `index_date_pattern` is set as `""`(empty string), Elasticsearch plugin won't attach date pattern in ILM indices:
+
+```aconf
+index_name fluentd
+application_name default
+index_date_pattern ""
+enable_ilm true
+# Policy configurations
+ilm_policy_id fluentd-policy
+# ilm_policy {} # Use default policy
+template_name your-fluentd-template
+template_file /path/to/fluentd-template.json
+```
+
+### How to specify index codec
+
+Elasticsearch can handle compression methods for stored data such as LZ4 and best_compression.
+fluent-plugin-elasticsearch doesn't provide API which specifies compression method.
+
+Users can specify stored data compression method with template:
+
+Create `compression.json` as follows:
+
+```json
+{
+  "order": 100,
+  "index_patterns": [
+    "YOUR-INDEX-PATTERN"
+  ],
+  "settings": {
+    "index": {
+      "codec": "best_compression"
+    }
+  }
+}
+```
+
+Then, specify the above template in your configuration:
+
+```aconf
+template_name best_compression_tmpl
+template_file compression.json
+```
+
+Elasticsearch will store data with `best_compression`:
+
+```
+% curl -XGET 'http://localhost:9200/logstash-2019.12.06/_settings?pretty'
+```
+
+```json
+{
+  "logstash-2019.12.06" : {
+    "settings" : {
+      "index" : {
+        "codec" : "best_compression",
+        "number_of_shards" : "1",
+        "provided_name" : "logstash-2019.12.06",
+        "creation_date" : "1575622843800",
+        "number_of_replicas" : "1",
+        "uuid" : "THE_AWESOMEUUID",
+        "version" : {
+          "created" : "7040100"
+        }
+      }
+    }
+  }
+}
+```
+
+### Cannot push logs to Elasticsearch with connect_write timeout reached, why?
+
+It seems that Elasticsearch cluster is exhausted.
+
+Usually, Fluentd complains like the following log:
+
+```log
+2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=27.283766102716327 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
+2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=26.161768959928304 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
+2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=28.713624476008117 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
+2019-12-29 01:39:18 +0000 [warn]: Could not push logs to Elasticsearch, resetting connection and trying again. connect_write timeout reached
+2019-12-29 01:39:18 +0000 [warn]: Could not push logs to Elasticsearch, resetting connection and trying again. connect_write timeout reached
+```
+
+This warnings is usually caused by exhaused Elasticsearch cluster due to resource shortage.
+
+If CPU usage is spiked and Elasticsearch cluster is eating up CPU resource, this issue is caused by CPU resource shortage.
+
+Check your Elasticsearch cluster health status and resource usage.
 
 ## Contact
 
