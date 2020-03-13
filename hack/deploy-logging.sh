@@ -243,7 +243,7 @@ wait_for_logging_is_running() {
         result=0
         local actuales=$( oc -n ${LOGGING_NS} get pods -l component=elasticsearch 2> /dev/null | grep -c 'elasticsearch.* 2/2 .*Running' )
         if [ $expectedes -ne ${actuales:-0} ] ; then
-            echo WARN: ${actuales:-0} of $expectedes Running
+            echo WARN: ${actuales:-0} of $expectedes elasticsearch Running
             result=1
         else
             if [ "$es_ready" != "true" ] ; then
@@ -265,7 +265,7 @@ wait_for_logging_is_running() {
         fi
         local actualcollectors=$( oc -n ${LOGGING_NS} get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
         if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-            echo WARN: ${actualcollectors:-0} of $expectedcollectors Running
+            echo WARN: ${actualcollectors:-0} of $expectedcollectors fluentd Running
             result=1
         else
             if [ "$fluent_ready" != "true" ] ; then
