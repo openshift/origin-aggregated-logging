@@ -51,6 +51,8 @@ function cleanup_es() {
         oc delete user $user 2>&1 | artifact_out
     done
     if [ -n "${espod:-}" ] ; then
+        oc -n $LOGGING_NS logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
+        oc -n $LOGGING_NS exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
         curl_es_pod $espod /logs-app-* -XDELETE 2>&1 | artifact_out
     fi
     for proj in $PROJECTS ; do
@@ -116,61 +118,52 @@ function add_message_to_index() {
     os::log::info $( curl_es_pod "$pod" "/$aliasname/_doc/_search" -XGET | python -mjson.tool 2>&1 )
 }
 
+## This function tests access to ES index/alias from kibana pod.
 function test_user_has_proper_access() {
     local user=$1; shift
     local pw=$1; shift
     local alias=$1; shift
 
+    local kpod=$( get_running_pod kibana )
+    local eshost=$( get_es_svc es )
+
     os::log::info See if user $user can read alias /$alias
     get_test_user_token $user $pw false
-    local xfuser='-H x-forwarded-user:'"$user"
-    local xocpns='-H x-ocp-namespace:'"$user_project_list"
-    local xfroles='-H x-forwarded-roles:project_user'
     
-    nrecs=$( curl_es_pod_with_token $espod "/$alias/_count" $test_token -XGET $xfuser $xocpns $xfroles | get_count_from_json )
+    nrecs=$( curl_es_from_kibana $kpod $eshost "/$alias/_count" $test_token -XGET | get_count_from_json )
     expected=${1:-$user_project_num}
     if ! os::cmd::expect_success "test $nrecs = $expected" ; then
         os::log::error $user cannot access alias /$alias
-        curl_es_pod_with_token $espod "/$alias/_count" $test_token -XGET $xfuser $xocpns $xfroles | python -mjson.tool
-        oc exec -c elasticsearch $espod -- es_acl get --doc=roles
-        oc exec -c elasticsearch $espod -- es_acl get --doc=rolesmapping
+        curl_es_from_kibana $kpod $eshost "/$alias/_count" $test_token -XGET | python -mjson.tool
         exit 1
     fi
 
     # test user has access for msearch for multiple indices
     os::log::info See if user $user can _msearch alias "/$alias"
-    nrecs=$( { echo '{"index":'\"${alias}\"'}'; echo '{"size":0,"query":{"match_all":{}}}'; } | \
-                     curl_es_pod_with_token_and_input $espod "/_msearch" $test_token -XPOST $xfuser $xocpns $xfroles --data-binary @- | \
-                     get_count_from_json_from_search )
+    nrecs=$( { \
+              echo '{"index":'\"${alias}\"'}'; \
+              echo '{"size":0,"query":{"match_all":{}}}'; \
+             } | \
+             curl_es_pod_from_kibana_with_token_and_input $kpod $eshost "/_msearch" $test_token -XGET --data-binary @- | \
+             get_count_from_json_from_search )
     expected=${1:-$user_project_num}
     if ! os::cmd::expect_success "test $nrecs = $expected" ; then
         os::log::error $user cannot access "/$alias" indices with _msearch
         {
             echo '{"index":'\"${alias}\"'}';
             echo '{"size":0,"query":{"match_all" : {}}}';
-        } | curl_es_pod_with_token_and_input $espod "/_msearch" $test_token -XPOST $xfuser $xocpns $xfroles --data-binary @- 
-        exit 1
-    fi
-
-    # verify normal user has no access to default indices
-    os::log::info See if user $user is denied /project.default.*
-    get_test_user_token $user $pw false
-    nrecs=$( curl_es_pod_with_token $espod "/project.default.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | \
-                 get_count_from_json )
-    if ! os::cmd::expect_success "test $nrecs = 0" ; then
-        os::log::error $LOG_NORMAL_USER has improper access to project.default.* indices
-        curl_es_pod_with_token $espod "/project.default.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | python -mjson.tool
+        } | curl_es_pod_from_kibana_with_token_and_input $kpod $eshost "/_msearch" $test_token -XGET --data-binary @- 
         exit 1
     fi
 
     # verify normal user has no access to .operations
     os::log::info See if user $user is denied /.operations.*
     get_test_user_token $user $pw false
-    nrecs=$( curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | \
+    nrecs=$( curl_es_pod_from_kibana_with_token $kpod $eshost "/.operations.*/_count" $test_token -XPOST | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
         os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices
-        curl_es_pod_with_token $esopspod "/.operations.*/_count" $test_token -XPOST $xfuser $xocpns $xfroles | python -mjson.tool
+        curl_es_pod_from_kibana_with_token $kpod $eshost "/.operations.*/_count" $test_token -XPOST | python -mjson.tool
         exit 1
     fi
 }
