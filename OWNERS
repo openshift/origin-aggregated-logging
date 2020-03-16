@@ -2,11 +2,7 @@
 approvers:
   - jcantrill
   - ewolinetz
-  - lukas-vlcek
   - alanconway
-  - igor-karpukhin
-  - vimalk78
-  - syedriko
 reviewers:
   - bparees
   - jcantrill
@@ -16,3 +12,4 @@ reviewers:
   - igor-karpukhin
   - vimalk78
   - syedriko
+  - periklis
