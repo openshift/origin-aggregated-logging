@@ -9,10 +9,16 @@ require 'recursive_open_struct/dig'
 # TODO: When we care less about Rubies before 2.4.0, match OpenStruct's method
 # names instead of doing things like aliasing `new_ostruct_member` to
 # `new_ostruct_member!`
+#
+# TODO: `#*_as_a_hash` deprecated. Nested hashes can be referenced using
+# `#to_h`.
 
 class RecursiveOpenStruct < OpenStruct
   include Ruby19Backport if RUBY_VERSION =~ /\A1.9/
   include Dig if OpenStruct.public_instance_methods.include? :dig
+
+  # TODO: deprecated, possibly remove or make optional an runtime so that it
+  # doesn't normally pollute the public method namespace
   include DebugInspect
 
   def initialize(hash=nil, args={})
@@ -42,6 +48,8 @@ class RecursiveOpenStruct < OpenStruct
     @deep_dup.call(@table)
   end
 
+  # TODO: deprecated, unsupported by OpenStruct. OpenStruct does not consider
+  # itself to be a "kind of" Hash.
   alias_method :to_hash, :to_h
 
   def [](name)
@@ -68,18 +76,26 @@ class RecursiveOpenStruct < OpenStruct
     @table.key?(mname) || super
   end
 
+  # Continue supporting older rubies -- JRuby 9.1.x.x is still considered
+  # stable, but is based on Ruby
+  # 2.3.x and so uses :modifiable instead of :modifiable?. Furthermore, if
+  # :modifiable is private, then make :modifiable? private too.
+  if !OpenStruct.private_instance_methods.include?(:modifiable?)
+    alias_method :modifiable?, :modifiable
+    if OpenStruct.private_instance_methods.include?(:modifiable)
+      private :modifiable?
+    end
+  end
+
   # Adapted implementation of method_missing to accommodate the differences
   # between ROS and OS.
-  #
-  # TODO: Use modifiable? instead of modifiable, and new_ostruct_member!
-  # instead of new_ostruct_member once we care less about Rubies before 2.4.0.
   def method_missing(mid, *args)
     len = args.length
     if mid =~ /^(.*)=$/
       if len != 1
         raise ArgumentError, "wrong number of arguments (#{len} for 1)", caller(1)
       end
-      modifiable[new_ostruct_member!($1.to_sym)] = args[0]
+      modifiable?[new_ostruct_member!($1.to_sym)] = args[0]
     elsif len == 0
       key = mid
       key = $1 if key =~ /^(.*)_as_a_hash$/
@@ -105,7 +121,7 @@ class RecursiveOpenStruct < OpenStruct
         end
         define_method("#{name}=") do |x|
           @sub_elements.delete(key_name)
-          modifiable[key_name] = x
+          modifiable?[key_name] = x
         end
         define_method("#{name}_as_a_hash") { @table[key_name] }
       end

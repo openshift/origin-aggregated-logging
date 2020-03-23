@@ -64,4 +64,15 @@ RSpec.describe HTTP::FormData::Urlencoded do
       expect(form_data.to_s).to eq('{"foo[bar]":"test"}')
     end
   end
+
+  context "with custom instance level encoder" do
+    let(:encoder) { proc { |data| ::JSON.dump(data) } }
+    subject(:form_data) do
+      HTTP::FormData::Urlencoded.new(data, :encoder => encoder)
+    end
+
+    it "uses encoder passed to initializer" do
+      expect(form_data.to_s).to eq('{"foo[bar]":"test"}')
+    end
+  end
 end

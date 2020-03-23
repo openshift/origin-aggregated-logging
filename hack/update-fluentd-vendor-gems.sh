@@ -79,6 +79,8 @@ while read gemname gemver ; do
         else
             pkgname=$gemname
         fi
+    else
+        pkgname=$gemname
     fi
     echo $pkgname $gemver $homepage >> $manifest
     rm -f $gemlink $gemfile

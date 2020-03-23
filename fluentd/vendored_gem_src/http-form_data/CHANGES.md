@@ -1,3 +1,10 @@
+## 2.3.0 (2020-03-08)
+
+* [#29](https://github.com/httprb/form_data/pull/29)
+  Enhance HTTP::FormData::Urlencoded with per-instance encoder.
+  [@summera][]
+
+
 ## 2.2.0 (2020-01-09)
 
 * [#28](https://github.com/httprb/form_data/pull/28)
@@ -86,3 +93,4 @@
 [@mhickman]: https://github.com/mhickman
 [@HoneyryderChuck]: https://github.com/HoneyryderChuck
 [@FabienChaynes]: https://github.com/FabienChaynes
+[@summera]: https://github.com/summera

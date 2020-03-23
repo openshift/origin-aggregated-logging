@@ -41,11 +41,14 @@ module HTTP
       # @param [#to_h, Hash] data
       # @return [Multipart] if any of values is a {FormData::File}
       # @return [Urlencoded] otherwise
-      def create(data)
-        data  = ensure_hash data
-        klass = multipart?(data) ? Multipart : Urlencoded
+      def create(data, encoder: nil)
+        data = ensure_hash data
 
-        klass.new data
+        if multipart?(data)
+          Multipart.new(data)
+        else
+          Urlencoded.new(data, :encoder => encoder)
+        end
       end
 
       # Coerce `obj` to Hash.
