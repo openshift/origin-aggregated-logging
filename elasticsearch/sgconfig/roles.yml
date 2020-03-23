@@ -110,6 +110,7 @@ sg_role_admin:
         - ALL
   cluster:
     - CLUSTER_ALL
+    - ALL
 
 sg_role_jaeger:
   cluster:
