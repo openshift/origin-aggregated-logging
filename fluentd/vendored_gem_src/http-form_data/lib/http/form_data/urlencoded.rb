@@ -63,8 +63,9 @@ module HTTP
       end
 
       # @param [#to_h, Hash] data form data key-value Hash
-      def initialize(data)
-        @io = StringIO.new(self.class.encoder.call(FormData.ensure_hash(data)))
+      def initialize(data, encoder: nil)
+        encoder ||= self.class.encoder
+        @io = StringIO.new(encoder.call(FormData.ensure_hash(data)))
       end
 
       # Returns MIME type to be used for HTTP request `Content-Type` header.
