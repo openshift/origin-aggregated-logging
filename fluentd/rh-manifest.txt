@@ -7,6 +7,7 @@ bindata 2.4.6 http://github.com/dmendel/bindata
 concurrent-ruby 1.1.6 http://www.concurrent-ruby.com
 connection_pool 2.2.2 https://github.com/mperham/connection_pool
 cool.io 1.6.0 http://coolio.github.com
+digest-crc 0.5.1 https://github.com/postmodern/digest-crc#readme
 domain_name 0.5.20190701 https://github.com/knu/ruby-domain_name
 elasticsearch 7.5.0 http://github.com/elasticsearch/elasticsearch-ruby
 elasticsearch-api 7.5.0 https://github.com/elasticsearch/elasticsearch-ruby/tree/master/elasticsearch-api
@@ -20,6 +21,7 @@ fluentd 1.9.2 https://www.fluentd.org/
 fluent-mixin-config-placeholders 0.4.0 https://github.com/tagomoris/fluent-mixin-config-placeholders
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
 fluent-plugin-elasticsearch 4.0.5 https://github.com/uken/fluent-plugin-elasticsearch
+fluent-plugin-kafka 0.13.0 https://github.com/fluent/fluent-plugin-kafka
 fluent-plugin-kubernetes_metadata_filter 2.4.2 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
 fluent-plugin-prometheus 1.7.3 https://github.com/fluent/fluent-plugin-prometheus
@@ -40,6 +42,7 @@ jemalloc 5.2.0 https://github.com/jemalloc/jemalloc/releases/download/5.2.0/jema
 json-jwt 1.11.0 https://github.com/nov/json-jwt
 kubeclient 4.6.0 https://github.com/abonas/kubeclient
 lru_redux 1.1.0 https://github.com/SamSaffron/lru_redux
+ltsv 0.1.2 https://github.com/condor/ltsv
 mail 2.7.1 https://github.com/mikel/mail
 mime-types 3.3.1 https://github.com/mime-types/ruby-mime-types/
 mime-types-data 3.2019.1009 https://github.com/mime-types/mime-types-data/
@@ -59,6 +62,7 @@ rack-oauth2 1.10.1 http://github.com/nov/rack-oauth2
 rake 13.0.1 https://github.com/ruby/rake
 recursive-open-struct 1.1.1 https://github.com/aetherknight/recursive-open-struct
 rest-client 2.1.0 https://github.com/rest-client/rest-client
+ruby-kafka 1.0.0 https://github.com/zendesk/ruby-kafka
 serverengine 2.2.1 https://github.com/fluent/serverengine
 sigdump 0.2.4 https://github.com/frsyuki/sigdump
 strptime 0.2.3 https://github.com/nurse/strptime
