@@ -24,6 +24,7 @@ fluent-plugin-kubernetes_metadata_filter 2.4.2 https://github.com/fabric8io/flue
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
 fluent-plugin-prometheus 1.7.3 https://github.com/fluent/fluent-plugin-prometheus
 fluent-plugin-record-modifier 2.1.0 https://github.com/repeatedly/fluent-plugin-record-modifier
+fluent-plugin-remote_syslog 1.0.0 https://github.com/dlackty/fluent-plugin-remote_syslog
 fluent-plugin-remote-syslog 1.1 https://github.com/docebo/fluent-plugin-remote-syslog
 fluent-plugin-rewrite-tag-filter 2.2.0 https://github.com/fluent/fluent-plugin-rewrite-tag-filter
 fluent-plugin-splunk-hec 1.2.1 https://github.com/splunk/fluent-plugin-splunk-hec
@@ -58,6 +59,7 @@ rack 2.2.2 https://github.com/rack/rack
 rack-oauth2 1.10.1 http://github.com/nov/rack-oauth2
 rake 13.0.1 https://github.com/ruby/rake
 recursive-open-struct 1.1.1 https://github.com/aetherknight/recursive-open-struct
+remote_syslog_sender 1.2.1 https://github.com/reproio/remote_syslog_logger
 rest-client 2.1.0 https://github.com/rest-client/rest-client
 serverengine 2.2.1 https://github.com/fluent/serverengine
 sigdump 0.2.4 https://github.com/frsyuki/sigdump
