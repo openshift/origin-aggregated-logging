@@ -13,6 +13,8 @@ sg_role_rsyslog:
 sg_role_curator:
   users:
     - 'CN=system.logging.curator,OU=OpenShift,O=Logging'
+  backendroles:
+    - 'index-management'
 
 sg_role_admin:
   users:
