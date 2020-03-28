@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+exit 1
+
+
 if [ ${DEBUG:-""} = "true" ]; then
     set -x
     LOGLEVEL=7
