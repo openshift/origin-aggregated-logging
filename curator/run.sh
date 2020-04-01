@@ -26,7 +26,7 @@ waitForES
 
 # Check whether legacy config was supplied
 actions_location=${CURATOR_ACTIONS_FILE}
-python -u convert.py
+python -u $HOME/lib/oalconverter/convert.py
 # 0 - actions file found
 # 1 - actions file generated from legacy config
 # 2 - an error occured
