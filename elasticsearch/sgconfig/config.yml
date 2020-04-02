@@ -4,8 +4,8 @@ opendistro_security:
       xff:
         enabled: true
         remoteIpHeader: 'x-forwarded-for'
+        internalProxies: '0:0:0:0:0:0:0:1|127\.0\.0\.1'
         trustedProxies: '.*'
-        internalProxies: '.*'
     authc:
       openshift_domain:
         enabled: true

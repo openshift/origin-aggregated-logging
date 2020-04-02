@@ -262,7 +262,6 @@ curl_es_from_kibana() {
        --cert "${secret_dir}cert" \
        --key "${secret_dir}key" \
        -H "Authorization: Bearer $test_token" \
-       -H "X-Forwarded-For: 127.0.0.1" \
        "https://${eshost}:9200${endpoint}"
 }
 
@@ -325,11 +324,22 @@ function curl_es_pod_with_token() {
     shift; shift; shift;
     local args=( "${@:-}" )
     local authtoken="-H Authorization: Bearer $test_token"
-    local xff="-H X-Forwarded-For:127.0.0.1"
     oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              $authtoken \
-                             $xff \
                              "https://localhost:9200${endpoint}"
+}
+
+function curl_es_pod_from_kibana_with_token() {
+    local pod="$1"
+    local eshost="$2"
+    local endpoint="$3"
+    local test_token="$4"
+    shift; shift; shift; shift;
+    local args=( "${@:-}" )
+    local authtoken="-H Authorization: Bearer $test_token"
+    oc -n $LOGGING_NS exec -c kibana "${pod}" -- curl --silent --insecure "${args[@]}" \
+                             $authtoken \
+                             "https://${eshost}:9200${endpoint}"
 }
 
 function curl_es_pod_with_username_password() {
@@ -378,14 +388,27 @@ function curl_es_pod_with_token_and_input() {
     local args=( "${@:-}" )
     local authtoken="-H Authorization: Bearer $test_token"
     local contenttype="-H Content-type:application/json"
-    local xff="-H X-Forwarded-For:127.0.0.1"
 
     oc -n $LOGGING_NS exec -c elasticsearch -i "${pod}" -- curl --silent --insecure "${args[@]}" \
-                             $xff         \
                              $authtoken   \
                              $contenttype \
                              "https://localhost:9200${endpoint}"
 }
+
+function curl_es_pod_from_kibana_with_token_and_input() {
+    local pod="$1"
+    local eshost="$2"
+    local endpoint="$3"
+    local test_token="$4"
+    shift; shift; shift; shift;
+    local args=( "${@:-}" )
+    local contenttype="-H Content-type:application/json"
+    oc -n $LOGGING_NS exec -c kibana -i "${pod}" -- curl --silent --insecure "${args[@]}" \
+                            -H "Authorization: Bearer $test_token" \
+                             $contenttype \
+                             "https://${eshost}:9200${endpoint}"
+}
+
 
 function curl_es_with_token_and_input() {
     local svc_name="$1"
