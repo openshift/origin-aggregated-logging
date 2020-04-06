@@ -1,0 +1,16 @@
+<div class="kuiModalOverlay" ng-show="displayModal">
+    <div class="kuiModal" style="width: 450px;">
+        <div class="kuiModalHeader">
+            <div class="kuiModalHeader__title">Confirm Delete</div>
+        </div>
+        <div class="kuiModalBody">
+            <div class="kuiModalBodyText">Do you really want to delete '{{deleteModalResourceName}}'?
+            </div>
+        </div>
+        <div class="kuiModalFooter">
+            <button type="button" ng-click="closeDeleteModal()" class="kuiButton kuiButton--hollow"><span
+                    class="kuiButton__inner"><span>Cancel</span></span></button>
+            <button type="button" ng-click="delete()" class="kuiButton kuiButton--primary"><span>Confirm</span></span></button>
+        </div>
+    </div>
+</div>

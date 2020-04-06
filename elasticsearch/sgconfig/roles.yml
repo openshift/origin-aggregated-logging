@@ -1,40 +1,3 @@
-# For users which use kibana, access to indices must be granted separately
-kibana_user:
-  readonly: true
-  cluster:
-    - INDICES_MONITOR
-    - CLUSTER_COMPOSITE_OPS
-  indices:
-    '?kibana':
-      '*':
-        - MANAGE
-        - INDEX
-        - READ
-        - DELETE
-    '?kibana-6':
-      '*':
-        - MANAGE
-        - INDEX
-        - READ
-        - DELETE
-    '?kibana_*':
-      '*':
-        - MANAGE
-        - INDEX
-        - READ
-        - DELETE
-    '?tasks':
-      '*':
-        - INDICES_ALL
-    '?management-beats':
-      '*':
-        - INDICES_ALL        
-    '*':
-      '*':
-        - indices:data/read/field_caps*
-        - indices:admin/mappings/get*
-        - indices:admin/get
-        
 # For the kibana server
 kibana_server:
   readonly: true
@@ -43,6 +6,7 @@ kibana_server:
       - CLUSTER_COMPOSITE_OPS
       - indices:admin/template*
       - indices:data/read/scroll*
+      - indices:data/write/reindex
   indices:
     '?kibana':
       '*':
@@ -65,6 +29,10 @@ kibana_server:
     '*':
       '*':
         - "indices:admin/aliases*"
+    '?opendistro':
+      '?security':
+        - indices:admin/get
+
 sg_role_prometheus:
   cluster:
     - METRICS
@@ -168,13 +136,34 @@ project_user:
   readonly: true
   cluster:
     - CLUSTER_COMPOSITE_OPS_RO
+    - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
   indices:
     app:
       '*':
         - READ
-      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name.keyword'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
-    logs-app:
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+    '?kibana_*':
+      '*':
+        - CRUD
+
+admin_user:
+  readonly: true
+  cluster:
+    - CLUSTER_COMPOSITE_OPS_RO
+    - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
+  indices:
+    app:
       '*':
         - READ
-      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name.keyword'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
-
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+    infra:
+      '*':
+        - READ
+    audit:
+      '*':
+        - READ
+    '?kibana_*':
+      '*':
+        - CRUD
+  tenants:
+    admin: RW

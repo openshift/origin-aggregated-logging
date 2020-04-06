@@ -19,7 +19,8 @@ ARG LOCAL_REPO
 
 USER 0
 
-COPY vendored_tar_src/ ${HOME}/
+COPY vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
+COPY vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugins/opendistro_security_kibana_plugin-0.10.0.4/
 
 RUN chmod -R og+w ${HOME}/
 ADD probe/ /usr/share/kibana/probe/
@@ -27,9 +28,7 @@ ADD kibana.yml ${KIBANA_CONF_DIR}/
 ADD run.sh utils ${HOME}/
 RUN sed -i -e 's/"node":.*/"node": "'$(${NODE_PATH}/node --version | sed 's/v//')'"/' package.json && \
     mkdir -p node && \
-    ln -s ${NODE_PATH} node/bin && \
-    mkdir -p ${HOME}/x-pack && \
-    ln -s ${HOME}/x-pack ${HOME}/node_modules/x-pack
+    ln -s ${NODE_PATH} node/bin
 RUN bin/kibana --optimize
 
 WORKDIR ${HOME}

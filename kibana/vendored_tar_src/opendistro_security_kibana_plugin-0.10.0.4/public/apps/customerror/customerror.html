@@ -1,0 +1,16 @@
+<div class="container security-custom-wrapper" style='{{ui.showbrandimage? "" : "top:30%"}}'>
+
+  <div class="text-center security-brand-image-container" ng-show="ui.showbrandimage">
+    <img class="security-brand-image" src="{{ui.brandimage}}" width="300">
+  </div>
+
+  <p class="security-custom-title" ng-show="ui.title != ''">{{ui.title}}</p>
+  <p class="security-custom-subtitle" ng-show="ui.subtitle != ''">{{ui.subtitle}}</p>
+
+  <div class="text-center">
+    <a ng-attr-href="{{ui.buttonHref}}" id="opendistro_security.custom.home" class="btn btn-default security-custom-btn-home" ng-attr-style="{{ui.buttonstyle}}">
+      Back to Kibana Home
+    </a>
+  </div>
+
+</div>

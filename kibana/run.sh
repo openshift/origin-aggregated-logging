@@ -77,4 +77,4 @@ update_config_from_env_vars ${KIBANA_CONF_DIR}
 
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
-node --no-warnings src/cli --oss
+node --no-warnings src/cli

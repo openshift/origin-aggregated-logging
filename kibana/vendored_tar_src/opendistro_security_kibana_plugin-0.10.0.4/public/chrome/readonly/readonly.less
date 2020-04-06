@@ -1,0 +1,103 @@
+.security-isReadOnly {
+
+  /**
+   * For Dashboard
+   */
+  &[security_path="_dashboards"] {
+
+    // The add dashboard button
+    // A bit redundant, should be covered through the hideWriteControls
+    [data-test-subj="newDashboardLink"] {
+      display: none;
+    }
+  }
+
+  /**
+   * For Visualize
+   */
+  &[security_path^="_visualize"] {
+
+    // The navigation links in the top right hand corner
+    [data-test-subj="visualizeSaveButton"],
+    [data-test-subj="topNavReportingLink"],
+    [data-test-subj="visualizeShareButton"],
+    [data-test-subj="visualizeRefreshButton"] {
+      display: none;
+    }
+
+
+  }
+
+  /**
+   * For Discover
+   */
+  &[security_path^="_discover"] {
+
+    // The navigation links in the top right hand corner
+    [data-test-subj="discoverNewButton"],
+    [data-test-subj="discoverSaveButton"],
+    [data-test-subj="discoverOpenButton"],
+    [data-test-subj="topNavReportingLink"],
+    [data-test-subj="discoverShareButton"] {
+      display: none;
+    }
+
+  }
+
+
+}
+
+/**
+ * When we are on a read only tenant, we are less
+ * restrictive about what controls are shown.
+ */
+.security-isReadOnlyTenant {
+
+  /**
+   * For Dashboard
+   */
+  &[security_path="_dashboards"] {
+
+    // The add dashboard button
+    // A bit redundant, should be covered through the hideWriteControls
+    [data-test-subj="newDashboardLink"] {
+      display: none;
+    }
+  }
+
+  /**
+   * For Dashboard
+   */
+  &[security_path^="_dashboard_"] {
+
+    // The add dashboard button
+    // A bit redundant, should be covered through the hideWriteControls
+    [data-test-subj="dashboardEditMode"],
+    [data-test-subj="dashboardClone"] {
+      display: none;
+    }
+  }
+
+  /**
+   * For Visualize
+   */
+  &[security_path^="_visualize"] {
+
+    // The navigation links in the top right hand corner
+    [data-test-subj="visualizeSaveButton"] {
+      display: none;
+    }
+  }
+
+  /**
+   * For Discover
+   */
+  &[security_path^="_discover"] {
+
+    // The navigation links in the top right hand corner
+    [data-test-subj="discoverNewButton"],
+    [data-test-subj="discoverSaveButton"] {
+      display: none;
+    }
+  }
+}

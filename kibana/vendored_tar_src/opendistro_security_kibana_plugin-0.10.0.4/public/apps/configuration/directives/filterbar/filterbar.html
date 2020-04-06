@@ -1,0 +1,51 @@
+<div>
+    <div class="kuiToolBar">
+        <div class="kuiToolBarSearch">
+            <div class="kuiToolBarSearchBox">
+                <div class="kuiToolBarSearchBox__icon kuiIcon fa-search"></div>
+                <input class="kuiToolBarSearchBox__input ng-pristine ng-untouched ng-valid" type="text" placeholder="Search..." ng-model="query">
+            </div>
+        </div>
+
+        <div class="kuiToolBarSection">
+            <button id="opendistro_security.button.toolbar.new" type="button" tooltip="Add a new {{service.title.singular}}" ng-click="new(query)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                <span class="kuiButton__icon kuiIcon fa-plus"></span>
+            </button>
+
+            <a ng-href="#/" class="kuiButton kuiButton--basic kuiButton--iconText" tooltip="Back to overview">
+                <span class="kuiButton__icon kuiIcon fa-chevron-left" id="opendistro_security.button.toolbar.back"></span>
+                Back
+            </a>
+
+        </div>
+
+        <div class="kuiToolBarSection">
+            <!-- We need an empty section for the buttons to be positioned consistently. -->
+        </div>
+    </div>
+
+    <!-- No Results -->
+    <div class="kuiPanel kuiPanel--centered kuiPanel--withToolBar" ng-show="!(resourcenames | filter:query).length && loaded">
+        <div class="kuiEmptyTablePrompt">
+            <div class="kuiEmptyTablePrompt__message">No {{service.title.plural}} found. Would you like to add one?</div>
+            <div class="kuiEmptyTablePrompt__actions">
+                <div class="kuiButtonGroup">
+                    <button id="opendistro_security.button.tableprompt.new" type="button" ng-click="new(query)" class="kuiButton kuiButton--primary kuiButton--iconText" aria-label="Add a new {{service.title.singular}}">
+                        <span class="kuiButton__inner">
+                            <span aria-hidden="true" class="kuiButton__icon kuiIcon fa-plus"></span>
+                            <span>Add a new {{service.title.singular}}</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="kuiPanel kuiPanel--centered kuiPanel--withToolBar" ng-show="!loaded">
+        <div class="kuiEmptyTablePrompt">
+            <div class="kuiEmptyTablePrompt__message">Loading ...</div>
+        </div>
+    </div>
+
+</div>
