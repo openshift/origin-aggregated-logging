@@ -57,21 +57,6 @@ update_config_from_env_vars() {
       server.ssl.certificate
       server.ssl.enabled
       server.ssl.key
-      xpack.apm.enabled
-      xpack.ccr.enabled
-      xpack.graph.enabled
-      xpack.grokdebugger.enabled
-      xpack.ilm.enabled
-      xpack.infra.enabled
-      xpack.infra.sources.default.logAlias
-      xpack.maps.enabled
-      xpack.ml.enabled
-      xpack.monitoring.enabled
-      xpack.remote_clusters.enabled
-      xpack.reporting.enabled
-      xpack.searchprofiler.enabled
-      xpack.spaces.enabled
-      xpack.uptime.enabled
   )
   conf_file=${conf_dir}/kibana.yml
   echo "#The following values dynamically added from environment variable overrides:"
