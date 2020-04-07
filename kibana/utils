@@ -85,7 +85,12 @@ update_config_from_env_vars() {
         if [ -n "${DEBUG:-}" ] ; then
           echo "updating ${conf_file} - '${kibana_var}: ${value}'"
         fi
-        echo "${kibana_var}: ${value}" >> ${conf_file}
+
+        if grep -q ${kibana_var} ${conf_file} ; then
+          sed -i "s,${kibana_var}:.*,${kibana_var}:\ ${value}," "${conf_file}"
+        else
+          echo -e "\n${kibana_var}: ${value}" >> "${conf_file}"
+        fi
       fi
   done
 }
