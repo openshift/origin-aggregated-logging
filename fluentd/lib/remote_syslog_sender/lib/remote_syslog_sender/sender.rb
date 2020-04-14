@@ -41,6 +41,7 @@ module RemoteSyslogSender
           packet = @packet.dup
           if packet_options
             packet.tag = packet_options[:program] if packet_options[:program]
+            packet.rfc = packet_options[:rfc] if packet_options[:rfc]
             packet.hostname = packet_options[:local_hostname] if packet_options[:local_hostname]
             packet.rfc = packet_options[:rfc] if packet_options[:rfc]
             if packet.rfc == :rfc5424
