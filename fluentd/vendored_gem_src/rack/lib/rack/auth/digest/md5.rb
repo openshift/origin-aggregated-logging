@@ -1,9 +1,7 @@
-# frozen_string_literal: true
-
-require_relative '../abstract/handler'
-require_relative 'request'
-require_relative 'params'
-require_relative 'nonce'
+require 'rack/auth/abstract/handler'
+require 'rack/auth/digest/request'
+require 'rack/auth/digest/params'
+require 'rack/auth/digest/nonce'
 require 'digest/md5'
 
 module Rack
@@ -23,7 +21,7 @@ module Rack
 
         attr_writer :passwords_hashed
 
-        def initialize(app, realm = nil, opaque = nil, &authenticator)
+        def initialize(app, realm=nil, opaque=nil, &authenticator)
           @passwords_hashed = nil
           if opaque.nil? and realm.respond_to? :values_at
             realm, opaque, @passwords_hashed = realm.values_at :realm, :opaque, :passwords_hashed
@@ -49,7 +47,7 @@ module Rack
 
           if valid?(auth)
             if auth.nonce.stale?
-              return unauthorized(challenge(stale: true))
+              return unauthorized(challenge(:stale => true))
             else
               env['REMOTE_USER'] = auth.username
 
@@ -63,7 +61,7 @@ module Rack
 
         private
 
-        QOP = 'auth'
+        QOP = 'auth'.freeze
 
         def params(hash = {})
           Params.new do |params|
@@ -108,21 +106,21 @@ module Rack
         alias :H :md5
 
         def KD(secret, data)
-          H "#{secret}:#{data}"
+          H([secret, data] * ':')
         end
 
         def A1(auth, password)
-          "#{auth.username}:#{auth.realm}:#{password}"
+          [ auth.username, auth.realm, password ] * ':'
         end
 
         def A2(auth)
-          "#{auth.method}:#{auth.uri}"
+          [ auth.method, auth.uri ] * ':'
         end
 
         def digest(auth, password)
           password_hash = passwords_hashed? ? password : H(A1(auth, password))
 
-          KD password_hash, "#{auth.nonce}:#{auth.nc}:#{auth.cnonce}:#{QOP}:#{H A2(auth)}"
+          KD(password_hash, [ auth.nonce, auth.nc, auth.cnonce, QOP, H(A2(auth)) ] * ':')
         end
 
       end

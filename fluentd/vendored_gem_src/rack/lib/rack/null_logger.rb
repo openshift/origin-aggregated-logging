@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Rack
   class NullLogger
     def initialize(app)

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Rack
   module Auth
     # Rack::Auth::AbstractHandler implements common authentication functionality.
@@ -10,7 +8,7 @@ module Rack
 
       attr_accessor :realm
 
-      def initialize(app, realm = nil, &authenticator)
+      def initialize(app, realm=nil, &authenticator)
         @app, @realm, @authenticator = app, realm, authenticator
       end
 

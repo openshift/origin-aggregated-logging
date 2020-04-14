@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module Rack
   module Multipart
     class Generator
@@ -17,13 +15,9 @@ module Rack
 
         flattened_params.map do |name, file|
           if file.respond_to?(:original_filename)
-            if file.path
-              ::File.open(file.path, 'rb') do |f|
-                f.set_encoding(Encoding::BINARY)
-                content_for_tempfile(f, file, name)
-              end
-            else
-              content_for_tempfile(file, file, name)
+            ::File.open(file.path, 'rb') do |f|
+              f.set_encoding(Encoding::BINARY)
+              content_for_tempfile(f, file, name)
             end
           else
             content_for_other(file, name)
@@ -33,18 +27,21 @@ module Rack
 
       private
       def multipart?
+        multipart = false
+
         query = lambda { |value|
           case value
           when Array
-            value.any?(&query)
+            value.each(&query)
           when Hash
-            value.values.any?(&query)
+            value.values.each(&query)
           when Rack::Multipart::UploadedFile
-            true
+            multipart = true
           end
         }
+        @params.values.each(&query)
 
-        @params.values.any?(&query)
+        multipart
       end
 
       def flattened_params
@@ -73,13 +70,12 @@ module Rack
       end
 
       def content_for_tempfile(io, file, name)
-        length = ::File.stat(file.path).size if file.path
-        filename = "; filename=\"#{Utils.escape(file.original_filename)}\"" if file.original_filename
 <<-EOF
 --#{MULTIPART_BOUNDARY}\r
-Content-Disposition: form-data; name="#{name}"#{filename}\r
+Content-Disposition: form-data; name="#{name}"; filename="#{Utils.escape(file.original_filename)}"\r
 Content-Type: #{file.content_type}\r
-#{"Content-Length: #{length}\r\n" if length}\r
+Content-Length: #{::File.stat(file.path).size}\r
+\r
 #{io.read}\r
 EOF
       end

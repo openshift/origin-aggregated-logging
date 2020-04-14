@@ -1,6 +1,6 @@
-# frozen_string_literal: true
-
 require 'erb'
+require 'rack/request'
+require 'rack/utils'
 
 module Rack
   # Rack::ShowStatus catches all empty responses and replaces them
@@ -18,19 +18,19 @@ module Rack
 
     def call(env)
       status, headers, body = @app.call(env)
-      headers = Utils::HeaderHash[headers]
+      headers = Utils::HeaderHash.new(headers)
       empty = headers[CONTENT_LENGTH].to_i <= 0
 
       # client or server error, or explicit message
       if (status.to_i >= 400 && empty) || env[RACK_SHOWSTATUS_DETAIL]
-        # This double assignment is to prevent an "unused variable" warning.
-        # Yes, it is dumb, but I don't like Ruby yelling at me.
+        # This double assignment is to prevent an "unused variable" warning on
+        # Ruby 1.9.3.  Yes, it is dumb, but I don't like Ruby yelling at me.
         req = req = Rack::Request.new(env)
 
         message = Rack::Utils::HTTP_STATUS_CODES[status.to_i] || status.to_s
 
-        # This double assignment is to prevent an "unused variable" warning.
-        # Yes, it is dumb, but I don't like Ruby yelling at me.
+        # This double assignment is to prevent an "unused variable" warning on
+        # Ruby 1.9.3.  Yes, it is dumb, but I don't like Ruby yelling at me.
         detail = detail = env[RACK_SHOWSTATUS_DETAIL] || message
 
         body = @template.result(binding)
@@ -52,8 +52,8 @@ module Rack
 
     # :stopdoc:
 
-# adapted from Django <www.djangoproject.com>
-# Copyright (c) Django Software Foundation and individual contributors.
+# adapted from Django <djangoproject.com>
+# Copyright (c) 2005, the Lawrence Journal-World
 # Used under the modified BSD license:
 # http://www.xfree86.org/3.3.6/COPYRIGHT2.html#5
 TEMPLATE = <<'HTML'

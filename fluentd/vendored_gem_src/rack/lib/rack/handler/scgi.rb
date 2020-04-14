@@ -1,19 +1,19 @@
-# frozen_string_literal: true
-
 require 'scgi'
 require 'stringio'
+require 'rack/content_length'
+require 'rack/chunked'
 
 module Rack
   module Handler
     class SCGI < ::SCGI::Processor
       attr_accessor :app
 
-      def self.run(app, **options)
+      def self.run(app, options=nil)
         options[:Socket] = UNIXServer.new(options[:File]) if options[:File]
-        new(options.merge(app: app,
-                          host: options[:Host],
-                          port: options[:Port],
-                          socket: options[:Socket])).listen
+        new(options.merge(:app=>app,
+                          :host=>options[:Host],
+                          :port=>options[:Port],
+                          :socket=>options[:Socket])).listen
       end
 
       def self.valid_options
@@ -41,8 +41,7 @@ module Rack
         env[QUERY_STRING] ||= ""
         env[SCRIPT_NAME] = ""
 
-        rack_input = StringIO.new(input_body)
-        rack_input.set_encoding(Encoding::BINARY)
+        rack_input = StringIO.new(input_body, encoding: Encoding::BINARY)
 
         env.update(
           RACK_VERSION      => Rack::VERSION,

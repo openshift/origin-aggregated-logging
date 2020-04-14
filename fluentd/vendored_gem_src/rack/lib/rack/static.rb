@@ -1,10 +1,11 @@
-# frozen_string_literal: true
+require "rack/file"
+require "rack/utils"
 
 module Rack
 
   # The Rack::Static middleware intercepts requests for static files
   # (javascript files, images, stylesheets, etc) based on the url prefixes or
-  # route mappings passed in the options, and serves them using a Rack::Files
+  # route mappings passed in the options, and serves them using a Rack::File
   # object. This allows a Rack stack to serve both static and dynamic content.
   #
   # Examples:
@@ -13,11 +14,6 @@ module Rack
   # in the current directory (ie media/*):
   #
   #     use Rack::Static, :urls => ["/media"]
-  #
-  # Same as previous, but instead of returning 404 for missing files under
-  # /media, call the next middleware:
-  #
-  #     use Rack::Static, :urls => ["/media"], :cascade => true
   #
   # Serve all requests beginning with /css or /images from the folder "public"
   # in the current directory (ie public/css/* and public/images/*):
@@ -86,26 +82,24 @@ module Rack
   #         ]
   #
   class Static
-    (require_relative 'core_ext/regexp'; using ::Rack::RegexpExtensions) if RUBY_VERSION < '2.4'
 
-    def initialize(app, options = {})
+    def initialize(app, options={})
       @app = app
       @urls = options[:urls] || ["/favicon.ico"]
       @index = options[:index]
       @gzip = options[:gzip]
-      @cascade = options[:cascade]
       root = options[:root] || Dir.pwd
 
       # HTTP Headers
       @header_rules = options[:header_rules] || []
       # Allow for legacy :cache_control option while prioritizing global header_rules setting
-      @header_rules.unshift([:all, { CACHE_CONTROL => options[:cache_control] }]) if options[:cache_control]
+      @header_rules.unshift([:all, {CACHE_CONTROL => options[:cache_control]}]) if options[:cache_control]
 
-      @file_server = Rack::Files.new(root)
+      @file_server = Rack::File.new(root)
     end
 
     def add_index_root?(path)
-      @index && route_file(path) && path.end_with?('/')
+      @index && path =~ /\/$/
     end
 
     def overwrite_file_path(path)
@@ -126,7 +120,7 @@ module Rack
       if can_serve(path)
         if overwrite_file_path(path)
           env[PATH_INFO] = (add_index_root?(path) ? path + @index : @urls[path])
-        elsif @gzip && env['HTTP_ACCEPT_ENCODING'] && /\bgzip\b/.match?(env['HTTP_ACCEPT_ENCODING'])
+        elsif @gzip && env['HTTP_ACCEPT_ENCODING'] =~ /\bgzip\b/
           path = env[PATH_INFO]
           env[PATH_INFO] += '.gz'
           response = @file_server.call(env)
@@ -134,8 +128,6 @@ module Rack
 
           if response[0] == 404
             response = nil
-          elsif response[0] == 304
-            # Do nothing, leave headers as is
           else
             if mime_type = Mime.mime_type(::File.extname(path), 'text/plain')
               response[1][CONTENT_TYPE] = mime_type
@@ -146,10 +138,6 @@ module Rack
 
         path = env[PATH_INFO]
         response ||= @file_server.call(env)
-
-        if @cascade && response[0] == 404
-          return @app.call(env)
-        end
 
         headers = response[1]
         applicable_rules(path).each do |rule, new_headers|
@@ -169,14 +157,14 @@ module Rack
         when :all
           true
         when :fonts
-          /\.(?:ttf|otf|eot|woff2|woff|svg)\z/.match?(path)
+          path =~ /\.(?:ttf|otf|eot|woff2|woff|svg)\z/
         when String
           path = ::Rack::Utils.unescape(path)
           path.start_with?(rule) || path.start_with?('/' + rule)
         when Array
-          /\.(#{rule.join('|')})\z/.match?(path)
+          path =~ /\.(#{rule.join('|')})\z/
         when Regexp
-          rule.match?(path)
+          path =~ rule
         else
           false
         end

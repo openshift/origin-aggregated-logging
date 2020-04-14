@@ -1,10 +1,7 @@
-# frozen_string_literal: true
-
-require "bundler/gem_tasks"
-require "rake/testtask"
+# Rakefile for Rack.  -*-ruby-*-
 
 desc "Run all the tests"
-task default: :test
+task :default => [:test]
 
 desc "Install gem dependencies"
 task :deps do
@@ -19,9 +16,9 @@ task :deps do
 end
 
 desc "Make an archive as .tar.gz"
-task dist: %w[chmod changelog spec rdoc] do
+task :dist => %w[chmod ChangeLog SPEC rdoc] do
   sh "git archive --format=tar --prefix=#{release}/ HEAD^{tree} >#{release}.tar"
-  sh "pax -waf #{release}.tar -s ':^:#{release}/:' SPEC.rdoc ChangeLog doc rack.gemspec"
+  sh "pax -waf #{release}.tar -s ':^:#{release}/:' SPEC ChangeLog doc rack.gemspec"
   sh "gzip -f -9 #{release}.tar"
 end
 
@@ -34,12 +31,12 @@ task :officialrelease do
   sh "mv stage/#{release}.tar.gz stage/#{release}.gem ."
 end
 
-task officialrelease_really: %w[spec dist gem] do
+task :officialrelease_really => %w[SPEC dist gem] do
   sh "shasum #{release}.tar.gz #{release}.gem"
 end
 
 def release
-  "rack-" + File.read('lib/rack/version.rb')[/RELEASE += +([\"\'])([\d][\w\.]+)\1/, 2]
+  "rack-" + File.read('lib/rack.rb')[/RELEASE += +([\"\'])([\d][\w\.]+)\1/, 2]
 end
 
 desc "Make binaries executable"
@@ -49,7 +46,7 @@ task :chmod do
 end
 
 desc "Generate a ChangeLog"
-task changelog: "ChangeLog"
+task :changelog => %w[ChangeLog]
 
 file '.git/index'
 file "ChangeLog" => '.git/index' do
@@ -71,59 +68,48 @@ file "ChangeLog" => '.git/index' do
   }
 end
 
-desc "Generate Rack Specification"
-task spec: "SPEC.rdoc"
-
 file 'lib/rack/lint.rb'
-file "SPEC.rdoc" => 'lib/rack/lint.rb' do
-  File.open("SPEC.rdoc", "wb") { |file|
+desc "Generate Rack Specification"
+file "SPEC" => 'lib/rack/lint.rb' do
+  File.open("SPEC", "wb") { |file|
     IO.foreach("lib/rack/lint.rb") { |line|
-      if line =~ /^\s*## ?(.*)/
+      if line =~ /## (.*)/
         file.puts $1
       end
     }
   }
 end
 
-Rake::TestTask.new("test:regular") do |t|
-  t.libs << "test"
-  t.test_files = FileList["test/**/*_test.rb", "test/**/spec_*.rb", "test/gemloader.rb"]
-  t.warning = false
-  t.verbose = true
-end
-
-desc "Run tests with coverage"
-task "test_cov" do
-  ENV['COVERAGE'] = '1'
-  Rake::Task['test:regular'].invoke
-end
-
 desc "Run all the fast + platform agnostic tests"
-task test: %w[spec test:regular]
+task :test => 'SPEC' do
+  opts     = ENV['TEST'] || ''
+  specopts = ENV['TESTOPTS']
+
+  sh "ruby -I./lib:./test -S minitest #{opts} #{specopts} test/gemloader.rb test/spec*.rb"
+end
 
 desc "Run all the tests we run on CI"
-task ci: :test
+task :ci => :test
 
-task gem: :spec do
+task :gem => ["SPEC"] do
   sh "gem build rack.gemspec"
 end
 
-task doc: :rdoc
-
+task :doc => :rdoc
 desc "Generate RDoc documentation"
-task rdoc: %w[changelog spec] do
+task :rdoc => %w[ChangeLog SPEC] do
   sh(*%w{rdoc --line-numbers --main README.rdoc
               --title 'Rack\ Documentation' --charset utf-8 -U -o doc} +
-              %w{README.rdoc KNOWN-ISSUES SPEC.rdoc ChangeLog} +
+              %w{README.rdoc KNOWN-ISSUES SPEC ChangeLog} +
               `git ls-files lib/\*\*/\*.rb`.strip.split)
   cp "contrib/rdoc.css", "doc/rdoc.css"
 end
 
-task pushdoc: :rdoc do
+task :pushdoc => %w[rdoc] do
   sh "rsync -avz doc/ rack.rubyforge.org:/var/www/gforge-projects/rack/doc/"
 end
 
-task pushsite: :pushdoc do
+task :pushsite => %w[pushdoc] do
   sh "cd site && git gc"
   sh "rsync -avz site/ rack.rubyforge.org:/var/www/gforge-projects/rack/"
   sh "cd site && git push"

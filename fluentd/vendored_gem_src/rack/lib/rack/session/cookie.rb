@@ -1,10 +1,9 @@
-# frozen_string_literal: true
-
 require 'openssl'
 require 'zlib'
-require_relative 'abstract/id'
+require 'rack/request'
+require 'rack/response'
+require 'rack/session/abstract/id'
 require 'json'
-require 'base64'
 
 module Rack
 
@@ -50,11 +49,11 @@ module Rack
       # Encode session cookies as Base64
       class Base64
         def encode(str)
-          ::Base64.strict_encode64(str)
+          [str].pack('m')
         end
 
         def decode(str)
-          ::Base64.decode64(str)
+          str.unpack('m').first
         end
 
         # Encode session cookies as Marshaled Base64 data
@@ -104,7 +103,7 @@ module Rack
 
       attr_reader :coder
 
-      def initialize(app, options = {})
+      def initialize(app, options={})
         @secrets = options.values_at(:secret, :old_secret).compact
         @hmac = options.fetch(:hmac, OpenSSL::Digest::SHA1)
 
@@ -117,8 +116,8 @@ module Rack
 
         Called from: #{caller[0]}.
         MSG
-        @coder = options[:coder] ||= Base64::Marshal.new
-        super(app, options.merge!(cookie_only: true))
+        @coder  = options[:coder] ||= Base64::Marshal.new
+        super(app, options.merge!(:cookie_only => true))
       end
 
       private
@@ -138,7 +137,9 @@ module Rack
           session_data = request.cookies[@key]
 
           if @secrets.size > 0 && session_data
-            session_data, _, digest = session_data.rpartition('--')
+            digest, session_data = session_data.reverse.split("--", 2)
+            digest.reverse! if digest
+            session_data.reverse! if session_data
             session_data = nil unless digest_match?(session_data, digest)
           end
 
@@ -146,7 +147,7 @@ module Rack
         end
       end
 
-      def persistent_session_id!(data, sid = nil)
+      def persistent_session_id!(data, sid=nil)
         data ||= {}
         data["session_id"] ||= sid || generate_sid
         data

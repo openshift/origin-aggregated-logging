@@ -1,7 +1,3 @@
-# frozen_string_literal: true
-
-require 'set'
-
 module Rack
   # Rack::URLMap takes a hash mapping urls or paths to apps, and
   # dispatches accordingly.  Support for HTTP/1.1 host names exists if
@@ -16,16 +12,17 @@ module Rack
   # first, since they are most specific.
 
   class URLMap
+    NEGATIVE_INFINITY = -1.0 / 0.0
+    INFINITY = 1.0 / 0.0
+
     def initialize(map = {})
       remap(map)
     end
 
     def remap(map)
-      @known_hosts = Set[]
       @mapping = map.map { |location, app|
         if location =~ %r{\Ahttps?://(.*?)(/.*)}
           host, location = $1, $2
-          @known_hosts << host
         else
           host = nil
         end
@@ -39,7 +36,7 @@ module Rack
 
         [host, location, match, app]
       }.sort_by do |(host, location, _, _)|
-        [host ? -host.size : Float::INFINITY, -location.size]
+        [host ? -host.size : INFINITY, -location.size]
       end
     end
 
@@ -53,13 +50,10 @@ module Rack
       is_same_server = casecmp?(http_host, server_name) ||
                        casecmp?(http_host, "#{server_name}:#{server_port}")
 
-      is_host_known = @known_hosts.include? http_host
-
       @mapping.each do |host, location, match, app|
         unless casecmp?(http_host, host) \
             || casecmp?(server_name, host) \
-            || (!host && is_same_server) \
-            || (!host && !is_host_known) # If we don't have a matching host, default to the first without a specified host
+            || (!host && is_same_server)
           next
         end
 
@@ -74,7 +68,7 @@ module Rack
         return app.call(env)
       end
 
-      [404, { CONTENT_TYPE => "text/plain", "X-Cascade" => "pass" }, ["Not Found: #{path}"]]
+      [404, {CONTENT_TYPE => "text/plain", "X-Cascade" => "pass"}, ["Not Found: #{path}"]]
 
     ensure
       env[PATH_INFO]   = path

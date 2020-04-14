@@ -1,11 +1,9 @@
-# frozen_string_literal: true
-
 # AUTHOR: blink <blinketje@gmail.com>; blink#ruby-lang@irc.freenode.net
 # THANKS:
 #   apeiros, for session id generation, expiry setup, and threadiness
 #   sergio, threadiness and bugreps
 
-require_relative 'abstract/id'
+require 'rack/session/abstract/id'
 require 'thread'
 
 module Rack
@@ -28,9 +26,9 @@ module Rack
 
     class Pool < Abstract::PersistedSecure
       attr_reader :mutex, :pool
-      DEFAULT_OPTIONS = Abstract::ID::DEFAULT_OPTIONS.merge drop: false
+      DEFAULT_OPTIONS = Abstract::ID::DEFAULT_OPTIONS.merge :drop => false
 
-      def initialize(app, options = {})
+      def initialize(app, options={})
         super
         @pool = Hash.new
         @mutex = Mutex.new

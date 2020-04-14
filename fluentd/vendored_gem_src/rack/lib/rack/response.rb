@@ -1,5 +1,7 @@
-# frozen_string_literal: true
-
+require 'rack/request'
+require 'rack/utils'
+require 'rack/body_proxy'
+require 'rack/media_type'
 require 'time'
 
 module Rack
@@ -15,57 +17,38 @@ module Rack
   # +write+ are synchronous with the Rack response.
   #
   # Your application's +call+ should end returning Response#finish.
+
   class Response
-    def self.[](status, headers, body)
-      self.new(body, status, headers)
-    end
-
-    CHUNKED = 'chunked'
-    STATUS_WITH_NO_ENTITY_BODY = Utils::STATUS_WITH_NO_ENTITY_BODY
-
     attr_accessor :length, :status, :body
-    attr_reader :headers
+    attr_reader :header
+    alias headers header
 
-    # @deprecated Use {#headers} instead.
-    alias header headers
+    CHUNKED = 'chunked'.freeze
 
-    # Initialize the response object with the specified body, status
-    # and headers.
-    #
-    # @param body [nil, #each, #to_str] the response body.
-    # @param status [Integer] the integer status as defined by the
-    # HTTP protocol RFCs.
-    # @param headers [#each] a list of key-value header pairs which
-    # conform to the HTTP protocol RFCs.
-    #
-    # Providing a body which responds to #to_str is legacy behaviour.
-    def initialize(body = nil, status = 200, headers = {})
+    def initialize(body=[], status=200, header={})
       @status = status.to_i
-      @headers = Utils::HeaderHash[headers]
+      @header = Utils::HeaderHash.new.merge(header)
 
-      @writer = self.method(:append)
+      @writer  = lambda { |x| @body << x }
+      @block   = nil
+      @length  = 0
 
-      @block = nil
+      @body = []
 
-      # Keep track of whether we have expanded the user supplied body.
-      if body.nil?
-        @body = []
-        @buffered = true
-        @length = 0
-      elsif body.respond_to?(:to_str)
-        @body = [body]
-        @buffered = true
-        @length = body.to_str.bytesize
+      if body.respond_to? :to_str
+        write body.to_str
+      elsif body.respond_to?(:each)
+        body.each { |part|
+          write part.to_s
+        }
       else
-        @body = body
-        @buffered = false
-        @length = 0
+        raise TypeError, "stringable or iterable required"
       end
 
-      yield self if block_given?
+      yield self  if block_given?
     end
 
-    def redirect(target, status = 302)
+    def redirect(target, status=302)
       self.status = status
       self.location = target
     end
@@ -74,49 +57,42 @@ module Rack
       CHUNKED == get_header(TRANSFER_ENCODING)
     end
 
-    # Generate a response array consistent with the requirements of the SPEC.
-    # @return [Array] a 3-tuple suitable of `[status, headers, body]`
-    # which is suitable to be returned from the middleware `#call(env)` method.
     def finish(&block)
-      if STATUS_WITH_NO_ENTITY_BODY[status.to_i]
+      @block = block
+
+      if [204, 304].include?(status.to_i)
         delete_header CONTENT_TYPE
         delete_header CONTENT_LENGTH
         close
-        return [@status, @headers, []]
+        [status.to_i, header, []]
       else
-        if block_given?
-          @block = block
-          return [@status, @headers, self]
-        else
-          return [@status, @headers, @body]
-        end
+        [status.to_i, header, BodyProxy.new(self){}]
       end
     end
-
     alias to_a finish           # For *response
+    alias to_ary finish         # For implicit-splat on Ruby 1.9.2
 
     def each(&callback)
       @body.each(&callback)
-      @buffered = true
-
-      if @block
-        @writer = callback
-        @block.call(self)
-      end
+      @writer = callback
+      @block.call(self)  if @block
     end
 
     # Append to body and update Content-Length.
     #
     # NOTE: Do not mix #write and direct #body access!
     #
-    def write(chunk)
-      buffered_body!
+    def write(str)
+      s = str.to_s
+      @length += s.bytesize unless chunked?
+      @writer.call s
 
-      @writer.call(chunk.to_s)
+      set_header(CONTENT_LENGTH, @length.to_s) unless chunked?
+      str
     end
 
     def close
-      @body.close if @body.respond_to?(:close)
+      body.close if body.respond_to?(:close)
     end
 
     def empty?
@@ -168,7 +144,7 @@ module Rack
       #   assert_equal 'Accept-Encoding,Cookie', response.get_header('Vary')
       #
       # http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
-      def add_header(key, v)
+      def add_header key, v
         if v.nil?
           get_header key
         elsif has_header? key
@@ -178,14 +154,8 @@ module Rack
         end
       end
 
-      # Get the content type of the response.
       def content_type
         get_header CONTENT_TYPE
-      end
-
-      # Set the content type of the response.
-      def content_type=(content_type)
-        set_header CONTENT_TYPE, content_type
       end
 
       def media_type
@@ -214,7 +184,7 @@ module Rack
         set_header SET_COOKIE, ::Rack::Utils.add_cookie_to_header(cookie_header, key, value)
       end
 
-      def delete_cookie(key, value = {})
+      def delete_cookie(key, value={})
         set_header SET_COOKIE, ::Rack::Utils.add_remove_cookie_to_header(get_header(SET_COOKIE), key, value)
       end
 
@@ -222,7 +192,7 @@ module Rack
         get_header SET_COOKIE
       end
 
-      def set_cookie_header=(v)
+      def set_cookie_header= v
         set_header SET_COOKIE, v
       end
 
@@ -230,69 +200,16 @@ module Rack
         get_header CACHE_CONTROL
       end
 
-      def cache_control=(v)
+      def cache_control= v
         set_header CACHE_CONTROL, v
-      end
-
-      # Specifies that the content shouldn't be cached. Overrides `cache!` if already called.
-      def do_not_cache!
-        set_header CACHE_CONTROL, "no-cache, must-revalidate"
-        set_header EXPIRES, Time.now.httpdate
-      end
-
-      # Specify that the content should be cached.
-      # @param duration [Integer] The number of seconds until the cache expires.
-      # @option directive [String] The cache control directive, one of "public", "private", "no-cache" or "no-store".
-      def cache!(duration = 3600, directive: "public")
-        unless headers[CACHE_CONTROL] =~ /no-cache/
-          set_header CACHE_CONTROL, "#{directive}, max-age=#{duration}"
-          set_header EXPIRES, (Time.now + duration).httpdate
-        end
       end
 
       def etag
         get_header ETAG
       end
 
-      def etag=(v)
+      def etag= v
         set_header ETAG, v
-      end
-
-    protected
-
-      def buffered_body!
-        return if @buffered
-
-        if @body.is_a?(Array)
-          # The user supplied body was an array:
-          @body = @body.compact
-          @body.each do |part|
-            @length += part.to_s.bytesize
-          end
-        else
-          # Turn the user supplied body into a buffered array:
-          body = @body
-          @body = Array.new
-
-          body.each do |part|
-            @writer.call(part.to_s)
-          end
-
-          body.close if body.respond_to?(:close)
-        end
-
-        @buffered = true
-      end
-
-      def append(chunk)
-        @body << chunk
-
-        unless chunked?
-          @length += chunk.bytesize
-          set_header(CONTENT_LENGTH, @length.to_s)
-        end
-
-        return chunk
       end
     end
 
@@ -304,7 +221,7 @@ module Rack
       attr_reader :headers
       attr_accessor :status
 
-      def initialize(status, headers)
+      def initialize status, headers
         @status = status
         @headers = headers
       end

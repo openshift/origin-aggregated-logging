@@ -29,7 +29,6 @@ module RemoteSyslogSender
       @packet.facility = options[:facility] || 'user'
       @packet.severity = options[:severity] || 'notice'
       @packet.tag      = options[:tag] || options[:program]  || "#{File.basename($0)}[#{$$}]"
-      @packet.rfc      = options[:rfc] || :rfc5424
 
       @socket = nil
     end
@@ -41,7 +40,6 @@ module RemoteSyslogSender
           packet = @packet.dup
           if packet_options
             packet.tag = packet_options[:program] if packet_options[:program]
-            packet.rfc = packet_options[:rfc] if packet_options[:rfc]
             packet.hostname = packet_options[:local_hostname] if packet_options[:local_hostname]
             %i(hostname facility severity tag).each do |key|
               packet.send("#{key}=", packet_options[key]) if packet_options[key]

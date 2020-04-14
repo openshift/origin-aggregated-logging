@@ -1,5 +1,4 @@
-# frozen_string_literal: true
-
+require 'rack/utils'
 require 'forwardable'
 
 module Rack
@@ -34,7 +33,7 @@ module Rack
 
     ## A Rack application is a Ruby object (not a class) that
     ## responds to +call+.
-    def call(env = nil)
+    def call(env=nil)
       dup._call(env)
     end
 
@@ -47,24 +46,13 @@ module Rack
       env[RACK_ERRORS] = ErrorWrapper.new(env[RACK_ERRORS])
 
       ## and returns an Array of exactly three values:
-      ary = @app.call(env)
-      assert("response #{ary.inspect} is not an Array , but #{ary.class}") {
-        ary.kind_of? Array
-      }
-      assert("response array #{ary.inspect} has #{ary.size} elements instead of 3") {
-        ary.size == 3
-      }
-
-      status, headers, @body = ary
+      status, headers, @body = @app.call(env)
       ## The *status*,
       check_status status
       ## the *headers*,
       check_headers headers
 
-      hijack_proc = check_hijack_response headers, env
-      if hijack_proc && headers.is_a?(Hash)
-        headers[RACK_HIJACK] = hijack_proc
-      end
+      check_hijack_response headers, env
 
       ## and the *body*.
       check_content_type status, headers
@@ -75,14 +63,11 @@ module Rack
 
     ## == The Environment
     def check_env(env)
-      ## The environment must be an unfrozen instance of Hash that includes
+      ## The environment must be an instance of Hash that includes
       ## CGI-like headers.  The application is free to modify the
       ## environment.
       assert("env #{env.inspect} is not a Hash, but #{env.class}") {
         env.kind_of? Hash
-      }
-      assert("env should not be frozen, but is") {
-        !env.frozen?
       }
 
       ##
@@ -117,19 +102,17 @@ module Rack
       ##                         follows the <tt>?</tt>, if any. May be
       ##                         empty, but is always required!
 
-      ## <tt>SERVER_NAME</tt>:: When combined with <tt>SCRIPT_NAME</tt> and
+      ## <tt>SERVER_NAME</tt>, <tt>SERVER_PORT</tt>::
+      ##                        When combined with <tt>SCRIPT_NAME</tt> and
       ##                        <tt>PATH_INFO</tt>, these variables can be
       ##                        used to complete the URL. Note, however,
       ##                        that <tt>HTTP_HOST</tt>, if present,
       ##                        should be used in preference to
       ##                        <tt>SERVER_NAME</tt> for reconstructing
       ##                        the request URL.
-      ##                        <tt>SERVER_NAME</tt> can never be an empty
-      ##                        string, and so is always required.
-
-      ## <tt>SERVER_PORT</tt>:: An optional +Integer+ which is the port the
-      ##                        server is running on. Should be specified if
-      ##                        the server is running on a non-standard port.
+      ##                        <tt>SERVER_NAME</tt> and <tt>SERVER_PORT</tt>
+      ##                        can never be empty strings, and so
+      ##                        are always required.
 
       ## <tt>HTTP_</tt> Variables:: Variables corresponding to the
       ##                            client-supplied HTTP request
@@ -140,8 +123,9 @@ module Rack
       ##                            the presence or absence of the
       ##                            appropriate HTTP header in the
       ##                            request. See
-      ##                            {RFC3875 section 4.1.18}[https://tools.ietf.org/html/rfc3875#section-4.1.18]
-      ##                            for specific behavior.
+      ##                            <a href="https://tools.ietf.org/html/rfc3875#section-4.1.18">
+      ##                            RFC3875 section 4.1.18</a> for
+      ##                            specific behavior.
 
       ## In addition to this, the Rack environment must include these
       ## Rack-specific variables:
@@ -213,11 +197,6 @@ module Rack
         assert("session #{session.inspect} must respond to clear") {
           session.respond_to?(:clear)
         }
-
-        ##                         to_hash (returning unfrozen Hash instance);
-        assert("session #{session.inspect} must respond to to_hash and return unfrozen Hash instance") {
-          session.respond_to?(:to_hash) && session.to_hash.kind_of?(Hash) && !session.to_hash.frozen?
-        }
       end
 
       ## <tt>rack.logger</tt>:: A common object interface for logging messages.
@@ -273,48 +252,27 @@ module Rack
       ## accepted specifications and must not be used otherwise.
       ##
 
-      %w[REQUEST_METHOD SERVER_NAME QUERY_STRING
+      %w[REQUEST_METHOD SERVER_NAME SERVER_PORT
+         QUERY_STRING
          rack.version rack.input rack.errors
          rack.multithread rack.multiprocess rack.run_once].each { |header|
         assert("env missing required key #{header}") { env.include? header }
       }
 
-      ## The <tt>SERVER_PORT</tt> must be an Integer if set.
-      assert("env[SERVER_PORT] is not an Integer") do
-        server_port = env["SERVER_PORT"]
-        server_port.nil? || (Integer(server_port) rescue false)
-      end
-
-      ## The <tt>SERVER_NAME</tt> must be a valid authority as defined by RFC7540.
-      assert("#{env[SERVER_NAME]} must be a valid authority") do
-        URI.parse("http://#{env[SERVER_NAME]}/") rescue false
-      end
-
-      ## The <tt>HTTP_HOST</tt> must be a valid authority as defined by RFC7540.
-      assert("#{env[HTTP_HOST]} must be a valid authority") do
-        URI.parse("http://#{env[HTTP_HOST]}/") rescue false
-      end
-
       ## The environment must not contain the keys
       ## <tt>HTTP_CONTENT_TYPE</tt> or <tt>HTTP_CONTENT_LENGTH</tt>
       ## (use the versions without <tt>HTTP_</tt>).
       %w[HTTP_CONTENT_TYPE HTTP_CONTENT_LENGTH].each { |header|
-        assert("env contains #{header}, must use #{header[5, -1]}") {
+        assert("env contains #{header}, must use #{header[5,-1]}") {
           not env.include? header
         }
       }
 
       ## The CGI keys (named without a period) must have String values.
-      ## If the string values for CGI keys contain non-ASCII characters,
-      ## they should use ASCII-8BIT encoding.
       env.each { |key, value|
         next  if key.include? "."   # Skip extensions
         assert("env variable #{key} has non-string value #{value.inspect}") {
           value.kind_of? String
-        }
-        next if value.encoding == Encoding::ASCII_8BIT
-        assert("env variable #{key} has value containing non-ASCII characters and has non-ASCII-8BIT encoding #{value.inspect} encoding: #{value.encoding}") {
-          value.b !~ /[\x80-\xff]/n
         }
       }
 
@@ -378,7 +336,7 @@ module Rack
       ## When applicable, its external encoding must be "ASCII-8BIT" and it
       ## must be opened in binary mode, for Ruby 1.9 compatibility.
       assert("rack.input #{input} does not have ASCII-8BIT as its external encoding") {
-        input.external_encoding == Encoding::ASCII_8BIT
+        input.external_encoding.name == "ASCII-8BIT"
       } if input.respond_to?(:external_encoding)
       assert("rack.input #{input} is not opened in binary mode") {
         input.binmode?
@@ -610,7 +568,7 @@ module Rack
 
       # this check uses headers like a hash, but the spec only requires
       # headers respond to #each
-      headers = Rack::Utils::HeaderHash[headers]
+      headers = Rack::Utils::HeaderHash.new(headers)
 
       ## In order to do this, an application may set the special header
       ## <tt>rack.hijack</tt> to an object that responds to <tt>call</tt>
@@ -634,7 +592,7 @@ module Rack
           headers[RACK_HIJACK].respond_to? :call
         }
         original_hijack = headers[RACK_HIJACK]
-        proc do |io|
+        headers[RACK_HIJACK] = proc do |io|
           original_hijack.call HijackWrapper.new(io)
         end
       else
@@ -644,8 +602,6 @@ module Rack
         assert('rack.hijack header must not be present if server does not support hijacking') {
           headers[RACK_HIJACK].nil?
         }
-
-        nil
       end
     end
     ## ==== Conventions
@@ -670,17 +626,15 @@ module Rack
       assert("headers object should respond to #each, but doesn't (got #{header.class} as headers)") {
          header.respond_to? :each
       }
-
       header.each { |key, value|
-        ## The header keys must be Strings.
-        assert("header key must be a string, was #{key.class}") {
-          key.kind_of? String
-        }
-
         ## Special headers starting "rack." are for communicating with the
         ## server, and must not be sent back to the client.
         next if key =~ /^rack\..+$/
 
+        ## The header keys must be Strings.
+        assert("header key must be a string, was #{key.class}") {
+          key.kind_of? String
+        }
         ## The header must not contain a +Status+ key.
         assert("header must not contain Status") { key.downcase != "status" }
         ## The header must conform to RFC7230 token specification, i.e. cannot
@@ -708,7 +662,7 @@ module Rack
         ## 204 or 304.
         if key.downcase == "content-type"
           assert("Content-Type header found in #{status} response, not allowed") {
-            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.key? status.to_i
+            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.include? status.to_i
           }
           return
         end
@@ -722,7 +676,7 @@ module Rack
           ## There must not be a <tt>Content-Length</tt> header when the
           ## +Status+ is 1xx, 204 or 304.
           assert("Content-Length header found in #{status} response, not allowed") {
-            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.key? status.to_i
+            not Rack::Utils::STATUS_WITH_NO_ENTITY_BODY.include? status.to_i
           }
           @content_length = value
         end

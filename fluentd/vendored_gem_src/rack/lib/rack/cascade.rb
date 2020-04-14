@@ -1,38 +1,24 @@
-# frozen_string_literal: true
-
 module Rack
   # Rack::Cascade tries a request on several apps, and returns the
-  # first response that is not 404 or 405 (or in a list of configured
-  # status codes).  If all applications tried return one of the configured
-  # status codes, return the last response.
+  # first response that is not 404 or 405 (or in a list of configurable
+  # status codes).
 
   class Cascade
-    # deprecated, no longer used
-    NotFound = [404, { CONTENT_TYPE => "text/plain" }, []]
+    NotFound = [404, {CONTENT_TYPE => "text/plain"}, []]
 
-    # An array of applications to try in order.
     attr_reader :apps
 
-    # Set the apps to send requests to, and what statuses result in
-    # cascading.  Arguments:
-    #
-    # apps: An enumerable of rack applications.
-    # cascade_for: The statuses to use cascading for.  If a response is received
-    #              from an app, the next app is tried.
-    def initialize(apps, cascade_for = [404, 405])
-      @apps = []
+    def initialize(apps, catch=[404, 405])
+      @apps = []; @has_app = {}
       apps.each { |app| add app }
 
-      @cascade_for = {}
-      [*cascade_for].each { |status| @cascade_for[status] = true }
+      @catch = {}
+      [*catch].each { |status| @catch[status] = true }
     end
 
-    # Call each app in order.  If the responses uses a status that requires
-    # cascading, try the next app.  If all responses require cascading,
-    # return the response from the last app.
     def call(env)
-      return [404, { CONTENT_TYPE => "text/plain" }, []] if @apps.empty?
-      result = nil
+      result = NotFound
+
       last_body = nil
 
       @apps.each do |app|
@@ -45,22 +31,20 @@ module Rack
         last_body.close if last_body.respond_to? :close
 
         result = app.call(env)
-        return result unless @cascade_for.include?(result[0].to_i)
         last_body = result[2]
+        break unless @catch.include?(result[0].to_i)
       end
 
       result
     end
 
-    # Append an app to the list of apps to cascade.  This app will
-    # be tried last.
     def add(app)
+      @has_app[app] = true
       @apps << app
     end
 
-    # Whether the given app is one of the apps to cascade to.
     def include?(app)
-      @apps.include?(app)
+      @has_app.include? app
     end
 
     alias_method :<<, :add

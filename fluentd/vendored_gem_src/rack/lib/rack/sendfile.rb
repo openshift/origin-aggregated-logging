@@ -1,4 +1,5 @@
-# frozen_string_literal: true
+require 'rack/file'
+require 'rack/body_proxy'
 
 module Rack
 
@@ -13,7 +14,7 @@ module Rack
   #
   # In order to take advantage of this middleware, the response body must
   # respond to +to_path+ and the request must include an X-Sendfile-Type
-  # header. Rack::Files and other components implement +to_path+ so there's
+  # header. Rack::File and other components implement +to_path+ so there's
   # rarely anything you need to do in your application. The X-Sendfile-Type
   # header is typically set in your web servers configuration. The following
   # sections attempt to document
@@ -52,7 +53,7 @@ module Rack
   # that it maps to. The middleware performs a simple substitution on the
   # resulting path.
   #
-  # See Also: https://www.nginx.com/resources/wiki/start/topics/examples/xsendfile
+  # See Also: http://wiki.codemongers.com/NginxXSendfile
   #
   # === lighttpd
   #
@@ -98,7 +99,7 @@ module Rack
   # will be matched with case indifference.
 
   class Sendfile
-    def initialize(app, variation = nil, mappings = [])
+    def initialize(app, variation=nil, mappings=[])
       @app = app
       @variation = variation
       @mappings = mappings.map do |internal, external|
@@ -114,8 +115,7 @@ module Rack
           path = ::File.expand_path(body.to_path)
           if url = map_accel_path(env, path)
             headers[CONTENT_LENGTH] = '0'
-            # '?' must be percent-encoded because it is not query string but a part of path
-            headers[type] = ::Rack::Utils.escape_path(url).gsub('?', '%3F')
+            headers[type] = url
             obody = body
             body = Rack::BodyProxy.new([]) do
               obody.close if obody.respond_to?(:close)
@@ -147,15 +147,11 @@ module Rack
     end
 
     def map_accel_path(env, path)
-      if mapping = @mappings.find { |internal, _| internal =~ path }
+      if mapping = @mappings.find { |internal,_| internal =~ path }
         path.sub(*mapping)
       elsif mapping = env['HTTP_X_ACCEL_MAPPING']
-        mapping.split(',').map(&:strip).each do |m|
-          internal, external = m.split('=', 2).map(&:strip)
-          new_path = path.sub(/^#{internal}/i, external)
-          return new_path unless path == new_path
-        end
-        path
+        internal, external = mapping.split('=', 2).map(&:strip)
+        path.sub(/^#{internal}/i, external)
       end
     end
   end

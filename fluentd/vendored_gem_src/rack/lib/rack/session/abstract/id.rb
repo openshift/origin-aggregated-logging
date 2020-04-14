@@ -1,10 +1,10 @@
-# frozen_string_literal: true
-
 # AUTHOR: blink <blinketje@gmail.com>; blink#ruby-lang@irc.freenode.net
 # bugrep: Andreas Zehnder
 
-require_relative '../../../rack'
+require 'rack'
 require 'time'
+require 'rack/request'
+require 'rack/response'
 require 'securerandom'
 require 'digest/sha2'
 
@@ -84,12 +84,7 @@ module Rack
           @data[key.to_s]
         end
 
-        def dig(key, *keys)
-          load_for_read!
-          @data.dig(key.to_s, *keys)
-        end
-
-        def fetch(key, default = Unspecified, &block)
+        def fetch(key, default=Unspecified, &block)
           load_for_read!
           if default == Unspecified
             @data.fetch(key.to_s, &block)
@@ -192,9 +187,8 @@ module Rack
         end
 
         def stringify_keys(other)
-          # Use transform_keys after dropping Ruby 2.4 support
           hash = {}
-          other.to_hash.each do |key, value|
+          other.each do |key, value|
             hash[key.to_s] = value
           end
           hash
@@ -203,8 +197,8 @@ module Rack
 
       # ID sets up a basic framework for implementing an id based sessioning
       # service. Cookies sent to the client for maintaining sessions will only
-      # contain an id reference. Only #find_session, #write_session and
-      # #delete_session are required to be overwritten.
+      # contain an id reference. Only #find_session and #write_session are
+      # required to be overwritten.
       #
       # All parameters are optional.
       # * :key determines the name of the cookie, by default it is
@@ -232,27 +226,26 @@ module Rack
 
       class Persisted
         DEFAULT_OPTIONS = {
-          key: RACK_SESSION,
-          path: '/',
-          domain: nil,
-          expire_after: nil,
-          secure: false,
-          httponly: true,
-          defer: false,
-          renew: false,
-          sidbits: 128,
-          cookie_only: true,
-          secure_random: ::SecureRandom
+          :key =>           RACK_SESSION,
+          :path =>          '/',
+          :domain =>        nil,
+          :expire_after =>  nil,
+          :secure =>        false,
+          :httponly =>      true,
+          :defer =>         false,
+          :renew =>         false,
+          :sidbits =>       128,
+          :cookie_only =>   true,
+          :secure_random => ::SecureRandom
         }.freeze
 
         attr_reader :key, :default_options, :sid_secure
 
-        def initialize(app, options = {})
+        def initialize(app, options={})
           @app = app
           @default_options = self.class::DEFAULT_OPTIONS.merge(options)
           @key = @default_options.delete(:key)
           @cookie_only = @default_options.delete(:cookie_only)
-          @same_site = @default_options.delete(:same_site)
           initialize_sid
         end
 
@@ -260,7 +253,7 @@ module Rack
           context(env)
         end
 
-        def context(env, app = @app)
+        def context(env, app=@app)
           req = make_request env
           prepare_session(req)
           status, headers, body = app.call(req.env)
@@ -383,7 +376,7 @@ module Rack
 
           session.send(:load!) unless loaded_session?(session)
           session_id ||= session.id
-          session_data = session.to_hash.delete_if { |k, v| v.nil? }
+          session_data = session.to_hash.delete_if { |k,v| v.nil? }
 
           if not data = write_session(req, session_id, session_data, options)
             req.get_header(RACK_ERRORS).puts("Warning! #{self.class.name} failed to save session. Content dropped.")
@@ -394,12 +387,6 @@ module Rack
             cookie[:value] = cookie_value(data)
             cookie[:expires] = Time.now + options[:expire_after] if options[:expire_after]
             cookie[:expires] = Time.now + options[:max_age] if options[:max_age]
-
-            if @same_site.respond_to? :call
-              cookie[:same_site] = @same_site.call(req, res)
-            else
-              cookie[:same_site] = @same_site
-            end
             set_cookie(req, res, cookie.merge!(options))
           end
         end

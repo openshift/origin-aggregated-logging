@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
-# Copyright (C) 2009-2018 Michael Fellinger <m.fellinger@gmail.com>
-# Rack::Reloader is subject to the terms of an MIT-style license.
-# See MIT-LICENSE or https://opensource.org/licenses/MIT.
+#          Copyright (c) 2009 Michael Fellinger m.fellinger@gmail.com
+#       Rack::Reloader is subject to the terms of an MIT-style license.
+#      See COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 require 'pathname'
 
@@ -22,8 +20,6 @@ module Rack
   # It is performing a check/reload cycle at the start of every request, but
   # also respects a cool down time, during which nothing will be done.
   class Reloader
-    (require_relative 'core_ext/regexp'; using ::Rack::RegexpExtensions) if RUBY_VERSION < '2.4'
-
     def initialize(app, cooldown = 10, backend = Stat)
       @app = app
       @cooldown = cooldown
@@ -73,7 +69,7 @@ module Rack
         paths = ['./', *$LOAD_PATH].uniq
 
         files.map{|file|
-          next if /\.(so|bundle)$/.match?(file) # cannot reload compiled files
+          next if file =~ /\.(so|bundle)$/ # cannot reload compiled files
 
           found, stat = figure_path(file, paths)
           next unless found && stat && mtime = stat.mtime

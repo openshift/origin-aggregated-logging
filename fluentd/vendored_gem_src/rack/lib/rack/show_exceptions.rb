@@ -1,7 +1,7 @@
-# frozen_string_literal: true
-
 require 'ostruct'
 require 'erb'
+require 'rack/request'
+require 'rack/utils'
 
 module Rack
   # Rack::ShowExceptions catches all exceptions raised from the app it
@@ -55,7 +55,7 @@ module Rack
     private :accepts_html?
 
     def dump_exception(exception)
-      string = "#{exception.class}: #{exception.message}\n".dup
+      string = "#{exception.class}: #{exception.message}\n"
       string << exception.backtrace.map { |l| "\t#{l}" }.join("\n")
       string
     end
@@ -63,12 +63,12 @@ module Rack
     def pretty(env, exception)
       req = Rack::Request.new(env)
 
-      # This double assignment is to prevent an "unused variable" warning.
-      # Yes, it is dumb, but I don't like Ruby yelling at me.
+      # This double assignment is to prevent an "unused variable" warning on
+      # Ruby 1.9.3.  Yes, it is dumb, but I don't like Ruby yelling at me.
       path = path = (req.script_name + req.path_info).squeeze("/")
 
-      # This double assignment is to prevent an "unused variable" warning.
-      # Yes, it is dumb, but I don't like Ruby yelling at me.
+      # This double assignment is to prevent an "unused variable" warning on
+      # Ruby 1.9.3.  Yes, it is dumb, but I don't like Ruby yelling at me.
       frames = frames = exception.backtrace.map { |line|
         frame = OpenStruct.new
         if line =~ /(.*?):(\d+)(:in `(.*)')?/
@@ -77,13 +77,13 @@ module Rack
           frame.function = $4
 
           begin
-            lineno = frame.lineno - 1
+            lineno = frame.lineno-1
             lines = ::File.readlines(frame.filename)
-            frame.pre_context_lineno = [lineno - CONTEXT, 0].max
+            frame.pre_context_lineno = [lineno-CONTEXT, 0].max
             frame.pre_context = lines[frame.pre_context_lineno...lineno]
             frame.context_line = lines[lineno].chomp
-            frame.post_context_lineno = [lineno + CONTEXT, lines.size].min
-            frame.post_context = lines[lineno + 1..frame.post_context_lineno]
+            frame.post_context_lineno = [lineno+CONTEXT, lines.size].min
+            frame.post_context = lines[lineno+1..frame.post_context_lineno]
           rescue
           end
 
@@ -93,11 +93,7 @@ module Rack
         end
       }.compact
 
-      template.result(binding)
-    end
-
-    def template
-      TEMPLATE
+      TEMPLATE.result(binding)
     end
 
     def h(obj)                  # :nodoc:
@@ -111,8 +107,8 @@ module Rack
 
     # :stopdoc:
 
-    # adapted from Django <www.djangoproject.com>
-    # Copyright (c) Django Software Foundation and individual contributors.
+    # adapted from Django <djangoproject.com>
+    # Copyright (c) 2005, the Lawrence Journal-World
     # Used under the modified BSD license:
     # http://www.xfree86.org/3.3.6/COPYRIGHT2.html#5
     TEMPLATE = ERB.new(<<-'HTML'.gsub(/^      /, ''))
@@ -311,7 +307,7 @@ module Rack
         <% end %>
 
         <h3 id="post-info">POST</h3>
-        <% if ((req.POST and not req.POST.empty?) rescue (no_post_data = "Invalid POST data"; nil)) %>
+        <% if req.POST and not req.POST.empty? %>
           <table class="req">
             <thead>
               <tr>
@@ -329,7 +325,7 @@ module Rack
             </tbody>
           </table>
         <% else %>
-          <p><%= no_post_data || "No POST data" %>.</p>
+          <p>No POST data.</p>
         <% end %>
 
 
@@ -367,7 +363,7 @@ module Rack
                 <% env.sort_by { |k, v| k.to_s }.each { |key, val| %>
                 <tr>
                   <td><%=h key %></td>
-                  <td class="code"><div><%=h val.inspect %></div></td>
+                  <td class="code"><div><%=h val %></div></td>
                 </tr>
                 <% } %>
             </tbody>
