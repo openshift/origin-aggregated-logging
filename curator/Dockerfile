@@ -23,7 +23,7 @@ LABEL io.k8s.description="Curator elasticsearch container for elasticsearch dele
 
 
 RUN yum install -y --setopt=tsflags=nodocs \
-        python-pip \
+        python2-pip \
         python2-ruamel-yaml && \
     yum clean all
 
