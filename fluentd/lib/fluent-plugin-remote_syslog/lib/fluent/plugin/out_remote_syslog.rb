@@ -17,6 +17,9 @@ module Fluent
       config_param :severity, :string, :default => "notice"
       config_param :program, :string, :default => "fluentd"
       config_param :rfc, :enum, list: [:rfc3164, :rfc5424], :default => :rfc5424
+      config_param :appname, :string, :default => nil
+      config_param :procid, :string, :default => nil
+      config_param :msgid, :string, :default => nil
 
       config_param :protocol, :enum, list: [:udp, :tcp], :default => :udp
       config_param :tls, :bool, :default => false
@@ -57,9 +60,11 @@ module Fluent
           raise ConfigError, "formatter_type must be text_per_line formatter"
         end
 
-        validate_target = "host=#{@host}/host_with_port=#{@host_with_port}/hostname=#{@hostname}/facility=#{@facility}/severity=#{@severity}/program=#{@program}"
+        validate_target = "host=#{@host}/host_with_port=#{@host_with_port}/hostname=#{@hostname}/facility=#{@facility}/severity=#{@severity}/program=#{@program}/appname=#{@appname}/procid=#{@procid}/msgid=#{@msgid}"
         placeholder_validate!(:remote_syslog, validate_target)
+
         @senders = []
+
       end
 
       def multi_workers_ready?
@@ -93,13 +98,29 @@ module Fluent
         sender = Thread.current[host_with_port]
 
         facility = extract_placeholders(@facility, chunk.metadata)
+        facility = sanitize_facility(facility)
         severity = extract_placeholders(@severity, chunk.metadata)
+        severity = sanitize_severity(severity)
         program = extract_placeholders(@program, chunk.metadata)
         hostname = extract_placeholders(@hostname, chunk.metadata)
 
         packet_options = {facility: facility, severity: severity, program: program}
+        packet_options[:faciity] = 'user' if packet_options[:facility].nil? ||  packet_options[:facility].strip.empty?
+        packet_options[:severity] = 'notice' if packet_options[:severity].nil? ||  packet_options[:severity].strip.empty?
+
         packet_options[:hostname] = hostname unless hostname.empty?
         packet_options[:rfc] = @rfc
+        if @rfc == :rfc3164
+          packet_options[:program] = program
+        end
+        if @rfc == :rfc5424
+          appname = extract_placeholders(@appname, chunk.metadata) unless @appname == nil || @appname.length == 0
+          packet_options[:appname] = appname unless appname == nil || appname.length == 0
+          procid = extract_placeholders(@procid, chunk.metadata) unless @procid == nil || @procid.length == 0 
+          packet_options[:procid] = procid unless procid == nil || procid.length == 0
+          msgid = extract_placeholders(@msgid, chunk.metadata) unless @msgid == nil || @msgid.length == 0
+          packet_options[:msgid] = msgid unless msgid == nil || msgid.length == 0
+        end
 
         begin
           chunk.open do |io|
@@ -118,6 +139,46 @@ module Fluent
       end
 
       private
+
+      # To create a mapping between https://en.wikipedia.org/wiki/Syslog#Facility_Levels
+      # and string values supported by syslog_protocol plugin
+      def sanitize_facility(facility)
+        new_facility = facility.downcase
+        case facility.downcase
+        when "security"
+          new_facility = "audit"
+        when "console"
+          new_facility = "alert"
+        when "solaris-cron"
+          new_facility = "at"
+        end
+        new_facility
+      end
+
+      # To create a mapping between https://tools.ietf.org/html/rfc5424#section-6.2.1
+      # and string values supported by syslog_protocol plugin
+      def sanitize_severity(severity)
+        new_severity = severity.downcase
+        case severity.downcase
+        when "emergency"
+          new_severity = "emerg"
+        when "alert"
+          new_severity = "alert"
+        when "critical"
+          new_severity = "crit"
+        when "error"
+          new_severity = "err"
+        when "warning"
+          new_severity = "warn"
+        when "notice"
+          new_severity = "notice"
+        when "informational"
+          new_severity = "info"
+        when "debug"
+          new_severity = "debug"
+        end
+        new_severity
+      end
 
       def create_sender(host, port)
         if @protocol == :tcp

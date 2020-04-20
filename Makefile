@@ -32,11 +32,7 @@ build-curator-image:
 	hack/build-component-image.sh "curator" $(CURATOR_IMAGE)
 .PHONY: build-curator-image
 
-build-all-images:
-	build-fluentd-image
-	build-kibana-image
-	build-elasticsearch-image
-	build-curator-image
+build-all-images: build-fluentd-image build-kibana-image build-elasticsearch-image build-curator-image
 .PHONY: build-all-images
 
 deploy-fluentd-image: build-fluentd-image
@@ -55,9 +51,5 @@ deploy-curator-image: build-curator-image
 	hack/deploy-component-image.sh $(CURATOR_IMAGE)
 .PHONY: deploy-curator-image
 
-deploy-all-images:
-	deploy-fluentd-image
-	deploy-kibana-image
-	deploy-elasticsearch-image
-	deploy-curator-image
+deploy-all-images: deploy-fluentd-image deploy-kibana-image deploy-elasticsearch-image deploy-curator-image
 .PHONY: deploy-all-images

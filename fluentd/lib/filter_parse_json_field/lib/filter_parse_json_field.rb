@@ -28,6 +28,7 @@ module Fluent::Plugin
 
     config_param :merge_json_log, :bool, default: true
     config_param :preserve_json_log, :bool, default: true
+    config_param :replace_json_log, :bool, default: false
     config_param :json_fields, :array, default: ['MESSAGE', 'log']
 
     def initialize
@@ -39,29 +40,51 @@ module Fluent::Plugin
     end
 
     def filter_stream(tag, es)
-      return es unless @merge_json_log
-
+      return es unless @merge_json_log || @replace_json_log
       new_es = Fluent::MultiEventStream.new
-
-      es.each { |time, record|
-        record = do_merge_json_log(record)
-
-        new_es.add(time, record)
-      }
-
+      if @merge_json_log
+        es.each { |time, record|
+          record = do_merge_json_log(record)
+          new_es.add(time, record)
+        }
+      elsif @replace_json_log
+        es.each { |time, record|
+          record = do_replace_json_log(record)
+          new_es.add(time, record)
+        }
+      end
       new_es
+
     end
 
     def do_merge_json_log(record)
       json_fields.each do |merge_json_log_key|
         if record.has_key?(merge_json_log_key)
           value = record[merge_json_log_key].strip
-          if value[0].eql?('{') && value[-1].eql?('}')
+          if value.start_with?('{') && value.end_with?('}')
             begin
               record = JSON.parse(value).merge(record)
               unless @preserve_json_log
                 record.delete(merge_json_log_key)
               end
+            rescue JSON::ParserError
+              log.debug "parse_json_field could not parse field [#{merge_json_log_key}] as JSON: value [#{value}]"
+            end
+          end
+          break
+        end
+      end
+      record
+    end
+
+    def do_replace_json_log(record)
+      json_fields.each do |merge_json_log_key|
+        if record.has_key?(merge_json_log_key)
+          value = record[merge_json_log_key].strip
+          if value.start_with?('{') && value.end_with?('}')
+            begin
+              parsed_value = JSON.parse(value)
+              record[merge_json_log_key] = parsed_value
             rescue JSON::ParserError
               log.debug "parse_json_field could not parse field [#{merge_json_log_key}] as JSON: value [#{value}]"
             end

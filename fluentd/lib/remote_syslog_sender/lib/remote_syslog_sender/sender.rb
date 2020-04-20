@@ -41,10 +41,16 @@ module RemoteSyslogSender
           packet = @packet.dup
           if packet_options
             packet.tag = packet_options[:program] if packet_options[:program]
-            packet.rfc = packet_options[:rfc] if packet_options[:rfc]
             packet.hostname = packet_options[:local_hostname] if packet_options[:local_hostname]
-            %i(hostname facility severity tag).each do |key|
-              packet.send("#{key}=", packet_options[key]) if packet_options[key]
+            packet.rfc = packet_options[:rfc] if packet_options[:rfc]
+            if packet.rfc == :rfc5424
+              %i(hostname facility severity appname msgid procid).each do |key|
+                packet.send("#{key}=", packet_options[key]) if packet_options[key]
+              end
+            else
+              %i(hostname facility severity tag).each do |key|
+                packet.send("#{key}=", packet_options[key]) if packet_options[key]
+              end
             end
           end
           packet.content = line

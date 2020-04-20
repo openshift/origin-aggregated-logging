@@ -124,6 +124,16 @@ class ParseJsonFieldFilterTest < Test::Unit::TestCase
       assert_equal(nil, rec['m'])
       assert_equal(nil, rec['n'])
     end
+    test 'replace json field' do
+      json_string_val = '{"a":{"b":"c"},"d":["e","f"],"g":97,"h":{"i":"j"}}'
+      orig_a_value = 'orig a value'
+      rec = emit_with_tag('tag', {'message'=>json_string_val, 'a'=>orig_a_value},'
+        merge_json_log false
+        replace_json_log true
+        json_fields message
+      ')
+      assert_equal({'a'=>{'b'=>'c'}, 'd'=>['e', 'f'], 'g'=>97, 'h'=>{'i'=>'j'}}, rec['message'])
+    end
     test 'no fallback if parsing error in given field' do
       # test that - skip1 is skipped, skip2 is attempted to parse and fail
       # jsonfield is skipped - message is logged at debug level

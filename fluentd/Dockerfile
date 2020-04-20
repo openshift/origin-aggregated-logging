@@ -54,6 +54,9 @@ ADD source.jemalloc /source.jemalloc
 RUN bash -c '. /source.jemalloc; echo jemalloc $JEMALLOC_VER >> /contents'
 
 ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
+ADD lib/fluent-plugin-remote_syslog/ ${HOME}/vendored_gem_src/fluent-plugin-remote_syslog/
+ADD lib/remote_syslog_sender/        ${HOME}/vendored_gem_src/remote_syslog_sender/
+ADD lib/syslog_protocol/             ${HOME}/vendored_gem_src/syslog_protocol/
 ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
 
 RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
