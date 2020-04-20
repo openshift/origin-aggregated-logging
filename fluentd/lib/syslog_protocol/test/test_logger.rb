@@ -14,7 +14,7 @@ describe "syslog logger" do
     # We have to set a time so we have a consistant timestamp to check against..
     p = @logger.instance_variable_get("@packet")
     p.time = Time.now
-    ts = p.generate_timestamp
+    ts = p.generate_timestamp_rfc3164
     @logger.debug("vacuum tubez are operational").should.equal "<135>#{ts} space_station test: vacuum tubez are operational"
     @logger.info("firing thrusters at 13 degrees").should.equal "<134>#{ts} space_station test: firing thrusters at 13 degrees"
     @logger.notice("the hyper drive has been activated").should.equal "<133>#{ts} space_station test: the hyper drive has been activated"
