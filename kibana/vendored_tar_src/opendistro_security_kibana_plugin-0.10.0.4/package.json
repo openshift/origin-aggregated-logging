@@ -1,0 +1,23 @@
+{
+  "name": "opendistro_security",
+  "version": "6.8.1",
+  "description": "Security features for kibana",
+  "main": "index.js",
+  "homepage": "https://github.com/opendistro-for-elasticsearch/security-kibana-plugin",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opendistro-for-elasticsearch/security-kibana-plugin"
+  },
+  "dependencies": {
+    "@elastic/kibana-ui-framework": "0.0.11",
+    "bell": "9.4.0",
+    "hapi-auth-cookie": "^9.1.0",
+    "joi": "10.6.0",
+    "requirefrom": "^0.2.0",
+    "wreck": "14.x.x"
+  },
+  "devDependencies": {
+    "ui-select": "^0.19.8"
+  }
+}

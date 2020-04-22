@@ -53,7 +53,7 @@ function cleanup_es() {
     if [ -n "${espod:-}" ] ; then
         oc -n $LOGGING_NS logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
         oc -n $LOGGING_NS exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
-        curl_es_pod $espod /logs-app-* -XDELETE 2>&1 | artifact_out
+        curl_es_pod $espod /app-* -XDELETE 2>&1 | artifact_out
     fi
     for proj in $PROJECTS ; do
         oc delete project $proj 2>&1 | artifact_out
@@ -99,7 +99,7 @@ function create_user_and_assign_to_projects() {
 function add_message_to_index() {
 
     local namespace=$1
-    local index="logs-app-00001"
+    local index="app-00001"
     local pod=$2
     local aliasname=$3
 
@@ -168,14 +168,14 @@ function test_user_has_proper_access() {
     fi
 }
 
-curl_es_pod $espod /logs-app* -XDELETE | artifact_out
+curl_es_pod $espod /app* -XDELETE | artifact_out
 
 for proj in multi-tenancy-1 multi-tenancy-2 multi-tenancy-3 ; do
     os::log::info Creating project $proj
     oc adm new-project $proj --node-selector='' 2>&1 | artifact_out
     os::cmd::try_until_success "oc get project $proj" 2>&1 | artifact_out
     os::log::info Creating test index and entry for $proj
-    add_message_to_index $proj $espod logs-app
+    add_message_to_index $proj $espod app
 done
 os::log::info Creating project multi-tenancy-4 2>&1 | artifact_out
 oc adm new-project multi-tenancy-4 --node-selector='' 2>&1 | artifact_out
@@ -212,10 +212,10 @@ oc login --username=system:admin > /dev/null
 oc project $LOGGING_PROJECT > /dev/null
 
 # loguser1 has access to two documents
-test_user_has_proper_access $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW logs-app
+test_user_has_proper_access $LOG_NORMAL_USER1 $LOG_NORMAL_USER1_PW app
 # loguser2 has access to one document
-test_user_has_proper_access $LOG_NORMAL_USER2 $LOG_NORMAL_USER2_PW logs-app
+test_user_has_proper_access $LOG_NORMAL_USER2 $LOG_NORMAL_USER2_PW app
 # loguser3 has access to no ducuments as user has access to no projects
-test_user_has_proper_access $LOG_NORMAL_USER3 $LOG_NORMAL_USER3_PW logs-app
+test_user_has_proper_access $LOG_NORMAL_USER3 $LOG_NORMAL_USER3_PW app
 # loguser4 has access to no documents as there are no documents matching the project
-test_user_has_proper_access $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW logs-app 0
+test_user_has_proper_access $LOG_NORMAL_USER4 $LOG_NORMAL_USER4_PW app 0

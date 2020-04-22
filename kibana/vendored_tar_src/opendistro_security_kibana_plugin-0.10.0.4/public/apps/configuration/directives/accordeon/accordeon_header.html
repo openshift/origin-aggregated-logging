@@ -1,0 +1,6 @@
+<button type="button" class="kuiToggleButton" ng-click="accordeonHeader.onClick()">
+  <h5>
+    <span style="margin-right:10px;" ng-class="{'kuiIcon fa-caret-down': !accordeonHeader.isCollapsed, 'kuiIcon fa-caret-right': accordeonHeader.isCollapsed}" class="fa {{accordeonHeader.additionalClass}}"></span>
+    <span class="{{accordeonHeader.additionalClass}}">{{ accordeonHeader.title }}</span>
+  </h5>
+</button>

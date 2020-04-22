@@ -1,0 +1,14 @@
+<div>
+    <div ng-show="isNew" style="margin-bottom:20px;">
+        <h3 style="margin-top:0px;">{{service.newLabel}}:</h3>
+        <input
+                id="object-form-id-new"
+                name="objectId"
+                type="text"
+                ng-model="resourcename"
+                class="form-control kuiTextInput"
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                required
+                ng-required="isNew"/>
+    </div>
+</div>

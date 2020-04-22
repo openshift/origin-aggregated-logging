@@ -1,0 +1,108 @@
+<div ng-controller="securityBaseController">
+    <div class="security app-container ng-scope" id="section-editor" ng-controller="securityInternalUsersController">
+
+        <securityc-list-header></securityc-list-header>
+
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-12">
+
+                    <div style="margin-bottom: 10px;">
+                        <h3 class="indexheading" style="display: inline;">Internal Users Database</h3>
+                        <div style="display: inline;">
+                            <span class="kuiInfoButton help" tooltip="The Internal User Database is an authentication backend that stores users and their backend roles directly in Elasticsearch. You can then map these users and/or their backend roles to Roles to assign permissions. Use the Internal User Database if you don't have any external authentication system like LDAP or JWT in place.">
+                                <span class="kuiIcon fa-info-circle"></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="kuiControlledTable">
+
+                        <securityc-filter-bar></securityc-filter-bar>
+
+                        <!-- Table -->
+                        <table class="kuiTable" ng-show="(resourcenames | filter:query).length">
+                            <thead>
+                                <tr>
+
+                                    <th class="kuiTableHeaderCell" ng-click="onSortChange('resourcename')">
+                                        <span class="kuiTableHeaderCell__liner">
+                                            Username
+                                        </span>
+                                        <span ng-show="sortTable.byKey === 'resourcename'"
+                                              class="kuiIcon"
+                                              ng-class="{'fa-long-arrow-down': sortTable.descending, 'fa-long-arrow-up': ! sortTable.descending}">
+                                        </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell">
+                                        <span class="kuiTableHeaderCell__liner">
+                                            Backend Roles
+                                        </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell kuiTableHeaderCell">
+                                    </th>
+
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <tr ng-repeat="username in resourcenames | filter:query | orderBy:'toString()':sortTable.descending" class="kuiTableRow">
+
+                                    <td class="kuiTableRowCell">
+                                        <div class="kuiTableRowCell__liner">
+                                            <a class="kuiLink" ng-click="edit(username)" title="{{username}}" id="{{username}}">
+                                                {{username}}
+                                            </a>
+                                            <div ng-if="resources[username].readonly">
+                                                <div class="kuiBadge kuiBadge--default" >
+                                                    <span class="kuiIcon fa-lock"></span>
+                                                    reserved
+                                                </div>
+                                            </div>
+                                            <div ng-if="username == currentuser">
+                                                <div class="kuiBadge kuiBadge--default" >
+                                                    <span class="kuiIcon fa-lock"></span>
+                                                    Current user
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td class="kuiTableRowCell">
+                                        <div class="kuiTableRowCell__liner">
+                                            <span title="{{role}}" ng-repeat="role in resources[username].roles">{{role}}<br/></span>
+                                        </div>
+                                    </td>
+
+                                    <td class="kuiTableRowCell actions">
+                                        <div class="kuiTableRowCell__liner">
+                                            <a tooltip="Edit" ng-click="edit(username)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                                                <span class="kuiButton__icon kuiIcon fa-edit"></span>
+                                            </a>
+                                            <a tooltip="Clone" ng-click="clone(username)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                                                <span class="kuiButton__icon kuiIcon fa-copy"></span>
+                                            </a>
+                                            <button tooltip="Delete" type="button" ng-disabled="!endpointAndMethodEnabled('INTERNALUSERS', 'DELETE') || resources[username].readonly || username == currentuser" ng-click="confirmDelete(username)" class="kuiButton kuiButton--danger kuiButton--iconText" id="opendistro_security.button.internalusers.delete.{{username}}">
+                                                <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <securityc-confirmation-modal ng-if="displayModal === true"
+            header="Confirm Delete"
+            body="Do you really want to delete '{{deleteModalResourceName}}'"
+            on-close="closeDeleteModal"
+            on-confirm="delete">
+        </securityc-confirmation-modal>
+
+    </div>
+</div>

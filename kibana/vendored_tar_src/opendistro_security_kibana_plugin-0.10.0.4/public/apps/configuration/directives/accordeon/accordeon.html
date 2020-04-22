@@ -1,0 +1,10 @@
+<div>
+  <div class="kuiTogglePanelHeader">
+    <accordeon-header additional-class="{{accordeon.additionalClass}}" title="{{ accordeon.title }}" is-collapsed="accordeon.isCollapsed" on-click="accordeon.toggle">
+    </accordeon-header>
+  </div>
+  <div
+    ng-hide="accordeon.isCollapsed"
+    ng-transclude
+  ></div>
+</div>

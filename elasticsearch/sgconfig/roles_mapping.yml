@@ -32,8 +32,11 @@ sg_role_jaeger:
   backendroles:
     - 'jaeger'
 
-project_user:    
+admin_user:
+  backendroles:
+    - 'admin_reader'
+
+project_user:
   readonly: true    
   users:    
-    - '*'    
-
+    - '*'

@@ -1,0 +1,120 @@
+<div>
+    <table class="kuiTable tableIndexGroups">
+        <thead>
+        <tr>
+            <th class="kuiTableHeaderCell tableHeaderCellIndexGroups">
+                <span class="kuiTableHeaderCell__liner">
+                    Permissions: Action Groups
+                </span>
+            </th>
+
+            <th class="kuiTableHeaderCell tableHeaderCellIndexGroups actions">
+                <span class="kuiTableHeaderCell__liner">
+                    <input type="checkbox" data-ng-model="showAdvanced"> Show Advanced</td>
+            </span>
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="kuiTableRow" ng-show="!permissionsResource.actiongroups.length">
+            <td colspan="2" class="kuiTableRowCell">
+                <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                    <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                        <div class="kuiEmptyTablePrompt__message ng-binding">No Action Groups found.</div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr class="kuiTableRow" data-ng-repeat="actiongroup in permissionsResource.actiongroups track by $index" >
+            <td class="kuiTableRowCell cellAlignTop">
+                <fieldset class="marginbottom--small" id="object-form-actiongroups">
+                    <ui-select ng-model="permissionsResource.actiongroups[$index]">
+                        <ui-select-match placeholder="Action Group name">
+                            {{permissionsResource.actiongroups[$index]}}
+                        </ui-select-match>
+                        <ui-select-choices repeat="item in (getActiongroupItems() | filter: $select.search) track by $index">
+                            <span ng-bind="item"></span>
+                        </ui-select-choices>
+                    </ui-select>
+                </fieldset>
+            </td>
+            <td class="kuiTableRowCell cellAlignTop actions">
+                <button style="display:inline-block" type="button" ng-click="confirmDeletePermission(permissionsResource.actiongroups, actiongroup)" class="kuiButton kuiButton--danger kuiButton--iconText">
+                    <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                </button>
+            </td>
+        </tr>
+        <tr class="kuiTableRow">
+            <td class="kuiTableRowCell cellAlignTop ">
+
+            </td>
+            <td class="kuiTableRowCell cellAlignTop actions">
+                <button type="button" ng-click="addArrayEntry(permissionsResource, 'actiongroups', '')" ng-disabled="lastArrayEntryEmpty(permissionsResource.actiongroups)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                    <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                    Add Action Group
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- Permissions Table -->
+    <table class="kuiTable tableIndexGroups" ng-if="showAdvanced">
+        <thead>
+        <tr>
+            <th class="kuiTableHeaderCell tableHeaderCellIndexGroups">
+                <span class="kuiTableHeaderCell__liner">
+                    Permissions: Single Permissions
+                </span>
+            </th>
+
+            <th class="kuiTableHeaderCell">
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="kuiTableRow" ng-show="!permissionsResource.permissions.length">
+            <td colspan="2" class="kuiTableRowCell">
+                <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                    <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                        <div class="kuiEmptyTablePrompt__message ng-binding">No Single Permissions found.</div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr class="kuiTableRow" data-ng-repeat="permission in permissionsResource.permissions track by $index">
+            <td class="kuiTableRowCell cellAlignTop">
+                <fieldset class="marginbottom--small" id="object-form-actiongroups">
+                    <ui-select
+                            uis-open-close="onCloseNewSinglePermission(isOpen, $select)"
+                            ng-model="permissionsResource.permissions[$index]">
+                        <ui-select-match placeholder="Start with cluster: or indices:">
+                            {{permission.name || permission}}
+                        </ui-select-match>
+                        <ui-select-choices
+                                refresh="refreshNewSinglePermission($select)"
+                                refresh-delay="0"
+                                repeat="item in (permissionItems | filter: $select.search) track by $index">
+                            <span ng-bind="item.name"></span>
+                        </ui-select-choices>
+                    </ui-select>
+                </fieldset>
+            </td>
+            <td class="kuiTableRowCell cellAlignTop actions">
+                <a ng-click="confirmDeletePermission(permissionsResource.permissions, permission)" class="kuiButton kuiButton--danger kuiButton--iconText">
+                    <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                </a>
+            </td>
+        </tr>
+        <tr class="kuiTableRow">
+            <td class="kuiTableRowCell cellAlignTop actions"></td>
+            <td class="kuiTableRowCell cellAlignTop actions">
+                <button type="button" ng-click="addArrayEntry(permissionsResource, 'permissions', '')" ng-disabled="lastArrayEntryEmpty(permissionsResource.permissions)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                    <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                    Add Single Permission
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>

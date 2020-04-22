@@ -19,7 +19,8 @@ ARG LOCAL_REPO
 
 USER 0
 
-COPY vendored_tar_src/ ${HOME}/
+COPY vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
+COPY vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugins/opendistro_security_kibana_plugin-0.10.0.4/
 
 RUN chmod -R og+w ${HOME}/
 ADD probe/ /usr/share/kibana/probe/

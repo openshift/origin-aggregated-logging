@@ -1,5 +1,8 @@
 opendistro_security:
   dynamic:
+    kibana:
+      server_username: 'CN=system.logging.kibana,OU=OpenShift,O=Logging'
+      do_not_fail_on_forbidden: true
     http:
       xff:
         enabled: true
