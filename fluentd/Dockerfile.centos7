@@ -14,13 +14,6 @@ ENV DATA_VERSION=1.6.0 \
 # iproute needed for ip command to get ip addresses
 # autoconf redhat-rpm-config for building jemalloc
 USER 0
-
-#
-# Replace community build service repo with actuall SCLO mirror
-#
-RUN yum-config-manager --disable cbs.centos.org_repos_sclo7-rh-ruby25-rh-candidate_x86_64_os_ && \
-    yum-config-manager --add-repo http://mirror.centos.org/centos/7/sclo/x86_64/rh/rh-ruby25/
-
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
       make \
