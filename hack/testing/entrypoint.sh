@@ -85,7 +85,7 @@ if oc -n ${LOGGING_NS} get clusterlogging instance > /dev/null 2>&1 ; then
     # cannot mount file inside pod into another pod - rewrite to use a configmap or secret
     # test-viaq-data-model
     expected_failures=(
-        test-out_rawtcp test-remote-syslog test-zzz-duplicate-entries
+        test-out_rawtcp test-zzz-duplicate-entries
         test-read-throttling test-viaq-data-model test-zzzz-bulk-rejection
     )
 else

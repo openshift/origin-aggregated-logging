@@ -1,0 +1,60 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: remote-syslog-listener-template
+  annotations:
+    description: "For creating the remote-syslog-listener pod"
+objects:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: remote-syslog-listener
+    namespace: ${NAMESPACE}
+  spec:
+    restartPolicy: Never
+    terminationGracePeriodSeconds: 0
+    containers:
+    - name: remote-syslog-listener
+      image: ${IMAGE}
+      imagePullPolicy: Always
+      env:
+      ports:
+      - containerPort: 24285
+        name: syslogudp
+        protocol: UDP
+      - containerPort: 24286
+        name: syslogtcp
+        protocol: TCP
+      command:
+      - bash
+      - -c
+      - |-
+        cat > /etc/fluent/fluent.conf <<EOF
+        <source>
+          @type syslog
+          port 24285
+          bind 0.0.0.0
+          protocol_type udp
+          tag inputudp
+        </source>
+        <source>
+          @type syslog
+          port 24286
+          bind 0.0.0.0
+          protocol_type tcp
+          tag inputtcp
+        </source>
+        <match **>
+          @type stdout
+        </match>
+        EOF
+        scl enable rh-ruby25 -- fluentd -vv -c /etc/fluent/fluent.conf
+parameters:
+- description: Namespace name to create pod in
+  value: openshift-logging
+  name: NAMESPACE
+- description: test image to use
+  value: fluentd:latest
+  name: IMAGE
+labels:
+  test: "true"
