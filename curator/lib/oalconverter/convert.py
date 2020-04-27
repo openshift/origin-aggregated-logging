@@ -128,14 +128,17 @@ class LegacyConfigConverter():
         defaults_node = legacy_config['.defaults']
         unit = defaults_node['delete']['unit']
         count = defaults_node['delete']['count']
-        projects = legacy_config.keys()
+        projects = list(legacy_config.keys())
         projects.remove('.defaults')
         if '.regex' in projects:
             projects.remove('.regex')
-        regex = '|'.join(
-            map(lambda project: project if legacy_config[project][self.RAW_REGEX] else self.format_regex(project), projects)
-            +
-            map(lambda project: self.format_regex(project), ['.searchguard', '.kibana']))
+        regex = ['.security','.kibana']
+        for project in projects:
+          if legacy_config[project][self.RAW_REGEX]:
+               regex.append(project)
+          else:
+               regex.append(self.format_regex(project))
+        regex = '|'.join(regex)
         return self.generate_action(unit, count, regex, exclude=True)
 
     def validate_internal_config(self, config):

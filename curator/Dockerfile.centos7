@@ -15,33 +15,29 @@ ENV HOME=/opt/app-root/src \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
     CURATOR_TIMEOUT=300 \
     CURATOR_VER=5.8.1 \
-    container=oci
+    container=oci \
+    LC_ALL=en_US.UTF-8 
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
   io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
 RUN yum install -y epel-release
-RUN yum install -y --setopt=tsflags=nodocs \
-        python-pip \
-        python2-ruamel-yaml && \
-    yum clean all
+RUN INSTALLED_PKGS="python3" && \
+    yum install -y --setopt=tsflags=nodocs ${INSTALLED_PKGS} && \
+    rpm -V ${INSTALLED_PKGS} && \
+    yum clean all && \
+    ln -sf /usr/bin/python3 /usr/bin/python
 
 COPY . ${HOME}
-
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
     chmod -R u+x ${HOME} && \
     chgrp -R 0 ${HOME} && \
     chmod -R g=u ${HOME} && \
-    cd $HOME/vendor && \
-    for pkg in $(ls *.tar.gz); do \
-      pip install --no-deps $pkg; \
+    for pkg in "$(ls $HOME/vendor/*.tar.gz)" ; do \
+      pip3 install --no-deps $pkg; \
     done  && \
-    tar -xf python-dateutil-2.8.1.tar.gz && \
-    mv python-dateutil-2.8.1/python_dateutil.egg-info python_dateutil-2.8.1-py2.7.egg-info && \
-    mv python_dateutil-2.8.1-py2.7.egg-info /usr/lib/python2.7/site-packages && \
-    mv $HOME/vendor/python-dateutil-2.8.1 /usr/lib/python2.7/site-packages && \
     rm -rf $HOME/vendor
 
 WORKDIR ${HOME}
