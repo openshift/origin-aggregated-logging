@@ -22,7 +22,9 @@ LABEL io.k8s.description="Curator elasticsearch container for elasticsearch dele
   io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python
+RUN yum install -y python3 && \
+    yum clean all && \
+    ln -sf /usr/bin/python3 /usr/bin/python
 
 COPY . ${HOME}
 
