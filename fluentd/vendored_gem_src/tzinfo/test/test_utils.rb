@@ -1,4 +1,6 @@
-TESTS_DIR = File.expand_path(File.dirname(__FILE__)).untaint
+tests_dir = File.expand_path(File.dirname(__FILE__))
+tests_dir.untaint if RUBY_VERSION < '2.7'
+TESTS_DIR = tests_dir
 TZINFO_LIB_DIR = File.expand_path(File.join(TESTS_DIR, '..', 'lib'))
 TZINFO_TEST_DATA_DIR = File.join(TESTS_DIR, 'tzinfo-data')
 TZINFO_TEST_ZONEINFO_DIR = File.join(TESTS_DIR, 'zoneinfo')
@@ -55,8 +57,8 @@ module Kernel
   end
   
   def safe_test(options = {})
-    # JRuby and Rubinus don't support SAFE levels.
-    available = !(defined?(RUBY_ENGINE) && %w(jruby rbx).include?(RUBY_ENGINE))
+    # Ruby >= 2.7, JRuby and Rubinus don't support SAFE levels.
+    available = RUBY_VERSION < '2.7' && !(defined?(RUBY_ENGINE) && %w(jruby rbx).include?(RUBY_ENGINE))
    
     if available || options[:unavailable] != :skip
       thread = Thread.new do
@@ -94,6 +96,16 @@ module Kernel
       end
       
       thread.join
+    end
+  end
+
+  def skip_if_has_bug_14060
+    # On Ruby 2.4.4 in safe mode, require will fail with a SecurityError for
+    # any file that has not previously been loaded, regardless of whether the
+    # file name is tainted.
+    # See https://bugs.ruby-lang.org/issues/14060#note-5.
+    if defined?(RUBY_ENGINE) && RUBY_ENGINE == 'ruby' && RUBY_VERSION == '2.4.4'
+      skip('Skipping test due to Ruby 2.4.4 being affected by Bug 14060 (see https://bugs.ruby-lang.org/issues/14060#note-5)')
     end
   end
   
@@ -147,6 +159,19 @@ module Kernel
     rescue => e
       full_message = message(msg) { exception_details(e, 'Exception raised: ') }
       assert(false, full_message)
+    end
+  end
+end
+
+
+# Object#taint is a deprecated no-op in Ruby 2.7 and outputs a warning. It will
+# be removed in 3.0. Silence the warning or supply a replacement.
+if TZInfo::RubyCoreSupport.const_defined?(:UntaintExt)
+  module TaintExt
+    refine Object do
+      def taint
+        self
+      end
     end
   end
 end

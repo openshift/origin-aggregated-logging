@@ -1,0 +1,7 @@
+{
+  "requireFrom": {
+  	"views": "./lib/components/framework/views/",
+  	"models": "lib/components/framework/models/",
+  	"utility": "lib/utility/"
+  }
+}

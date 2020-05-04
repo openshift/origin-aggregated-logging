@@ -1,0 +1,307 @@
+h1 {
+ font-size: 1.6em;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+h5 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-bottom: 5px;
+  margin-top: 15px;
+}
+
+.help {
+  cursor: help;
+}
+
+.error-message a {
+  color: red;
+}
+
+.ng-submitted input.ng-invalid {
+  border-color: #A30000 !important;
+}
+
+.kuiTextInput:invalid {
+  border-color: #DEDEDE;
+}
+
+.kuiBadge {
+  margin-left: 0px;
+}
+
+.topBottomMargin {
+  margin-bottom:20px;
+  margin-top:20px;
+}
+
+.editResourceForm {
+  width: 70%;
+}
+
+.brand-image {
+  max-width: 300px;
+  text-align: center;
+}
+
+.actions {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.selected {
+  background-color: #eee;
+}
+
+.indexheading {
+  margin-top: 0px;
+}
+
+.resourcename {
+  margin-bottom: 10px;
+  margin-top: 0px;
+}
+
+.noresourcename {
+  font-style: italic;
+  color:#aaa;
+  font-size: 16px;
+}
+
+.labelhint {
+  font-style: italic;
+  color:#aaa;
+  font-weight: normal;
+}
+.marginbottom--small {
+  margin-bottom: 10px;
+}
+
+.tab-inactive {
+  color: #ccc;
+}
+
+.headerHeadline {
+  padding-left: 10px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.kuiPanel--noborder {
+  border: none;
+}
+
+.kuiEmptyTablePrompt--nopadding {
+  padding: 0px;
+}
+
+
+
+.kuiTableRowCell {
+  padding: 7px 8px 8px;
+}
+
+.tableHeaderCellIndexGroups {
+  width:70%;
+  color:#000;
+  font-weight:bold;
+}
+
+.tableHeaderBold {
+  color:#000;
+  font-weight:bold;
+}
+
+.tableIndexGroups {
+ margin-bottom: 20px;
+}
+
+.cellAlignTop {
+  vertical-align: top;
+}
+
+.twowidth {
+  width:20%;
+}
+
+
+.fourwidth {
+  width:40%;
+}
+
+.fivewidth {
+  width:50%;
+}
+.sevenwidth {
+     width:70%;
+}
+
+.fullwidth {
+  width:100%;
+}
+
+.formsubmit {
+  margin-bottom: 30px;
+  margin-top: 10px;
+}
+
+.kuiLocalNav {
+  min-height: 60px;
+  margin-bottom: 20px;
+}
+
+.error-message {
+  font-weight: bold;
+  color: red;
+  margin-bottom: 20px;
+}
+
+.btn-default {
+  background-color: #73b626;
+  border-bottom-color: #73b626;
+  border-left-color: #73b626;
+  border-right-color: #73b626;
+  border-top-color: #73b626;
+  color: #ffffff;
+}
+
+.btn-default:hover {
+  background-color: #5e9b24;
+  border-bottom-color: #5e9b24;
+  border-left-color: #5e9b24;
+  border-right-color: #5e9b24;
+  border-top-color: #5e9b24;
+  color: #ffffff;
+}
+
+.form-control {
+  outline: 0;
+  border-color: #ECECEC;
+  border-style: solid;
+  border-width: 1px;
+  width: 100%;
+  background-color: #ffffff;
+  padding: 6px;
+  border-radius: 2px;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.ace_editor {
+  min-height: 300px;
+  border: 1px solid #f0f0f0;
+}
+
+.authc-disabled {
+  color: #ccc;
+}
+
+/**
+ * Angular UI-Select
+ */
+// Since we have Bootstrap classes through the component,
+// we need to remove some styles
+.ui-select-container {
+  .ui-select-toggle.form-control {
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+}
+// Helps mimic the other fields that we're using
+.ui-select-search,
+.ui-select-toggle {
+  padding-left: 12px;
+  border-radius: 4px;
+}
+
+// Neutralize default styles
+.ui-select-match .btn:hover {
+  background-color: #fff;
+  color: #2D2D2D;
+  border: 1px solid #D9D9D9;
+}
+
+.FeaturePanelList {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.FeaturePanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0 20px 20px 0;
+  padding: 25px 10px 10px;
+  width: 140px;
+  height: 140px;
+  border: 1px solid #CED5DA;
+  border-radius: 4px;
+  background-color: #F6F6F6;
+  line-height: 1.5;
+  text-decoration: none;
+}
+.FeaturePanel:hover {
+  border-color: #00A6FF;
+  background-color: #FFFFFF;
+}
+
+.FeaturePanel__image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 50px;
+  height: 50px;
+}
+
+.FeaturePanel__label {
+  max-width: 100%;
+  font-size: 14px;
+  color: #191E23;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.FeaturePanel__icon {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  color: #666;
+}
+
+.FeaturePanelButton {
+  width: 130px;
+  height: 130px;
+  padding: 0px;
+}
+
+.FeaturePanelButton__label {
+  font-size: 14px;
+  color: #191E23;
+  text-align: center;
+  max-width: 100%;
+  white-space: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.securityLogoutLink__icon-image {
+  margin-left: 5px;
+  font-size: 20px;
+  vertical-align: middle;
+
+}

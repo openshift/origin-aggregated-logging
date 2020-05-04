@@ -60,12 +60,16 @@ when true (default: `true`)
 * `skip_labels` - Skip all label fields from the metadata.
 * `skip_container_metadata` - Skip some of the container data of the metadata. The metadata will not contain the container_image and container_image_id fields.
 * `skip_master_url` - Skip the master_url field from the metadata.
-* `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less. 
+* `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
+* `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
+
 **NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
 payload.  The following configuration options are removed:
 
 * `merge_json_log`
 * `preserve_json_log`
+
+One way of preserving JSON logs can be through the [parser plugin](https://docs.fluentd.org/filter/parser)
 
 **NOTE** As of this release, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
 attempt to figure out the source of the metadata fields from the following:
@@ -77,16 +81,36 @@ then the plugin will parse those values using `container_name_to_kubernetes_rege
 - Otherwise, if the tag matches `tag_to_kubernetes_name_regexp`, the plugin will parse the tag and use those values to
 lookup the metdata
 
-Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
+Reading from the JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
+
+```
+fluent-gem install fluent-plugin-multi-format-parser
+```
+
+The config block could look like this:
 ```
 <source>
   @type tail
   path /var/log/containers/*.log
   pos_file fluentd-docker.pos
-  time_format %Y-%m-%dT%H:%M:%S
-  tag kubernetes.*
-  format json
   read_from_head true
+  tag kubernetes.*
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_key time
+      time_type string
+      time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+      keep_time_key false
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key false
+    </pattern>
+  </parse>
 </source>
 
 <filter kubernetes.var.log.containers.**.log>
@@ -124,6 +148,22 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
 <match **>
   @type stdout
 </match>
+```
+## Log content as JSON
+In former versions this plugin parsed the value of the key log as JSON. In the current version this feature was removed, to avoid duplicate features in the fluentd plugin ecosystem. It can parsed with the parser plugin like this:
+```
+<filter kubernetes.**>
+  @type parser
+  key_name log
+  <parse>
+    @type json
+    json_parser json
+  </parse>
+  replace_invalid_sequence true
+  reserve_data true # this preserves unparsable log lines
+  emit_invalid_record_to_error false # In case of unparsable log lines keep the error log clean
+  reserve_time # the time was already parsed in the source, we don't want to overwrite it with current time.
+</filter>
 ```
 
 ## Environment variables for Kubernetes

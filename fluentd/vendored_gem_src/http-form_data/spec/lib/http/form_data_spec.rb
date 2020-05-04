@@ -10,14 +10,14 @@ RSpec.describe HTTP::FormData do
     end
 
     context "when form has at least one file param" do
-      let(:gemspec) { HTTP::FormData::File.new "gemspec" }
-      let(:params)  { { :foo => :bar, :baz => gemspec } }
+      let(:file) { HTTP::FormData::File.new(fixture("the-http-gem.info").to_s) }
+      let(:params) { { :foo => :bar, :baz => file } }
       it { is_expected.to be_a HTTP::FormData::Multipart }
     end
 
     context "when form has file in an array param" do
-      let(:gemspec) { HTTP::FormData::File.new "gemspec" }
-      let(:params)  { { :foo => :bar, :baz => [gemspec] } }
+      let(:file) { HTTP::FormData::File.new(fixture("the-http-gem.info").to_s) }
+      let(:params) { { :foo => :bar, :baz => [file] } }
       it { is_expected.to be_a HTTP::FormData::Multipart }
     end
   end

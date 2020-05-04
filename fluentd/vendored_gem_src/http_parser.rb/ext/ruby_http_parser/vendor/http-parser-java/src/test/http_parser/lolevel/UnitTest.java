@@ -110,7 +110,6 @@ public class UnitTest {
 
 
   public static void test () {
-    p(UnitTest.class);
     testErrorFormat();
     testErrorCallback();
   }  

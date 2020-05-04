@@ -6,20 +6,21 @@ ES_CLUSTER_HOST=${ES_CLUSTER_HOST:-"localhost"}
 ES_CLUSTER_PORT=${ES_CLUSTER_PORT:-9300}
 MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
-info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
-
-config=${ES_CONF}/elasticsearch.yml
-index=$(python -c "import yaml; print yaml.load(open('${config}'))['searchguard']['config_index_name']" | xargs -i sh -c "echo {}")
+info "Seeding the security ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
 function sgadmin {
-  ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh \
-    -i $index \
+  secadmincmd=${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
+  if [ -f ${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh ] ; then
+    secadmincmd=${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh
+  fi
+  $secadmincmd \
+    -i $( get_security_conf_index ) \
     -h ${ES_CLUSTER_HOST} \
     -p ${ES_CLUSTER_PORT} \
-    -ks /etc/elasticsearch/secret/admin.jks \
+    -ks ${ES_PATH_CONF}/secret/admin.jks \
     -kst JKS \
     -kspass kspass \
-    -ts /etc/elasticsearch/secret/truststore \
+    -ts ${ES_PATH_CONF}/secret/truststore \
     -tst JKS \
     -tspass tspass \
     -nhnv \
@@ -30,7 +31,7 @@ function sgadmin {
 
 MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
-info "Seeding the searchguard ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
+info "Seeding the security ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
 now=0
 numretries=0
@@ -38,7 +39,7 @@ loginterval=${SG_ADMIN_LOG_INTERVAL:-100}
 while ! sgadmin -cd ${HOME}/sgconfig && [ ${now} -lt ${MAX_WAIT_SEED} ]
 do
     if ! expr $numretries % $loginterval ; then
-        warn "Error seeding the searchguard ACL index... retrying in 10 seconds - $numretries retries so far"
+        warn "Error seeding the security ACL index... retrying in 10 seconds - $numretries retries so far"
         warn "Seeding will continue to fail until the cluster status is YELLOW"
         info "Remaining red indices: $(QUERY=_cat/indices es_util | grep "^red" | wc -l)"
     fi
@@ -51,7 +52,7 @@ if [ ${now} -ge ${MAX_WAIT_SEED} ]; then
     error "Giving up trying to seed ACL"
     exit 1
 fi
-info "Seeded the searchguard ACL index"
+info "Seeded the security ACL index"
 
 info "Disabling auto replication"
 sgadmin -dra

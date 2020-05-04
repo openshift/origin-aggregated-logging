@@ -8,7 +8,7 @@ require "stringio"
 # :include: README.rdoc
 
 module Minitest
-  VERSION = "5.11.3" # :nodoc:
+  VERSION = "5.14.0" # :nodoc:
   ENCS = "".respond_to? :encoding # :nodoc:
 
   @@installed_at_exit ||= false
@@ -21,7 +21,10 @@ module Minitest
   # Parallel test executor
 
   mc.send :attr_accessor, :parallel_executor
-  self.parallel_executor = Parallel::Executor.new((ENV["N"] || 2).to_i)
+
+  warn "DEPRECATED: use MT_CPU instead of N for parallel test runs" if ENV["N"]
+  n_threads = (ENV["MT_CPU"] || ENV["N"] || 2).to_i
+  self.parallel_executor = Parallel::Executor.new n_threads
 
   ##
   # Filter object for backtraces.
@@ -55,7 +58,9 @@ module Minitest
 
       exit_code = nil
 
+      pid = Process.pid
       at_exit {
+        next if Process.pid != pid
         @@after_run.reverse_each(&:call)
         exit exit_code || false
       }
@@ -301,7 +306,7 @@ module Minitest
 
     def self.run reporter, options = {}
       filter = options[:filter] || "/./"
-      filter = Regexp.new $1 if filter =~ %r%/(.*)/%
+      filter = Regexp.new $1 if filter.is_a?(String) && filter =~ %r%/(.*)/%
 
       filtered_methods = self.runnable_methods.find_all { |m|
         filter === m || filter === "#{self}##{m}"
@@ -422,7 +427,8 @@ module Minitest
 
     ##
     # Returns a single character string to print based on the result
-    # of the run. Eg ".", "F", or "E".
+    # of the run. One of <tt>"."</tt>, <tt>"F"</tt>,
+    # <tt>"E"</tt> or <tt>"S"</tt>.
 
     def result_code
       raise NotImplementedError, "subclass responsibility"
@@ -560,8 +566,10 @@ module Minitest
     end
 
     ##
-    # Record a result and output the Runnable#result_code. Stores the
-    # result of the run if the run did not pass.
+    # Output and record the result of the test. Call
+    # {result#result_code}[rdoc-ref:Runnable#result_code] to get the
+    # result character string. Stores the result of the run if the run
+    # did not pass.
 
     def record result
     end
@@ -628,18 +636,63 @@ module Minitest
   #
   # If you want to create an entirely different type of output (eg,
   # CI, HTML, etc), this is the place to start.
+  #
+  # Example:
+  #
+  #   class JenkinsCIReporter < StatisticsReporter
+  #     def report
+  #       super  # Needed to calculate some statistics
+  #
+  #       print "<testsuite "
+  #       print "tests='#{count}' "
+  #       print "failures='#{failures}' "
+  #       # Remaining XML...
+  #     end
+  #   end
 
   class StatisticsReporter < Reporter
-    # :stopdoc:
+    ##
+    # Total number of assertions.
+
     attr_accessor :assertions
+
+    ##
+    # Total number of test cases.
+
     attr_accessor :count
+
+    ##
+    # An +Array+ of test cases that failed or were skipped.
+
     attr_accessor :results
+
+    ##
+    # Time the test run started. If available, the monotonic clock is
+    # used and this is a +Float+, otherwise it's an instance of
+    # +Time+.
+
     attr_accessor :start_time
+
+    ##
+    # Test run time. If available, the monotonic clock is used and
+    # this is a +Float+, otherwise it's an instance of +Time+.
+
     attr_accessor :total_time
+
+    ##
+    # Total number of tests that failed.
+
     attr_accessor :failures
+
+    ##
+    # Total number of tests that erred.
+
     attr_accessor :errors
+
+    ##
+    # Total number of tests that where skipped.
+
     attr_accessor :skips
-    # :startdoc:
 
     def initialize io = $stdout, options = {} # :nodoc:
       super
@@ -669,7 +722,10 @@ module Minitest
       results << result if not result.passed? or result.skipped?
     end
 
-    def report # :nodoc:
+    ##
+    # Report on the tracked statistics.
+
+    def report
       aggregate = results.group_by { |r| r.failure.class }
       aggregate.default = [] # dumb. group_by should provide this
 
@@ -851,24 +907,21 @@ module Minitest
   # Assertion wrapping an unexpected error that was raised during a run.
 
   class UnexpectedError < Assertion
-    attr_accessor :exception # :nodoc:
+    # TODO: figure out how to use `cause` instead
+    attr_accessor :error # :nodoc:
 
-    def initialize exception # :nodoc:
+    def initialize error # :nodoc:
       super "Unexpected exception"
-      self.exception = exception
+      self.error = error
     end
 
     def backtrace # :nodoc:
-      self.exception.backtrace
-    end
-
-    def error # :nodoc:
-      self.exception
+      self.error.backtrace
     end
 
     def message # :nodoc:
       bt = Minitest.filter_backtrace(self.backtrace).join "\n    "
-      "#{self.exception.class}: #{self.exception.message}\n    #{bt}"
+      "#{self.error.class}: #{self.error.message}\n    #{bt}"
     end
 
     def result_label # :nodoc:
@@ -904,6 +957,9 @@ module Minitest
     # Is this running on maglev?
 
     def maglev? platform = defined?(RUBY_ENGINE) && RUBY_ENGINE
+      where = Minitest.filter_backtrace(caller).first
+      where = where.split(/:in /, 2).first # clean up noise
+      warn "DEPRECATED: `maglev?` called from #{where}. This will fail in Minitest 6."
       "maglev" == platform
     end
 
@@ -915,9 +971,19 @@ module Minitest
     end
 
     ##
+    # Is this running on macOS?
+
+    def osx? platform = RUBY_PLATFORM
+      /darwin/ =~ platform
+    end
+
+    ##
     # Is this running on rubinius?
 
     def rubinius? platform = defined?(RUBY_ENGINE) && RUBY_ENGINE
+      where = Minitest.filter_backtrace(caller).first
+      where = where.split(/:in /, 2).first # clean up noise
+      warn "DEPRECATED: `rubinius?` called from #{where}. This will fail in Minitest 6."
       "rbx" == platform
     end
 

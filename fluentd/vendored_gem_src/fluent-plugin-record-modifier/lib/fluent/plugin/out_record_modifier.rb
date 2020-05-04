@@ -88,6 +88,7 @@ DESC
         @remove_keys = @remove_keys.split(',').map(&:strip)
       elsif @whitelist_keys
         @whitelist_keys = @whitelist_keys.split(',').map(&:strip)
+        @whitelist_keys.concat(@map.keys).uniq!
       end
 
       @has_tag_parts = true if @tag.include?('tag_parts')

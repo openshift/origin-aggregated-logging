@@ -2,13 +2,15 @@
 approvers:
   - jcantrill
   - ewolinetz
-  - richm
-  - lukas-vlcek
-  - nhosoi
+  - alanconway
 reviewers:
   - bparees
   - jcantrill
   - ewolinetz
-  - richm
-  - nhosoi
   - lukas-vlcek
+  - alanconway
+  - igor-karpukhin
+  - vimalk78
+  - syedriko
+  - periklis
+component: "Logging"

@@ -217,11 +217,15 @@ EOS
     compare_test_result(d.events, tests, {host: host})
   end
 
-  def test_msg_size_with_priority_key
-    d = create_driver([CONFIG, 'priority_key priority'].join("\n"))
+  data(
+    severity_key: 'severity_key',
+    priority_key: 'priority_key',
+  )
+  def test_msg_size_with_severity_key(param_name)
+    d = create_driver([CONFIG, "#{param_name} severity"].join("\n"))
     tests = create_test_case
 
-    priority = 'info'
+    severity = 'info'
     d.run(expect_emits: 2) do
       u = UDPSocket.new
       u.connect('127.0.0.1', PORT)
@@ -231,7 +235,7 @@ EOS
     end
 
     assert(d.events.size > 0)
-    compare_test_result(d.events, tests, {priority: priority})
+    compare_test_result(d.events, tests, {severity: severity})
   end
 
   def test_msg_size_with_facility_key
@@ -311,7 +315,7 @@ EOS
       assert_equal(options[:host], events[i][2]['source_host']) if options[:host]
       assert_equal(options[:address], events[i][2]['source_address']) if options[:address]
       assert_equal(options[:hostname], events[i][2]['source_hostname']) if options[:hostname]
-      assert_equal(options[:priority], events[i][2]['priority']) if options[:priority]
+      assert_equal(options[:severity], events[i][2]['severity']) if options[:severity]
       assert_equal(options[:facility], events[i][2]['facility']) if options[:facility]
     }
   end
@@ -360,5 +364,82 @@ EOS
       }
       msgs
     end
+  end
+
+  def create_unmatched_lines_test_case
+    [
+      # valid message
+      {'msg' => '<6>Sep 10 00:00:00 localhost logger: xxx', 'expected' => {'host'=>'localhost', 'ident'=>'logger', 'message'=>'xxx'}},
+      # missing priority
+      {'msg' => 'hello world', 'expected' => {'unmatched_line' => 'hello world'}},
+      # timestamp parsing failure
+      {'msg' => '<6>ZZZ 99 99:99:99 localhost logger: xxx', 'expected' => {'unmatched_line' => '<6>ZZZ 99 99:99:99 localhost logger: xxx'}},
+    ]
+  end
+
+  def compare_unmatched_lines_test_result(events, tests, options = {})
+    events.each_index { |i|
+      tests[i]['expected'].each { |k,v|
+        assert_equal v, events[i][2][k], "No key <#{k}> in response or value mismatch"
+      }
+      assert_equal('syslog.unmatched', events[i][0], 'tag does not match syslog.unmatched') unless i==0
+      assert_equal(options[:address], events[i][2]['source_address'], 'response has no source_address or mismatch') if options[:address]
+      assert_equal(options[:hostname], events[i][2]['source_hostname'], 'response has no source_hostname or mismatch') if options[:hostname]
+    }
+  end
+
+  def test_emit_unmatched_lines
+    d = create_driver([CONFIG, 'emit_unmatched_lines true'].join("\n"))
+    tests = create_unmatched_lines_test_case
+
+    d.run(expect_emits: 3) do
+      u = UDPSocket.new
+      u.do_not_reverse_lookup = false
+      u.connect('127.0.0.1', PORT)
+      tests.each {|test|
+        u.send(test['msg'], 0)
+      }
+    end
+
+    assert_equal tests.size, d.events.size
+    compare_unmatched_lines_test_result(d.events, tests)
+  end
+
+  def test_emit_unmatched_lines_with_hostname
+    d = create_driver([CONFIG, 'emit_unmatched_lines true', 'source_hostname_key source_hostname'].join("\n"))
+    tests = create_unmatched_lines_test_case
+
+    hostname = nil
+    d.run(expect_emits: 3) do
+      u = UDPSocket.new
+      u.do_not_reverse_lookup = false
+      u.connect('127.0.0.1', PORT)
+      hostname = u.peeraddr[2]
+      tests.each {|test|
+        u.send(test['msg'], 0)
+      }
+    end
+
+    assert_equal tests.size, d.events.size
+    compare_unmatched_lines_test_result(d.events, tests, {hostname: hostname})
+  end
+
+  def test_emit_unmatched_lines_with_address
+    d = create_driver([CONFIG, 'emit_unmatched_lines true', 'source_address_key source_address'].join("\n"))
+    tests = create_unmatched_lines_test_case
+
+    address = nil
+    d.run(expect_emits: 3) do
+      u = UDPSocket.new
+      u.do_not_reverse_lookup = false
+      u.connect('127.0.0.1', PORT)
+      address = u.peeraddr[3]
+      tests.each {|test|
+        u.send(test['msg'], 0)
+      }
+    end
+
+    assert_equal tests.size, d.events.size
+    compare_unmatched_lines_test_result(d.events, tests, {address: address})
   end
 end

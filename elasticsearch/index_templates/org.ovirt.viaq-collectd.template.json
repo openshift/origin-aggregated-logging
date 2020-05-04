@@ -2,13 +2,14 @@
   "aliases": {
     ".all": {}
   },
+  "index_patterns": "project.ovirt-metrics-*",
   "mappings": {
-    "_default_": {
+    "_doc": {
       "_all": {
         "enabled": false
       },
       "_meta": {
-        "version": "2018.09.20.0"
+        "version": "2020.01.23.0"
       },
       "_source": {
         "enabled": false
@@ -89,7 +90,6 @@
         "collectd": {
           "properties": {
             "aggregation": {
-              "include_in_all": false,
               "properties": {
                 "percent": {
                   "doc_values": "true",
@@ -99,7 +99,6 @@
               }
             },
             "cpu": {
-              "include_in_all": false,
               "properties": {
                 "percent": {
                   "doc_values": "true",
@@ -109,7 +108,6 @@
               }
             },
             "df": {
-              "include_in_all": false,
               "properties": {
                 "df_complex": {
                   "doc_values": "true",
@@ -124,7 +122,6 @@
               }
             },
             "disk": {
-              "include_in_all": false,
               "properties": {
                 "disk_io_time": {
                   "properties": {
@@ -205,12 +202,10 @@
             },
             "dstypes": {
               "doc_values": true,
-              "include_in_all": false,
               "index": true,
               "type": "keyword"
             },
             "entropy": {
-              "include_in_all": false,
               "properties": {
                 "entropy": {
                   "doc_values": true,
@@ -220,7 +215,6 @@
               }
             },
             "interface": {
-              "include_in_all": false,
               "properties": {
                 "if_dropped": {
                   "properties": {
@@ -282,12 +276,10 @@
             },
             "interval": {
               "doc_values": "true",
-              "include_in_all": false,
               "index": true,
               "type": "float"
             },
             "load": {
-              "include_in_all": false,
               "properties": {
                 "load": {
                   "properties": {
@@ -311,7 +303,6 @@
               }
             },
             "memory": {
-              "include_in_all": false,
               "properties": {
                 "memory": {
                   "doc_values": "true",
@@ -326,7 +317,6 @@
               }
             },
             "nfs": {
-              "include_in_all": false,
               "properties": {
                 "nfs_procedure": {
                   "doc_values": true,
@@ -337,18 +327,15 @@
             },
             "plugin": {
               "doc_values": true,
-              "include_in_all": false,
               "index": true,
               "type": "keyword"
             },
             "plugin_instance": {
               "doc_values": true,
-              "include_in_all": false,
               "index": true,
               "type": "keyword"
             },
             "postgresql": {
-              "include_in_all": false,
               "properties": {
                 "pg_blks": {
                   "doc_values": true,
@@ -383,7 +370,6 @@
               }
             },
             "processes": {
-              "include_in_all": false,
               "properties": {
                 "fork_rate": {
                   "doc_values": "true",
@@ -493,7 +479,6 @@
               }
             },
             "statsd": {
-              "include_in_all": false,
               "properties": {
                 "host_cpu": {
                   "doc_values": true,
@@ -733,7 +718,6 @@
               }
             },
             "swap": {
-              "include_in_all": false,
               "properties": {
                 "swap": {
                   "doc_values": true,
@@ -749,18 +733,15 @@
             },
             "type": {
               "doc_values": true,
-              "include_in_all": false,
               "index": true,
               "type": "keyword"
             },
             "type_instance": {
               "doc_values": true,
-              "include_in_all": false,
               "index": true,
               "type": "keyword"
             },
             "virt": {
-              "include_in_all": false,
               "properties": {
                 "disk_octets": {
                   "properties": {
@@ -1273,6 +1254,11 @@
           "index": true,
           "type": "text"
         },
+        "viaq_index_name": {
+          "doc_values": true,
+          "index": true,
+          "type": "keyword"
+        },
         "viaq_msg_id": {
           "doc_values": true,
           "index": true,
@@ -1284,6 +1270,5 @@
   "order": 20,
   "settings": {
     "index.refresh_interval": "5s"
-  },
-  "template": "project.ovirt-metrics-*"
+  }
 }

@@ -143,16 +143,14 @@ func onInit() {
 	} else {
 		checkMaxNumFields = true
 	}
-	if cfg.UseUndefined {
-		tmpDefault := strings.Split(cfg.DefaultKeepFields, ",")
-		tmpExtra := strings.Split(cfg.ExtraKeepFields, ",")
-		keepFields = make(map[string]string)
-		for _, str := range tmpDefault {
-			keepFields[str] = str
-		}
-		for _, str := range tmpExtra {
-			keepFields[str] = str
-		}
+	tmpDefault := strings.Split(cfg.DefaultKeepFields, ",")
+	tmpExtra := strings.Split(cfg.ExtraKeepFields, ",")
+	keepFields = make(map[string]string)
+	for _, str := range tmpDefault {
+		keepFields[str] = str
+	}
+	for _, str := range tmpExtra {
+		keepFields[str] = str
 	}
 	tmp := strings.Split(cfg.KeepEmptyFields, ",")
 	keepEmptyFields = make(map[string]string)
@@ -214,7 +212,7 @@ func processUndefinedAndMaxNumFields(input map[string]interface{}) (string, map[
 		for field := range undefMap {
 			delete(input, field)
 		}
-		if (checkMaxNumFields && count < 0) {
+		if checkMaxNumFields && count < 0 {
 			// undefined fields converted to string - no undefMap
 			b, err := json.Marshal(undefMap)
 			return string(b), nil, err
@@ -389,6 +387,50 @@ func processUndefinedAndEmpty(input map[string]interface{}, hasDefinedFields, ha
 	return inputWasModified
 }
 
+// The given rawStr is only used for logging purposes.  The given
+// input map is modified in-place.  The return value is false if there
+// were errors, or no changes were made to the given input.  If the
+// return value is true, the caller needs to handle outputting the
+// new fields.
+func processFields(rawStr string, input map[string]interface{}) bool {
+	changes := false
+	undefString, undefMap, err := processUndefinedAndMaxNumFields(input)
+	if err != nil {
+		// error marshalling undefined fields to JSON
+		if cfg.Debug {
+			fmt.Fprintf(logfile, "Unable to convert undefined fields to JSON string: %v : rawStr: %s\n", err, rawStr)
+		}
+		fmt.Println(noChanges)
+		return changes
+	}
+	if len(undefString) > 0 || undefMap != nil {
+		changes = true
+	}
+	if undefMap != nil {
+		// changes is already true, so ignore the return value
+		_ = processUndefinedAndEmpty(undefMap, false, true)
+	}
+	if len(input) > 0 {
+		if processUndefinedAndEmpty(input, true, (undefMap == nil)) {
+			changes = true
+		}
+	}
+	if !changes {
+		if cfg.Debug {
+			fmt.Fprintln(logfile, "No Need to Replace for ", rawStr)
+		}
+		fmt.Println(noChanges)
+		return changes
+	}
+	if len(undefString) > 0 {
+		input[cfg.UndefinedName] = undefString
+	} else if undefMap != nil && len(undefMap) > 0 {
+		// if len is 0, means all fields were empty
+		input[cfg.UndefinedName] = undefMap
+	}
+	return changes
+}
+
 func main() {
 
 	onInit()
@@ -407,13 +449,17 @@ func main() {
 		reader = bufio.NewReader(os.Stdin)
 	}
 	scanner := bufio.NewScanner(reader)
+	// Mitigating bufio.Scanner: token too long error
+	const maxScanBufferSize = 256 * 1024
+	scanBuffer := make([]byte, maxScanBufferSize)
+	scanner.Buffer(scanBuffer, maxScanBufferSize)
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
 		jsonMap := make(map[string]interface{})
 		rawStr := scanner.Text()
 		if cfg.Debug {
-			fmt.Fprintln(logfile, "Source: ", rawStr)
+			fmt.Fprintf(logfile, "Source (%d): %s\n", len(rawStr), rawStr)
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &jsonMap); err != nil {
 			fmt.Fprintln(logfile, "json.Unmarshal failed (", err, "): ", rawStr)
@@ -432,41 +478,8 @@ func main() {
 			fmt.Println(noChanges)
 			continue
 		}
-		undefString, undefMap, err := processUndefinedAndMaxNumFields(topval)
-		if err != nil {
-			// error marshalling undefined fields to JSON
-			if cfg.Debug {
-				fmt.Fprintf(logfile, "Unable to convert undefined fields to JSON string: %v : rawStr: %s\n", err, rawStr)
-			}
-			fmt.Println(noChanges)
+		if !processFields(rawStr, topval) {
 			continue
-		}
-		changes := false
-		if len(undefString) > 0 || undefMap != nil {
-			changes = true
-		}
-		if undefMap != nil {
-			if processUndefinedAndEmpty(undefMap, false, true) {
-				changes = true
-			}
-		}
-		if len(topval) > 0 {
-			if processUndefinedAndEmpty(topval, true, (undefMap == nil)) {
-				changes = true
-			}
-		}
-		if !changes {
-			if cfg.Debug {
-				fmt.Fprintln(logfile, "No Need to Replace for ", rawStr)
-			}
-			fmt.Println(noChanges)
-			continue
-		}
-		if len(undefString) > 0 {
-			topval[cfg.UndefinedName] = undefString
-		} else if undefMap != nil && len(undefMap) > 0 {
-			// if len is 0, means all fields were empty
-			topval[cfg.UndefinedName] = undefMap
 		}
 		loggingAll := map[string]interface{}{
 			"openshift_logging_all": topval,
@@ -486,5 +499,9 @@ func main() {
 			}
 			fmt.Println(string(outputString))
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(logfile, "Scanner error [%v]\n", err)
 	}
 }

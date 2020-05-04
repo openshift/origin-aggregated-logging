@@ -1,54 +1,39 @@
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Licensed to Elasticsearch B.V under one or more agreements.
+# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
+# See the LICENSE file in the project root for more information
 
 module Elasticsearch
   module API
     module Snapshot
       module Actions
-
-        # Return information about a running snapshot
-        #
-        # @example Return information about all currently running snapshots
-        #
-        #     client.snapshot.status repository: 'my-backups', human: true
-        #
-        # @example Return information about a specific snapshot
-        #
-        #     client.snapshot.status repository: 'my-backups', human: true
+        # Returns information about the status of a snapshot.
         #
         # @option arguments [String] :repository A repository name
         # @option arguments [List] :snapshot A comma-separated list of snapshot names
-        # @option arguments [Boolean] :ignore_unavailable Whether to ignore unavailable snapshots, defaults to
-        #   false which means a SnapshotMissingException is thrown
         # @option arguments [Time] :master_timeout Explicit operation timeout for connection to master node
-        # @option arguments [Number,List] :ignore The list of HTTP errors to ignore
-        #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/master/modules-snapshots.html#_snapshot_status
-        #
-        def status(arguments={})
-          repository = arguments.delete(:repository)
-          snapshot   = arguments.delete(:snapshot)
+        # @option arguments [Boolean] :ignore_unavailable Whether to ignore unavailable snapshots, defaults to false which means a SnapshotMissingException is thrown
 
-          method = HTTP_GET
+        #
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/modules-snapshots.html
+        #
+        def status(arguments = {})
+          arguments = arguments.clone
 
-          path   = Utils.__pathify( '_snapshot', Utils.__escape(repository), Utils.__escape(snapshot), '_status')
+          _repository = arguments.delete(:repository)
+
+          _snapshot = arguments.delete(:snapshot)
+
+          method = Elasticsearch::API::HTTP_GET
+          path   = if _repository && _snapshot
+                     "_snapshot/#{Utils.__listify(_repository)}/#{Utils.__listify(_snapshot)}/_status"
+                   elsif _repository
+                     "_snapshot/#{Utils.__listify(_repository)}/_status"
+                   else
+                     "_snapshot/_status"
+end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
-          body   = nil
 
+          body = nil
           if Array(arguments[:ignore]).include?(404)
             Utils.__rescue_from_not_found { perform_request(method, path, params, body).body }
           else
@@ -58,11 +43,12 @@ module Elasticsearch
 
         # Register this action with its valid params when the module is loaded.
         #
-        # @since 6.1.1
+        # @since 6.2.0
         ParamsRegistry.register(:status, [
-            :ignore_unavailable,
-            :master_timeout ].freeze)
+          :master_timeout,
+          :ignore_unavailable
+        ].freeze)
+end
       end
-    end
   end
 end

@@ -4,5 +4,7 @@
 #
 source es_util_env
 
-date
-$curl_get "$ES_BASE/_cat/health?v"
+if [ "${NODATE:-false}" = false ] ; then
+    date
+fi
+es_util --query="_cat/health?v"

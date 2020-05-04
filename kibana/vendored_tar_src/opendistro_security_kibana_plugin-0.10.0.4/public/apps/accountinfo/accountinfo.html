@@ -1,0 +1,151 @@
+<div class="security app-container ng-scope" ng-controller="accountEditController">
+   <div class="container">
+      <div class="row">
+         <div class="col-xs-12">
+            <div class="euiSpacer euiSpacer--m"></div>
+            <h1 class="euiTitle euiTitle--large">
+               {{resourcelabel}}: {{resourcename}}
+            </h1>
+            <div ng-show="show_password_box">
+               <div class="euiSpacer euiSpacer--m" ></div>
+               <div class="euiPanel euiPanel--paddingLarge" >
+                  <h2 class="euiTitle euiTitle--medium">Password</h2>
+                  <div class="euiSpacer euiSpacer--m"></div>
+                  <form class="editResourceForm" name="objectForm" id="object-form" method="post" ng-submit="saveObject($event)" novalidate>
+                     <div class="euiCallOut euiCallOut--danger" ng-show="errorMessage">
+                        <div class="euiCallOutHeader">
+                           <span class="kuiInfoPanelHeader__icon kuiIcon kuiIcon--error fa-warning"></span>
+                           <span class="euiCallOutHeader__title" ng-bind-html="errorMessage"></span>
+                        </div>
+                     </div>
+                     <div class="euiSpacer euiSpacer--m" ng-show="errorMessage"></div>
+                     <div class="euiFormRow" id="object-form-current-password-label">
+                        <div class="euiFormRow__labelWrapper">
+                           <label class="euiFormLabel euiFormRow__label" for="object-form-current-password">Current Password</label>
+                        </div>
+                        <div class="euiFormRow__fieldWrapper">
+                           <div class="euiFormControlLayout">
+                              <div class="euiFormControlLayout__childrenWrapper">
+                                 <input
+                                    id="object-form-current-password"
+                                    name="current_password"
+                                    type="password"
+                                    ng-model="resource.current_password"
+                                    class="euiFieldText"
+                                    aria-describedby="object-form-current-password-help"
+                                    required/>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="euiFormRow" id="object-form-password-label">
+                        <div class="euiFormRow__labelWrapper">
+                           <label class="euiFormLabel euiFormRow__label" for="object-form-password">New Password</label>
+                        </div>
+                        <div class="euiFormRow__fieldWrapper">
+                           <div class="euiFormControlLayout">
+                              <div class="euiFormControlLayout__childrenWrapper">
+                                 <input
+                                    id="object-form-password"
+                                    name="password"
+                                    type="password"
+                                    ng-model="resource.password"
+                                    class="euiFieldText"
+                                    aria-describedby="object-form-password-help"
+                                    required/>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="euiFormRow" id="object-form-password-confirmation-label">
+                        <div class="euiFormRow__labelWrapper">
+                           <label class="euiFormLabel euiFormRow__label" for="object-form-password-confirmation">Re-enter Password</label>
+                        </div>
+                        <div class="euiFormRow__fieldWrapper">
+                           <div class="euiFormControlLayout">
+                              <div class="euiFormControlLayout__childrenWrapper">
+                                 <input
+                                    id="object-form-password-confirmation"
+                                    name="password_confirmation"
+                                    type="password"
+                                    ng-model="resource.password_confirmation"
+                                    class="euiFieldText"
+                                    match="resource.password"
+                                    aria-describedby="object-form-password-confirmation-help"
+                                    required
+                                    />
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <button class="euiButton euiButton--primary euiButton--fill" type="submit">
+                     <span class="euiButton__content">
+                     <span class="euiButton__text">Save password</span>
+                     </span>
+                     </button>
+                  </form>
+               </div>
+            </div>
+            <div class="euiSpacer euiSpacer--m"></div>
+            <div class="euiPanel euiPanel--paddingLarge">
+               <h3 class="euiTitle euiTitle--small">Roles</h3>
+               <table class="euiTable euiTable--responsive">
+                  <caption class="euiScreenReaderOnly euiTableCaption" role="status" aria-relevant="text"
+                     aria-live="polite"></caption>
+                  <tbody>
+                     <tr class="euiTableRow" data-ng-repeat="role in security_user.roles">
+                        <td class="euiTableRowCell euiTableRowCell">
+                           <div class="euiTableCellContent euiTableCellContent">
+                              <span class="euiTableCellContent__text">{{role}}</span>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+               <div ng-show="security_user.roles.length == 0" style="font-style: italic">No roles found, please check the role mapping for this user.</div>
+            </div>
+            <div class="euiSpacer euiSpacer--m"></div>
+            <div class="euiPanel euiPanel--paddingLarge">
+               <h3 class="euiTitle euiTitle--small">Backend Roles</h3>
+               <table class="euiTable euiTable--responsive">
+                  <caption class="euiScreenReaderOnly euiTableCaption" role="status" aria-relevant="text"
+                     aria-live="polite"></caption>
+                  <tbody>
+                     <tr class="euiTableRow" data-ng-repeat="backendrole in security_user.backend_roles">
+                        <td class="euiTableRowCell euiTableRowCell">
+                           <div class="euiTableCellContent euiTableCellContent">
+                              <span class="euiTableCellContent__text">{{backendrole}}</span>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+               <div ng-show="security_user.backend_roles.length == 0" style="font-style: italic">No roles found, please check the role mapping for this user.</div>
+            </div>
+            <div class="euiSpacer euiSpacer--m"></div>
+            <div class="euiPanel euiPanel--paddingLarge">
+               <h3 class="euiTitle euiTitle--small">Tenants</h3>
+               <table class="euiTable euiTable--responsive">
+                  <caption class="euiScreenReaderOnly euiTableCaption" role="status" aria-relevant="text"
+                     aria-live="polite"></caption>
+                  <tbody>
+                     <tr class="euiTableRow" data-ng-repeat="(key, val) in security_user.tenants">
+                        <td class="euiTableRowCell euiTableRowCell">
+                           <div class="euiTableCellContent euiTableCellContent">
+                              <span class="euiTableCellContent__text">{{key}}</span>
+                           </div>
+                        </td>
+                        <td class="euiTableRowCell euiTableRowCell">
+                           <div class="euiTableCellContent euiTableCellContent">
+                              <span class="euiTableCellContent__text">{{val}}</span>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+               <div ng-show="security_user.tenants.length == 0" style="font-style: italic">No tenants found for this user.</div>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>

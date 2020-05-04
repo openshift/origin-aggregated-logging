@@ -29,15 +29,15 @@ fi
 set -euo pipefail
 
 # override styles for branding
-if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
-  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/plugins/origin-kibana/public/styles"
-  rm -rf "${KIBANA_HOME}/optimize/bundles/**"
-fi
+#if [ -f "/etc/openshift/kibana/styles/overrides.css" ]; then
+#  cp -f /etc/openshift/kibana/styles/overrides.css "${KIBANA_HOME}/plugins/origin-kibana/public/styles"
+#  rm -rf "${KIBANA_HOME}/optimize/bundles/**"
+#fi
 
 # override images for branding
-if [ -d "/etc/openshift/kibana/images" ]; then
-  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/plugins/origin-kibana/public/images"
-fi
+#if [ -d "/etc/openshift/kibana/images" ]; then
+#  cp -f /etc/openshift/kibana/images/* "${KIBANA_HOME}/plugins/origin-kibana/public/images"
+#fi
 
 #set the max memory
 BYTES_PER_MEG=$((1024*1024))
@@ -72,14 +72,9 @@ else
     exit 1
 fi
 
-if [ -n "${ES_URL:-}" ] ; then
-  ELASTICSEARCH_URL="${ES_URL}"
-fi
-if [ -z "${ELASTICSEARCH_URL:-}" ] ; then
-  ELASTICSEARCH_URL="https://${ES_HOST:-localhost}:${ES_PORT:-9200}"
-fi
+# Kibana now uses elasticsearch.hosts = [] not elasticsearch.url
 update_config_from_env_vars ${KIBANA_CONF_DIR}
 
 echo "Using NODE_OPTIONS: '${NODE_OPTIONS:-}' Memory setting is in MB"
 
-set -a && source /etc/sysconfig/kibana && "${KIBANA_BIN}"
+node --no-warnings src/cli

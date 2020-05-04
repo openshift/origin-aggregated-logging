@@ -1,3 +1,52 @@
+1.12.2 / 2020-02-01
+-------------------
+
+* Fix possible segfault at FFI::Struct#[] and []= after GC.compact . #742
+
+
+1.12.1 / 2020-01-14
+-------------------
+
+Added:
+* Add binary gem support for ruby-2.7 on Windows
+
+
+1.12.0 / 2020-01-14
+-------------------
+
+Added:
+* FFI::VERSION is defined as part of `require 'ffi'` now.
+  It is no longer necessary to `require 'ffi/version'` .
+
+Changed:
+* Update libffi to latest master.
+
+Deprecated:
+* Overwriting struct layouts is now warned and will be disallowed in ffi-2.0. #734, #735
+
+
+1.11.3 / 2019-11-25
+-------------------
+
+Removed:
+* Remove support for tainted objects which cause deprecation warnings in ruby-2.7. #730
+
+
+1.11.2 / 2019-11-11
+-------------------
+
+Added:
+* Add DragonFlyBSD as a platform. #724
+
+Changed:
+* Sort all types.conf files, so that files and changes are easier to compare.
+* Regenerated type conf for freebsd12 and x86_64-linux targets. #722
+* Remove MACOSX_DEPLOYMENT_TARGET that was targeting very old version 10.4. #647
+* Fix library name mangling for non glibc Linux/UNIX. #727
+* Fix compiler warnings raised by ruby-2.7
+* Update libffi to latest master.
+
+
 1.11.1 / 2019-05-20
 -------------------
 
@@ -8,6 +57,7 @@ Changed:
 
 1.11.0 / 2019-05-17
 -------------------
+This version was yanked on 2019-05-20 to fix an install issue on ruby-1.9.3. #700
 
 Added:
 * Add ability to disable or force use of system libffi. #669

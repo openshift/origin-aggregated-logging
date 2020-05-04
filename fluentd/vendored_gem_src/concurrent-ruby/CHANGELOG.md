@@ -1,6 +1,30 @@
 ## Current
 
-## Release v1.1.5, edge v0.5.0 (10 mar 2019)
+## Release v1.1.6, edge v0.6.0 (10 Feb 2020)
+
+concurrent-ruby:
+
+* (#841) Concurrent.disable_at_exit_handlers! is no longer needed and was deprecated.
+* (#841) AbstractExecutorService#auto_terminate= was deprecated and has no effect. 
+  Set :auto_terminate option instead when executor is initialized.
+
+## Release v1.1.6.pre1, edge v0.6.0.pre1 (26 Jan 2020)
+
+concurrent-ruby:
+
+* (#828) Allow to name executors, the name is also used to name their threads 
+* (#838) Implement #dup and #clone for structs
+* (#821) Safer finalizers for thread local variables
+* Documentation fixes
+* (#814) Use Ruby's Etc.nprocessors if available
+* (#812) Fix directory structure not to mess with packaging tools
+* (#840) Fix termination of pools on JRuby
+
+concurrent-ruby-edge:
+
+* Add WrappingExecutor (#830)
+
+## Release v1.1.5, edge v0.5.0 (10 Mar 2019)
 
 concurrent-ruby:
 

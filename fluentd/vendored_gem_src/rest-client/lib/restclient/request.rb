@@ -1,8 +1,14 @@
 require 'tempfile'
-require 'mime/types'
 require 'cgi'
 require 'netrc'
 require 'set'
+
+begin
+  # Use mime/types/columnar if available, for reduced memory usage
+  require 'mime/types/columnar'
+rescue LoadError
+  require 'mime/types'
+end
 
 module RestClient
   # This class is used internally by RestClient to send the request, but you can also
@@ -22,6 +28,11 @@ module RestClient
   # * :user and :password for basic auth, will be replaced by a user/password available in the :url
   # * :block_response call the provided block with the HTTPResponse as parameter
   # * :raw_response return a low-level RawResponse instead of a Response
+  # * :log Set the log for this request only, overriding RestClient.log, if
+  #      any.
+  # * :stream_log_percent (Only relevant with :raw_response => true) Customize
+  #     the interval at which download progress is logged. Defaults to every
+  #     10% complete.
   # * :max_redirects maximum number of redirections (default to 10)
   # * :proxy An HTTP proxy URI to use for this request. Any value here
   #   (including nil) will override RestClient.proxy.
@@ -92,6 +103,12 @@ module RestClient
       @block_response = args[:block_response]
       @raw_response = args[:raw_response] || false
 
+      @stream_log_percent = args[:stream_log_percent] || 10
+      if @stream_log_percent <= 0 || @stream_log_percent > 100
+        raise ArgumentError.new(
+          "Invalid :stream_log_percent #{@stream_log_percent.inspect}")
+      end
+
       @proxy = args.fetch(:proxy) if args.include?(:proxy)
 
       @ssl_opts = {}
@@ -131,9 +148,10 @@ module RestClient
         end
       end
 
-      @tf = nil # If you are a raw request, this is your tempfile
+      @log = args[:log]
       @max_redirects = args[:max_redirects] || 10
       @processed_headers = make_headers headers
+      @processed_headers_lowercase = Hash[@processed_headers.map {|k, v| [k.downcase, v]}]
       @args = args
 
       @before_execution_proc = args[:before_execution_proc]
@@ -356,6 +374,13 @@ module RestClient
     #   - headers from the payload object (e.g. Content-Type, Content-Lenth)
     #   - cookie headers from #make_cookie_header
     #
+    # BUG: stringify_headers does not alter the capitalization of headers that
+    # are passed as strings, it only normalizes those passed as symbols. This
+    # behavior will probably remain for a while for compatibility, but it means
+    # that the warnings that attempt to detect accidental header overrides may
+    # not always work.
+    # https://github.com/rest-client/rest-client/issues/599
+    #
     # @param [Hash] user_headers User-provided headers to include
     #
     # @return [Hash<String, String>] A hash of HTTP headers => values
@@ -493,24 +518,6 @@ module RestClient
       cert_store
     end
 
-    def self.decode content_encoding, body
-      if (!body) || body.empty?
-        body
-      elsif content_encoding == 'gzip'
-        Zlib::GzipReader.new(StringIO.new(body)).read
-      elsif content_encoding == 'deflate'
-        begin
-          Zlib::Inflate.new.inflate body
-        rescue Zlib::DataError
-          # No luck with Zlib decompression. Let's try with raw deflate,
-          # like some broken web servers do.
-          Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate body
-        end
-      else
-        body
-      end
-    end
-
     def redacted_uri
       if uri.password
         sanitized_uri = uri.dup
@@ -525,30 +532,29 @@ module RestClient
       redacted_uri.to_s
     end
 
+    # Default to the global logger if there's not a request-specific one
+    def log
+      @log || RestClient.log
+    end
+
     def log_request
-      return unless RestClient.log
+      return unless log
 
       out = []
 
       out << "RestClient.#{method} #{redacted_url.inspect}"
       out << payload.short_inspect if payload
       out << processed_headers.to_a.sort.map { |(k, v)| [k.inspect, v.inspect].join("=>") }.join(", ")
-      RestClient.log << out.join(', ') + "\n"
-    end
-
-    def log_response res
-      return unless RestClient.log
-
-      size = if @raw_response
-               File.size(@tf.path)
-             else
-               res.body.nil? ? 0 : res.body.size
-             end
-
-      RestClient.log << "# => #{res.code} #{res.class.to_s.gsub(/^Net::HTTP/, '')} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{size} bytes\n"
+      log << out.join(', ') + "\n"
     end
 
     # Return a hash of headers whose keys are capitalized strings
+    #
+    # BUG: stringify_headers does not fix the capitalization of headers that
+    # are already Strings. Leaving this behavior as is for now for
+    # backwards compatibility.
+    # https://github.com/rest-client/rest-client/issues/599
+    #
     def stringify_headers headers
       headers.inject({}) do |result, (key, value)|
         if key.is_a? Symbol
@@ -573,10 +579,13 @@ module RestClient
       end
     end
 
+    # Default headers set by RestClient. In addition to these headers, servers
+    # will receive headers set by Net::HTTP, such as Accept-Encoding and Host.
+    #
+    # @return [Hash<Symbol, String>]
     def default_headers
       {
         :accept => '*/*',
-        :accept_encoding => 'gzip, deflate',
         :user_agent => RestClient::Platform.default_user_agent,
       }
     end
@@ -712,6 +721,9 @@ module RestClient
 
       log_request
 
+      start_time = Time.now
+      tempfile = nil
+
       net.start do |http|
         established_connection = true
 
@@ -719,10 +731,16 @@ module RestClient
           net_http_do_request(http, req, payload, &@block_response)
         else
           res = net_http_do_request(http, req, payload) { |http_response|
-            fetch_body(http_response)
+            if @raw_response
+              # fetch body into tempfile
+              tempfile = fetch_body_to_tempfile(http_response)
+            else
+              # fetch body
+              http_response.read_body
+            end
+            http_response
           }
-          log_response res
-          process_result res, & block
+          process_result(res, start_time, tempfile, &block)
         end
       end
     rescue EOFError
@@ -762,46 +780,55 @@ module RestClient
     end
 
     def setup_credentials(req)
-      req.basic_auth(user, password) if user && !headers.has_key?("Authorization")
+      if user && !@processed_headers_lowercase.include?('authorization')
+        req.basic_auth(user, password)
+      end
     end
 
-    def fetch_body(http_response)
-      if @raw_response
-        # Taken from Chef, which as in turn...
-        # Stolen from http://www.ruby-forum.com/topic/166423
-        # Kudos to _why!
-        @tf = Tempfile.new('rest-client.')
-        @tf.binmode
-        size, total = 0, http_response['Content-Length'].to_i
-        http_response.read_body do |chunk|
-          @tf.write chunk
-          size += chunk.size
-          if RestClient.log
-            if size == 0
-              RestClient.log << "%s %s done (0 length file)\n" % [@method, @url]
-            elsif total == 0
-              RestClient.log << "%s %s (zero content length)\n" % [@method, @url]
-            else
-              RestClient.log << "%s %s %d%% done (%d of %d)\n" % [@method, @url, (size * 100) / total, size, total]
+    def fetch_body_to_tempfile(http_response)
+      # Taken from Chef, which as in turn...
+      # Stolen from http://www.ruby-forum.com/topic/166423
+      # Kudos to _why!
+      tf = Tempfile.new('rest-client.')
+      tf.binmode
+
+      size = 0
+      total = http_response['Content-Length'].to_i
+      stream_log_bucket = nil
+
+      http_response.read_body do |chunk|
+        tf.write chunk
+        size += chunk.size
+        if log
+          if total == 0
+            log << "streaming %s %s (%d of unknown) [0 Content-Length]\n" % [@method.upcase, @url, size]
+          else
+            percent = (size * 100) / total
+            current_log_bucket, _ = percent.divmod(@stream_log_percent)
+            if current_log_bucket != stream_log_bucket
+              stream_log_bucket = current_log_bucket
+              log << "streaming %s %s %d%% done (%d of %d)\n" % [@method.upcase, @url, (size * 100) / total, size, total]
             end
           end
         end
-        @tf.close
-        @tf
-      else
-        http_response.read_body
       end
-      http_response
+      tf.close
+      tf
     end
 
-    def process_result res, & block
+    # @param res The Net::HTTP response object
+    # @param start_time [Time] Time of request start
+    def process_result(res, start_time, tempfile=nil, &block)
       if @raw_response
-        # We don't decode raw requests
-        response = RawResponse.new(@tf, res, self)
+        unless tempfile
+          raise ArgumentError.new('tempfile is required')
+        end
+        response = RawResponse.new(tempfile, res, self, start_time)
       else
-        decoded = Request.decode(res['content-encoding'], res.body)
-        response = Response.create(decoded, res, self)
+        response = Response.create(res.body, res, self, start_time)
       end
+
+      response.log_response
 
       if block_given?
         block.call(response, self, res, & block)

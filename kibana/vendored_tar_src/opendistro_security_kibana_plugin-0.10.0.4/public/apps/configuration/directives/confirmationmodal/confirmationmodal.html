@@ -1,0 +1,19 @@
+<div class="kuiModalOverlay js-confirmOverlay" ng-click="vm.closeOnOverlay($event)">
+    <div class="kuiModal" style="width: 450px;">
+        <div class="kuiModalHeader">
+            <div class="kuiModalHeader__title">
+                {{::vm.header}}
+            </div>
+        </div>
+        <div class="kuiModalBody">
+            <div class="kuiModalBodyText">
+                {{::vm.body}}
+            </div>
+        </div>
+        <div class="kuiModalFooter">
+            <button type="button" ng-click="vm.closeModal('cancel')" class="kuiButton {{::vm.config.buttons.cancel.classes}}"><span
+                    class="kuiButton__inner"><span>Cancel</span></span></button>
+            <button type="button" ng-click="vm.confirm()" class="kuiButton {{::vm.config.buttons.confirm.classes}}" id="opendistro_security.button.deletemodal.confirm"><span>Confirm</span></span></button>
+        </div>
+    </div>
+</div>

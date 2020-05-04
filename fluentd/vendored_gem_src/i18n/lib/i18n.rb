@@ -115,7 +115,7 @@ module I18n
     # *PLURALIZATION*
     #
     # Translation data can contain pluralized translations. Pluralized translations
-    # are arrays of singluar/plural versions of translations like <tt>['Foo', 'Foos']</tt>.
+    # are arrays of singular/plural versions of translations like <tt>['Foo', 'Foos']</tt>.
     #
     # Note that <tt>I18n::Backend::Simple</tt> only supports an algorithm for English
     # pluralization rules. Other algorithms can be supported by custom backends.
@@ -173,9 +173,25 @@ module I18n
     #
     # It is recommended to use/implement lambdas in an "idempotent" way. E.g. when
     # a cache layer is put in front of I18n.translate it will generate a cache key
-    # from the argument values passed to #translate. Therefor your lambdas should
+    # from the argument values passed to #translate. Therefore your lambdas should
     # always return the same translations/values per unique combination of argument
     # values.
+    #
+    # *Ruby 2.7+ keyword arguments warning*
+    #
+    # This method uses keyword arguments.
+    # There is a breaking change in ruby that produces warning with ruby 2.7 and won't work as expected with ruby 3.0
+    # The "hash" parameter must be passed as keyword argument.
+    #
+    # Good:
+    #  I18n.t(:salutation, :gender => 'w', :name => 'Smith')
+    #  I18n.t(:salutation, **{ :gender => 'w', :name => 'Smith' })
+    #  I18n.t(:salutation, **any_hash)
+    #
+    # Bad:
+    #  I18n.t(:salutation, { :gender => 'w', :name => 'Smith' })
+    #  I18n.t(:salutation, any_hash)
+    #
     def translate(key = nil, *, throw: false, raise: false, locale: nil, **options) # TODO deprecate :raise
       locale ||= config.locale
       raise Disabled.new('t') if locale == false
@@ -202,7 +218,7 @@ module I18n
     # Wrapper for <tt>translate</tt> that adds <tt>:raise => true</tt>. With
     # this option, if no translation is found, it will raise <tt>I18n::MissingTranslationData</tt>
     def translate!(key, options = EMPTY_HASH)
-      translate(key, options.merge(:raise => true))
+      translate(key, **options.merge(:raise => true))
     end
     alias :t! :translate!
 

@@ -9,7 +9,6 @@ os::util::environment::use_sudo
 os::test::junit::declare_suite_start "test/kibana_dashboards"
 
 if [ -n "${DEBUG:-}" ] ; then
-    set -x
     curl_output() {
         python -mjson.tool
     }

@@ -1,5 +1,19 @@
 # MIME Types Changes by Version
 
+## 3.2019.10.09 / 2019-10-09
+
+*   Updated the IANA media registry entries as of release date.
+
+*   Reordered the `.ai` extension so that it is not the preferred extension for
+    `application/pdf` [#24][].
+
+## 3.2019.0904 / 2019-09-04
+
+*   Updated the IANA media registry entries as of release date.
+
+*   Moved the `.ai` extension from `application/postscript` to `application/pdf`.
+    [#23][] fixing [#22][].
+
 ## 3.2019.0331 / 2019-03-31
 
 *   Updated the IANA media registry entries as of release date.
@@ -102,7 +116,7 @@
 
 *   Updated the IANA media registry entries as of release date:
 
-    *  Updated metadata for application/scim+json, audio/G711-0, text/markdown. 
+    *  Updated metadata for application/scim+json, audio/G711-0, text/markdown.
 
     *  Added application/cdni, application/csvm+json, application/rfc+xml,
        application/vnd.3gpp.access-transfer-events+xml,
@@ -385,5 +399,8 @@
 [#13]: https://github.com/mime-types/mime-types-data/pull/13
 [#20]: https://github.com/mime-types/mime-types-data/pull/20
 [#21]: https://github.com/mime-types/mime-types-data/pull/21
+[#22]: https://github.com/mime-types/mime-types-data/pull/22
+[#23]: https://github.com/mime-types/mime-types-data/pull/23
+[#24]: https://github.com/mime-types/mime-types-data/pull/24
 [rmt]: https://github.com/mime-types/ruby-mime-types
 [Code of Conduct]: Code-of-Conduct.md

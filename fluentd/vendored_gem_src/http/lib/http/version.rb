@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module HTTP
-  VERSION = "0.9.8".freeze
+  VERSION = "4.3.0"
 end

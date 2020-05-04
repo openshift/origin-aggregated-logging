@@ -44,6 +44,13 @@ module Fluent::Plugin
       @_es ||= begin
         @current_config = connection_options[:hosts].clone
         adapter_conf = lambda {|f| f.adapter @http_backend, @backend_options }
+        gzip_headers = if compression
+                         {'Content-Encoding' => 'gzip'}
+                       else
+                         {}
+                       end
+        headers = { 'Content-Type' => @content_type.to_s, }.merge(gzip_headers)
+        ssl_options = { verify: @ssl_verify, ca_file: @ca_file}.merge(@ssl_version_options)
         transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(connection_options.merge(
                                                                             options: {
                                                                               reload_connections: @reload_connections,
@@ -51,14 +58,16 @@ module Fluent::Plugin
                                                                               resurrect_after: @resurrect_after,
                                                                               logger: @transport_logger,
                                                                               transport_options: {
-                                                                                headers: { 'Content-Type' => @content_type.to_s },
+                                                                                headers: headers,
                                                                                 request: { timeout: @request_timeout },
-                                                                                ssl: { verify: @ssl_verify, ca_file: @ca_file, version: @ssl_version }
+                                                                                ssl: ssl_options,
                                                                               },
                                                                               http: {
                                                                                 user: @user,
-                                                                                password: @password
-                                                                              }
+                                                                                password: @password,
+                                                                                scheme: @scheme
+                                                                              },
+                                                                              compression: compression,
                                                                             }), &adapter_conf)
         Elasticsearch::Client.new transport: transport
       end
@@ -124,6 +133,10 @@ module Fluent::Plugin
 
       chunk.msgpack_each do |time, record|
         next unless record.is_a? Hash
+
+        if @flatten_hashes
+          record = flatten_record(record)
+        end
 
         begin
           # evaluate all configurations here
@@ -210,7 +223,12 @@ module Fluent::Plugin
 
     def send_bulk(data, host, index)
       begin
-        response = client(host).bulk body: data, index: index
+        prepared_data = if compression
+                          gzip(data)
+                        else
+                          data
+                        end
+        response = client(host).bulk body: prepared_data, index: index
         if response['errors']
           log.error "Could not push log to Elasticsearch: #{response}"
         end
@@ -230,7 +248,7 @@ module Fluent::Plugin
       # check for '${ ... }'
       #   yes => `eval`
       #   no  => return param
-      return param if (param =~ /\${.+}/).nil?
+      return param if (param.to_s =~ /\${.+}/).nil?
 
       # check for 'tag_parts[]'
         # separated by a delimiter (default '.')

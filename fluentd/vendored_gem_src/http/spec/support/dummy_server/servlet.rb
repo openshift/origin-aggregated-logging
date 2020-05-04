@@ -1,4 +1,8 @@
+# frozen_string_literal: true
+# encoding: UTF-8
+
 class DummyServer < WEBrick::HTTPServer
+  # rubocop:disable Metrics/ClassLength
   class Servlet < WEBrick::HTTPServlet::AbstractServlet
     def self.sockets
       @sockets ||= []
@@ -13,7 +17,7 @@ class DummyServer < WEBrick::HTTPServer
       @handlers ||= {}
     end
 
-    %w(get post head).each do |method|
+    %w[get post head].each do |method|
       class_eval <<-RUBY, __FILE__, __LINE__
         def self.#{method}(path, &block)
           handlers["#{method}:\#{path}"] = block
@@ -129,6 +133,11 @@ class DummyServer < WEBrick::HTTPServer
       res.body = bytes.pack("c*")
     end
 
+    get "/iso-8859-1" do |_req, res|
+      res["Content-Type"] = "text/plain; charset=ISO-8859-1"
+      res.body = "testæ".encode(Encoding::ISO8859_1)
+    end
+
     get "/cookies" do |req, res|
       res["Set-Cookie"] = "foo=bar"
       res.body = req.cookies.map { |c| [c.name, c.value].join ": " }.join("\n")
@@ -137,6 +146,32 @@ class DummyServer < WEBrick::HTTPServer
     post "/echo-body" do |req, res|
       res.status = 200
       res.body   = req.body
+    end
+
+    get "/hello world" do |_req, res|
+      res.status = 200
+      res.body   = "hello world"
+    end
+
+    post "/encoded-body" do |req, res|
+      res.status = 200
+
+      res.body = case req["Accept-Encoding"]
+                 when "gzip" then
+                   res["Content-Encoding"] = "gzip"
+                   StringIO.open do |out|
+                     Zlib::GzipWriter.wrap(out) do |gz|
+                       gz.write "#{req.body}-gzipped"
+                       gz.finish
+                       out.tap(&:rewind).read
+                     end
+                   end
+                 when "deflate" then
+                   res["Content-Encoding"] = "deflate"
+                   Zlib::Deflate.deflate("#{req.body}-deflated")
+                 else
+                   "#{req.body}-raw"
+                 end
     end
   end
 end

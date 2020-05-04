@@ -1,0 +1,95 @@
+.content {
+  background: #ccc;
+}
+
+.app-wrapper {
+  left: 0;
+}
+
+.global-nav.is-global-nav-open + .app-wrapper {
+  left: 0;
+}
+
+.btn-default,
+.btn-default:active,
+.btn-default:focus,
+.btn-default:active:focus {
+  background-color: #00007c;
+  color: #ffffff;
+  border-color: #00007c;
+}
+
+.btn-default:hover {
+  background-color: #000058;
+  color: #ffffff;
+  border-color: #000058;
+}
+
+.brand-image-container {
+  width: 322px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.brand-image {
+  max-width: 300px;
+  text-align: center;
+}
+
+.login-wrapper {
+  position: absolute;
+  width: 350px;
+  top: 10%;
+  left: 50%;
+  margin-left: -160px;
+
+  background: white;
+  border-radius: 1px;
+  padding: 1em;
+
+  .login-title {
+    font-size: 1.4em;
+    text-align: center;
+    padding-bottom: 10px;
+  }
+
+  .login-subtitle {
+    font-size: 1em;
+    text-align: center;
+    padding-bottom: 15px;
+  }
+
+  .login-form {
+    .input-group {
+      margin-bottom: 1em;
+    }
+
+    /**
+    * Override Kibana UI's styling on fields that have a required attribute.
+    * This prevents input fields to be marked as invalid on page load.
+    * As soon as the field has been edited or focused, Angular's validation takes over.
+    */
+    .kuiTextInput:invalid:not(.ng-touched) {
+      border-color: #D9D9D9;
+    }
+
+    /**
+    * If the user submitted the form and we received an error we explicitly set
+    * an error class, regardless of ng-touched or the :invalid attribute.
+    */
+    .kuiTextInput.has-error {
+      border-color: #A30000;
+    }
+
+    .btn-login {
+      width: 100%;
+    }
+  }
+
+  .error-message {
+    color: red;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+}

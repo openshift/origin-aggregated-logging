@@ -7,6 +7,15 @@ require 'tmpdir'
 
 include TZInfo
 
+# Use send as a workaround for an issue on JRuby 9.2.9.0 where using the
+# refinement causes calls to RubyCoreSupport.file_open to fail to pass the block
+# parameter.
+#
+# https://travis-ci.org/tzinfo/tzinfo/jobs/628812051#L1931
+# https://github.com/jruby/jruby/issues/6009
+send(:using, TZInfo::RubyCoreSupport::UntaintExt) if TZInfo::RubyCoreSupport.const_defined?(:UntaintExt)
+send(:using, TaintExt) if Module.const_defined?(:TaintExt)
+
 class TCZoneinfoDataSource < Minitest::Test
   ZONEINFO_DIR = File.join(File.expand_path(File.dirname(__FILE__)), 'zoneinfo').untaint
   
@@ -653,7 +662,7 @@ class TCZoneinfoDataSource < Minitest::Test
   end
 
   def test_load_timezone_info_tainted
-    safe_test do
+    safe_test(:unavailable => :skip) do
       identifier = 'Europe/Amsterdam'.dup.taint
       assert(identifier.tainted?)
       info = @data_source.load_timezone_info(identifier)
@@ -840,7 +849,7 @@ class TCZoneinfoDataSource < Minitest::Test
   end
   
   def test_load_country_info_tainted
-    safe_test do
+    safe_test(:unavailable => :skip) do
       code = 'NL'.dup.taint
       assert(code.tainted?)
       info = @data_source.load_country_info(code)

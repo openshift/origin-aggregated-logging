@@ -116,6 +116,9 @@ class RecordModifierFilterTest < Test::Unit::TestCase
 
   def test_remove_non_whitelist_keys
     d = create_driver %[
+      <record>
+        foo bar
+      </record>
       whitelist_keys k1, k2, k3
     ]
 
@@ -123,7 +126,7 @@ class RecordModifierFilterTest < Test::Unit::TestCase
       d.feed("k1" => 'v', "k2" => 'v', "k4" => 'v', "k5" => 'v')
     end
 
-    assert_equal [{"k1" => 'v', "k2" => 'v'}], d.filtered.map(&:last)
+    assert_equal [{"k1" => 'v', "k2" => 'v', 'foo' => 'bar'}], d.filtered.map(&:last)
   end
 
   def test_prepare_values

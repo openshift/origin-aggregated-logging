@@ -144,6 +144,15 @@
     - text/example
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/flexfec
+  encoding: quoted-printable
+  xrefs:
+    rfc:
+    - rfc8627
+    template:
+    - text/flexfec
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/fwdred
   encoding: quoted-printable
   xrefs:
@@ -625,6 +634,15 @@
     - text/vnd.esmertec.theme-descriptor
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/vnd.ficlab.flt
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Steve_Gilberd
+    template:
+    - text/vnd.ficlab.flt
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/vnd.flatland.3dml
   encoding: quoted-printable
   obsolete: true
@@ -798,6 +816,15 @@
     - text/vnd.si.uricatalogue
     notes:
     - "- OBSOLETED by request"
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/vnd.sosi
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Petter_Reinholdtsen
+    template:
+    - text/vnd.sosi
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/vnd.sun.j2me.app-descriptor

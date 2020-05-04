@@ -1,37 +1,28 @@
 package org.ruby_http_parser;
 
-import http_parser.HTTPException;
-import http_parser.HTTPMethod;
-import http_parser.HTTPParser;
-import http_parser.lolevel.HTTPCallback;
-import http_parser.lolevel.HTTPDataCallback;
-import http_parser.lolevel.ParserSettings;
-
-import java.nio.ByteBuffer;
-
-import org.jcodings.Encoding;
-import org.jcodings.specific.UTF8Encoding;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
+import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
-import org.jruby.RubySymbol;
-import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
+
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.ByteList;
+
+import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
+
+import java.nio.ByteBuffer;
+import http_parser.*;
+import http_parser.lolevel.ParserSettings;
+import http_parser.lolevel.HTTPCallback;
+import http_parser.lolevel.HTTPDataCallback;
 
 public class RubyHttpParser extends RubyObject {
-
-  @JRubyMethod(name = "strict?", module = true)
-  public static IRubyObject strict(IRubyObject recv) {
-    return recv.getRuntime().newBoolean(true);
-  }
 
   public static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
     public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -39,7 +30,7 @@ public class RubyHttpParser extends RubyObject {
     }
   };
 
-  byte[] fetchBytes(ByteBuffer b, int pos, int len) {
+  byte[] fetchBytes (ByteBuffer b, int pos, int len) {
     byte[] by = new byte[len];
     int saved = b.position();
     b.position(pos);
@@ -74,18 +65,14 @@ public class RubyHttpParser extends RubyObject {
 
   private IRubyObject callback_object;
 
-  private boolean completed;
-
-  private byte[] _current_header;
-  private byte[] _last_header;
-
-  private static final Encoding UTF8 = UTF8Encoding.INSTANCE;
+  private String _current_header;
+  private String _last_header;
 
   public RubyHttpParser(final Ruby runtime, RubyClass clazz) {
-    super(runtime, clazz);
+    super(runtime,clazz);
 
     this.runtime = runtime;
-    this.eParserError = (RubyClass) runtime.getModule("HTTP").getClass("Parser").getConstant("Error");
+    this.eParserError = (RubyClass)runtime.getModule("HTTP").getClass("Parser").getConstant("Error");
 
     this.on_message_begin = null;
     this.on_headers_complete = null;
@@ -94,10 +81,7 @@ public class RubyHttpParser extends RubyObject {
 
     this.callback_object = null;
 
-    this.completed = false;
-
-    this.header_value_type = runtime.getModule("HTTP").getClass("Parser")
-        .getInstanceVariable("@default_header_value_type");
+    this.header_value_type = runtime.getModule("HTTP").getClass("Parser").getInstanceVariable("@default_header_value_type");
 
     initSettings();
     init();
@@ -107,39 +91,48 @@ public class RubyHttpParser extends RubyObject {
     this.settings = new ParserSettings();
 
     this.settings.on_url = new HTTPDataCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
         byte[] data = fetchBytes(buf, pos, len);
-        if (runtime.is1_9() || runtime.is2_0()) {
-          ((RubyString) requestUrl).cat(data, 0, data.length, UTF8);
-        } else {
-          ((RubyString) requestUrl).cat(data);
-        }
+        ((RubyString)requestUrl).concat(runtime.newString(new String(data)));
+        return 0;
+      }
+    };
+    this.settings.on_path = new HTTPDataCallback() {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+        byte[] data = fetchBytes(buf, pos, len);
+        ((RubyString)requestPath).concat(runtime.newString(new String(data)));
+        return 0;
+      }
+    };
+    this.settings.on_query_string = new HTTPDataCallback() {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+        byte[] data = fetchBytes(buf, pos, len);
+        ((RubyString)queryString).concat(runtime.newString(new String(data)));
+        return 0;
+      }
+    };
+    this.settings.on_fragment = new HTTPDataCallback() {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+        byte[] data = fetchBytes(buf, pos, len);
+        ((RubyString)fragment).concat(runtime.newString(new String(data)));
         return 0;
       }
     };
 
     this.settings.on_header_field = new HTTPDataCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
         byte[] data = fetchBytes(buf, pos, len);
 
         if (_current_header == null)
-          _current_header = data;
-        else {
-          byte[] tmp = new byte[_current_header.length + data.length];
-          System.arraycopy(_current_header, 0, tmp, 0, _current_header.length);
-          System.arraycopy(data, 0, tmp, _current_header.length, data.length);
-          _current_header = tmp;
-        }
+          _current_header = new String(data);
+        else
+          _current_header = _current_header.concat(new String(data));
 
         return 0;
       }
     };
-    final RubySymbol arraysSym = runtime.newSymbol("arrays");
-    final RubySymbol mixedSym = runtime.newSymbol("mixed");
-    final RubySymbol stopSym = runtime.newSymbol("stop");
-    final RubySymbol resetSym = runtime.newSymbol("reset");
     this.settings.on_header_value = new HTTPDataCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
         byte[] data = fetchBytes(buf, pos, len);
         ThreadContext context = headers.getRuntime().getCurrentContext();
         IRubyObject key, val;
@@ -151,74 +144,57 @@ public class RubyHttpParser extends RubyObject {
           _current_header = null;
         }
 
-        key = RubyString.newString(runtime, new ByteList(_last_header, UTF8, false));
+        key = (IRubyObject)runtime.newString(_last_header);
         val = headers.op_aref(context, key);
 
         if (new_field == 1) {
           if (val.isNil()) {
-            if (header_value_type == arraysSym) {
-              headers.op_aset(context, key,
-                  RubyArray.newArrayLight(runtime, RubyString.newStringLight(runtime, 10, UTF8)));
+            if (header_value_type == runtime.newSymbol("arrays")) {
+              headers.op_aset(context, key, RubyArray.newArrayLight(runtime, runtime.newString("")));
             } else {
-              headers.op_aset(context, key, RubyString.newStringLight(runtime, 10, UTF8));
+              headers.op_aset(context, key, runtime.newString(""));
             }
           } else {
-            if (header_value_type == mixedSym) {
+            if (header_value_type == runtime.newSymbol("mixed")) {
               if (val instanceof RubyString) {
-                headers.op_aset(context, key,
-                    RubyArray.newArrayLight(runtime, val, RubyString.newStringLight(runtime, 10, UTF8)));
+                headers.op_aset(context, key, RubyArray.newArrayLight(runtime, val, runtime.newString("")));
               } else {
-                ((RubyArray) val).add(RubyString.newStringLight(runtime, 10, UTF8));
+                ((RubyArray)val).add(runtime.newString(""));
               }
-            } else if (header_value_type == arraysSym) {
-              ((RubyArray) val).add(RubyString.newStringLight(runtime, 10, UTF8));
+            } else if (header_value_type == runtime.newSymbol("arrays")) {
+              ((RubyArray)val).add(runtime.newString(""));
             } else {
-              if (runtime.is1_9() || runtime.is2_0()) {
-                ((RubyString) val).cat(',', UTF8).cat(' ', UTF8);
-              } else {
-                ((RubyString) val).cat(',').cat(' ');
-              }
+              ((RubyString)val).cat(", ".getBytes());
             }
           }
           val = headers.op_aref(context, key);
         }
 
         if (val instanceof RubyArray) {
-          val = ((RubyArray) val).entry(-1);
+          val = ((RubyArray)val).entry(-1);
         }
 
-        if (runtime.is1_9() || runtime.is2_0()) {
-          ((RubyString) val).cat(data, 0, data.length, UTF8);
-        } else {
-          ((RubyString) val).cat(data);
-        }
+        ((RubyString)val).cat(data);
 
         return 0;
       }
     };
 
     this.settings.on_message_begin = new HTTPCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p) {
+      public int cb (http_parser.lolevel.HTTPParser p) {
         headers = new RubyHash(runtime);
 
-        if (runtime.is1_9() || runtime.is2_0()) {
-          requestUrl = RubyString.newEmptyString(runtime, UTF8);
-          requestPath = RubyString.newEmptyString(runtime, UTF8);
-          queryString = RubyString.newEmptyString(runtime, UTF8);
-          fragment = RubyString.newEmptyString(runtime, UTF8);
-          upgradeData = RubyString.newEmptyString(runtime, UTF8);
-        } else {
-          requestUrl = RubyString.newEmptyString(runtime);
-          requestPath = RubyString.newEmptyString(runtime);
-          queryString = RubyString.newEmptyString(runtime);
-          fragment = RubyString.newEmptyString(runtime);
-          upgradeData = RubyString.newEmptyString(runtime);
-        }
+        requestUrl = runtime.newString("");
+        requestPath = runtime.newString("");
+        queryString = runtime.newString("");
+        fragment = runtime.newString("");
+
+        upgradeData = runtime.newString("");
 
         IRubyObject ret = runtime.getNil();
 
         if (callback_object != null) {
-          if (((RubyObject) callback_object).respondsTo("on_message_begin")) {
+          if (((RubyObject)callback_object).respond_to_p(runtime.newSymbol("on_message_begin")).toJava(Boolean.class) == Boolean.TRUE) {
             ThreadContext context = callback_object.getRuntime().getCurrentContext();
             ret = callback_object.callMethod(context, "on_message_begin");
           }
@@ -227,7 +203,7 @@ public class RubyHttpParser extends RubyObject {
           ret = on_message_begin.callMethod(context, "call");
         }
 
-        if (ret == stopSym) {
+        if (ret == runtime.newSymbol("stop")) {
           throw new StopException();
         } else {
           return 0;
@@ -235,13 +211,11 @@ public class RubyHttpParser extends RubyObject {
       }
     };
     this.settings.on_message_complete = new HTTPCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p) {
+      public int cb (http_parser.lolevel.HTTPParser p) {
         IRubyObject ret = runtime.getNil();
 
-        completed = true;
-
         if (callback_object != null) {
-          if (((RubyObject) callback_object).respondsTo("on_message_complete")) {
+          if (((RubyObject)callback_object).respond_to_p(runtime.newSymbol("on_message_complete")).toJava(Boolean.class) == Boolean.TRUE) {
             ThreadContext context = callback_object.getRuntime().getCurrentContext();
             ret = callback_object.callMethod(context, "on_message_complete");
           }
@@ -250,7 +224,7 @@ public class RubyHttpParser extends RubyObject {
           ret = on_message_complete.callMethod(context, "call");
         }
 
-        if (ret == stopSym) {
+        if (ret == runtime.newSymbol("stop")) {
           throw new StopException();
         } else {
           return 0;
@@ -258,11 +232,11 @@ public class RubyHttpParser extends RubyObject {
       }
     };
     this.settings.on_headers_complete = new HTTPCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p) {
+      public int cb (http_parser.lolevel.HTTPParser p) {
         IRubyObject ret = runtime.getNil();
 
         if (callback_object != null) {
-          if (((RubyObject) callback_object).respondsTo("on_headers_complete")) {
+          if (((RubyObject)callback_object).respond_to_p(runtime.newSymbol("on_headers_complete")).toJava(Boolean.class) == Boolean.TRUE) {
             ThreadContext context = callback_object.getRuntime().getCurrentContext();
             ret = callback_object.callMethod(context, "on_headers_complete", headers);
           }
@@ -271,32 +245,29 @@ public class RubyHttpParser extends RubyObject {
           ret = on_headers_complete.callMethod(context, "call", headers);
         }
 
-        if (ret == stopSym) {
+        if (ret == runtime.newSymbol("stop")) {
           throw new StopException();
-        } else if (ret == resetSym) {
-          return 1;
         } else {
           return 0;
         }
       }
     };
     this.settings.on_body = new HTTPDataCallback() {
-      public int cb(http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
+      public int cb (http_parser.lolevel.HTTPParser p, ByteBuffer buf, int pos, int len) {
         IRubyObject ret = runtime.getNil();
         byte[] data = fetchBytes(buf, pos, len);
 
         if (callback_object != null) {
-          if (((RubyObject) callback_object).respondsTo("on_body")) {
+          if (((RubyObject)callback_object).respond_to_p(runtime.newSymbol("on_body")).toJava(Boolean.class) == Boolean.TRUE) {
             ThreadContext context = callback_object.getRuntime().getCurrentContext();
-            ret = callback_object.callMethod(context, "on_body",
-                RubyString.newString(runtime, new ByteList(data, UTF8, false)));
+            ret = callback_object.callMethod(context, "on_body", callback_object.getRuntime().newString(new String(data)));
           }
         } else if (on_body != null) {
           ThreadContext context = on_body.getRuntime().getCurrentContext();
-          ret = on_body.callMethod(context, "call", RubyString.newString(runtime, new ByteList(data, UTF8, false)));
+          ret = on_body.callMethod(context, "call", on_body.getRuntime().newString(new String(data)));
         }
 
-        if (ret == stopSym) {
+        if (ret == runtime.newSymbol("stop")) {
           throw new StopException();
         } else {
           return 0;
@@ -307,7 +278,6 @@ public class RubyHttpParser extends RubyObject {
 
   private void init() {
     this.parser = new HTTPParser();
-    this.parser.HTTP_PARSER_STRICT = true;
     this.headers = null;
 
     this.requestUrl = runtime.getNil();
@@ -361,9 +331,8 @@ public class RubyHttpParser extends RubyObject {
 
   @JRubyMethod(name = "<<")
   public IRubyObject execute(IRubyObject data) {
-    RubyString str = (RubyString) data;
-    ByteList byteList = str.getByteList();
-    ByteBuffer buf = ByteBuffer.wrap(byteList.getUnsafeBytes(), byteList.getBegin(), byteList.getRealSize());
+    RubyString str = (RubyString)data;
+    ByteBuffer buf = ByteBuffer.wrap(str.getBytes());
     boolean stopped = false;
 
     try {
@@ -376,12 +345,9 @@ public class RubyHttpParser extends RubyObject {
 
     if (parser.getUpgrade()) {
       byte[] upData = fetchBytes(buf, buf.position(), buf.limit() - buf.position());
-      if (runtime.is1_9() || runtime.is2_0()) {
-        ((RubyString) upgradeData).cat(upData, 0, upData.length, UTF8);
-      } else {
-        ((RubyString) upgradeData).cat(upData);
-      }
-    } else if (buf.hasRemaining() && !completed) {
+      ((RubyString)upgradeData).concat(runtime.newString(new String(upData)));
+
+    } else if (buf.hasRemaining()) {
       if (!stopped)
         throw new RaiseException(runtime, eParserError, "Could not parse data entirely", true);
     }
@@ -391,12 +357,12 @@ public class RubyHttpParser extends RubyObject {
 
   @JRubyMethod(name = "keep_alive?")
   public IRubyObject shouldKeepAlive() {
-    return runtime.newBoolean(parser.shouldKeepAlive());
+    return parser.shouldKeepAlive() ? runtime.getTrue() : runtime.getFalse();
   }
 
   @JRubyMethod(name = "upgrade?")
   public IRubyObject shouldUpgrade() {
-    return runtime.newBoolean(parser.getUpgrade());
+    return parser.getUpgrade() ? runtime.getTrue() : runtime.getFalse();
   }
 
   @JRubyMethod(name = "http_major")
@@ -473,8 +439,7 @@ public class RubyHttpParser extends RubyObject {
 
   @JRubyMethod(name = "header_value_type=")
   public IRubyObject set_header_value_type(IRubyObject val) {
-    String valString = val.toString();
-    if (valString != "mixed" && valString != "arrays" && valString != "strings") {
+    if (val != runtime.newSymbol("mixed") && val != runtime.newSymbol("arrays") && val != runtime.newSymbol("strings")) {
       throw runtime.newArgumentError("Invalid header value type");
     }
     header_value_type = val;

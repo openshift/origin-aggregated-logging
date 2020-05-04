@@ -1,6 +1,11 @@
+# frozen_string_literal: true
+
 module HTTP
   # Generic error
   class Error < StandardError; end
+
+  # Generic Connection error
+  class ConnectionError < Error; end
 
   # Generic Request error
   class RequestError < Error; end
@@ -14,6 +19,6 @@ module HTTP
   # Generic Timeout error
   class TimeoutError < Error; end
 
-  # Header name is invalid
-  class InvalidHeaderNameError < Error; end
+  # Header value is of unexpected format (similar to Net::HTTPHeaderSyntaxError)
+  class HeaderError < Error; end
 end

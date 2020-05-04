@@ -25,6 +25,47 @@ class DefaultPodWatchStrategyTest < WatchTest
      include KubernetesMetadata::WatchPods
 
      setup do
+       @initial = Kubeclient::Common::EntityList.new(
+         'PodList',
+         '123',
+         [
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'initial',
+                                        'namespace' => 'initial_ns',
+                                        'uid' => 'initial_uid',
+                                        'labels' => {},
+                                      },
+                                      'spec' => {
+                                        'nodeName' => 'aNodeName',
+                                        'containers' => [{
+                                                           'name' => 'foo',
+                                                           'image' => 'bar',
+                                                         }, {
+                                                           'name' => 'bar',
+                                                           'image' => 'foo',
+                                                         }]
+                                      }
+                                    }),
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'modified',
+                                        'namespace' => 'create',
+                                        'uid' => 'modified_uid',
+                                        'labels' => {},
+                                      },
+                                      'spec' => {
+                                        'nodeName' => 'aNodeName',
+                                        'containers' => [{
+                                                           'name' => 'foo',
+                                                           'image' => 'bar',
+                                                         }, {
+                                                           'name' => 'bar',
+                                                           'image' => 'foo',
+                                                         }]
+                                      }
+                                    }),
+         ])
        @created = OpenStruct.new(
          type: 'CREATED',
          object: {
@@ -97,17 +138,44 @@ class DefaultPodWatchStrategyTest < WatchTest
        )
      end
 
+    test 'pod list caches pods' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_pods, @initial do
+        process_pod_watcher_notices(start_pod_watch)
+        assert_equal(true, @cache.key?('initial_uid'))
+        assert_equal(true, @cache.key?('modified_uid'))
+        assert_equal(2, @stats[:pod_cache_host_updates])
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
+
+    test 'pod list caches pods and watch updates' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@modified] do
+          process_pod_watcher_notices(start_pod_watch)
+          assert_equal(2, @stats[:pod_cache_host_updates])
+          assert_equal(1, @stats[:pod_cache_watch_updates])
+        end
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
+
     test 'pod watch notice ignores CREATED' do
-      @client.stub :watch_pods, [@created] do
-       start_pod_watch
-       assert_equal(false, @cache.key?('created_uid'))
-       assert_equal(1, @stats[:pod_cache_watch_ignored])
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@created] do
+          process_pod_watcher_notices(start_pod_watch)
+          assert_equal(false, @cache.key?('created_uid'))
+          assert_equal(1, @stats[:pod_cache_watch_ignored])
+        end
       end
     end
 
     test 'pod watch notice is ignored when info not cached and MODIFIED is received' do
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(false, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_watch_misses])
       end
@@ -117,7 +185,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       orig_env_val = ENV['K8S_NODE_NAME']
       ENV['K8S_NODE_NAME'] = 'aNodeName'
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_host_updates])
       end
@@ -127,7 +195,7 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch notice is updated when MODIFIED is received' do
       @cache['modified_uid'] = {}
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_watch_updates])
       end
@@ -136,10 +204,22 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch notice is ignored when delete is received' do
       @cache['deleted_uid'] = {}
       @client.stub :watch_pods, [@deleted] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('deleted_uid'))
        assert_equal(1, @stats[:pod_cache_watch_delete_ignored])
       end
     end
 
+    test 'pod watch retries when exceptions are encountered' do
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [[@created, @exception_raised]] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_pod_thread
+          end
+          assert_equal(3, @stats[:pod_watch_failures])
+          assert_equal(2, Thread.current[:pod_watch_retry_count])
+          assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+        end
+      end
+    end
 end

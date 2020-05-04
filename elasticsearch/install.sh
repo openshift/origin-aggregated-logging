@@ -1,7 +1,8 @@
 #!/bin/bash
 
-set -ex
-set -o nounset
+set -euxo pipefail
+
+ln -s /usr/local/bin/logging ${HOME}/logging
 
 source ${HOME}/prep-install.${RELEASE_STREAM}
 
@@ -26,18 +27,24 @@ fi
 if [ ! -d /elasticsearch ] ; then
   mkdir /elasticsearch
 fi
-if [ ! -d $ES_CONF ] ; then
-  mkdir -p $ES_CONF
+if [ -f ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh ] ; then
+  chmod +x ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
+elif [ -f ${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh ]; then
+  chmod +x ${ES_HOME}/plugins/opendistro_security/tools/securityadmin.sh
 fi
-chmod -R og+w $ES_CONF ${ES_HOME} ${HOME} /elasticsearch
-chmod -R o+rx /etc/elasticsearch
-chmod +x ${ES_HOME}/plugins/openshift-elasticsearch/sgadmin.sh
 
 # document needed by sg plugin to properly initialize
+set +o pipefail
 passwd=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 20 | head -n 1)
-cat > ${HOME}/sgconfig/sg_internal_users.yml << CONF
+
+cat > ${HOME}/sgconfig/internal_users.yml << CONF
 ---
   $(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1):
     hash: $passwd
 CONF
+set -o pipefail
 unset passwd
+rm -rf /tmp/lib
+# init scripts need these permissions/ownership because they write
+# these files/dirs in place
+chmod -R u+w,g+w ${HOME}/sgconfig ${ES_HOME}/index_templates

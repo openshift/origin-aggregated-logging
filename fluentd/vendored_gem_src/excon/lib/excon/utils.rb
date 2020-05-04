@@ -12,7 +12,13 @@ module Excon
 
     def binary_encode(string)
       if FORCE_ENC && string.encoding != Encoding::ASCII_8BIT
-        string.force_encoding('BINARY')
+        if string.frozen?
+          string.dup.force_encoding('BINARY')
+        else
+          string.force_encoding('BINARY')
+        end
+      else
+        string
       end
     end
 
@@ -30,12 +36,23 @@ module Excon
     # Redact sensitive info from provided data
     def redact(datum)
       datum = datum.dup
-      if datum.has_key?(:headers) && datum[:headers].has_key?('Authorization')
-        datum[:headers] = datum[:headers].dup
-        datum[:headers]['Authorization'] = REDACTED
+      if datum.has_key?(:headers)
+        if datum[:headers].has_key?('Authorization') || datum[:headers].has_key?('Proxy-Authorization')
+          datum[:headers] = datum[:headers].dup
+        end
+        if datum[:headers].has_key?('Authorization')
+          datum[:headers]['Authorization'] = REDACTED
+        end
+        if datum[:headers].has_key?('Proxy-Authorization')
+          datum[:headers]['Proxy-Authorization'] = REDACTED
+        end
       end
       if datum.has_key?(:password)
         datum[:password] = REDACTED
+      end
+      if datum.has_key?(:proxy) && datum[:proxy].has_key?(:password)
+        datum[:proxy] = datum[:proxy].dup
+        datum[:proxy][:password] = REDACTED
       end
       datum
     end
@@ -78,7 +95,7 @@ module Excon
     def split_header_value(str)
       return [] if str.nil?
       str = str.dup.strip
-      binary_encode(str)
+      str = binary_encode(str)
       str.scan(%r'\G((?:"(?:\\.|[^"])+?"|[^",]+)+)
                     (?:,\s*|\Z)'xn).flatten
     end
@@ -86,21 +103,21 @@ module Excon
     # Escapes HTTP reserved and unwise characters in +str+
     def escape_uri(str)
       str = str.dup
-      binary_encode(str)
+      str = binary_encode(str)
       str.gsub(UNESCAPED) { "%%%02X" % $1[0].ord }
     end
 
     # Unescapes HTTP reserved and unwise characters in +str+
     def unescape_uri(str)
       str = str.dup
-      binary_encode(str)
+      str = binary_encode(str)
       str.gsub(ESCAPED) { $1.hex.chr }
     end
 
     # Unescape form encoded values in +str+
     def unescape_form(str)
       str = str.dup
-      binary_encode(str)
+      str = binary_encode(str)
       str.gsub!(/\+/, ' ')
       str.gsub(ESCAPED) { $1.hex.chr }
     end

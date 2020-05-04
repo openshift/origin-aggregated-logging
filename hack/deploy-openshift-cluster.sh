@@ -39,6 +39,13 @@ fi
 
 if [ -n "${OPENSHIFT_INSTALLER:-}" -a -x "${OPENSHIFT_INSTALLER:-}" ] ; then
     INSTALLER=$OPENSHIFT_INSTALLER
+elif [ -n "${OPENSHIFT_INSTALLER_URL:-}" ] ; then
+    INSTALLER=$installdir/openshift-install
+    pushd $WORKDIR > /dev/null
+    curl -s -L -o openshift-installer.tar.gz "$OPENSHIFT_INSTALLER_URL"
+    tar xfz openshift-installer.tar.gz
+    mv openshift-install $INSTALLER
+    popd > /dev/null
 elif [ -n "${OPENSHIFT_INSTALL_VERSION:-}" ] ; then
     # download and use specific version
     INSTALLER=$installdir/openshift-install

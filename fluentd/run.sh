@@ -68,8 +68,9 @@ if [ -z "${JOURNAL_SOURCE:-}" ] ; then
     fi
 fi
 
-IPADDR4=`/usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/"`
-IPADDR6=`/usr/sbin/ip -6 addr show dev eth0 | grep inet6 | sed "s/[ \t]*inet6 \([a-f0-9:]*\).*/\1/"`
+IPADDR4=${NODE_IPV4:-$( /usr/sbin/ip -4 addr show dev eth0 | grep inet | sed -e "s/[ \t]*inet \([0-9.]*\).*/\1/" )}
+IPADDR6="" # So as to omit "ipaddr6" field from logs.
+
 export IPADDR4 IPADDR6
 
 BUFFER_SIZE_LIMIT=${BUFFER_SIZE_LIMIT:-16777216}
@@ -233,11 +234,6 @@ if [[ "${USE_REMOTE_SYSLOG:-}" = "true" ]] ; then
     if [[ $REMOTE_SYSLOG_HOST ]] ; then
         ruby generate_syslog_config.rb
     fi
-fi
-
-# Disable process_kubernetes_events if TRANSFORM_EVENTS is false client.
-if [ "${TRANSFORM_EVENTS:-}" != true ] ; then
-    sed -i 's/\(.*@type viaq_data_model.*\)/\1\n  process_kubernetes_events false/' $CFG_DIR/openshift/filter-viaq-data-model.conf
 fi
 
 if [ "${AUDIT_CONTAINER_ENGINE:-}" = "true" ] ; then

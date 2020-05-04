@@ -166,6 +166,26 @@
     - image/heif-sequence
   registered: true
 - !ruby/object:MIME::Type
+  content-type: image/hej2k
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/hej2k
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/hsj2
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/hsj2
+  registered: true
+- !ruby/object:MIME::Type
   content-type: image/ief
   friendly:
     en: Image Exchange Format
@@ -213,6 +233,26 @@
     - rfc2046
   registered: true
 - !ruby/object:MIME::Type
+  content-type: image/jph
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/jph
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jphc
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/jphc
+  registered: true
+- !ruby/object:MIME::Type
   content-type: image/jpm
   encoding: base64
   extensions:
@@ -245,6 +285,62 @@
     - ITU-T
     template:
     - image/jxr
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxrA
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/jxrA
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxrS
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    - ITU-T
+    template:
+    - image/jxrS
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxs
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    template:
+    - image/jxs
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxsc
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    template:
+    - image/jxsc
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxsi
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    template:
+    - image/jxsi
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/jxss
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    template:
+    - image/jxss
   registered: true
 - !ruby/object:MIME::Type
   content-type: image/ktx

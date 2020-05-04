@@ -1,5 +1,6 @@
 /* -----------------------------------------------------------------------
-   closures.c - Copyright (c) 2007, 2009, 2010  Red Hat, Inc.
+   closures.c - Copyright (c) 2019 Anthony Green
+                Copyright (c) 2007, 2009, 2010 Red Hat, Inc.
                 Copyright (C) 2007, 2009, 2010 Free Software Foundation, Inc
                 Copyright (c) 2011 Plausible Labs Cooperative, Inc.
 
@@ -122,7 +123,7 @@ ffi_closure_free (void *ptr)
 #  define FFI_MMAP_EXEC_WRIT 1
 #  define HAVE_MNTENT 1
 # endif
-# if defined(X86_WIN32) || defined(X86_WIN64) || defined(__OS2__)
+# if defined(X86_WIN32) || defined(X86_WIN64) || defined(_M_ARM64) || defined(__OS2__)
 /* Windows systems may have Data Execution Protection (DEP) enabled, 
    which requires the use of VirtualMalloc/VirtualFree to alloc/free
    executable memory. */
@@ -172,7 +173,7 @@ struct ffi_trampoline_table
 
 struct ffi_trampoline_table_entry
 {
-  void *(*trampoline) ();
+  void *(*trampoline) (void);
   ffi_trampoline_table_entry *next;
 };
 
@@ -385,7 +386,7 @@ ffi_closure_free (void *ptr)
 #endif
 #include <string.h>
 #include <stdio.h>
-#if !defined(X86_WIN32) && !defined(X86_WIN64)
+#if !defined(X86_WIN32) && !defined(X86_WIN64) && !defined(_M_ARM64)
 #ifdef HAVE_MNTENT
 #include <mntent.h>
 #endif /* HAVE_MNTENT */
@@ -511,7 +512,7 @@ static int dlmalloc_trim(size_t) MAYBE_UNUSED;
 static size_t dlmalloc_usable_size(void*) MAYBE_UNUSED;
 static void dlmalloc_stats(void) MAYBE_UNUSED;
 
-#if !(defined(X86_WIN32) || defined(X86_WIN64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX)
+#if !(defined(X86_WIN32) || defined(X86_WIN64) || defined(_M_ARM64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX)
 /* Use these for mmap and munmap within dlmalloc.c.  */
 static void *dlmmap(void *, size_t, int, int, int, off_t);
 static int dlmunmap(void *, size_t);
@@ -525,7 +526,7 @@ static int dlmunmap(void *, size_t);
 #undef mmap
 #undef munmap
 
-#if !(defined(X86_WIN32) || defined(X86_WIN64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX)
+#if !(defined(X86_WIN32) || defined(X86_WIN64) || defined(_M_ARM64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX)
 
 /* A mutex used to synchronize access to *exec* variables in this file.  */
 static pthread_mutex_t open_temp_exec_file_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -789,7 +790,13 @@ dlmmap_locked (void *start, size_t length, int prot, int flags, off_t offset)
 	  close (execfd);
 	  goto retry_open;
 	}
-      ftruncate (execfd, offset);
+      if (ftruncate (execfd, offset) != 0)
+      {
+        /* Fixme : Error logs can be added here. Returning an error for
+         * ftruncte() will not add any advantage as it is being
+         * validating in the error case. */
+      }
+
       return MFAIL;
     }
   else if (!offset
@@ -801,7 +808,12 @@ dlmmap_locked (void *start, size_t length, int prot, int flags, off_t offset)
   if (start == MFAIL)
     {
       munmap (ptr, length);
-      ftruncate (execfd, offset);
+      if (ftruncate (execfd, offset) != 0)
+      {
+        /* Fixme : Error logs can be added here. Returning an error for
+         * ftruncte() will not add any advantage as it is being
+         * validating in the error case. */
+      }
       return start;
     }
 
@@ -896,7 +908,7 @@ segment_holding_code (mstate m, char* addr)
 }
 #endif
 
-#endif /* !(defined(X86_WIN32) || defined(X86_WIN64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX) */
+#endif /* !(defined(X86_WIN32) || defined(X86_WIN64) || defined(_M_ARM64) || defined(__OS2__)) || defined (__CYGWIN__) || defined(__INTERIX) */
 
 /* Allocate a chunk of memory with the given size.  Returns a pointer
    to the writable address, and sets *CODE to the executable
@@ -919,6 +931,20 @@ ffi_closure_alloc (size_t size, void **code)
     }
 
   return ptr;
+}
+
+void *
+ffi_data_to_code_pointer (void *data)
+{
+  msegmentptr seg = segment_holding (gm, data);
+  /* We expect closures to be allocated with ffi_closure_alloc(), in
+     which case seg will be non-NULL.  However, some users take on the
+     burden of managing this memory themselves, in which case this
+     we'll just return data. */
+  if (seg)
+    return add_segment_exec_offset (data, seg);
+  else
+    return data;
 }
 
 /* Release a chunk of memory allocated with ffi_closure_alloc.  If
@@ -958,6 +984,12 @@ void
 ffi_closure_free (void *ptr)
 {
   free (ptr);
+}
+
+void *
+ffi_data_to_code_pointer (void *data)
+{
+  return data;
 }
 
 # endif /* ! FFI_MMAP_EXEC_WRIT */

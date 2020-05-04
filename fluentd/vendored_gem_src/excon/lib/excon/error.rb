@@ -50,7 +50,19 @@ or:
     class InvalidHeaderValue < Error; end
     class Timeout < Error; end
     class ResponseParse < Error; end
+
+    class ProxyConnectionError < Error
+      attr_reader :request, :response
+
+      def initialize(msg, request = nil, response = nil)
+        super(msg)
+        @request = request
+        @response = response
+      end
+    end
+
     class ProxyParse < Error; end
+    class TooManyRedirects < Error; end
 
     # Base class for HTTP Error classes
     class HTTPStatus < Error

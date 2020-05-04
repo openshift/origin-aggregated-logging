@@ -2,11 +2,29 @@ require File.join(File.expand_path(File.dirname(__FILE__)), 'test_utils')
 
 include TZInfo
 
+using TaintExt if Module.const_defined?(:TaintExt)
+
 class TCRubyDataSource < Minitest::Test
   def setup
     @data_source = RubyDataSource.new
   end
   
+  def test_initialize_not_found
+    # A failure to load tzinfo/data in initialize will not cause an exception.
+    # Attempts to load data files will subsequently fail.
+    code = <<-EOF
+      begin
+        ds = TZInfo::RubyDataSource.new
+        puts 'Initialized'
+        ds.load_timezone_info('Europe/London')
+      rescue Exception => e
+        puts e.class
+      end
+    EOF
+
+    assert_sub_process_returns(['Initialized', 'TZInfo::InvalidTimezoneIdentifier'], code)
+  end
+
   def test_load_timezone_info_data
     info = @data_source.load_timezone_info('Europe/London')
     assert_kind_of(DataTimezoneInfo, info)
@@ -55,7 +73,9 @@ class TCRubyDataSource < Minitest::Test
   end
 
   def test_load_timezone_info_tainted
-    safe_test do
+    skip_if_has_bug_14060
+
+    safe_test(:unavailable => :skip) do
       identifier = 'Europe/Amsterdam'.dup.taint
       assert(identifier.tainted?)
       info = @data_source.load_timezone_info(identifier)
@@ -65,6 +85,8 @@ class TCRubyDataSource < Minitest::Test
   end
   
   def test_load_timezone_info_tainted_and_frozen
+    skip_if_has_bug_14060
+
     safe_test do
       info = @data_source.load_timezone_info('Europe/Amsterdam'.dup.taint.freeze)
       assert_equal('Europe/Amsterdam', info.identifier)
@@ -119,7 +141,7 @@ class TCRubyDataSource < Minitest::Test
   end
   
   def test_load_country_info_tainted
-    safe_test do
+    safe_test(:unavailable => :skip) do
       code = 'NL'.dup.taint
       assert(code.tainted?)
       info = @data_source.load_country_info(code)

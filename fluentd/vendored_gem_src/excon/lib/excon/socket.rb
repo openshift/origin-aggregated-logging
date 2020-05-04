@@ -125,6 +125,7 @@ module Excon
         end
 
         @remote_ip = ip
+        @data[:remote_ip] = ip
 
         # nonblocking connect
         begin
@@ -236,7 +237,7 @@ module Excon
     end
 
     def write_nonblock(data)
-      binary_encode(data)
+      data = binary_encode(data)
       loop do
         written = nil
         begin

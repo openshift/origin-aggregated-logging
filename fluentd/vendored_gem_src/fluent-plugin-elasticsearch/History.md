@@ -2,6 +2,88 @@
 
 ### [Unreleased]
 
+### 4.0.5
+-  add logstash_dateformat as placeholder (#718)
+- Tweak travis.yml for suppressing validator warnings and add CI for Linux Arm64 architecture and macOS 10.14 (#724)
+- Elasticsearch ruby v7.5 (#723)
+- Add Oj serializer testcases for all job (#722)
+- Update documentation for ILM (#721)
+
+### 4.0.4
+- Provide clearing caches timer (#719)
+
+### 4.0.3
+-  Use http.scheme settings for persisent scheme setup (#713)
+
+### 4.0.2
+- Support TLSv1.3 (#710)
+
+### 4.0.1
+- Placeholders for template name and customize template (#708)
+- Add overwriting ilm policy config parameter (#707)
+- Fix a failing ILM config testcase (#706)
+
+### 4.0.0
+- Restructuring ILM related features (#701)
+- Extract placeholders in pipeline parameter (#695)
+- fix typo in `README.md` (#698)
+- Reduce log noise when not using rollover_index (#692)
+
+### 3.8.0
+- Add FAQ for specifying index.codec (#679)
+- Add FAQ for connect_write timeout reached error (#687)
+- Unblocking buffer overflow with block action (#688)
+
+### 3.7.1
+- Make conpatible for Fluentd v1.8 (#677)
+- Handle flatten_hashes in elasticsearch_dynamic (#675)
+- Handle empty index_date_pattern parameter (#674)
+
+### 3.7.0
+- Tweak for cosmetic change (#671)
+- Fix access to Elasticsearch::Transport::VERSION with explicit top level class path (#670)
+- Implement Elasticsearch Input plugin (#669)
+
+### 3.6.1
+- retry upsert on recoverable error. (#667)
+- Allow `_index` in chunk_keys (#665)
+- Support compression feature (#664)
+
+### 3.6.0
+- Set order in newly created templates (#660)
+- Merge Support index lifecycle management into master (#659)
+- Support template installation with host placeholder (#654)
+- Support index lifecycle management (#651)
+
+### 3.5.6
+- Support elasticsearch8 removal of mapping types (#656)
+- Upgrade webmock to 3 (#652)
+- Suppress `ruby -c` warnings (#649)
+- Add tips for sniffer class (#644)
+- Make `client_key_pass` secret (#637)
+- Validate `user` and `password` early (#636)
+
+### 3.5.5
+- Fix arguments order of `assert_equal` (#635)
+- Add description for `port` option (#634)
+- Fix description position and add examples for `hosts` option (#633)
+- Use upper-case to compare before and after conversion (#630)
+- Validate `max_retry_get_es_version` (#629)
+- Remove unused getting plugin instance (#628)
+- Fix error message for `max_retry_putting_template` (#627)
+- Fix DST-breaking unit test (#623)
+- Handle ClusterBlockException (#621)
+- Add contribution guideline document (#618)
+
+### 3.5.4
+- Add FAQ for Fluentd seems to hang if it unable to connect Elasticsearch (#617)
+- Check bulk_message size before appending (#616)
+- Add FAQ for Elasticsearch index mapping glitch (#614)
+- Display retry counts and interval (#613)
+
+### 3.5.3
+- Handle nil items response (#611)
+
 ### 3.5.2
 - Fix `@meta_config_map` creation timing (#592)
 

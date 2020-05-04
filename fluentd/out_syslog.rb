@@ -33,7 +33,8 @@ module Fluent
       if not conf['remote_syslog']
         raise Fluent::ConfigError.new("remote syslog required")
       end
-      @socket = UDPSocket.new
+      addrfamily = IPAddr.new(IPSocket.getaddress(@remote_syslog)).ipv4? ? ::Socket::AF_INET : ::Socket::AF_INET6
+      @socket = UDPSocket.new(addrfamily)
       @packet = SyslogProtocol::Packet.new
       if remove_tag_prefix = conf['remove_tag_prefix']
           @remove_tag_prefix = Regexp.new('^' + Regexp.escape(remove_tag_prefix))
@@ -70,7 +71,14 @@ module Fluent
       es.each {|time,record|
         if @use_record
           @packet.hostname = record['hostname'] || hostname
-          @packet.severity = (record['level'].eql? 'warning')? 'warn' : record['level'] || @severity
+          case record['level']
+          when 'warning'
+            @packet.severity = 'warn'
+          when 'unknown', nil
+            @packet.severity = @severity
+          else
+            @packet.severity = record['level']
+          end
           if @use_record && record.key?('systemd') && (record['systemd']).key?('u') && (record['systemd']['u']).key?('SYSLOG_FACILITY')
             begin
               @packet.facility = record['systemd']['u']['SYSLOG_FACILITY']
@@ -78,7 +86,7 @@ module Fluent
               begin
                 @packet.facility = Integer(record['systemd']['u']['SYSLOG_FACILITY'])
               rescue
-                log.warn "out:syslog: invalid facility value #{record['systemd']['u']['SYSLOG_FACILITY']}; reset to default #{@facility}"
+                log.debug "out:syslog: invalid facility value #{record['systemd']['u']['SYSLOG_FACILITY']}; reset to default #{@facility}"
                 @packet.facility = @facility
               end
             end

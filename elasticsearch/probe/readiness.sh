@@ -21,7 +21,7 @@ export NSS_SDB_USE_CACHE=no
 # TODO: try re-use code from ./run.sh
 ES_REST_BASEURL=https://localhost:9200
 EXPECTED_RESPONSE_CODE=200
-secret_dir=/etc/elasticsearch/secret
+secret_dir=${ES_PATH_CONF}/secret
 max_time=${READINESS_PROBE_TIMEOUT:-30}
 
 function check_if_ready() {
@@ -42,9 +42,22 @@ function check_if_ready() {
   fi
 }
 
+function check_for_init_running() {
+  test -f ${HOME}/init_running
+}
+
 function check_for_init_complete() {
   test -f ${HOME}/init_complete
 }
 
+function show_failures() {
+  if [ -f ${HOME}/init_failures ]; then
+    cat ${HOME}/init_failures
+  else
+    # this should never happen"
+    echo "Elasticsearch node is in unknown state"
+  fi
+}
+
 check_if_ready "/" "Elasticsearch node is not ready to accept HTTP requests yet"
-check_for_init_complete || cat ${HOME}/init_failures
+check_for_init_complete || ( check_for_init_running && echo "Elasticsearch node is initializing" ) || show_failures

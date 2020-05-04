@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "forwardable"
 
 require "http/errors"
@@ -11,11 +13,11 @@ module HTTP
     include Enumerable
 
     # Matches HTTP header names when in "Canonical-Http-Format"
-    CANONICAL_HEADER = /^[A-Z][a-z]*(-[A-Z][a-z]*)*$/
+    CANONICAL_NAME_RE = /^[A-Z][a-z]*(?:-[A-Z][a-z]*)*$/
 
     # Matches valid header field name according to RFC.
     # @see http://tools.ietf.org/html/rfc7230#section-3.2
-    HEADER_NAME_RE = /^[A-Za-z0-9!#\$%&'*+\-.^_`|~]+$/
+    COMPLIANT_NAME_RE = /^[A-Za-z0-9!#\$%&'*+\-.^_`|~]+$/
 
     # Class constructor.
     def initialize
@@ -30,7 +32,7 @@ module HTTP
       delete(name)
       add(name, value)
     end
-    alias_method :[]=, :set
+    alias []= set
 
     # Removes header.
     #
@@ -50,9 +52,6 @@ module HTTP
       name = normalize_header name.to_s
       Array(value).each { |v| @pile << [name, v.to_s] }
     end
-
-    # @deprecated Will be removed in 1.0.0
-    alias_method :append, :add
 
     # Returns list of header values if any.
     #
@@ -77,13 +76,21 @@ module HTTP
       end
     end
 
+    # Tells whenever header with given `name` is set or not.
+    #
+    # @return [Boolean]
+    def include?(name)
+      name = normalize_header name.to_s
+      @pile.any? { |k, _| k == name }
+    end
+
     # Returns Rack-compatible headers Hash
     #
     # @return [Hash]
     def to_h
       Hash[keys.map { |k| [k, self[k]] }]
     end
-    alias_method :to_hash, :to_h
+    alias to_hash to_h
 
     # Returns headers key/value pairs.
     #
@@ -174,7 +181,7 @@ module HTTP
                    when object.respond_to?(:to_hash) then object.to_hash
                    when object.respond_to?(:to_h)    then object.to_h
                    when object.respond_to?(:to_a)    then object.to_a
-                   else fail Error, "Can't coerce #{object.inspect} to Headers"
+                   else raise Error, "Can't coerce #{object.inspect} to Headers"
                    end
         end
 
@@ -182,7 +189,7 @@ module HTTP
         object.each { |k, v| headers.add k, v }
         headers
       end
-      alias_method :[], :coerce
+      alias [] coerce
     end
 
     private
@@ -190,16 +197,17 @@ module HTTP
     # Transforms `name` to canonical HTTP header capitalization
     #
     # @param [String] name
-    # @raise [InvalidHeaderNameError] if normalized name does not
+    # @raise [HeaderError] if normalized name does not
     #   match {HEADER_NAME_RE}
     # @return [String] canonical HTTP header name
     def normalize_header(name)
-      normalized   = name[CANONICAL_HEADER]
-      normalized ||= name.split(/[\-_]/).map(&:capitalize).join("-")
+      return name if name =~ CANONICAL_NAME_RE
 
-      return normalized if normalized =~ HEADER_NAME_RE
+      normalized = name.split(/[\-_]/).each(&:capitalize!).join("-")
 
-      fail InvalidHeaderNameError, "Invalid HTTP header field name: #{name.inspect}"
+      return normalized if normalized =~ COMPLIANT_NAME_RE
+
+      raise HeaderError, "Invalid HTTP header field name: #{name.inspect}"
     end
   end
 end

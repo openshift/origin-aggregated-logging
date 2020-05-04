@@ -1,3 +1,31 @@
+## 3.3.1 / 2019-12-26
+
+*   1 minor bugfix:
+
+    *   Al Snow fixed a warning with MIME::Types::Logger producing a warning
+        because Ruby 2.7 introduces numbered block parameters. Because of the
+        way that the MIME::Types::Logger works for deprecation messages, the
+        initializer parameters had been named `_1`, `_2`, and `_3`. This has
+        now been resolved. [#146][]
+
+*   Administrivia:
+
+    *   Olle Jonsson removed an outdated Travis configuration option (`sudo:
+        false`). [#142][]
+
+## 3.3 / 2019-09-04
+
+*   1 minor enhancement
+
+    *   Jean Boussier reduced memory usage for Ruby versions 2.3 or higher by
+        interning various string values in each type. This is done with a
+        backwards-compatible call that _freezes_ the strings on older
+        versions of Ruby. [#141][]
+
+*   Administrivia:
+
+    *   Nicholas La Roux updated Travis build configurations. [#139][]
+
 ## 3.2.2 / 2018-08-12
 
 *   Hiroto Fukui removed a stray `debugger` statement that I had used in
@@ -50,7 +78,7 @@
 *   Documentation Changes:
 
     *   Supporting files are now Markdown instead of rdoc, except for the
-        README. 
+        README.
 
     *   The history file has been modified to remove all history prior to 3.0.
         This history can be found in previous commits.
@@ -203,6 +231,10 @@
 [#135]: https://github.com/mime-types/ruby-mime-types/pull/135
 [#136]: https://github.com/mime-types/ruby-mime-types/issues/136
 [#137]: https://github.com/mime-types/ruby-mime-types/pull/137
+[#139]: https://github.com/mime-types/ruby-mime-types/pull/139
+[#141]: https://github.com/mime-types/ruby-mime-types/pull/141
+[#142]: https://github.com/mime-types/ruby-mime-types/pull/142
+[#146]: https://github.com/mime-types/ruby-mime-types/pull/146
 [Code-of-Conduct.md]: Code-of-Conduct_md.html
 [Contributor Covenant]: http://contributor-covenant.org
 [mime-types-data]: https://github.com/mime-types/mime-types-data

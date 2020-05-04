@@ -54,6 +54,15 @@ class CsvFormatterTest < ::Test::Unit::TestCase
     assert_equal("\"awesome\",\"awesome2\"\n", formatted)
   end
 
+  def test_format_with_nested_fields
+    d = create_driver("fields" => "message,$.nest.key")
+    formatted = d.instance.format(tag, @time, {
+                                    'message' => 'awesome',
+                                    'nest' => {'key' => 'awesome2'}
+                                  })
+    assert_equal("\"awesome\",\"awesome2\"\n", formatted)
+  end
+
   def test_format_without_newline
     d = create_driver("fields" => "message,message2", "add_newline" => false)
     formatted = d.instance.format(tag, @time, {
@@ -107,5 +116,21 @@ class CsvFormatterTest < ::Test::Unit::TestCase
   def test_config_params_with_fields(data)
     d = create_driver('fields' => data)
     assert_equal %w(one two three), d.instance.fields
+  end
+
+  def test_format_with_multiple_records
+    d = create_driver("fields" => "message,message2")
+    r = {'message' => 'hello', 'message2' => 'fluentd'}
+
+    formatted = d.instance.format(tag, @time, r)
+    assert_equal("\"hello\",\"fluentd\"\n", formatted)
+
+    r = {'message' => 'hey', 'message2' => 'ho'}
+    formatted = d.instance.format(tag, @time, r)
+    assert_equal("\"hey\",\"ho\"\n", formatted)
+
+    r = {'message' => 'longer message', 'message2' => 'longer longer message'}
+    formatted = d.instance.format(tag, @time, r)
+    assert_equal("\"longer message\",\"longer longer message\"\n", formatted)
   end
 end

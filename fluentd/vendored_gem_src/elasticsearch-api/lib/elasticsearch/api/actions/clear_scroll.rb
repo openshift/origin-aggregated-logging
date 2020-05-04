@@ -1,39 +1,39 @@
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Licensed to Elasticsearch B.V under one or more agreements.
+# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
+# See the LICENSE file in the project root for more information
 
 module Elasticsearch
   module API
     module Actions
-
-      # Abort a particular scroll search and clear all the resources associated with it.
+      # Explicitly clears the search context for a scroll.
       #
-      # @option arguments [List] :scroll_id A comma-separated list of scroll IDs to clear
+      # @option arguments [List] :scroll_id A comma-separated list of scroll IDs to clear   *Deprecated*
+
       # @option arguments [Hash] :body A comma-separated list of scroll IDs to clear if none was specified via the scroll_id parameter
       #
-      # @see http://www.elastic.co/guide/en/elasticsearch/reference/master/search-request-scroll.html
+      # *Deprecation notice*:
+      # A scroll id can be quite large and should be specified as part of the body
+      # Deprecated since version 7.0.0
       #
-      def clear_scroll(arguments={})
-        method = Elasticsearch::API::HTTP_DELETE
-        path   = Utils.__pathify '_search/scroll', Utils.__listify(arguments.delete(:scroll_id))
-        params = {}
-        body   = arguments[:body]
+      #
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/search-request-body.html#_clear_scroll_api
+      #
+      def clear_scroll(arguments = {})
+        arguments = arguments.clone
 
+        _scroll_id = arguments.delete(:scroll_id)
+
+        method = Elasticsearch::API::HTTP_DELETE
+        path   = if _scroll_id
+                   "_search/scroll/#{Utils.__listify(_scroll_id)}"
+                 else
+                   "_search/scroll"
+end
+        params = {}
+
+        body = arguments[:body]
         perform_request(method, path, params, body).body
       end
     end
-  end
+    end
 end

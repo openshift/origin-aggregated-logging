@@ -1,16 +1,18 @@
 #!/bin/bash
 
-source "$(dirname "${BASH_SOURCE}")/lib/init.sh"
+set -euo pipefail
 
-set -x
-
-workdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
+tmpworkdir=${WORKDIR:-$( mktemp --tmpdir -d logging-build-XXXXXXXXXX )}
 function cleanup() {
   return_code=$?
-  set +x
-  os::util::describe_return_code "${return_code}"
+  set +e
+  if [ "${return_code:-1}" -eq 0 ] ; then
+    echo Success
+  else
+    echo Failure - error code $return_code
+  fi
   if [ -z "${WORKDIR:-}" ] ; then
-    rm -rf "$workdir"
+    rm -rf "${tmpworkdir:-nosuchfileordirectory}"
   fi
   if [ -n "${forwarding_pid:-}" ] ; then
     kill -15 ${forwarding_pid}
@@ -37,6 +39,7 @@ function image_needs_private_repo() {
 
 CI_REGISTRY=${CI_REGISTRY:-registry.svc.ci.openshift.org}
 CI_CLUSTER_NAME=${CI_CLUSTER_NAME:-api-ci-openshift-org:443}
+CUSTOM_IMAGE_TAG=${CUSTOM_IMAGE_TAG:-latest}
 
 function get_context_for_cluster() {
   set +o pipefail > /dev/null
@@ -109,7 +112,7 @@ function pull_ubi_if_needed() {
 INTERNAL_REPO_DIR=${INTERNAL_REPO_DIR:-}
 function get_private_repo_dir() {
   if [ -z "${INTERNAL_REPO_DIR:-}" ] ; then
-    pushd $workdir > /dev/null
+    pushd $tmpworkdir > /dev/null
     if [ ! -d repos ] ; then
       mkdir repos
       if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/shared-secrets/mirror/ops-mirror.pem ] ; then
@@ -120,26 +123,36 @@ function get_private_repo_dir() {
         fi
         cp shared-secrets/mirror/ops-mirror.pem repos
       fi
-      if [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo ]; then
-        cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
-      elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo ]; then
-        cp ${GOPATH:-}/src/github.com/openshift/release/ci-operator/infra/openshift/release-controller/repos/ocp-4.1-default.repo repos
-      elif [ -n "${GOPATH:-}" -a -f ${GOPATH:-}/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo ]; then
-        cp $GOPATH/src/github.com/openshift/release/cluster/ci/config/prow/openshift/rpm-mirrors/ocp-4.0-default.repo repos
+      local releasedir=${GOPATH:-nosuchdir}/src/github.com/openshift/release
+      if [ -d $releasedir ] ; then
+        pushd $releasedir > /dev/null
+        git pull -q
+        popd > /dev/null
       else
         if [ ! -d release ] ; then
-          git clone -q https://github.com/openshift/release
+            git clone -q https://github.com/openshift/release
         fi
-        cp release/ci-operator/infra/openshift/release-controller/repos/ocp-4.2-default.repo repos
+        releasedir=release
       fi
+      local repofile
+      for repofile in \
+        $releasedir/core-services/release-controller/_repos/ocp-4.3-default.repo \
+        $releasedir/core-services/release-controller/_repos/ocp-4.2-default.repo \
+        $releasedir/core-services/release-controller/_repos/ocp-4.1-default.repo ; do
+        if [ -f $repofile ] ; then
+            cp $repofile repos
+            break
+        fi
+      done
       touch repos/redhat.repo
       chmod 0444 repos/redhat.repo
-      sed -i 's,= ops-mirror.pem,= /etc/yum.repos.d/ops-mirror.pem,' repos/*.repo
+      sed -i -e 's,^sslclientkey.*$,sslclientkey = /etc/yum.repos.d/ops-mirror.pem,' \
+              -e 's,^sslclientcert.*$,sslclientcert = /etc/yum.repos.d/ops-mirror.pem,' repos/*.repo
     fi
     INTERNAL_REPO_DIR=$( pwd )/repos
     popd > /dev/null
-  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.2-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.0-default.repo ] ; then
-    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.2-default.repo and ocp-4.1-default.repo and ocp-4.0-default.repo
+  elif [ ! -f $INTERNAL_REPO_DIR/ops-mirror.pem ] || [ ! -f $INTERNAL_REPO_DIR/ocp-4.3-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.2-default.repo -a ! -f $INTERNAL_REPO_DIR/ocp-4.1-default.repo ] ; then
+    echo ERROR: $INTERNAL_REPO_DIR missing one of ops-mirror.pem or ocp-4.3-default.repo and ocp-4.2-default.repo and ocp-4.1-default.repo
     exit 1
   fi
   echo $INTERNAL_REPO_DIR
@@ -182,7 +195,7 @@ function login_to_registry() {
       username=kubeadmin
     fi
   fi
-  podman login --tls-verify=false -u "$username" -p "$token" "$1" > /dev/null
+  docker login -u "$username" -p "$token" "$1" > /dev/null
 }
 
 function push_image() {
@@ -219,16 +232,16 @@ function switch_to_admin_user() {
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
 docker_suffix='.centos7'
 # use .fedora if you really must build the fedora version
-rsyslog_docker_suffix=${RSYSLOG_DOCKER_SUFFIX:-}
 if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
   docker_suffix=''
-  rsyslog_docker_suffix=''
 fi
 dockerfile="Dockerfile${docker_suffix}"
-rsyslog_dockerfile="Dockerfile${rsyslog_docker_suffix}"
 
-name_suf="5"
+name_suf="6"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
+
+IMAGE_BUILDER=${IMAGE_BUILDER:-imagebuilder}
+IMAGE_BUILDER_OPTS=${IMAGE_BUILDER_OPTS:-}
 
 # NOTE: imagestream/buildconfig builds do not work unless we
 # can find a safe and secure way to mount the private key
@@ -240,7 +253,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
-    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter rsyslog"
+    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator5 eventrouter"
     for ii in $(seq 1 10) ; do
         notfound=
         for obj in $names ; do
@@ -267,53 +280,41 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
     exit 0
 fi
 
+# first of pair is name of subdir for component
+# second is base name of image to build
+# e.g. 'fluentd logging-fluentd' means build the image from the fluentd/
+# subdir, and name the image something/logging-fluentd:${tag}
+REPO_IMAGE_LIST="${REPO_IMAGE_LIST:-fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
+    kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
+    eventrouter logging-eventrouter logging-ci-test-runner logging-ci-test-runner}"
+
 if [ "${PUSH_ONLY:-false}" = false ] ; then
   dir=""
   img=""
-  for item in fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
-    kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
-    eventrouter logging-eventrouter ; do
+  for item in $REPO_IMAGE_LIST; do
     if [ -z "$dir" ] ; then dir=$item ; continue ; fi
     img=$item
-    pull_ubi_if_needed $dir/${dockerfile}
-    if image_needs_private_repo $dir/${dockerfile} ; then
+    if [ $img = logging-ci-test-runner ] ; then
+      dfpath=openshift/ci-operator/build-image/Dockerfile.full
+      dir=.
+      fullimagename=openshift/logging-ci-test-runner:${CUSTOM_IMAGE_TAG}
+    else
+      dfpath=$dir/$dockerfile
+      fullimagename="${tag_prefix}$img:${CUSTOM_IMAGE_TAG}"
+    fi
+    pull_ubi_if_needed $dfpath
+    if image_needs_private_repo $dfpath ; then
       repodir=$( get_private_repo_dir )
       mountarg="-mount $repodir:/etc/yum.repos.d/"
     else
       mountarg=""
     fi
 
-    set +x
     echo building image $img - this may take a few minutes until you see any output . . .
-    OS_BUILD_IMAGE_ARGS="$mountarg -f $dir/${dockerfile}" os::build::image "${tag_prefix}$img" $dir
-    set -x
+    $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f $dfpath -t "$fullimagename" $dir
     dir=""
     img=""
   done
-
-  pull_ubi_if_needed rsyslog/${rsyslog_dockerfile}
-  if image_needs_private_repo rsyslog/${rsyslog_dockerfile} ; then
-    repodir=$( get_private_repo_dir )
-    mountarg="-mount $repodir:/etc/yum.repos.d/"
-  else
-    mountarg=""
-  fi
-  set +x
-  echo building image rsyslog - this may take a few minutes until you see any output . . .
-  OS_BUILD_IMAGE_ARGS="$mountarg -f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog" rsyslog
-  set -x
-
-  pull_ubi_if_needed openshift/ci-operator/build-image/Dockerfile.full
-  if image_needs_private_repo openshift/ci-operator/build-image/Dockerfile.full ; then
-    repodir=$( get_private_repo_dir )
-    mountarg="-mount $repodir:/etc/yum.repos.d/"
-  else
-    mountarg=""
-  fi
-  set +x
-  echo building image logging-ci-test-runner - this may take a few minutes until you see any output . . .
-  OS_BUILD_IMAGE_ARGS="$mountarg -f openshift/ci-operator/build-image/Dockerfile.full" os::build::image "openshift/logging-ci-test-runner" .
-  set -x
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
@@ -345,16 +346,16 @@ fi
 LOCAL_PORT=${LOCAL_PORT:-5000}
 
 echo "Setting up port-forwarding to remote $registry_svc ..."
-oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $workdir/pf-oal.log 2>&1 &
+oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $tmpworkdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
-for ii in $(seq 1 10) ; do
+for ii in $(seq 1 60) ; do
   if [ "$(curl -sk -w '%{response_code}\n' https://localhost:5000 || :)" = 200 ] ; then
     break
   fi
   sleep 1
 done
-if [ $ii = 10 ] ; then
+if [ $ii = 60 ] ; then
   echo ERROR: timeout waiting for port-forward to be available
   exit 1
 fi
@@ -363,17 +364,17 @@ login_to_registry "127.0.0.1:${LOCAL_PORT}"
 
 for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch${name_suf:-}" \
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
-  "${tag_prefix}logging-eventrouter" "${tag_prefix}logging-rsyslog" \
+  "${tag_prefix}logging-eventrouter" \
   "openshift/logging-ci-test-runner" ; do
   remote_image="127.0.0.1:${registry_port}/$image"
   # can't use podman here - imagebuilder stores the images in the local docker registry
   # but podman cannot see them - so use docker for tagging for now
   #podman tag ${image}:latest ${remote_image}:latest
-  docker tag ${image} ${remote_image}
-  echo "Pushing image ${image} to ${remote_image}..."
+  docker tag ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG}
+  echo "Pushing image ${image}:${CUSTOM_IMAGE_TAG} to ${remote_image}:${CUSTOM_IMAGE_TAG}..."
   rc=1
   for ii in $( seq 1 5 ) ; do
-    if push_image ${image}:latest ${remote_image}:latest ; then
+    if push_image ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG} ; then
       rc=0
       break
     fi
@@ -382,7 +383,7 @@ for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch$
     sleep 1
   done
   if [ $rc = 1 -a $ii = 5 ] ; then
-    echo ERROR: giving up push of ${image}:latest to ${remote_image}:latest after 5 tries
+    echo ERROR: giving up push of ${image}:${CUSTOM_IMAGE_TAG} to ${remote_image}:${CUSTOM_IMAGE_TAG} after 5 tries
     exit 1
   fi
 done

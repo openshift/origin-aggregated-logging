@@ -64,8 +64,6 @@ class TestMinitestMock < Minitest::Test
   end
 
   def test_mock_args_does_not_raise
-    skip "non-opaque use of ==" if maglev?
-
     arg = Minitest::Mock.new
     mock = Minitest::Mock.new
     mock.expect(:foo, nil, [arg])
@@ -362,7 +360,7 @@ end
 require "minitest/metametameta"
 
 class TestMinitestStub < Minitest::Test
-  parallelize_me!
+  # Do not parallelize since we're calling stub on class methods
 
   def setup
     super
@@ -374,7 +372,7 @@ class TestMinitestStub < Minitest::Test
 
   def teardown
     super
-    assert_equal @assertion_count, @tc.assertions
+    assert_equal @assertion_count, @tc.assertions if self.passed?
   end
 
   class Time

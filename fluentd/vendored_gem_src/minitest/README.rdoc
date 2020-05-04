@@ -126,13 +126,13 @@ Define your tests as methods beginning with +test_+.
 
     describe "when asked about cheeseburgers" do
       it "must respond positively" do
-        @meme.i_can_has_cheezburger?.must_equal "OHAI!"
+        _(@meme.i_can_has_cheezburger?).must_equal "OHAI!"
       end
     end
 
     describe "when asked about blending possibilities" do
       it "won't say no" do
-        @meme.will_it_blend?.wont_match /^no/i
+        _(@meme.will_it_blend?).wont_match /^no/i
       end
     end
   end
@@ -220,9 +220,9 @@ verification to ensure they got all the calls they were expecting."
     end
   end
 
-**Multi-threading and Mocks**
+==== Multi-threading and Mocks
 
-Minitest mocks do not support multi-threading if it works, fine, if it doesn't
+Minitest mocks do not support multi-threading. If it works, fine, if it doesn't
 you can use regular ruby patterns and facilities like local variables. Here's
 an example of asserting that code inside a thread is run:
 
@@ -293,6 +293,18 @@ provided via plugins. To see them, simply run with +--help+:
     Known extensions: pride, autotest
         -p, --pride                      Pride. Show your testing pride!
         -a, --autotest                   Connect to autotest server.
+
+You can set up a rake task to run all your tests by adding this to your Rakefile:
+
+    require "rake/testtask"
+
+    Rake::TestTask.new(:test) do |t|
+      t.libs << "test"
+      t.libs << "lib"
+      t.test_files = FileList["test/**/test_*.rb"]
+    end
+
+    task :default => :test
 
 == Writing Extensions
 
@@ -379,7 +391,7 @@ The following implementation and test:
       end
 
       it "must respond to work" do
-        @worker.must_respond_to :work
+        _(@worker).must_respond_to :work
       end
     end
 
@@ -469,6 +481,8 @@ able to require minitest and run your tests.
 
 == Developing Minitest:
 
+Minitest requires {Hoe}[https://rubygems.org/gems/hoe].
+
 === Minitest's own tests require UTF-8 external encoding.
 
 This is a common problem in Windows, where the default external Encoding is
@@ -547,6 +561,7 @@ minispec-metadata           :: Metadata for describe/it blocks & CLI tag filter.
                                E.g. <tt>it "requires JS driver", js: true do</tt> &
                                <tt>ruby test.rb --tag js</tt> runs tests tagged :js.
 minispec-rails              :: Minimal support to use Spec style in Rails 5+.
+mini-apivore                :: for swagger based automated API testing.
 minitest-around             :: Around block for minitest. An alternative to
                                setup/teardown dance.
 minitest-assert_errors      :: Adds Minitest assertions to test for errors raised
@@ -589,6 +604,7 @@ minitest-firemock           :: Makes your Minitest mocks more resilient.
 minitest-focus              :: Focus on one test at a time.
 minitest-gcstats            :: A minitest plugin that adds a report of the top
                                tests by number of objects allocated.
+minitest-global_expectations:: Support minitest expectation methods for all objects
 minitest-great_expectations :: Generally useful additions to minitest's
                                assertions and expectations.
 minitest-growl              :: Test notifier for minitest via growl.
@@ -615,6 +631,7 @@ minitest-matchers           :: Adds support for RSpec-style matchers to
 minitest-matchers_vaccine   :: Adds assertions that adhere to the matcher spec,
                                but without any expectation infections.
 minitest-metadata           :: Annotate tests with metadata (key-value).
+minitest-mock_expectations  :: Provides method call assertions for minitest.
 minitest-mongoid            :: Mongoid assertion matchers for Minitest.
 minitest-must_not           :: Provides must_not as an alias for wont in
                                Minitest.
@@ -660,10 +677,12 @@ minitest-unordered          :: Adds a new assertion to minitest for checking the
                                contents of a collection, ignoring element order.
 minitest-vcr                :: Automatic cassette managment with Minitest::Spec
                                and VCR.
+minitest_log                :: Adds structured logging, data explication, and verdicts.
 minitest_owrapper           :: Get tests results as a TestResult object.
 minitest_should             :: Shoulda style syntax for minitest test::unit.
 minitest_tu_shim            :: Bridges between test/unit and minitest.
 mongoid-minitest            :: Minitest matchers for Mongoid.
+mutant-minitest             :: Minitest integration for mutant.
 pry-rescue                  :: A pry plugin w/ minitest support. See
                                pry-rescue/minitest.rb.
 rspec2minitest              :: Easily translate any RSpec matchers to Minitest
@@ -697,8 +716,7 @@ Authors... Please send me a pull request with a description of your minitest ext
 
 == REQUIREMENTS:
 
-* Ruby 1.8.7+. No magic is involved. I hope.
-* NOTE: 1.8 and 1.9 will be dropped in minitest 6+.
+* Ruby 2.3+. No magic is involved. I hope.
 
 == INSTALL:
 

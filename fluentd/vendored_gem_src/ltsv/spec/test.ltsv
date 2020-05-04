@@ -1,0 +1,5 @@
+label1:value1	label2:value\\nvalue
+label3:value3	label4:value\\rvalue
+label5:value5	label6:value\\tvalue
+label7:value7	label8:value\\\\value
+label9:value9	label10:	label11:value11

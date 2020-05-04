@@ -75,6 +75,36 @@ switch_to_admin_user() {
     fi
 }
 
+disable_cvo() {
+    local cvopod=$( oc -n openshift-cluster-version get pods | awk '/^cluster-version-operator-.* Running / {print $1}' ) || :
+    if [ -z "$cvopod" ] ; then
+        return 0
+    fi
+    oc -n openshift-cluster-version scale --replicas=0 deploy/cluster-version-operator
+    wait_func() {
+        oc -n openshift-cluster-version get pod $cvopod > /dev/null 2>&1
+    }
+    if ! wait_for_condition wait_func > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: could not stop cvo pod $cvopod
+        logging_err_exit
+    fi
+}
+
+disable_olm() {
+    local olmpod=$( oc -n openshift-operator-lifecycle-manager get pods | awk '/^olm-operator-.* Running / {print $1}' ) || :
+    if [ -z "$olmpod" ] ; then
+        return 0
+    fi
+    oc -n openshift-operator-lifecycle-manager scale --replicas=0 deploy/olm-operator
+    wait_func() {
+        oc -n openshift-operator-lifecycle-manager get pod $olmpod > /dev/null 2>&1
+    }
+    if ! wait_for_condition wait_func > ${ARTIFACT_DIR}/test_output 2>&1 ; then
+        echo ERROR: could not stop olm pod $olmpod
+        logging_err_exit
+    fi
+}
+
 switch_to_admin_user
 
 ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
@@ -83,6 +113,11 @@ if [ ! -d $ARTIFACT_DIR ] ; then
 fi
 DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 ESO_NS=${ESO_NS:-openshift-operators-redhat}
+
+# we need to make changes to eo and clo
+disable_cvo
+disable_olm
+
 esopod=$( oc -n $ESO_NS get pods | awk '/^elasticsearch-operator-.* Running / {print $1}' )
 if [ -z "$esopod" ] ; then
     ESO_NS=openshift-logging
@@ -131,20 +166,24 @@ done
 echo before patching kibana
 oc get pods -o wide
 
-# the ci test pod, kibana pod, and fluentd/rsyslog pod, all have to run on the same node
+# the ci test pod, kibana pod, and fluentd pod, all have to run on the same node
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
 
 # make sure nodeSelectors are set correctly if restarted later by CLO
 oc patch clusterlogging instance --type=json --patch '[
     {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-ci-test":"true"}},
-    {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
     {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
     imageprefix=$( echo "$IMAGE_FORMAT" | sed -e 's,/stable:.*$,/,' )
-    testimage=${imageprefix}pipeline:src
-    testroot=$( pwd )
+    if [ "${USE_STABLE_VERSION:-false}" = true ] ; then
+        testimage=${imageprefix}stable:logging-ci-test-runner
+        testroot=/go/src/github.com/openshift/origin-aggregated-logging
+    else
+        testimage=${imageprefix}pipeline:src
+        testroot=$( pwd )
+    fi
 elif [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
     # running in a dev env with imagestream builds
     OPENSHIFT_BUILD_NAMESPACE=openshift
@@ -179,7 +218,7 @@ if [ -n "${TEST_SUITES:-}" ] ; then
 fi
 oc process -p TEST_ROOT=$testroot \
     -p TEST_NAMESPACE_NAME=$( oc project -q ) \
-    -p TEST_IMAGE=$testimage \
+    -p TEST_IMAGE=$testimage -p IMAGE_FORMAT="${IMAGE_FORMAT:-}" \
     ${artifact_dir_arg:-} ${test_suites_arg:-} \
     -f hack/testing/templates/logging-ci-test-runner-template.yaml | oc create -f -
 

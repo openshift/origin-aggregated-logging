@@ -9,13 +9,11 @@ notifications:
     on_failure: always
     on_start: never
 
-rvm:
-  - 2.1
-  - 2.2
-  - 2.3
-  - 2.4.3
-  - 2.5.0
-
-gemfile:
-  - Gemfile
-  - gemfiles/fluentd_v0.14.gemfile
+matrix:
+  include:
+    - rvm: 2.4.5
+      gemfile: Gemfile
+    - rvm: 2.5.5
+      gemfile: Gemfile
+    - rvm: 2.6.2
+      gemfile: Gemfile

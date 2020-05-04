@@ -1,0 +1,195 @@
+<div ng-controller="securityBaseController">
+    <div class="security app-container ng-scope" id="section-editor" ng-controller="securityEditRoleMappingsController">
+
+        <securityc-edit-header></securityc-edit-header>
+
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="">
+                        <form securityc-form-focus-added-field name="objectForm" id="object-form" method="post" ng-submit="saveObject($event)" novalidate style="width:70%">
+
+                            <securityc-error-message></securityc-error-message>
+
+                            <securityc-form-resource-name></securityc-form-resource-name>
+
+                            <div>
+                                <div ng-show="isNew" style="margin-bottom:20px;">
+                                    <h3 style="margin-top:0px;">{{service.newLabel}}:</h3>
+                                    <ui-select ng-if="rolesAutoComplete.length && loaded"
+                                               ng-model="newResourceName"
+                                               on-select="onSelectedNewResourceName({item: $item})">
+                                        <ui-select-match placeholder="Role">
+                                            {{newResourceName.name}}
+                                        </ui-select-match>
+                                        <ui-select-choices repeat="item in rolesAutoComplete | filter: $select.search track by $index"
+                                                           ui-disable-choice="resourcenames.indexOf(item.name) > -1">
+                                            <span ng-bind="item.name"></span>
+                                        </ui-select-choices>
+                                    </ui-select>
+                                </div>
+
+                            </div>
+
+                            <!-- User mapping -->
+                            <table class="kuiTable tableIndexGroups">
+                                <thead>
+                                <tr>
+                                    <th class="kuiTableHeaderCell tableHeaderCellIndexGroups">
+                                        <span class="kuiTableHeaderCell__liner">
+                                            Users
+                                        </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell">
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr class="kuiTableRow" ng-show="resourceloaded && (!resource.users || resource.users.length == 0)">
+                                    <td colspan="2" class="kuiTableRowCell">
+                                        <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                                            <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                                                <div class="kuiEmptyTablePrompt__message ng-binding">No user mappings found.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow" data-ng-repeat="user in resource.users track by $index">
+                                    <td class="kuiTableRowCell cellAlignTop">
+                                        <fieldset class="marginbottom--small" id="object-form-backendroles">
+                                            <input type="text" required class="kuiTextInput fullwidth" ng-model="resource.users[$index]" name="">
+                                        </fieldset>
+                                    </td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <a ng-click="confirmRemoveArrayEntry(resource.users, user)" class="kuiButton kuiButton--danger kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow">
+                                    <td class="kuiTableRowCell cellAlignTop actions"></td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <button ng-click="addArrayEntry(resource, 'users', '')" ng-disabled="lastArrayEntryEmpty(resource.users)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                                            Add User
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- Backend roles -->
+                            <table class="kuiTable tableIndexGroups">
+                                <thead>
+                                <tr>
+                                    <th class="kuiTableHeaderCell tableHeaderCellIndexGroups">
+                                        <span class="kuiTableHeaderCell__liner">
+                                            Backend roles
+                                        </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell">
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr class="kuiTableRow" ng-show="resourceloaded && (!resource.backendroles || resource.backendroles.length == 0)">
+                                    <td colspan="2" class="kuiTableRowCell">
+                                        <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                                            <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                                                <div class="kuiEmptyTablePrompt__message ng-binding">No backend role mappings found.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow" data-ng-repeat="backendrole in resource.backendroles track by $index">
+                                    <td class="kuiTableRowCell cellAlignTop">
+                                        <fieldset class="marginbottom--small" id="object-form-backendroles">
+                                            <input required type="text" class="kuiTextInput fullwidth" ng-model="resource.backendroles[$index]" name="">
+                                        </fieldset>
+                                    </td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <a ng-click="confirmRemoveArrayEntry(resource.backendroles, backendrole)" class="kuiButton kuiButton--danger kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow">
+                                    <td class="kuiTableRowCell cellAlignTop actions"></td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <button ng-click="addArrayEntry(resource, 'backendroles', '')" ng-disabled="lastArrayEntryEmpty(resource.backendroles)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                                            Add Backend Role
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- Hosts -->
+                            <table class="kuiTable tableIndexGroups">
+                                <thead>
+                                <tr>
+                                    <th class="kuiTableHeaderCell tableHeaderCellIndexGroups">
+                                        <span class="kuiTableHeaderCell__liner">
+                                            Hosts
+                                        </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell">
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr class="kuiTableRow" ng-show="resourceloaded && (!resource.hosts || resource.hosts.length == 0)">
+                                    <td colspan="2" class="kuiTableRowCell">
+                                        <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                                            <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                                                <div class="kuiEmptyTablePrompt__message ng-binding">No host mappings found.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow" data-ng-repeat="host in resource.hosts track by $index">
+                                    <td class="kuiTableRowCell cellAlignTop">
+                                        <fieldset class="marginbottom--small" id="object-form-hosts">
+                                            <input required type="text" class="kuiTextInput fullwidth" ng-model="resource.hosts[$index]" name="">
+                                        </fieldset>
+                                    </td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <a ng-click="confirmRemoveArrayEntry(resource.hosts, host)" class="kuiButton kuiButton--danger kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow">
+                                    <td class="kuiTableRowCell cellAlignTop actions"></td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <button ng-click="addArrayEntry(resource, 'hosts', '')" ng-disabled="lastArrayEntryEmpty(resource.hosts)" class="kuiButton kuiButton--primary kuiButton--iconText">
+                                            <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                                            Add Host
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="formsubmit">
+                                <button id="opendistro_security.button.submit" ng-disabled="!endpointAndMethodEnabled('ROLESMAPPING', 'PUT')  || resource.readonly"  class="kuiButton kuiButton--primary kuiButton--text" type="submit">Submit</button>
+                                <button id="opendistro_security.button.cancel" class="kuiButton kuiButton--basic kuiButton--text" type="submit" ng-click="cancel()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <securityc-confirmation-modal ng-if="deleteFromEditModal.displayModal"
+            header="{{deleteFromEditModal.header}}"
+            body="{{deleteFromEditModal.body}}"
+            params="deleteFromEditModal.params"
+            on-confirm="deleteFromEditModal.onConfirm"
+            on-close="deleteFromEditModal.onClose"
+        ></securityc-confirmation-modal>
+    </div>
+</div>

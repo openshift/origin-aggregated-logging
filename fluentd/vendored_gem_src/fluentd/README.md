@@ -6,9 +6,9 @@ Travis CI:
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1189/badge)](https://bestpractices.coreinfrastructure.org/projects/1189)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd?ref=badge_shield)
 
-GitLab CI:
+Drone CI for Arm64:
 
-[![pipeline status](https://gitlab.com/fluent/fluentd/badges/master/pipeline.svg)](https://gitlab.com/fluent/fluentd/commits/master)
+[![pipeline status](https://cloud.drone.io/api/badges/fluent/fluentd/status.svg?branch=master)](https://cloud.drone.io/fluent/fluentd)
 
 [Fluentd](https://www.fluentd.org/) collects events from various data sources and writes them to files, RDBMS, NoSQL, IaaS, SaaS, Hadoop and so on. Fluentd helps you unify your logging infrastructure (Learn more about the [Unified Logging Layer](https://www.fluentd.org/blog/unified-logging-layer)).
 
@@ -38,11 +38,11 @@ Mobile/Web Application Logging | Fluentd can function as middleware to enable as
 ### Branch
 
 - master: For v1 development.
-- v0.12: For v0.12. This is security maintenance mode. Only security fix is accepted.
+- v0.12: For v0.12. This is deprecated version. we already stopped supporting (See https://www.fluentd.org/blog/drop-schedule-announcement-in-2019).
 
 ### Prerequisites
 
-- Ruby 2.1 or later
+- Ruby 2.4 or later
 - git
 
 `git` should be in `PATH`. On Windows, you can use `Github for Windows` and `GitShell` for easy setup.
@@ -78,7 +78,7 @@ You can run specified test via `TEST` environment variable:
 - Slack / Community: https://slack.fluentd.org
 - Newsletters: https://www.fluentd.org/newsletter
 - Author: [Sadayuki Furuhashi](https://github.com/frsyuki)
-- Copyright: 2011-2018 Fluentd Authors
+- Copyright: 2011-2019 Fluentd Authors
 - License: Apache License, Version 2.0
 
 ## Contributors:

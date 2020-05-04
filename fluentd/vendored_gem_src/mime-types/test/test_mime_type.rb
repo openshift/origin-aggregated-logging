@@ -1,13 +1,9 @@
 # frozen_string_literal: true
 
-# -*- ruby encoding: utf-8 -*-
-
 require 'mime/types'
 require 'minitest_helper'
 
 describe MIME::Type do
-  # it { fail }
-
   def mime_type(content_type)
     MIME::Type.new(content_type) { |mt| yield mt if block_given? }
   end
@@ -50,15 +46,15 @@ describe MIME::Type do
 
     it 'does not remove x- prefixes by default' do
       assert_equal 'application/x-msword',
-        MIME::Type.simplified('application/x-msword')
+                   MIME::Type.simplified('application/x-msword')
       assert_equal 'x-xyz/abc', MIME::Type.simplified('x-xyz/abc')
     end
 
     it 'removes x- prefixes when requested' do
       assert_equal 'application/msword',
-        MIME::Type.simplified('application/x-msword', remove_x_prefix: true)
+                   MIME::Type.simplified('application/x-msword', remove_x_prefix: true)
       assert_equal 'xyz/abc',
-        MIME::Type.simplified('x-xyz/abc', remove_x_prefix: true)
+                   MIME::Type.simplified('x-xyz/abc', remove_x_prefix: true)
     end
 
     it 'lowercases mixed-case types' do
@@ -77,7 +73,7 @@ describe MIME::Type do
 
     it 'does not remove x-prefixes' do
       assert_equal 'application.x-msword',
-        MIME::Type.i18n_key('application/x-msword')
+                   MIME::Type.i18n_key('application/x-msword')
     end
 
     it 'converts text/vCard to text.vcard' do
@@ -333,8 +329,8 @@ describe MIME::Type do
     end
 
     it 'sorts (2) based on extensions' do
-      text_1.extensions = ["foo", "bar"]
-      text_2.extensions = ["foo"]
+      text_1.extensions = ['foo', 'bar']
+      text_2.extensions = ['foo']
 
       assert_priority_same text_1, text_2
 
@@ -440,12 +436,12 @@ describe MIME::Type do
 
     it 'has the extensions key if set' do
       assert_has_keys mime_type(t) { |v| v.extensions = 'a' }.to_h,
-        'extensions'
+                      'extensions'
     end
 
     it 'has the preferred-extension key if set' do
       assert_has_keys mime_type(t) { |v| v.preferred_extension = 'a' }.to_h,
-        'preferred-extension'
+                      'preferred-extension'
     end
 
     it 'has the obsolete key if set' do
@@ -476,7 +472,7 @@ describe MIME::Type do
 
   describe '#to_s, #to_str' do
     it 'represents itself as a string of the canonical content_type' do
-      assert_equal 'text/plain', "#{text_plain}"
+      assert_equal 'text/plain', text_plain.to_s
     end
 
     it 'acts like a string of the canonical content_type for comparison' do
@@ -490,7 +486,7 @@ describe MIME::Type do
 
   describe '#xrefs, #xrefs=' do
     let(:expected) {
-      MIME::Types::Container.new({ 'rfc' => Set[*%w(rfc1234 rfc5678)] })
+      MIME::Types::Container.new('rfc' => Set['rfc1234', 'rfc5678'])
     }
 
     it 'returns the expected results' do
@@ -518,13 +514,13 @@ describe MIME::Type do
     let(:type) {
       mime_type('a/b').tap do |t|
         t.xrefs = {
-          'draft'      => [ 'RFC1' ],
-          'template'   => [ 'a/b' ],
-          'person'     => [ 'p-1' ],
-          'rfc'        => [ 'rfc-1' ],
-          'rfc-errata' => [ 'err-1' ],
-          'uri'        => [ 'http://example.org' ],
-          'text'       => [ 'text' ]
+          'draft' => ['RFC1'],
+          'template' => ['a/b'],
+          'person' => ['p-1'],
+          'rfc' => ['rfc-1'],
+          'rfc-errata' => ['err-1'],
+          'uri' => ['http://example.org'],
+          'text' => ['text']
         }
       end
     }
@@ -588,10 +584,10 @@ describe MIME::Type do
 
     it 'merges new values from an array parameter' do
       expected = { 'en' => 'Text files' }
-      assert_equal expected, text_plain.friendly([ 'en', 'Text files' ])
+      assert_equal expected, text_plain.friendly(['en', 'Text files'])
       expected.update('fr' => 'des fichiers texte')
       assert_equal expected,
-        text_plain.friendly([ 'fr', 'des fichiers texte' ])
+                   text_plain.friendly(['fr', 'des fichiers texte'])
     end
 
     it 'merges new values from a hash parameter' do
@@ -608,7 +604,7 @@ describe MIME::Type do
       end
 
       assert_equal 'Expected a language or translation set, not 1',
-        exception.message
+                   exception.message
     end
   end
 end

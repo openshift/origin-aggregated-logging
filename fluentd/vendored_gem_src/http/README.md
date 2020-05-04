@@ -1,15 +1,22 @@
 # ![http.rb](https://raw.github.com/httprb/http.rb/master/logo.png)
 
-[![Gem Version](https://badge.fury.io/rb/http.svg)](http://rubygems.org/gems/http)
-[![Build Status](https://secure.travis-ci.org/httprb/http.svg?branch=master)](http://travis-ci.org/httprb/http)
-[![Code Climate](https://codeclimate.com/github/httprb/http.svg?branch=master)](https://codeclimate.com/github/httprb/http)
-[![Coverage Status](https://coveralls.io/repos/httprb/http/badge.svg?branch=master)](https://coveralls.io/r/httprb/http)
+[![Gem Version](https://badge.fury.io/rb/http.svg)](https://rubygems.org/gems/http)
+[![Build Status](https://secure.travis-ci.org/httprb/http.svg?branch=4-x-stable)](https://travis-ci.org/httprb/http)
+[![Code Climate](https://codeclimate.com/github/httprb/http.svg?branch=4-x-stable)](https://codeclimate.com/github/httprb/http)
+[![Coverage Status](https://coveralls.io/repos/httprb/http/badge.svg?branch=4-x-stable)](https://coveralls.io/r/httprb/http)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/httprb/http/blob/4-x-stable/LICENSE.txt)
 
+[Documentation]
+
+_NOTE: This is the 4.x **stable** branch.  For the 3.x **stable** branch, please see:_
+
+https://github.com/httprb/http/tree/3-x-stable
 
 ## About
 
-http.rb is an easy-to-use client library for making requests from Ruby. It uses
-a simple method chaining system for building requests, similar to Python's [Requests].
+HTTP (The Gem! a.k.a. http.rb) is an easy-to-use client library for making requests
+from Ruby. It uses a simple method chaining system for building requests, similar to
+Python's [Requests].
 
 Under the hood, http.rb uses [http_parser.rb], a fast HTTP parsing native
 extension based on the Node.js parser and a Java port thereof. This library
@@ -37,23 +44,27 @@ Top three reasons:
    http.rb achieves the best performance of any Ruby HTTP library which
    implements the HTTP protocol in Ruby instead of C:
 
-  | HTTP client              | time      |
-  |--------------------------|-----------|
-  | curb (persistent)        | 2.519088  |
-  | em-http-request          | 2.731645  |
-  | Typhoeus                 | 2.851911  |
-  | StreamlyFFI (persistent) | 2.853786  |
-  | http.rb (persistent)     | 2.970702  |
-  | http.rb                  | 3.588964  |
-  | HTTParty                 | 3.931913  |
-  | Net::HTTP                | 3.959342  |
-  | Net::HTTP (persistent)   | 4.043674  |
-  | open-uri                 | 4.479817  |
-  | Excon (persistent)       | 4.618361  |
-  | Excon                    | 4.701262  |
-  | RestClient               | 26.832668 |
+  | HTTP client              | Time   | Implementation        |
+  |--------------------------|--------|-----------------------|
+  | curb (persistent)        | 2.519  | libcurl wrapper       |
+  | em-http-request          | 2.731  | EM + http_parser.rb   |
+  | Typhoeus                 | 2.851  | libcurl wrapper       |
+  | StreamlyFFI (persistent) | 2.853  | libcurl wrapper       |
+  | http.rb (persistent)     | 2.970  | Ruby + http_parser.rb |
+  | http.rb                  | 3.588  | Ruby + http_parser.rb |
+  | HTTParty                 | 3.931  | Net::HTTP wrapper     |
+  | Net::HTTP                | 3.959  | Pure Ruby             |
+  | Net::HTTP (persistent)   | 4.043  | Pure Ruby             |
+  | open-uri                 | 4.479  | Net::HTTP wrapper     |
+  | Excon (persistent)       | 4.618  | Pure Ruby             |
+  | Excon                    | 4.701  | Pure Ruby             |
+  | RestClient               | 26.838 | Net::HTTP wrapper     |
 
 Benchmarks performed using excon's benchmarking tool
+
+DISCLAIMER: Most benchmarks you find in READMEs are crap,
+including this one. These are out-of-date. If you care about
+performance, benchmark for yourself for your own use cases!
 
 ## Help and Discussion
 
@@ -68,279 +79,96 @@ You can join by email by sending a message to:
 
 If you believe you've found a bug, please report it at:
 
-https://github.com/httprb/http.rb/issues
+https://github.com/httprb/http/issues
 
 
 ## Installation
 
 Add this line to your application's Gemfile:
-
-    gem "http"
+```ruby
+gem "http"
+```
 
 And then execute:
-
-    $ bundle
+```bash
+$ bundle
+```
 
 Or install it yourself as:
-
-    $ gem install http
+```bash
+$ gem install http
+```
 
 Inside of your Ruby program do:
-
-    require "http"
+```ruby
+require "http"
+```
 
 ...to pull it in as a dependency.
 
 
 ## Documentation
 
-[Please see the http.rb wiki](https://github.com/httprb/http/wiki)
+[Please see the http.rb wiki][documentation]
 for more detailed documentation and usage notes.
 
+The following API documentation is also available:
 
-## Basic Usage
+* [YARD API documentation](http://www.rubydoc.info/gems/http/frames)
+* [Chainable module (all chainable methods)](http://www.rubydoc.info/gems/http/HTTP/Chainable)
+
+[documentation]: https://github.com/httprb/http/wiki
+
+### Basic Usage
 
 Here's some simple examples to get you started:
 
-
-### GET requests
-
 ```ruby
 >> HTTP.get("https://github.com").to_s
-=> "<html><head><meta http-equiv=\"content-type\" content=..."
+=> "\n\n\n<!DOCTYPE html>\n<html lang=\"en\" class=\"\">\n  <head prefix=\"o..."
 ```
 
 That's all it takes! To obtain an `HTTP::Response` object instead of the response
-body, all we have to do is omit the #to_s on the end:
+body, all we have to do is omit the `#to_s` on the end:
 
 ```ruby
 >> HTTP.get("https://github.com")
-=> #<HTTP/1.0 200 OK @headers={"Content-Type"=>"text/html; charset=UTF-8", "Date"=>"Fri, ...>
- => #<HTTP::Response/1.1 200 OK @headers={"Content-Type"=>"text/html; ...>
+=> #<HTTP::Response/1.1 200 OK {"Server"=>"GitHub.com", "Date"=>"Tue, 10 May...>
 ```
 
 We can also obtain an `HTTP::Response::Body` object for this response:
 
 ```ruby
 >> HTTP.get("https://github.com").body
- => #<HTTP::Response::Body:814d7aac @streaming=false>
+=> #<HTTP::Response::Body:3ff756862b48 @streaming=false>
 ```
 
-The response body can be streamed with `HTTP::Response::Body#readpartial`:
+The response body can be streamed with `HTTP::Response::Body#readpartial`.
+In practice, you'll want to bind the HTTP::Response::Body to a local variable
+and call `#readpartial` on it repeatedly until it returns `nil`:
 
 ```ruby
->> HTTP.get("https://github.com").body.readpartial
- => "<!doctype html><html "
+>> body = HTTP.get("https://github.com").body
+=> #<HTTP::Response::Body:3ff756862b48 @streaming=false>
+>> body.readpartial
+=> "\n\n\n<!DOCTYPE html>\n<html lang=\"en\" class=\"\">\n  <head prefix=\"o..."
+>> body.readpartial
+=> "\" href=\"/apple-touch-icon-72x72.png\">\n    <link rel=\"apple-touch-ic..."
+# ...
+>> body.readpartial
+=> nil
 ```
-
-In practice you'll want to bind the HTTP::Response::Body to a local variable (e.g.
-"body") and call readpartial on it repeatedly until it returns `nil`.
-
-
-### POST requests
-
-Making POST requests is simple too. Want to POST a form?
-
-```ruby
-HTTP.post("http://example.com/resource", :form => {:foo => "42"})
-```
-Making GET requests with query string parameters is as simple.
-
-```ruby
-HTTP.get("http://example.com/resource", :params => {:foo => "bar"})
-```
-
-Want to POST with a specific body, JSON for instance?
-
-```ruby
-HTTP.post("http://example.com/resource", :json => { :foo => "42" })
-```
-
-Or just a plain body?
-
-```ruby
-HTTP.post("http://example.com/resource", :body => "foo=42&bar=baz")
-```
-
-Posting a file?
-
-``` ruby
-HTTP.post("http://examplc.com/resource", :form => {
-  :username => "ixti",
-  :avatar   => HTTP::FormData::File.new("/home/ixit/avatar.png")
-})
-```
-
-It's easy!
-
-
-### Proxy Support
-
-Making request behind proxy is as simple as making them directly. Just specify
-hostname (or IP address) of your proxy server and its port, and here you go:
-
-```ruby
-HTTP.via("proxy-hostname.local", 8080)
-  .get("http://example.com/resource")
-```
-
-Proxy needs authentication? No problem:
-
-```ruby
-HTTP.via("proxy-hostname.local", 8080, "username", "password")
-  .get("http://example.com/resource")
-```
-
-
-### Adding Headers
-
-The HTTP gem uses the concept of chaining to simplify requests. Let's say
-you want to get the latest commit of this library from GitHub in JSON format.
-One way we could do this is by tacking a filename on the end of the URL:
-
-```ruby
-HTTP.get("https://github.com/httprb/http/commit/HEAD.json")
-```
-
-The GitHub API happens to support this approach, but really this is a bit of a
-hack that makes it easy for people typing URLs into the address bars of
-browsers to perform the act of content negotiation. Since we have access to
-the full, raw power of HTTP, we can perform content negotiation the way HTTP
-intends us to, by using the Accept header:
-
-```ruby
-HTTP.headers(:accept => "application/json")
-  .get("https://github.com/httprb/http/commit/HEAD")
-```
-
-This requests JSON from GitHub. GitHub is smart enough to understand our
-request and returns a response with `Content-Type: application/json`.
-
-Shorter alias exists for `HTTP.headers`:
-
-```ruby
-HTTP[:accept => "application/json"]
-  .get("https://github.com/httprb/http/commit/HEAD")
-```
-
-
-### Authorization Header
-
-With [HTTP Basic Authentication](http://tools.ietf.org/html/rfc2617) using
-a username and password:
-
-```ruby
-HTTP.basic_auth(:user => "user", :pass => "pass")
-# <HTTP::Headers {"Authorization"=>"Basic dXNlcjpwYXNz"}>
-```
-
-Or with plain as-is value:
-
-```ruby
-HTTP.auth("Bearer VGhlIEhUVFAgR2VtLCBST0NLUw")
-# <HTTP::Headers {"Authorization"=>"Bearer VGhlIEhUVFAgR2VtLCBST0NLUw"}>
-```
-
-And Chain all together!
-
-```ruby
-HTTP.basic_auth(:user => "user", :pass => "pass")
-  .headers("Cookie" => "9wq3w")
-  .get("https://example.com")
-```
-
-
-### Content Negotiation
-
-As important a concept as content negotiation is to HTTP, it sure should be easy,
-right? But usually it's not, and so we end up adding ".json" onto the ends of
-our URLs because the existing mechanisms make it too hard. It should be easy:
-
-```ruby
-HTTP.accept(:json).get("https://github.com/httprb/http/commit/HEAD")
-```
-
-This adds the appropriate Accept header for retrieving a JSON response for the
-given resource.
-
-### Reuse HTTP connection: HTTP Keep-Alive
-
-If you have many successive requests against the same host, you better want to
-reuse the same connection again and again:
-
-```ruby
-contents = []
-targets = %w(Hypertext_Transfer_Protocol Git GitHub Linux Hurd)
-HTTP.persistent('http://en.wikipedia.org') do |http|
-  targets.each { |target| contents << http.get("/wiki/#{target}") }
-end
-```
-
-### Celluloid::IO Support
-
-http.rb makes it simple to make multiple concurrent HTTP requests from a
-Celluloid::IO actor. Here's a parallel HTTP fetcher combining http.rb with
-Celluloid::IO:
-
-```ruby
-require "celluloid/io"
-require "http"
-
-class HttpFetcher
-  include Celluloid::IO
-
-  def fetch(url)
-    HTTP.get(url, socket_class: Celluloid::IO::TCPSocket)
-  end
-end
-```
-
-There's a little more to it, but that's the core idea!
-
-* [Full parallel HTTP fetcher example](https://github.com/httprb/http/wiki/Parallel-requests-with-Celluloid%3A%3AIO)
-* See also: [Celluloid::IO](https://github.com/celluloid/celluloid-io)
-
-### Timeouts
-
-By default, HTTP does not timeout on a request. You can enable per operation
-(each read/write/connect call) or global (sum of all read/write/connect calls).
-
-Per operation timeouts are what `Net::HTTP` and the majority of HTTP clients do:
-
-``` ruby
-HTTP.timeout(:per_operation, :write => 2, :connect => 5, :read => 10)
-  .get "http://example.com"
-
-# For convinience, you can omit timeout type in this case. So following has
-# same result as the above:
-
-HTTP.timeout(:write => 2, :connect => 5, :read => 10).get "http://example.com"
-```
-
-Global timeouts let you set an upper bound of how long a request can take,
-without having to rely on `Timeout.timeout`:
-
-``` ruby
-HTTP.timeout(:global, :write => 1, :connect => 1, :read => 1)
-  .get "http://example.com"
-```
-
-Uses a timeout of 3 seconds, for the entire `get` call.
-
-*Warning!* You cannot use Celluloid::IO with timeouts currently.
-
 
 ## Supported Ruby Versions
 
 This library aims to support and is [tested against][travis] the following Ruby
 versions:
 
-* Ruby 1.9.3
-* Ruby 2.0.0
-* Ruby 2.1.x
-* Ruby 2.2.x
-* JRuby 1.7.x
-* JRuby 9000
+* Ruby 2.3.x
+* Ruby 2.4.x
+* Ruby 2.5.x
+* Ruby 2.6.x
+* JRuby 9.2.x.x
 
 If something doesn't work on one of these versions, it's a bug.
 
@@ -370,5 +198,5 @@ dropped.
 
 ## Copyright
 
-Copyright (c) 2011-2015 Tony Arcieri, Erik Michaels-Ober, Alexey V. Zapparov, Zachary Anker.
+Copyright (c) 2011-2019 Tony Arcieri, Alexey V. Zapparov, Erik Michaels-Ober, Zachary Anker.
 See LICENSE.txt for further details.

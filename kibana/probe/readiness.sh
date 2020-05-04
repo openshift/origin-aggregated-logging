@@ -16,23 +16,4 @@
 # limitations under the License.
 #
 
-KIBANA_REST_BASEURL=http://localhost:5601
-EXPECTED_RESPONSE_CODE=200
-max_time="${max_time:-4}"
-
-response_code="$(
-    curl --silent                          \
-         --request HEAD                    \
-         --head                            \
-         --output /dev/null                \
-         --max-time "${max_time}"          \
-         --write-out '%{response_code}'    \
-         "${KIBANA_REST_BASEURL}/"
-)"
-
-if [ "${response_code}" == "${EXPECTED_RESPONSE_CODE}" ]; then
-    exit 0
-else
-    echo "Kibana node is not ready to accept HTTP requests yet [response code: ${response_code}]"
-    exit 1
-fi
+[ -e ${HOME}/kibana.pid ]
