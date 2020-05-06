@@ -6,6 +6,13 @@ ES_CLUSTER_HOST=${ES_CLUSTER_HOST:-"localhost"}
 ES_CLUSTER_PORT=${ES_CLUSTER_PORT:-9300}
 MAX_WAIT_SEED=${MAX_WAIT_SEED:-$((60*60*24*7))} #one week
 
+NODES=$(es_util --query=_cat/nodes | wc -l)
+if [ $NODES -ge 2 ] ; then
+  SECURITY_SHARDS=1
+else
+  SECURITY_SHARDS=0
+fi
+
 info "Seeding the security ACL index.  Will wait up to $MAX_WAIT_SEED seconds."
 
 function sgadmin {
@@ -26,6 +33,7 @@ function sgadmin {
     -nhnv \
     -arc \
     -icl \
+    -er $SECURITY_SHARDS \
     ${DEBUG:+-dg} ${@:-}
 }
 
@@ -53,9 +61,3 @@ if [ ${now} -ge ${MAX_WAIT_SEED} ]; then
     exit 1
 fi
 info "Seeded the security ACL index"
-
-info "Disabling auto replication"
-sgadmin -dra
-
-info "Updating replica count to ${REPLICA_SHARDS}"
-sgadmin -us ${REPLICA_SHARDS}
