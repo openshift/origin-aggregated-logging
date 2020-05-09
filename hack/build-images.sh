@@ -80,7 +80,7 @@ function login_to_ci_registry() {
       echo please oc login to the server for cluster $CI_CLUSTER_NAME
       rc=1
     else
-      docker login -u "$username" -p "$token" $CI_REGISTRY
+      podman login -u "$username" -p "$token" $CI_REGISTRY
     fi
   fi
   if [ -n "$savectx" ] ; then
@@ -100,7 +100,7 @@ function pull_ubi_if_needed() {
     if image_is_ubi "$image" ; then
       login_to_ci_registry
     fi
-    docker pull "$image"
+    podman pull "$image"
   done
 }
 
@@ -195,11 +195,11 @@ function login_to_registry() {
       username=kubeadmin
     fi
   fi
-  docker login -u "$username" -p "$token" "$1" > /dev/null
+  podman login --tls-verify=false -u "$username" -p "$token" "$1" > /dev/null
 }
 
 function push_image() {
-  skopeo copy --dest-tls-verify=false docker-daemon:"$1" docker://"$2"
+  podman push --tls-verify=false "$1" "$2"
 }
 
 function switch_to_admin_user() {
@@ -240,7 +240,7 @@ dockerfile="Dockerfile${docker_suffix}"
 name_suf="6"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
 
-IMAGE_BUILDER=${IMAGE_BUILDER:-imagebuilder}
+IMAGE_BUILDER=${IMAGE_BUILDER:-podman}
 IMAGE_BUILDER_OPTS=${IMAGE_BUILDER_OPTS:-}
 
 # NOTE: imagestream/buildconfig builds do not work unless we
@@ -305,48 +305,31 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
     pull_ubi_if_needed $dfpath
     if image_needs_private_repo $dfpath ; then
       repodir=$( get_private_repo_dir )
-      mountarg="-mount $repodir:/etc/yum.repos.d/"
+      mountarg="-v $repodir:/etc/yum.repos.d/"
     else
       mountarg=""
     fi
 
-    echo building image $img - this may take a few minutes until you see any output . . .
-    $IMAGE_BUILDER $IMAGE_BUILDER_OPTS $mountarg -f $dfpath -t "$fullimagename" $dir
+    echo "----------------------------------------------------------------------------------------------------------------"
+    echo "-                                                                                                              -"
+    echo "Building image $img - this may take a few minutes until you see any output..."
+    echo "-                                                                                                              -"
+    echo "----------------------------------------------------------------------------------------------------------------"
+
+    $IMAGE_BUILDER build $IMAGE_BUILDER_OPTS $mountarg -f $dfpath -t "$fullimagename" $dir
     dir=""
     img=""
   done
 fi
 
-if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
-  exit 0
-fi
-
 # we have to be an admin user to proceed from here
 switch_to_admin_user
 
-registry_namespace=openshift-image-registry
-registry_svc=image-registry
-registry_host=$registry_svc.$registry_namespace.svc
-if ! oc get namespace $registry_namespace ; then
-  registry_namespace=default
-  registry_svc=docker-registry
-  # use ip instead
-  registry_host=$(oc get svc $registry_svc -n $registry_namespace -o jsonpath={.spec.clusterIP})
-fi
-
-registry_port=$(oc get svc $registry_svc -n $registry_namespace -o jsonpath={.spec.ports[0].port})
-if [ $registry_namespace = openshift-image-registry ] ; then
-  # takes pod name in 4.0
-  port_fwd_obj=$( oc get pods -n $registry_namespace | awk '/^image-registry-/ {print $1}' )
-else
-  # takes service in 3.11
-  port_fwd_obj="service/$registry_svc"
-fi
-
 LOCAL_PORT=${LOCAL_PORT:-5000}
+REGISTRY_PORT=${REGISTRY_PORT:-5000}
 
-echo "Setting up port-forwarding to remote $registry_svc ..."
-oc --loglevel=9 port-forward $port_fwd_obj -n $registry_namespace ${LOCAL_PORT}:${registry_port} > $tmpworkdir/pf-oal.log 2>&1 &
+echo "Setting up port-forwarding to remote image-registry ..."
+oc -n openshift-image-registry port-forward service/image-registry ${LOCAL_PORT}:${REGISTRY_PORT} > $tmpworkdir/pf-oal.log 2>&1 &
 forwarding_pid=$!
 
 for ii in $(seq 1 60) ; do
@@ -366,12 +349,16 @@ for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch$
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
   "${tag_prefix}logging-eventrouter" \
   "openshift/logging-ci-test-runner" ; do
-  remote_image="127.0.0.1:${registry_port}/$image"
-  # can't use podman here - imagebuilder stores the images in the local docker registry
-  # but podman cannot see them - so use docker for tagging for now
-  #podman tag ${image}:latest ${remote_image}:latest
-  docker tag ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG}
+  remote_image="127.0.0.1:${REGISTRY_PORT}/$image"
+
+  podman tag ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG}
+
+  echo "----------------------------------------------------------------------------------------------------------------"
+  echo "-                                                                                                              -"
   echo "Pushing image ${image}:${CUSTOM_IMAGE_TAG} to ${remote_image}:${CUSTOM_IMAGE_TAG}..."
+  echo "-                                                                                                              -"
+  echo "----------------------------------------------------------------------------------------------------------------"
+
   rc=1
   for ii in $( seq 1 5 ) ; do
     if push_image ${image}:${CUSTOM_IMAGE_TAG} ${remote_image}:${CUSTOM_IMAGE_TAG} ; then
