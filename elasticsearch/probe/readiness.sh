@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+source "logging"
+
 export NSS_SDB_USE_CACHE=no
 
 # TODO: try re-use code from ./run.sh
@@ -59,5 +61,19 @@ function show_failures() {
   fi
 }
 
+SECURITY_INDEX=".security"
+docs=(roles rolesmapping actiongroups internalusers config)
+
 check_if_ready "/" "Elasticsearch node is not ready to accept HTTP requests yet"
-check_for_init_complete || ( check_for_init_running && echo "Elasticsearch node is initializing" ) || show_failures
+check_index_exists "${SECURITY_INDEX}"
+
+for d in $docs
+do
+    check_index_exists "${SECURITY_INDEX}/security/${d}"
+done
+
+for template_file in ${ES_HOME}/index_templates/*.json
+do
+    template=`basename $template_file`
+    check_index_exists "_template/${template}"
+done
