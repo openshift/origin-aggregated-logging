@@ -58,18 +58,25 @@ More configuration parameters:
 - `bind`: binding interface (default: '0.0.0.0')
 - `port`: listen port (default: 24231)
 - `metrics_path`: metrics HTTP endpoint (default: /metrics)
+- `aggregated_metrics_path`: metrics HTTP endpoint (default: /aggregated_metrics)
 
 When using multiple workers, each worker binds to port + `fluent_worker_id`.
+To scrape metrics from all workers at once, you can access http://localhost:24231/aggregated_metrics.
 
 ### prometheus_monitor input plugin
 
-This plugin collects internal metrics in Fluentd. The metrics are similar to/part of [monitor_agent](http://docs.fluentd.org/articles/monitoring#monitoring-agent).
+This plugin collects internal metrics in Fluentd. The metrics are similar to/part of [monitor_agent](https://docs.fluentd.org/input/monitor_agent).
 
-Current exposed metrics:
 
-- `buffere_queue_length` of each BufferedOutput plugins
-- `buffer_total_queued_size` of each BufferedOutput plugins
-- `retry_count` of each BufferedOutput plugins
+#### Exposed metrics
+
+- `fluentd_status_buffer_queue_length`
+- `fluentd_status_buffer_total_queued_size`
+- `fluentd_status_retry_count`
+- `fluentd_status_buffer_newest_timekey` from fluentd v1.4.2
+- `fluentd_status_buffer_oldest_timekey` from fluentd v1.4.2
+
+#### Configuration
 
 With following configuration, those metrics are collected.
 
@@ -86,26 +93,35 @@ More configuration parameters:
 
 ### prometheus_output_monitor input plugin
 
-**experimental**
-
 This plugin collects internal metrics for output plugin in Fluentd. This is similar to `prometheus_monitor` plugin, but specialized for output plugin. There are Many metrics `prometheus_monitor` does not include, such as `num_errors`, `retry_wait` and so on.
 
-Current exposed metrics:
+#### Exposed metrics
 
-- `fluentd_output_status_buffer_queue_length`
-- `fluentd_output_status_buffer_total_bytes`
+Metrics for output
+
 - `fluentd_output_status_retry_count`
 - `fluentd_output_status_num_errors`
 - `fluentd_output_status_emit_count`
 - `fluentd_output_status_retry_wait`
     - current retry_wait computed from last retry time and next retry time
 - `fluentd_output_status_emit_records`
-    - only for v0.14
 - `fluentd_output_status_write_count`
-    - only for v0.14
 - `fluentd_output_status_rollback_count`
-    - only for v0.14
+- `fluentd_output_status_flush_time_count` from fluentd v1.6.0
+- `fluentd_output_status_slow_flush_count` from fluentd v1.6.0
 
+Metrics for buffer
+
+- `fluentd_output_status_buffer_total_bytes`
+- `fluentd_output_status_buffer_stage_length` from fluentd v1.6.0
+- `fluentd_output_status_buffer_stage_byte_size` from fluentd v1.6.0
+- `fluentd_output_status_buffer_queue_length`
+- `fluentd_output_status_buffer_queue_byte_size` from fluentd v1.6.0
+- `fluentd_output_status_buffer_newest_timekey` from fluentd v1.6.0
+- `fluentd_output_status_buffer_oldest_timekey` from fluentd v1.6.0
+- `fluentd_output_status_buffer_available_space_ratio` from fluentd v1.6.0
+
+#### Configuration
 
 With following configuration, those metrics are collected.
 
@@ -122,13 +138,11 @@ More configuration parameters:
 
 ### prometheus_tail_monitor input plugin
 
-**experimental**
-
 This plugin collects internal metrics for in_tail plugin in Fluentd. in_tail plugin holds internal state for files that the plugin is watching. The state is sometimes important to monitor plugins work correctly.
 
 This plugin uses internal class of Fluentd, so it's easy to break.
 
-Current exposed metrics:
+#### Exposed metrics
 
 - `fluentd_tail_file_position`
     - Current bytes which plugin reads from the file
@@ -140,6 +154,8 @@ Default labels:
 - `plugin_id`: a value set for a plugin in configuration.
 - `type`: plugin name. `in_tail` only for now.
 - `path`: file path
+
+#### Configuration
 
 With following configuration, those metrics are collected.
 
@@ -224,7 +240,7 @@ In output plugin style:
 
 With above configuration, the plugin collects a metric named `message_foo_counter` from key `foo` of each records.
 
-You can access nested keys in records via dot or bracket notation (https://docs.fluentd.org/v1.0/articles/api-plugin-helper-record_accessor#syntax), for example: `$.kubernetes.namespace`, `$['key1'][0]['key2']`. The record accessor is enable only if the value starts with `$.` or `$[`.
+You can access nested keys in records via dot or bracket notation (https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-record_accessor#syntax), for example: `$.kubernetes.namespace`, `$['key1'][0]['key2']`. The record accessor is enable only if the value starts with `$.` or `$[`.
 
 See Supported Metric Type and Labels for more configuration parameters.
 
@@ -341,7 +357,7 @@ You can add labels with static value or dynamic value from records. In `promethe
 
 All labels sections has same format. Each lines have key/value for label.
 
-You can access nested fields in records via dot or bracket notation (https://docs.fluentd.org/v1.0/articles/api-plugin-helper-record_accessor#syntax), for example: `$.kubernetes.namespace`, `$['key1'][0]['key2']`. The record accessor is enable only if the value starts with `$.` or `$[`. Other values are handled as raw string as is and may be expanded by placeholder described later.
+You can access nested fields in records via dot or bracket notation (https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-record_accessor#syntax), for example: `$.kubernetes.namespace`, `$['key1'][0]['key2']`. The record accessor is enable only if the value starts with `$.` or `$[`. Other values are handled as raw string as is and may be expanded by placeholder described later.
 
 You can use placeholder for label values. The placeholders will be expanded from reserved values and records.
 If you specify `${hostname}`, it will be expanded by value of a hostname where fluentd runs.
@@ -353,7 +369,13 @@ Reserved placeholders are:
 - `${worker_id}`: fluent worker id
 - `${tag}`: tag name
   - only available in Prometheus output/filter plugin
-
+- `${tag_parts[N]}` refers to the Nth part of the tag.
+  - only available in Prometheus output/filter plugin
+- `${tag_prefix[N]}` refers to the [0..N] part of the tag.
+  - only available in Prometheus output/filter plugin
+- `${tag_suffix[N]}` refers to the [`tagsize`-1-N..] part of the tag.
+  - where `tagsize` is the size of tag which is splitted with `.` (when tag is `1.2.3`, then `tagsize` is 3)
+  - only available in Prometheus output/filter plugin
 
 ### top-level labels and labels inside metric
 

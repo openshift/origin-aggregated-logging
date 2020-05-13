@@ -1,4 +1,4 @@
-require "http/parser"
+# frozen_string_literal: true
 
 require "http/errors"
 require "http/timeout/null"
@@ -8,6 +8,7 @@ require "http/chainable"
 require "http/client"
 require "http/connection"
 require "http/options"
+require "http/feature"
 require "http/request"
 require "http/request/writer"
 require "http/response"
@@ -20,8 +21,6 @@ module HTTP
 
   class << self
     # HTTP[:accept => 'text/html'].get(...)
-    alias_method :[], :headers
+    alias [] headers
   end
 end
-
-Http = HTTP unless defined?(Http)

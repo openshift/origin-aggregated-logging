@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module HTTP
   ContentType = Struct.new(:mime_type, :charset) do
     MIME_TYPE_RE = %r{^([^/]+/[^;]+)(?:$|;)}
@@ -13,14 +15,14 @@ module HTTP
 
       # :nodoc:
       def mime_type(str)
-        md = str.to_s.match MIME_TYPE_RE
-        md && md[1].to_s.strip.downcase
+        m = str.to_s[MIME_TYPE_RE, 1]
+        m && m.strip.downcase
       end
 
       # :nodoc:
       def charset(str)
-        md = str.to_s.match CHARSET_RE
-        md && md[1].to_s.strip.gsub(/^"|"$/, "")
+        m = str.to_s[CHARSET_RE, 1]
+        m && m.strip.delete('"')
       end
     end
   end

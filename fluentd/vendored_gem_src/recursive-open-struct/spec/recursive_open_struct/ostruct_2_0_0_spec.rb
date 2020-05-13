@@ -6,7 +6,7 @@ describe RecursiveOpenStruct do
   let(:hash) { {:foo => 'foo', 'bar' => :bar} }
   subject(:ros) { RecursiveOpenStruct.new(hash) }
 
-  describe "OpenStruct 2.0 methods" do
+  describe "OpenStruct 2.0+ methods" do
 
     context "Hash style setter" do
 
@@ -96,10 +96,16 @@ describe RecursiveOpenStruct do
 
     context "each_pair" do
       it "iterates over hash keys, with keys as symbol" do
-        expect(ros.each_pair).to match ({:foo => 'foo', :bar => :bar}.each_pair)
+        ros_pairs = []
+        ros.each_pair {|k,v| ros_pairs << [k,v]}
+
+        hash_pairs = []
+        {:foo => 'foo', :bar => :bar}.each_pair {|k,v| hash_pairs << [k,v]}
+
+        expect(ros_pairs).to match (hash_pairs)
       end
     end
 
-  end
+  end # describe OpenStruct 2.0+ methods
 
 end

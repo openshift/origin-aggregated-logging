@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.version = FFI::VERSION
   s.author = 'Wayne Meissner'
   s.email = 'wmeissner@gmail.com'
-  s.homepage = 'http://wiki.github.com/ffi/ffi'
+  s.homepage = 'https://github.com/ffi/ffi/wiki'
   s.summary = 'Ruby FFI'
   s.description = 'Ruby FFI library'
   if s.respond_to?(:metadata)
@@ -35,9 +35,9 @@ Gem::Specification.new do |s|
   s.license = 'BSD-3-Clause'
   s.require_paths << 'ext/ffi_c'
   s.required_ruby_version = '>= 2.0'
-  s.add_development_dependency 'rake', '~> 12.1'
+  s.add_development_dependency 'rake', '~> 13.0'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
-  s.add_development_dependency 'rake-compiler-dock', '~> 0.7.0'
+  s.add_development_dependency 'rake-compiler-dock', '~> 1.0'
   s.add_development_dependency 'rspec', '~> 2.14.1'
   s.add_development_dependency 'rubygems-tasks', "~> 0.2.4"
 end

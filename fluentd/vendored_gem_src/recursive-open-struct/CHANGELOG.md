@@ -1,3 +1,64 @@
+1.1.1 / 2020/03/10
+==================
+
+* FIX [#64](https://github.com/aetherknight/recursive-open-struct/pull/64):
+  Pirate Praveen: Support Ruby 2.7.0. `OpenStruct#modifiable` support was
+  finally dropped, and has to be replaced with `OpenStruct#modifiable?`.
+* Made some additional changes to continue supporting pre-2.4.x Rubies,
+  including the current stable JRuby (9.1.x.x, which tracks Ruby 2.3.x for
+  features)
+
+1.1.0 / 2018-02-03
+==================
+
+* NEW/FIX [#56](https://github.com/aetherknight/recursive-open-struct/issues/56):
+  Add better support for Ruby 2.3+'s `#dig` method (when it exists for the
+  current version of Ruby), so that nested Hashes are properly converted to
+  RecursiveOpenStructs. `OpenStruct#dig`'s implementation was returning Hashes
+  and does not handle `recurse_over_arrays` so ROS needs special support.
+  Thanks to maxp-edcast for reporting the issue.
+* FIX [#55](https://github.com/aetherknight/recursive-open-struct/pull/55):
+  EdwardBetts: Fixed a typo in the documentation/comment for `#method_missing`
+
+1.0.5 / 2017-06-21
+==================
+
+* FIX [#54](https://github.com/aetherknight/recursive-open-struct/pull/54):
+  Beni Cherniavsky-Paskin: Improve performance of `new_ostruct_member` by using
+  `self.singleton_class.method_defined?` instead of `self.methods.include?`
+
+1.0.4 / 2017-04-29
+==================
+
+* FIX [#52](https://github.com/aetherknight/recursive-open-struct/pull/52): Joe
+  Rafaniello: Improve performance of DeepDup by using Set instead of an Array
+  to track visited nodes.
+
+1.0.3 / 2017-04-10
+==================
+
+* No longer officially supporting Ruby 2.0.0 and Ruby 2.1.x. They are still
+  tested against but are permitted to fail within the Travis configuration.
+* FIX: Fix subscript notation for keys that collide with existing public
+  methods. Related to
+  [#51](https://github.com/aetherknight/recursive-open-struct/issues/51).
+* FIX [#49](https://github.com/aetherknight/recursive-open-struct/issues/49):
+  Ensure test suite passes with Ruby 2.4.0-rc1.
+
+1.0.2 / 2016-12-20
+==================
+
+* FIX [#46](https://github.com/aetherknight/recursive-open-struct/issues/46):
+  Pedro Sena: fix issues with mutating arrays within an ROS that has
+  `recurse_over_arrays: true`
+
+1.0.1 / 2016-01-18
+==================
+
+* FIX [#42](https://github.com/aetherknight/recursive-open-struct/issues/42):
+  `[]` tried to call private methods if they existed instead of triggering the
+  `method_missing` code path. Thanks to @SaltwaterC for reporting.
+
 1.0.0 / 2015-12-11
 ==================
 

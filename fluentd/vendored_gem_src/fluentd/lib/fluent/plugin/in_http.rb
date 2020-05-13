@@ -58,6 +58,8 @@ module Fluent::Plugin
     config_param :cors_allow_origins, :array, default: nil
     desc 'Respond with empty gif image of 1x1 pixel.'
     config_param :respond_with_empty_img, :bool, default: false
+    desc 'Respond status code with 204.'
+    config_param :use_204_response, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, 'in_http'
@@ -152,7 +154,11 @@ module Fluent::Plugin
           if @respond_with_empty_img
             return ["200 OK", {'Content-Type'=>'image/gif; charset=utf-8'}, EMPTY_GIF_IMAGE]
           else
-            return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+            if @use_204_response
+              return  ["204 No Content", {}]
+            else
+              return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+            end
           end
         end
 
@@ -219,7 +225,11 @@ module Fluent::Plugin
       if @respond_with_empty_img
         return ["200 OK", {'Content-Type'=>'image/gif; charset=utf-8'}, EMPTY_GIF_IMAGE]
       else
-        return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+        if @use_204_response
+          return  ["204 No Content", {}]
+        else
+          return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+        end
       end
     end
 
@@ -321,29 +331,29 @@ module Fluent::Plugin
         headers.each_pair {|k,v|
           @env["HTTP_#{k.gsub('-','_').upcase}"] = v
           case k
-          when /Expect/i
+          when /\AExpect\z/i
             expect = v
-          when /Content-Length/i
+          when /\AContent-Length\Z/i
             size = v.to_i
-          when /Content-Type/i
+          when /\AContent-Type\Z/i
             @content_type = v
-          when /Content-Encoding/i
+          when /\AContent-Encoding\Z/i
             @content_encoding = v
-          when /Connection/i
+          when /\AConnection\Z/i
             if v =~ /close/i
               @keep_alive = false
             elsif v =~ /Keep-alive/i
               @keep_alive = true
             end
-          when /Origin/i
+          when /\AOrigin\Z/i
             @origin  = v
-          when /X-Forwarded-For/i
+          when /\AX-Forwarded-For\Z/i
             # For multiple X-Forwarded-For headers. Use first header value.
             v = v.first if v.is_a?(Array)
             @remote_addr = v.split(",").first
-          when /Access-Control-Request-Method/i
+          when /\AAccess-Control-Request-Method\Z/i
             @access_control_request_method = v
-          when /Access-Control-Request-Headers/i
+          when /\AAccess-Control-Request-Headers\Z/i
             @access_control_request_headers = v
           end
         }
@@ -516,14 +526,20 @@ module Fluent::Plugin
       end
 
       def include_cors_allow_origin
+        if @origin.nil?
+          return false
+        end
+
         if @cors_allow_origins.include?(@origin)
           return true
         end
         filtered_cors_allow_origins = @cors_allow_origins.select {|origin| origin != ""}
-        return filtered_cors_allow_origins.find do |origin|
-          (start_str,end_str) = origin.split("*",2)
-          @origin.start_with?(start_str) and @origin.end_with?(end_str)
-        end != nil
+        r = filtered_cors_allow_origins.find do |origin|
+          (start_str, end_str) = origin.split("*", 2)
+          @origin.start_with?(start_str) && @origin.end_with?(end_str)
+        end
+
+        !r.nil?
       end
     end
   end

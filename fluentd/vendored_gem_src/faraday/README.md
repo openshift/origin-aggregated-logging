@@ -1,7 +1,7 @@
 # Faraday
 
 [![Gem Version](https://badge.fury.io/rb/faraday.svg)](https://rubygems.org/gems/faraday)
-[![Build Status](https://travis-ci.org/lostisland/faraday.svg)](https://travis-ci.org/lostisland/faraday)
+[![Build Status](https://travis-ci.org/lostisland/faraday.svg?branch=master)](https://travis-ci.org/lostisland/faraday)
 [![Coverage Status](https://coveralls.io/repos/github/lostisland/faraday/badge.svg?branch=master)](https://coveralls.io/github/lostisland/faraday?branch=master)
 [![Code Climate](https://codeclimate.com/github/lostisland/faraday/badges/gpa.svg)](https://codeclimate.com/github/lostisland/faraday)
 [![Gitter](https://badges.gitter.im/lostisland/faraday.svg)](https://gitter.im/lostisland/faraday?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
@@ -30,6 +30,17 @@ Rack::Test, and a Test adapter for stubbing requests by hand.
 ## API documentation
 
 Available at [rubydoc.info](http://www.rubydoc.info/gems/faraday).
+
+## Faraday 1.0
+
+Faraday 1.0 will ship soon! Faraday 0.17 will be the last 0.x release, except for serious bugs or security issues.
+Faraday 1.0 is a major release, but it will be mostly backwards-compatible with 0.x, so we strongly encourage you
+to use it on your next projects and/or consider to upgrade your existing ones.
+Upgrading is simple:
+
+* Checkout the new code from [`master`](https://github.com/lostisland/faraday) and the new [Documentation Website](https://lostisland.github.io/faraday/).
+* If you're upgrading an existing project, check the [UPGRADING](https://github.com/lostisland/faraday/blob/master/UPGRADING.md) file.
+* You can also enable upgrade warnings on apps with Faraday 0.x if you run them with `FARADAY_DEPRECATE=warn` or `FARADAY_DEPRECATE=1` in ENV.
 
 ## Usage
 
@@ -189,6 +200,9 @@ Faraday.new(...) do |conn|
   # POST/PUT params encoders:
   conn.request :multipart
   conn.request :url_encoded
+  
+  # add custom middleware
+  conn.use MyMiddleware
 
   # Last middleware must be the adapter:
   conn.adapter :net_http

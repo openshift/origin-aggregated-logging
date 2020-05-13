@@ -21,7 +21,7 @@ es_routing_allocation(){
 import json
 import sys
 obj = json.load(sys.stdin)
-keys = [".searchguard","settings", "index", "routing", "allocation", "include", "_name"]
+keys = [".security","settings", "index", "routing", "allocation", "include", "_name"]
 for k in keys:
   if k in obj.keys():
     obj = obj[k]

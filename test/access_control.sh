@@ -28,7 +28,7 @@ function check_es_acls() {
   local ts=$( date +%s )
   for doc in roles rolesmapping actiongroups; do
     artifact_log Checking that Elasticsearch pod ${espod} has expected acl definitions $ARTIFACT_DIR/$doc.$ts
-    oc exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
+    oc -n $LOGGING_NS exec -c elasticsearch ${espod} -- es_acl get --doc=${doc} > $ARTIFACT_DIR/$doc.$ts 2>&1
   done
 }
 
@@ -49,8 +49,8 @@ function cleanup() {
     fi
     if [ -n "${espod:-}" ] ; then
         check_es_acls
-        oc logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
-        oc exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
+        oc -n $LOGGING_NS logs -c elasticsearch $espod > $ARTIFACT_DIR/es.log
+        oc -n $LOGGING_NS exec -c elasticsearch $espod -- logs >> $ARTIFACT_DIR/es.log
         curl_es_pod $espod /project.access-control-* -XDELETE > /dev/null
     fi
     for proj in access-control-1 access-control-2 access-control-3 ; do

@@ -4,6 +4,7 @@ require 'fluent/plugin/filter'
 module Fluent::Plugin
   class PrometheusFilter < Fluent::Plugin::Filter
     Fluent::Plugin.register_filter('prometheus', self)
+    include Fluent::Plugin::PrometheusLabelParser
     include Fluent::Plugin::Prometheus
 
     def initialize
@@ -17,13 +18,13 @@ module Fluent::Plugin
 
     def configure(conf)
       super
-      labels = Fluent::Plugin::Prometheus.parse_labels_elements(conf)
+      labels = parse_labels_elements(conf)
       @metrics = Fluent::Plugin::Prometheus.parse_metrics_elements(conf, @registry, labels)
     end
 
-    def filter_stream(tag, es)
-      instrument(tag, es, @metrics)
-      es
+    def filter(tag, time, record)
+      instrument_single(tag, time, record, @metrics)
+      record
     end
   end
 end

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* { dg-do run { xfail gccbug } }*/
+/* { dg-do run } */
 
 #include <stdio.h>
 #include <stdlib.h>

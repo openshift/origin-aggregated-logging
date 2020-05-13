@@ -10,7 +10,7 @@
         "kubernetes.namespace_name",
         "kubernetes.labels.deploymentconfig",
         "kubernetes.pod_name",
-        "kubernetes.container_name",
+        "kubernetes.container_name.raw",
         "message"
       ],
       "sort": [

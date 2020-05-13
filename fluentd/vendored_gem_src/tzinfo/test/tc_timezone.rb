@@ -2,6 +2,8 @@ require File.join(File.expand_path(File.dirname(__FILE__)), 'test_utils')
 
 include TZInfo
 
+using TaintExt if Module.const_defined?(:TaintExt)
+
 class TCTimezone < Minitest::Test
 
   class BlockCalled < StandardError
@@ -242,7 +244,7 @@ class TCTimezone < Minitest::Test
   def test_get_tainted_loaded
     Timezone.get('Europe/Andorra')
   
-    safe_test do
+    safe_test(:unavailable => :skip) do
       identifier = 'Europe/Andorra'.dup.taint
       assert(identifier.tainted?)
       tz = Timezone.get(identifier)
@@ -261,7 +263,9 @@ class TCTimezone < Minitest::Test
   end
   
   def test_get_tainted_not_previously_loaded
-    safe_test do
+    skip_if_has_bug_14060
+
+    safe_test(:unavailable => :skip) do
       identifier = 'Europe/Andorra'.dup.taint
       assert(identifier.tainted?)
       tz = Timezone.get(identifier)
@@ -271,6 +275,8 @@ class TCTimezone < Minitest::Test
   end
   
   def test_get_tainted_and_frozen_not_previously_loaded
+    skip_if_has_bug_14060
+
     safe_test do
       tz = Timezone.get('Europe/Amsterdam'.dup.taint.freeze)
       assert_equal('Europe/Amsterdam', tz.identifier)
@@ -1260,6 +1266,7 @@ class TCTimezone < Minitest::Test
     assert_equal('BST BST', tz.strftime('%Z %Z', dt))
     assert_equal('BST %Z %BST %%Z %%BST', tz.strftime('%Z %%Z %%%Z %%%%Z %%%%%Z', dt))
     assert_equal('+0100 +01:00 +01:00:00 +01 %::::z', tz.strftime('%z %:z %::z %:::z %::::z', dt))
+    assert_equal('1153001522 %s %1153001522', tz.strftime('%s %%s %%%s', dt))
   end
   
   def test_strftime_time
@@ -1271,6 +1278,7 @@ class TCTimezone < Minitest::Test
     assert_equal('BST BST', tz.strftime('%Z %Z', t))
     assert_equal('BST %Z %BST %%Z %%BST', tz.strftime('%Z %%Z %%%Z %%%%Z %%%%%Z', t))
     assert_equal('+0100 +01:00 +01:00:00 +01 %::::z', tz.strftime('%z %:z %::z %:::z %::::z', t))
+    assert_equal('1153001522 %s %1153001522', tz.strftime('%s %%s %%%s', t))
   end
   
   def test_strftime_int
@@ -1282,6 +1290,7 @@ class TCTimezone < Minitest::Test
     assert_equal('BST BST', tz.strftime('%Z %Z', i))
     assert_equal('BST %Z %BST %%Z %%BST', tz.strftime('%Z %%Z %%%Z %%%%Z %%%%%Z', i))
     assert_equal('+0100 +01:00 +01:00:00 +01 %::::z', tz.strftime('%z %:z %::z %:::z %::::z', i))
+    assert_equal('1153001522 %s %1153001522', tz.strftime('%s %%s %%%s', i))
   end
   
   def test_get_missing_data_source

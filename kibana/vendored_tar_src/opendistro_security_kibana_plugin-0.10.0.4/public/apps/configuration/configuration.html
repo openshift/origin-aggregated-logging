@@ -1,0 +1,131 @@
+<div ng-controller="securityBaseController">
+
+    <div class="security app-container" ng-controller="securityConfigurationController">
+
+        <securityc-header></securityc-header>
+
+        <div class="row">
+            <div class="col-xs-12" style="text-align: center;">
+
+                <h3 ng-if="accessState=='pending'" style="margin-top:0px;">Please wait ...</h3>
+
+                <p id="opendistro_security.label.errormessage" class="error-message" ng-show="errorMessage">{{ errorMessage }}</p>
+
+            </div>
+        </div>
+
+
+        <div class="row" ng-if="accessState=='forbidden'">
+            <div class="col-xs-12" style="text-align: center;">
+                <h3>You do not have permission to access the Security configuration. Please contact your System
+                    Administrator.</h3>
+            </div>
+        </div>
+
+        <div class="row" ng-if="accessState=='notenabled'">
+            <div class="col-xs-12" style="text-align: center;">
+                <h3>The REST API module is not installed. Please contact your System Administrator.</h3>
+            </div>
+        </div>
+
+        <div ng-if="accessState=='ok'">
+
+            <div class="kuiViewContent kuiViewContent--constrainedWidth">
+
+                <div class="kuiViewContentItem">
+
+                    <div class="kuiVerticalRhythm kuiVerticalRhythm--medium ">
+
+                        <h2 class="kuiSubTitle" style="margin-bottom:10px;">Permissions and Roles</h2>
+
+                        <div class="FeaturePanelList">
+
+                            <a id="opendistro_security.link.rolesmapping" ng-if="endpointAndMethodEnabled('ROLESMAPPING', 'GET')" class="FeaturePanel ng-scope"
+                               ng-href="#/rolesmapping"
+                               tooltip="Map users, backend roles and hostnames to roles."
+                               tooltip-placement="bottom" href="#/rolesmapping">
+                                <div class="FeaturePanelButton__image">
+                                    <img src="{{roleMappingsSvgURL}}" width="56" />
+                                </div>
+                                <div class="FeaturePanelButton__label">
+                                    Role Mappings
+                                </div>
+                            </a>
+
+                            <a id="opendistro_security.link.roles" ng-if="endpointAndMethodEnabled('ROLES', 'GET')" class="FeaturePanel ng-scope"
+                               ng-href="#/roles" tooltip="Configure Roles and their permissions."
+                               tooltip-placement="bottom" href="#/roles">
+                                <div class="FeaturePanelButton__image">
+                                    <img src="{{rolesSvgURL}}" width="56" />
+                                </div>
+                                <div class="FeaturePanelButton__label">
+                                    Roles
+                                </div>
+                            </a>
+
+                            <a id="opendistro_security.link.actiongroups" ng-if="endpointAndMethodEnabled('ACTIONGROUPS', 'GET')" class="FeaturePanel ng-scope"
+                               ng-href="#/actiongroups"
+                               tooltip="Configure named groups of permissions that can be applied to roles."
+                               tooltip-placement="bottom" href="#/actiongroups">
+                                <div class="FeaturePanelButton__image">
+                                    <img src="{{actionGroupsSvgURL}}" width="56" />
+                                </div>
+                                <div class="FeaturePanelButton__label">
+                                    Action Groups
+                                </div>
+                            </a>
+
+                        </div>
+                    </div>
+
+                    <div class="kuiVerticalRhythm kuiVerticalRhythm--medium ">
+                        <h2 class="kuiSubTitle" style="margin-bottom:10px;">Authentication Backends</h2>
+
+                        <div class="FeaturePanelList">
+
+                            <a id="opendistro_security.link.internalusers" ng-if="endpointAndMethodEnabled('INTERNALUSERS', 'GET')" class="FeaturePanel"
+                               ng-href="#/internalusers"
+                               tooltip="Use the Internal Users Database if you don't have any external authentication systems in place."
+                               tooltip-placement="bottom" href="#/internalusers">
+                                <div class="FeaturePanelButton__image">
+                                    <img src="{{internalUserDatabaseSvgURL}}" width="56" />
+                                </div>
+                                <div class="FeaturePanelButton__label">
+                                    Internal User Database
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="kuiVerticalRhythm kuiVerticalRhythm--medium ">
+                            <h2 class="kuiSubTitle" style="margin-bottom:10px;">System</h2>
+
+                            <div class="FeaturePanelList">
+                                <a id="opendistro_security.link.securityconfig" ng-if="endpointAndMethodEnabled('CONFIG', 'GET')" class="FeaturePanel ng-scope"
+                                   ng-href="#/securityconfiguration"
+                                   tooltip="View the configured authentication and authorization modules."
+                                   href="#/securityconfiguration">
+                                    <div class="FeaturePanelButton__image">
+                                        <img src="{{authenticationSvgURL}}" width="56" />
+                                    </div>
+                                    <div class="FeaturePanelButton__label">
+                                        Authentication & Authorization
+                                    </div>
+                                </a>
+                                <a id="opendistro_security.link.cache" ng-if="endpointAndMethodEnabled('CACHE', 'DELETE')" class="FeaturePanel ng-scope"
+                                   ng-click="clearCache()" tooltip="Purge all Security caches"
+                                   tooltip-placement="bottom">
+                                    <div class="FeaturePanelButton__image">
+                                        <img src="{{purgeCacheSvgURL}}" width="56" />
+                                    </div>
+                                    <div class="FeaturePanelButton__label">
+                                        Purge Cache
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

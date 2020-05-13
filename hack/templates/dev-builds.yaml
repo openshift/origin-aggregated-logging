@@ -14,8 +14,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-elasticsearch5
-    name: logging-elasticsearch5
+      build: logging-elasticsearch6
+    name: logging-elasticsearch6
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -28,8 +28,8 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-kibana5
-    name: logging-kibana5
+      build: logging-kibana6
+    name: logging-kibana6
   spec: {}
 - apiVersion: v1
   kind: ImageStream
@@ -53,23 +53,16 @@ objects:
     name: logging-ci-test-runner
   spec: {}
 - apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
-      build: logging-rsyslog
-    name: logging-rsyslog
-  spec: {}
-- apiVersion: v1
   kind: BuildConfig
   metadata:
     labels:
-      app: logging-elasticsearch5
-    name: logging-elasticsearch5
+      app: logging-elasticsearch6
+    name: logging-elasticsearch6
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: logging-elasticsearch5:latest
+        name: logging-elasticsearch6:latest
     resources: {}
     source:
       contextDir: elasticsearch
@@ -204,30 +197,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: openshift/ci-operator/build-image/Dockerfile.full
-      type: Docker
-    triggers:
-    - type: ConfigChange
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    labels:
-      build: logging-rsyslog
-    name: logging-rsyslog
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: logging-rsyslog:latest
-    resources: {}
-    source:
-      git:
-        uri: ${LOGGING_FORK_URL}
-        ref: ${LOGGING_FORK_BRANCH}
-      contextDir: rsyslog
-      type: Git
-    strategy:
-      dockerStrategy:
-        dockerfilePath: Dockerfile.fedora
       type: Docker
     triggers:
     - type: ConfigChange

@@ -2153,12 +2153,12 @@ in_processEvent(struct inotify_event *ev)
 		goto done;
 	}
 
-	DBGPRINTF("in_processEvent process Event %x for %s\n", ev->mask, ev->name);
+	DBGPRINTF("in_processEvent process Event %x for \"%s\"\n", ev->mask, ev->name);
 	const wd_map_t *const etry =  wdmapLookup(ev->wd);
 	if(etry == NULL) {
 		LogMsg(0, RS_RET_INTERNAL_ERROR, LOG_WARNING, "imfile: internal error? "
-			"inotify provided watch descriptor %d which we could not find "
-			"in our tables - ignored", ev->wd);
+			"inotify provided watch descriptor %d for \"%s\" (Event %x) which we could not find "
+			"in our tables - ignored", ev->wd, ev->name, ev->mask);
 		goto done;
 	}
 	DBGPRINTF("in_processEvent process Event %x is_file %d, act->name '%s'\n",

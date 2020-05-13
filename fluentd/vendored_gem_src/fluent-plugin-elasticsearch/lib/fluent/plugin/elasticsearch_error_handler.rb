@@ -27,7 +27,7 @@ class Fluent::Plugin::ElasticsearchErrorHandler
     if @plugin.log_es_400_reason
       block.call
     else
-      @plugin.log.on_debug &block
+      @plugin.log.on_debug(&block)
     end
   end
 
@@ -56,10 +56,15 @@ class Fluent::Plugin::ElasticsearchErrorHandler
         next
       end
       item = items.shift
-      if item.has_key?(@plugin.write_operation)
+      if item.is_a?(Hash) && item.has_key?(@plugin.write_operation)
         write_operation = @plugin.write_operation
-      elsif INDEX_OP == @plugin.write_operation && item.has_key?(CREATE_OP)
+      elsif INDEX_OP == @plugin.write_operation && item.is_a?(Hash) && item.has_key?(CREATE_OP)
         write_operation = CREATE_OP
+      elsif UPSERT_OP == @plugin.write_operation && item.is_a?(Hash) && item.has_key?(UPDATE_OP)
+        write_operation = UPDATE_OP
+      elsif item.nil?
+        stats[:errors_nil_resp] += 1
+        next
       else
         # When we don't have an expected ops field, something changed in the API
         # expected return values (ES 2.x)
@@ -92,7 +97,12 @@ class Fluent::Plugin::ElasticsearchErrorHandler
         end
         @plugin.router.emit_error_event(tag, time, rawrecord, ElasticsearchError.new("400 - Rejected by Elasticsearch#{reason}"))
       else
-        if item[write_operation].has_key?('error') && item[write_operation]['error'].has_key?('type')
+        if item[write_operation]['error'].is_a?(String)
+          reason = item[write_operation]['error']
+          stats[:errors_block_resp] += 1
+          @plugin.router.emit_error_event(tag, time, rawrecord, ElasticsearchError.new("#{status} - #{reason}"))
+          next
+        elsif item[write_operation].has_key?('error') && item[write_operation]['error'].has_key?('type')
           type = item[write_operation]['error']['type']
           stats[type] += 1
           retry_stream.add(time, rawrecord)

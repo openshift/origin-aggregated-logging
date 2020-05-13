@@ -70,3 +70,13 @@ include as many [details](docs/issues.md) as possible in order to assist us in r
 
 ## Troubleshooting CI
 [Troubleshooting CI](docs/troubleshooting-ci.md)
+
+## Updating hack/vendor/olm-test-script
+Use curl to grab the tarball from github:
+```
+curl -s -L https://api.github.com/repos/ORG-or-USERNAME/REPO/tarball/BRANCH | tar -C hack/vendor/olm-test-script --strip-components=1 -x -z -f -
+```
+for example:
+```
+curl -s -L https://api.github.com/repos/shawn-hurley/olm-test-script/tarball/master | tar -C hack/vendor/olm-test-script --strip-components=1 -x -z -f -
+```

@@ -1,12 +1,12 @@
-# coding: utf-8
 # frozen_string_literal: true
 
 RSpec.describe HTTP::FormData::Part do
-  let(:body) { "" }
-  let(:opts) { {} }
+  let(:body)     { "" }
+  let(:opts)     { {} }
+  subject(:part) { HTTP::FormData::Part.new(body, **opts) }
 
   describe "#size" do
-    subject { described_class.new(body, opts).size }
+    subject { part.size }
 
     context "when body given as a String" do
       let(:body) { "привет мир!" }
@@ -15,7 +15,22 @@ RSpec.describe HTTP::FormData::Part do
   end
 
   describe "#to_s" do
-    subject { described_class.new(body, opts).to_s }
+    subject! { part.to_s }
+
+    context "when body given as String" do
+      let(:body) { "привет мир!" }
+      it { is_expected.to eq "привет мир!" }
+
+      it "rewinds content" do
+        content = part.read
+        expect(part.to_s).to eq content
+        expect(part.read).to eq content
+      end
+    end
+  end
+
+  describe "#read" do
+    subject { part.read }
 
     context "when body given as String" do
       let(:body) { "привет мир!" }
@@ -23,8 +38,20 @@ RSpec.describe HTTP::FormData::Part do
     end
   end
 
+  describe "#rewind" do
+    context "when body given as String" do
+      let(:body) { "привет мир!" }
+
+      it "rewinds the underlying IO object" do
+        part.read
+        part.rewind
+        expect(part.read).to eq "привет мир!"
+      end
+    end
+  end
+
   describe "#filename" do
-    subject { described_class.new(body, opts).filename }
+    subject { part.filename }
 
     it { is_expected.to eq nil }
 
@@ -35,7 +62,7 @@ RSpec.describe HTTP::FormData::Part do
   end
 
   describe "#content_type" do
-    subject { described_class.new(body, opts).content_type }
+    subject { part.content_type }
 
     it { is_expected.to eq nil }
 

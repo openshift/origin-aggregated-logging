@@ -32,6 +32,7 @@ class HttpInputTest < Test::Unit::TestCase
     body_size_limit 10m
     keepalive_timeout 5
     respond_with_empty_img true
+    use_204_response false
   ]
 
   def create_driver(conf=CONFIG)
@@ -205,6 +206,38 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal events, d.events
     assert_equal_event_time time, d.events[0][1]
     assert_equal_event_time time, d.events[1][1]
+  end
+
+  def test_exact_match_for_expect
+    d = create_driver(CONFIG)
+    records = [{ "a" => 1}, { "a" => 2 }]
+    tag = "tag1"
+    res_codes = []
+
+    d.run(expect_records: 0, timeout: 5) do
+      res = post("/#{tag}", { "json" => records.to_json }, { 'Expect' => 'something' })
+      res_codes << res.code
+    end
+    assert_equal ["417"], res_codes
+  end
+
+  def test_exact_match_for_expect_with_other_header
+    d = create_driver(CONFIG)
+
+    records = [{ "a" => 1}, { "a" => 2 }]
+    tag = "tag1"
+    res_codes = []
+
+    d.run(expect_records: 2, timeout: 5) do
+      res = post("/#{tag}", { "json" => records.to_json, 'x-envoy-expected-rq-timeout-ms' => 4 })
+      res_codes << res.code
+    end
+    assert_equal ["200"], res_codes
+
+    assert_equal "tag1", d.events[0][0]
+    assert_equal 1, d.events[0][2]["a"]
+    assert_equal "tag1", d.events[1][0]
+    assert_equal 2, d.events[1][2]["a"]
   end
 
   def test_multi_json_with_add_remote_addr
@@ -445,7 +478,7 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[0][1]
     assert_equal_event_time time, d.events[1][1]
   end
-  
+
   def test_msgpack
     d = create_driver
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -549,8 +582,8 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[1][1]
   end
 
-  def test_resonse_with_empty_img
-    d = create_driver(CONFIG + "respond_with_empty_img true")
+  def test_response_with_empty_img
+    d = create_driver(CONFIG)
     assert_equal true, d.instance.respond_with_empty_img
 
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -572,6 +605,61 @@ class HttpInputTest < Test::Unit::TestCase
     end
     assert_equal ["200", "200"], res_codes
     assert_equal [Fluent::Plugin::HttpInput::EMPTY_GIF_IMAGE, Fluent::Plugin::HttpInput::EMPTY_GIF_IMAGE], res_bodies
+    assert_equal events, d.events
+    assert_equal_event_time time, d.events[0][1]
+    assert_equal_event_time time, d.events[1][1]
+  end
+
+  def test_response_without_empty_img
+    d = create_driver(CONFIG + "respond_with_empty_img false")
+    assert_equal false, d.instance.respond_with_empty_img
+
+    time = event_time("2011-01-02 13:14:15 UTC")
+    time_i = time.to_i
+    events = [
+      ["tag1", time, {"a"=>1}],
+      ["tag2", time, {"a"=>2}],
+    ]
+    res_codes = []
+    res_bodies = []
+
+    d.run do
+      events.each do |tag, _t, record|
+        res = post("/#{tag}", {"json"=>record.to_json, "time"=>time_i.to_s})
+        res_codes << res.code
+      end
+    end
+    assert_equal ["200", "200"], res_codes
+    assert_equal [], res_bodies
+    assert_equal events, d.events
+    assert_equal_event_time time, d.events[0][1]
+    assert_equal_event_time time, d.events[1][1]
+  end
+
+  def test_response_use_204_response
+    d = create_driver(CONFIG + %[
+          respond_with_empty_img false
+          use_204_response true
+        ])
+    assert_equal true, d.instance.use_204_response
+
+    time = event_time("2011-01-02 13:14:15 UTC")
+    time_i = time.to_i
+    events = [
+      ["tag1", time, {"a"=>1}],
+      ["tag2", time, {"a"=>2}],
+    ]
+    res_codes = []
+    res_bodies = []
+
+    d.run do
+      events.each do |tag, _t, record|
+        res = post("/#{tag}", {"json"=>record.to_json, "time"=>time_i.to_s})
+        res_codes << res.code
+      end
+    end
+    assert_equal ["204", "204"], res_codes
+    assert_equal [], res_bodies
     assert_equal events, d.events
     assert_equal_event_time time, d.events[0][1]
     assert_equal_event_time time, d.events[1][1]
@@ -660,7 +748,7 @@ class HttpInputTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_cors_allowed_exclude_empty_string
     d = create_driver(CONFIG + 'cors_allow_origins ["", "http://*.foo.com"]')
 
@@ -680,7 +768,7 @@ class HttpInputTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_cors_allowed_wildcard_preflight_for_subdomain
     d = create_driver(CONFIG + 'cors_allow_origins ["http://*.foo.com"]')
 

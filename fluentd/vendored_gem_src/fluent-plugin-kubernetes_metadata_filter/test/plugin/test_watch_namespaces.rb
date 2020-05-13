@@ -25,6 +25,24 @@ class WatchNamespacesTestTest < WatchTest
      include KubernetesMetadata::WatchNamespaces
 
      setup do
+       @initial = Kubeclient::Common::EntityList.new(
+         'NamespaceList',
+         '123',
+         [
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'initial',
+                                        'uid' => 'initial_uid'
+                                      }
+                                    }),
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'modified',
+                                        'uid' => 'modified_uid'
+                                      }
+                                    })
+         ])
+
        @created = OpenStruct.new(
          type: 'CREATED',
          object: {
@@ -54,9 +72,31 @@ class WatchNamespacesTestTest < WatchTest
        )
      end
 
+    test 'namespace list caches namespaces' do
+      @client.stub :get_namespaces, @initial do
+        process_namespace_watcher_notices(start_namespace_watch)
+        assert_equal(true, @namespace_cache.key?('initial_uid'))
+        assert_equal(true, @namespace_cache.key?('modified_uid'))
+        assert_equal(2, @stats[:namespace_cache_host_updates])
+      end
+    end
+
+    test 'namespace list caches namespaces and watch updates' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [@modified] do
+          process_namespace_watcher_notices(start_namespace_watch)
+          assert_equal(2, @stats[:namespace_cache_host_updates])
+          assert_equal(1, @stats[:namespace_cache_watch_updates])
+        end
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
+
     test 'namespace watch ignores CREATED' do
       @client.stub :watch_namespaces, [@created] do
-       start_namespace_watch
+       process_namespace_watcher_notices(start_namespace_watch)
        assert_equal(false, @namespace_cache.key?('created_uid'))
        assert_equal(1, @stats[:namespace_cache_watch_ignored])
       end
@@ -64,7 +104,7 @@ class WatchNamespacesTestTest < WatchTest
 
     test 'namespace watch ignores MODIFIED when info not in cache' do
       @client.stub :watch_namespaces, [@modified] do
-       start_namespace_watch
+       process_namespace_watcher_notices(start_namespace_watch)
        assert_equal(false, @namespace_cache.key?('modified_uid'))
        assert_equal(1, @stats[:namespace_cache_watch_misses])
       end
@@ -73,7 +113,7 @@ class WatchNamespacesTestTest < WatchTest
     test 'namespace watch updates cache when MODIFIED is received and info is cached' do
       @namespace_cache['modified_uid'] = {}
       @client.stub :watch_namespaces, [@modified] do
-       start_namespace_watch
+       process_namespace_watcher_notices(start_namespace_watch)
        assert_equal(true, @namespace_cache.key?('modified_uid'))
        assert_equal(1, @stats[:namespace_cache_watch_updates])
       end
@@ -82,10 +122,22 @@ class WatchNamespacesTestTest < WatchTest
     test 'namespace watch ignores DELETED' do
       @namespace_cache['deleted_uid'] = {}
       @client.stub :watch_namespaces, [@deleted] do
-       start_namespace_watch
+       process_namespace_watcher_notices(start_namespace_watch)
        assert_equal(true, @namespace_cache.key?('deleted_uid'))
        assert_equal(1, @stats[:namespace_cache_watch_deletes_ignored])
       end
     end
 
+    test 'namespace watch retries when exceptions are encountered' do
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [[@created, @exception_raised]] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_namespace_thread
+          end
+          assert_equal(3, @stats[:namespace_watch_failures])
+          assert_equal(2, Thread.current[:namespace_watch_retry_count])
+          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+        end
+      end
+    end
 end

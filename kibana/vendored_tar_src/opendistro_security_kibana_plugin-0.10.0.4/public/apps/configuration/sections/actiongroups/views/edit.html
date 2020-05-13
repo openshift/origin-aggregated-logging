@@ -1,0 +1,37 @@
+<div ng-controller="securityBaseController">
+    <div class="security app-container ng-scope" id="section-editor" ng-controller="securityEditActionGroupsController">
+
+        <securityc-edit-header></securityc-edit-header>
+
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="">
+                        <form securityc-form-focus-added-field name="objectForm" id="object-form" method="post" ng-submit="saveObject($event)" novalidate style="width:70%">
+
+                            <securityc-error-message></securityc-error-message>
+
+                            <securityc-form-resource-name></securityc-form-resource-name>
+
+                            <securityc-form-new-resource-field></securityc-form-new-resource-field>
+
+                            <securityc-permissions on-should-confirm="confirmRemoveArrayEntry" permissionsResource="resource"></securityc-permissions>
+
+                            <div class="formsubmit">
+                                <button id="opendistro_security.button.submit" ng-disabled="!endpointAndMethodEnabled('ACTIONGROUPS', 'PUT') || resource.readonly" class="kuiButton kuiButton--primary kuiButton--text" type="submit">Submit</button>
+                                <button id="opendistro_security.button.cancel" class="kuiButton kuiButton--basic kuiButton--text" type="button" ng-click="cancel()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <securityc-confirmation-modal ng-if="deleteFromEditModal.displayModal"
+            header="{{deleteFromEditModal.header}}"
+            body="{{deleteFromEditModal.body}}"
+            params="deleteFromEditModal.params"
+            on-confirm="deleteFromEditModal.onConfirm"
+            on-close="deleteFromEditModal.onClose"
+        ></securityc-confirmation-modal>
+    </div>
+</div>

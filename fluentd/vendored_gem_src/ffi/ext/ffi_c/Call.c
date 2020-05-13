@@ -298,10 +298,6 @@ rbffi_SetupCallParams(int argc, VALUE* argv, int paramCount, Type** paramTypes,
                     param->ptr = NULL;
 
                 } else {
-                    if (rb_safe_level() >= 1 && OBJ_TAINTED(argv[argidx])) {
-                        rb_raise(rb_eSecurityError, "Unsafe string parameter");
-                    }
-
                     param->ptr = StringValueCStr(argv[argidx]);
                 }
 
@@ -355,15 +351,15 @@ call_blocking_function(void* data)
 }
 
 VALUE
-rbffi_do_blocking_call(void *data)
+rbffi_do_blocking_call(VALUE data)
 {
-    rb_thread_call_without_gvl(call_blocking_function, data, (void *) -1, NULL);
+    rb_thread_call_without_gvl(call_blocking_function, (void*)data, (void *) -1, NULL);
 
     return Qnil;
 }
 
 VALUE
-rbffi_save_frame_exception(void *data, VALUE exc)
+rbffi_save_frame_exception(VALUE data, VALUE exc)
 {
     rbffi_frame_t* frame = (rbffi_frame_t *) data;
     frame->exc = exc;

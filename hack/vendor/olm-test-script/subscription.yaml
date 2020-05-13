@@ -1,0 +1,51 @@
+apiVersion: template.openshift.io/v1
+kind: "Template"
+metadata:
+  name: csv-subscription-template
+  annotations:
+    description: "Template for creating subscription for e2e-olm test"
+    tags: "e2e"
+objects:
+- apiVersion: operators.coreos.com/v1alpha1
+  kind: CatalogSource
+  metadata:
+    name: openshift-olm-test${SUFFIX}
+  spec:
+    name: openshift-olm-test${SUFFIX}
+    sourceType: internal
+    configMap: ${CONFIGMAP_NAME}
+    displayName: ${CONFIGMAP_NAME}
+    publisher: Operator Framework
+- apiVersion: operators.coreos.com/v1alpha1
+  kind: Subscription
+  metadata:
+    name: olm-testing${SUFFIX}
+  spec:
+    source: openshift-olm-test${SUFFIX}
+    sourceNamespace: ${TEST_NAMESPACE}
+    name: ${PACKAGE_NAME}
+    startingCSV: ${STARTING_CSV}
+    channel: ${CHANNEL}
+parameters:
+-
+  description: 'name of the package to use for the subscription'
+  name: PACKAGE_NAME
+  value: openshiftansibleservicebroker
+-
+  description: 'the starting CSV to use for the subscription'
+  name: STARTING_CSV
+  value: openshiftansibleservicebroker.v4.1.0
+-
+  description:
+  name: CHANNEL
+  value: stable
+-
+  description:
+  name: TEST_NAMESPACE
+  value: olm-test
+- description:
+  name: CONFIGMAP_NAME
+  value: openshift-olm-test
+- description:
+  name: SUFFIX
+  value: ""

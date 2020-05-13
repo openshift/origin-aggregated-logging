@@ -1226,6 +1226,15 @@
     - application/fits
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/flexfec
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc8627
+    template:
+    - application/flexfec
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/font-sfnt
   encoding: base64
   extensions:
@@ -2173,6 +2182,16 @@
     - application/mikey
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/mipc
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/mipc
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/mmt-aei+xml
   encoding: base64
   xrefs:
@@ -2357,6 +2376,15 @@
     - rfc8520
     template:
     - application/mud+json
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/multipart-core
+  encoding: base64
+  xrefs:
+    draft:
+    - RFC-ietf-core-multipart-ct-04
+    template:
+    - application/multipart-core
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/mxf
@@ -2600,8 +2628,8 @@
   content-type: application/oscore
   encoding: base64
   xrefs:
-    draft:
-    - RFC-ietf-core-object-security-16
+    rfc:
+    - rfc8613
     template:
     - application/oscore
   registered: true
@@ -2661,6 +2689,7 @@
   encoding: base64
   extensions:
   - pdf
+  - ai
   xrefs:
     rfc:
     - rfc8118
@@ -2781,10 +2810,9 @@
   - p7m
   - p7c
   xrefs:
-    draft:
-    - RFC-ietf-lamps-rfc5751-bis-12
     rfc:
     - rfc7114
+    - rfc8551
     template:
     - application/pkcs7-mime
   registered: true
@@ -2797,8 +2825,8 @@
   extensions:
   - p7s
   xrefs:
-    draft:
-    - RFC-ietf-lamps-rfc5751-bis-12
+    rfc:
+    - rfc8551
     template:
     - application/pkcs7-signature
   registered: true
@@ -2918,9 +2946,9 @@
     en: PostScript
   encoding: 8bit
   extensions:
-  - ai
   - eps
   - ps
+  - ai
   xrefs:
     rfc:
     - rfc2045
@@ -3462,8 +3490,8 @@
   extensions:
   - sdp
   xrefs:
-    rfc:
-    - rfc4566
+    draft:
+    - RFC-ietf-mmusic-rfc4566bis-37
     template:
     - application/sdp
   registered: true
@@ -3700,6 +3728,16 @@
     - application/simpleSymbolContainer
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/sipc
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/sipc
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/SLA
   encoding: base64
   registered: false
@@ -3888,6 +3926,17 @@
     - OASIS
     template:
     - application/stix+json
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/swid+xml
+  encoding: base64
+  xrefs:
+    person:
+    - David_Waltermire
+    - ISO-IEC_JTC1
+    - Ron_Brill
+    template:
+    - application/swid+xml
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/tamp-apex-update
@@ -4481,11 +4530,24 @@
 - !ruby/object:MIME::Type
   content-type: application/vnd.3gpp.mcvideo-affiliation-info+xml
   encoding: base64
+  obsolete: true
+  use-instead: application/vnd.3gpp.mcvideo-info+xml
   xrefs:
     person:
     - Frederic_Firmin
     template:
     - application/vnd.3gpp.mcvideo-affiliation-info+xml
+    notes:
+    - "- OBSOLETED in favor of application/vnd.3gpp.mcvideo-info+xml"
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.3gpp.mcvideo-info+xml
+  encoding: base64
+  xrefs:
+    person:
+    - Frederic_Firmin
+    template:
+    - application/vnd.3gpp.mcvideo-info+xml
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.3gpp.mcvideo-location-info+xml
@@ -4969,6 +5031,15 @@
     - application/vnd.amundsen.maze+xml
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.android.ota
+  encoding: base64
+  xrefs:
+    person:
+    - Greg_Kaiser
+    template:
+    - application/vnd.android.ota
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.android.package-archive
   friendly:
     en: Android Package Archive
@@ -5246,6 +5317,15 @@
     - application/vnd.banana-accounting
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.bbf.usp.error
+  encoding: base64
+  xrefs:
+    person:
+    - William_Lupton
+    template:
+    - application/vnd.bbf.usp.error
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.bbf.usp.msg
   encoding: base64
   xrefs:
@@ -5342,6 +5422,26 @@
     - Tadashi_Gotoh
     template:
     - application/vnd.bmi
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.bpf
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/vnd.bpf
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.bpf3
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/vnd.bpf3
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.businessobjects
@@ -5453,6 +5553,15 @@
     - Chunyun_Xiong
     template:
     - application/vnd.chipnuts.karaoke-mmd
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.ciedi
+  encoding: base64
+  xrefs:
+    person:
+    - Hidekazu_Enjo
+    template:
+    - application/vnd.ciedi
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.cinderella
@@ -5796,6 +5905,24 @@
     - Jim_Spiller
     template:
     - application/vnd.criticaltools.wbs+xml
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.cryptii.pipe+json
+  encoding: base64
+  xrefs:
+    person:
+    - Fränz_Friederes
+    template:
+    - application/vnd.cryptii.pipe+json
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.crypto-shade-file
+  encoding: base64
+  xrefs:
+    person:
+    - Connor_Horman
+    template:
+    - application/vnd.crypto-shade-file
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.ctc-posml
@@ -6988,6 +7115,15 @@
     - Holstage
     template:
     - application/vnd.ffsns
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.ficlab.flb+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Steve_Gilberd
+    template:
+    - application/vnd.ficlab.flb+zip
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.filmit.zfc
@@ -8356,6 +8492,15 @@
     - application/vnd.isac.fcs
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.iso11783-10+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Frank_Wiebeler
+    template:
+    - application/vnd.iso11783-10+zip
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.jam
   friendly:
     en: Lightspeed Audio Lab
@@ -8679,6 +8824,16 @@
     - application/vnd.kodak-descriptor
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.las
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/vnd.las
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.las.las+json
   encoding: base64
   xrefs:
@@ -8699,6 +8854,16 @@
     - Rob_Bailey
     template:
     - application/vnd.las.las+xml
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.laszip
+  encoding: base64
+  xrefs:
+    person:
+    - Bryan_Blank
+    - NCGIS
+    template:
+    - application/vnd.laszip
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.leap+json
@@ -8743,6 +8908,24 @@
     - Catherine_E._White
     template:
     - application/vnd.llamagraphics.life-balance.exchange+xml
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.logipipe.circuit+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Victor_Kuchynsky
+    template:
+    - application/vnd.logipipe.circuit+zip
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.loom
+  encoding: base64
+  xrefs:
+    person:
+    - Sten_Linnarsson
+    template:
+    - application/vnd.loom
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.lotus-1-2-3
@@ -12796,6 +12979,15 @@
     - application/vnd.semf
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.shade-save-file
+  encoding: base64
+  xrefs:
+    person:
+    - Connor_Horman
+    template:
+    - application/vnd.shade-save-file
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.shana.informed.formdata
   friendly:
     en: Shana Informed Filler
@@ -12855,6 +13047,15 @@
     - Ben_Ramsey
     template:
     - application/vnd.shootproof+json
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.shopkick+json
+  encoding: base64
+  xrefs:
+    person:
+    - Ronald_Jacobs
+    template:
+    - application/vnd.shopkick+json
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.sigrok.session
@@ -13740,6 +13941,15 @@
     - application/vnd.veryant.thin
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/vnd.ves.encrypted
+  encoding: base64
+  xrefs:
+    person:
+    - Jim_Zubov
+    template:
+    - application/vnd.ves.encrypted
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/vnd.vidsoft.vidconference
   encoding: 8bit
   extensions:
@@ -14270,11 +14480,15 @@
 - !ruby/object:MIME::Type
   content-type: application/vnd.youtube.yt
   encoding: base64
+  obsolete: true
+  use-instead: video/vnd.youtube.yt
   xrefs:
     person:
     - Laura_Wood
     template:
     - application/vnd.youtube.yt
+    notes:
+    - "- OBSOLETED in favor of video/vnd.youtube.yt"
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.zul

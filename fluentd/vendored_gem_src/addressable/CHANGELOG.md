@@ -1,3 +1,11 @@
+# Addressable 2.7.0
+- added `:compacted` flag to `normalized_query`
+- `heuristic_parse` handles `mailto:` more intuitively
+- refactored validation to use a prepended module
+- dropped explicit support for JRuby 9.0.5.0
+- compatibility w/ public_suffix 4.x
+- performance improvements
+
 # Addressable 2.6.0
 - added `tld=` method to allow assignment to the public suffix
 - most `heuristic_parse` patterns are now case-insensitive

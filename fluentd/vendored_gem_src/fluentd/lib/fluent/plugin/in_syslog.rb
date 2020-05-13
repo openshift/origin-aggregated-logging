@@ -56,7 +56,7 @@ module Fluent::Plugin
       23  => 'local7'
     }
 
-    PRIORITY_MAP = {
+    SEVERITY_MAP = {
       0  => 'emerg',
       1  => 'alert',
       2  => 'crit',
@@ -82,6 +82,8 @@ module Fluent::Plugin
     config_param :include_source_host, :bool, default: false, deprecated: 'use "source_hostname_key" or "source_address_key" instead.'
     desc 'Specify key of source host when include_source_host is true.'
     config_param :source_host_key, :string, default: 'source_host'.freeze
+    desc 'Enable the option to emit unmatched lines.'
+    config_param :emit_unmatched_lines, :bool, default: false
 
     desc 'The field name of hostname of sender.'
     config_param :source_hostname_key, :string, default: nil
@@ -89,8 +91,8 @@ module Fluent::Plugin
     config_param :resolve_hostname, :bool, default: nil
     desc 'The field name of source address of sender.'
     config_param :source_address_key, :string, default: nil
-    desc 'The field name of the priority.'
-    config_param :priority_key, :string, default: nil
+    desc 'The field name of the severity.'
+    config_param :severity_key, :string, default: nil, alias: :priority_key
     desc 'The field name of the facility.'
     config_param :facility_key, :string, default: nil
 
@@ -116,6 +118,10 @@ module Fluent::Plugin
       compat_parameters_convert(conf, :parser)
 
       super
+
+      if conf.has_key?('priority_key')
+        log.warn "priority_key is deprecated. Use severity_key instead"
+      end
 
       @use_default = false
 
@@ -197,12 +203,22 @@ module Fluent::Plugin
 
     private
 
+    def emit_unmatched(data, sock)
+      record = {"unmatched_line" => data}
+      record[@source_address_key] = sock.remote_addr if @source_address_key
+      record[@source_hostname_key] = sock.remote_host if @source_hostname_key
+      emit("#{@tag}.unmatched", Fluent::EventTime.now, record)
+    end
+
     def message_handler(data, sock)
       pri = nil
       text = data
       unless @parser_parse_priority
         m = SYSLOG_REGEXP.match(data)
         unless m
+          if @emit_unmatched_lines
+            emit_unmatched(data, sock)
+          end
           log.warn "invalid syslog message: #{data.dump}"
           return
         end
@@ -212,23 +228,29 @@ module Fluent::Plugin
 
       @parser.parse(text) do |time, record|
         unless time && record
+          if @emit_unmatched_lines
+            emit_unmatched(data, sock)
+          end
           log.warn "failed to parse message", data: data
           return
         end
 
         pri ||= record.delete('pri')
         facility = FACILITY_MAP[pri >> 3]
-        priority = PRIORITY_MAP[pri & 0b111]
+        severity = SEVERITY_MAP[pri & 0b111]
 
-        record[@priority_key] = priority if @priority_key
+        record[@severity_key] = severity if @severity_key
         record[@facility_key] = facility if @facility_key
         record[@source_address_key] = sock.remote_addr if @source_address_key
         record[@source_hostname_key] = sock.remote_host if @source_hostname_key
 
-        tag = "#{@tag}.#{facility}.#{priority}"
+        tag = "#{@tag}.#{facility}.#{severity}"
         emit(tag, time, record)
       end
     rescue => e
+      if @emit_unmatched_lines
+        emit_unmatched(data, sock)
+      end
       log.error "invalid input", data: data, error: e
       log.error_backtrace
     end

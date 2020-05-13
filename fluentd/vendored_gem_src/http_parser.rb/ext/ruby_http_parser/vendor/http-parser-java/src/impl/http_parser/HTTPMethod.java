@@ -8,7 +8,6 @@ public enum HTTPMethod {
   , HTTP_HEAD("HEAD")
   , HTTP_POST("POST")
   , HTTP_PUT("PUT")
-  , HTTP_PATCH("PATCH")
   /* pathological */
   , HTTP_CONNECT("CONNECT")
   , HTTP_OPTIONS("OPTIONS")
@@ -29,7 +28,7 @@ public enum HTTPMethod {
   , HTTP_NOTIFY("NOTIFY")
   , HTTP_SUBSCRIBE("SUBSCRIBE")
   , HTTP_UNSUBSCRIBE("UNSUBSCRIBE")
-  , HTTP_PURGE("PURGE")
+  
   ;
 
   private static Charset ASCII;
@@ -39,7 +38,7 @@ public enum HTTPMethod {
   public byte[] bytes;
 
   HTTPMethod(String name) {
-    // good grief, Charlie Brown, the following is necessary because
+    // good grief, Charlie Brown, the following is necessary because 
     // java is retarded:
     // illegal reference to static field from initializer
     //            this.bytes = name.getBytes(ASCII);
@@ -58,8 +57,6 @@ public enum HTTPMethod {
     else if ("POST".equalsIgnoreCase(s))         {return HTTP_POST;}
     else if ("HTTP_PUT".equalsIgnoreCase(s))     {return HTTP_PUT;}
     else if ("PUT".equalsIgnoreCase(s))          {return HTTP_PUT;}
-    else if ("HTTP_PATCH".equalsIgnoreCase(s))   {return HTTP_PATCH;}
-    else if ("PATCH".equalsIgnoreCase(s))        {return HTTP_PATCH;}
     else if ("HTTP_CONNECT".equalsIgnoreCase(s)) {return HTTP_CONNECT;}
     else if ("CONNECT".equalsIgnoreCase(s))      {return HTTP_CONNECT;}
     else if ("HTTP_OPTIONS".equalsIgnoreCase(s)) {return HTTP_OPTIONS;}
@@ -96,10 +93,8 @@ public enum HTTPMethod {
     else if ("SUBSCRIBE".equalsIgnoreCase(s))        {return HTTP_SUBSCRIBE;}
     else if ("HTTP_UNSUBSCRIBE".equalsIgnoreCase(s)) {return HTTP_UNSUBSCRIBE;}
     else if ("UNSUBSCRIBE".equalsIgnoreCase(s))      {return HTTP_UNSUBSCRIBE;}
-    else if ("PATCH".equalsIgnoreCase(s))            {return HTTP_PATCH;}
-    else if ("PURGE".equalsIgnoreCase(s))            {return HTTP_PURGE;}
 	  else                                             {return null;}
-	}
+	}	
   void init (String name) {
     ASCII = null == ASCII ? Charset.forName("US-ASCII") : ASCII;
     this.bytes = name.getBytes(ASCII);

@@ -1,0 +1,168 @@
+<div ng-controller="securityBaseController">
+    <div class="security app-container ng-scope" id="section-editor" ng-controller="securityEditInternalUsersController">
+
+        <securityc-edit-header></securityc-edit-header>
+
+        <div class="container">
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="">
+                        <form class="editResourceForm" name="objectForm" id="object-form" method="post" ng-submit="saveObject($event)" novalidate>
+
+                            <securityc-error-message></securityc-error-message>
+
+                            <securityc-form-resource-name></securityc-form-resource-name>
+
+                            <securityc-form-new-resource-field></securityc-form-new-resource-field>
+
+                            <div class="form-group">
+                                <label for="object-form-password">Password <span ng-if="!isNew" class="labelhint">(leave empty to keep current password)</span></label>
+                                <input
+                                        id="object-form-password"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        ng-model="resource.password"
+                                        class="form-control"
+                                        ng-required="isNew">
+                            </div>
+                            <div class="form-group">
+                                <label for="object-form-password-confirmation">Repeat password <span ng-if="!isNew" class="labelhint">(leave empty to keep current password)</span></label>
+                                <span ng-if="objectForm.passwordConfirmation.$error.match" class="fieldError">Passwords must match.</span>
+                                <input
+                                        id="object-form-password-confirmation"
+                                        name="passwordConfirmation"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        ng-model="resource.passwordConfirmation"
+                                        class="form-control"
+                                        match="resource.password"
+                                        ng-required="isNew"/>
+                            </div>
+
+                            <!-- Backend Roles -->
+                            <table class="kuiTable tableIndexGroups" securityc-form-focus-added-field>
+                                <thead>
+                                    <tr>
+                                        <th class="kuiTableHeaderCell tableHeaderCellIndexGroups sevenwidth">
+                                            <span class="kuiTableHeaderCell__liner">
+                                                Backend Roles
+                                            </span>
+                                        </th>
+
+                                        <th class="kuiTableHeaderCell">
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="kuiTableRow" ng-if="resource.roles.length == 0">
+                                        <td colspan="2" class="kuiTableRowCell">
+                                            <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                                                <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                                                    <div class="kuiEmptyTablePrompt__message ng-binding">No backend roles found</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="kuiTableRow" data-ng-repeat="role in resource.roles track by $index">
+                                        <td class="kuiTableRowCell cellAlignTop">
+                                            <fieldset class="marginbottom--small" id="object-form-backendroles-{{resource.roles[$index]}}">
+                                                <input type="text" class="kuiTextInput fullwidth" ng-model="resource.roles[$index]" name="" id="opendistro_security.input.backendroles.{{resource.roles[$index]}}">
+                                            </fieldset>
+                                        </td>
+                                        <td class="kuiTableRowCell cellAlignTop actions">
+                                            <a ng-click="confirmRemoveArrayEntry(resource.roles, role)" class="kuiButton kuiButton--danger kuiButton--iconText" id="opendistro_security.button.backendroles.delete.{{resource.roles[$index]}}">
+                                                <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <tr class="kuiTableRow">
+                                        <td class="kuiTableRowCell cellAlignTop actions"></td>
+                                        <td class="kuiTableRowCell cellAlignTop actions">
+                                            <button type="button"
+                                                    id="opendistro_security.button.backendroles.add"
+                                                    ng-click="addArrayEntry(resource, 'roles', '')"
+                                                    ng-disabled="lastArrayEntryEmpty(resource.roles)"
+                                                    class="kuiButton kuiButton--primary kuiButton--iconText ">
+                                                <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                                                Add backend role
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- User attributes -->
+                            <table class="kuiTable tableIndexGroups" securityc-form-focus-added-field>
+                                <thead>
+                                <tr>
+                                    <th colspan="2" class="kuiTableHeaderCell tableHeaderCellIndexGroups sevenwidth">
+                                            <span class="kuiTableHeaderCell__liner">
+                                                User attributes
+                                            </span>
+                                    </th>
+
+                                    <th class="kuiTableHeaderCell">
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr class="kuiTableRow" ng-show="!resource.attributesArray.length">
+                                    <td colspan="3" class="kuiTableRowCell">
+                                        <div class="kuiPanel kuiPanel--centered kuiPanel--noborder">
+                                            <div class="kuiEmptyTablePrompt kuiEmptyTablePrompt--nopadding">
+                                                <div class="kuiEmptyTablePrompt__message ng-binding">No user attributes found</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow" data-ng-repeat="attribute in sortObjectArray(resource.attributesArray,'key') track by $index">
+                                    <td class="kuiTableRowCell cellAlignTop">
+                                        <fieldset class="marginbottom--small" id="object-form-user-attributes-key-{{resource.attributesArray[$index].key}}">
+                                            <input type="text" class="kuiTextInput fullwidth" ng-model="resource.attributesArray[$index].key" name="" id="opendistro_security.input.userattributes.key.{{resource.attributesArray[$index].key}}">
+                                        </fieldset>
+                                    </td>
+                                    <td class="kuiTableRowCell cellAlignTop">
+                                        <fieldset class="marginbottom--small" id="object-form-user-attributes-value-{{resource.attributesArray[$index].value}}">
+                                            <input type="text" class="kuiTextInput fullwidth" ng-model="resource.attributesArray[$index].value" name="" id="opendistro_security.input.userattributes.value.{{resource.attributesArray[$index].value}}">
+                                        </fieldset>
+                                    </td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <a ng-click="confirmRemoveFromObjectArray(resource.attributesArray, $index, resource.attributesArray[$index].key)" class="kuiButton kuiButton--danger kuiButton--iconText" id="opendistro_security.button.userattributes.delete.{{resource.attributesArray[$index].key}}">
+                                            <span class="kuiButton__icon kuiIcon fa-trash-o"></span>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr class="kuiTableRow">
+                                    <td class="kuiTableRowCell cellAlignTop actions" colspan="2"></td>
+                                    <td class="kuiTableRowCell cellAlignTop actions">
+                                        <button type="button"
+                                                id="opendistro_security.button.userattributes.add"
+                                                ng-click="addToObjectArray(resource.attributesArray, {key: '', value: ''})"
+                                                ng-disabled="lastArrayEntryEmpty(resource.attributesArray)"
+                                                class="kuiButton kuiButton--primary kuiButton--iconText ">
+                                            <span class="kuiButton__icon kuiIcon fa-plus"></span>
+                                            Add attribute
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="formsubmit">
+                                <button id="opendistro_security.button.submit" ng-disabled="!endpointAndMethodEnabled('INTERNALUSERS', 'PUT') || resource.readonly" class="kuiButton kuiButton--primary kuiButton--text" type="submit">Submit</button>
+                                <button id="opendistro_security.button.cancel" class="kuiButton kuiButton--basic kuiButton--text" type="submit" ng-click="cancel()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <securityc-confirmation-modal ng-if="deleteFromEditModal.displayModal"
+            header="{{deleteFromEditModal.header}}"
+            body="{{deleteFromEditModal.body}}"
+            params="deleteFromEditModal.params"
+            on-confirm="deleteFromEditModal.onConfirm"
+            on-close="deleteFromEditModal.onClose"
+        ></securityc-confirmation-modal>
+    </div>
+</div>

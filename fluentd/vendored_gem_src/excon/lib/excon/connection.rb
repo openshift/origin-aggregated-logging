@@ -43,22 +43,22 @@ module Excon
     end
 
     # Initializes a new Connection instance
-    #   @param [Hash<Symbol, >] params One or more optional params
-    #     @option params [String] :body Default text to be sent over a socket. Only used if :body absent in Connection#request params
-    #     @option params [Hash<Symbol, String>] :headers The default headers to supply in a request. Only used if params[:headers] is not supplied to Connection#request
-    #     @option params [String] :host The destination host's reachable DNS name or IP, in the form of a String. IPv6 addresses must be wrapped (e.g. [::1]).  See URI#host.
-    #     @option params [String] :hostname Same as host, but usable for socket connections. IPv6 addresses must not be wrapped (e.g. ::1).  See URI#hostname.
-    #     @option params [String] :path Default path; appears after 'scheme://host:port/'. Only used if params[:path] is not supplied to Connection#request
-    #     @option params [Fixnum] :port The port on which to connect, to the destination host
-    #     @option params [Hash]   :query Default query; appended to the 'scheme://host:port/path/' in the form of '?key=value'. Will only be used if params[:query] is not supplied to Connection#request
-    #     @option params [String] :scheme The protocol; 'https' causes OpenSSL to be used
-    #     @option params [String] :socket The path to the unix socket (required for 'unix://' connections)
-    #     @option params [String] :ciphers Only use the specified SSL/TLS cipher suites; use OpenSSL cipher spec format e.g. 'HIGH:!aNULL:!3DES' or 'AES256-SHA:DES-CBC3-SHA'
-    #     @option params [String] :proxy Proxy server; e.g. 'http://myproxy.com:8888'
-    #     @option params [Fixnum] :retry_limit Set how many times we'll retry a failed request.  (Default 4)
-    #     @option params [Fixnum] :retry_interval Set how long to wait between retries. (Default 0)
-    #     @option params [Class] :instrumentor Responds to #instrument as in ActiveSupport::Notifications
-    #     @option params [String] :instrumentor_name Name prefix for #instrument events.  Defaults to 'excon'
+    # @param [Hash<Symbol, >] params One or more optional params
+    # @option params [String] :body Default text to be sent over a socket. Only used if :body absent in Connection#request params
+    # @option params [Hash<Symbol, String>] :headers The default headers to supply in a request. Only used if params[:headers] is not supplied to Connection#request
+    # @option params [String] :host The destination host's reachable DNS name or IP, in the form of a String. IPv6 addresses must be wrapped (e.g. [::1]).  See URI#host.
+    # @option params [String] :hostname Same as host, but usable for socket connections. IPv6 addresses must not be wrapped (e.g. ::1).  See URI#hostname.
+    # @option params [String] :path Default path; appears after 'scheme://host:port/'. Only used if params[:path] is not supplied to Connection#request
+    # @option params [Fixnum] :port The port on which to connect, to the destination host
+    # @option params [Hash]   :query Default query; appended to the 'scheme://host:port/path/' in the form of '?key=value'. Will only be used if params[:query] is not supplied to Connection#request
+    # @option params [String] :scheme The protocol; 'https' causes OpenSSL to be used
+    # @option params [String] :socket The path to the unix socket (required for 'unix://' connections)
+    # @option params [String] :ciphers Only use the specified SSL/TLS cipher suites; use OpenSSL cipher spec format e.g. 'HIGH:!aNULL:!3DES' or 'AES256-SHA:DES-CBC3-SHA'
+    # @option params [String] :proxy Proxy server; e.g. 'http://myproxy.com:8888'
+    # @option params [Fixnum] :retry_limit Set how many times we'll retry a failed request.  (Default 4)
+    # @option params [Fixnum] :retry_interval Set how long to wait between retries. (Default 0)
+    # @option params [Class] :instrumentor Responds to #instrument as in ActiveSupport::Notifications
+    # @option params [String] :instrumentor_name Name prefix for #instrument events.  Defaults to 'excon'
     def initialize(params = {})
       @data = Excon.defaults.dup
       # merge does not deep-dup, so make sure headers is not the original
@@ -161,7 +161,7 @@ module Excon
             socket.write(request) # write out request + headers
             while true # write out body with chunked encoding
               chunk = datum[:request_block].call
-              binary_encode(chunk)
+              chunk = binary_encode(chunk)
               if chunk.length > 0
                 socket.write(chunk.length.to_s(16) << CR_NL << chunk << CR_NL)
               else
@@ -180,10 +180,10 @@ module Excon
             end
 
             # if request + headers is less than chunk size, fill with body
-            binary_encode(request)
+            request = binary_encode(request)
             chunk = body.read([datum[:chunk_size] - request.length, 0].max)
             if chunk
-              binary_encode(chunk)
+              chunk = binary_encode(chunk)
               socket.write(request << chunk)
             else
               socket.write(request) # write out request + headers
@@ -221,12 +221,12 @@ module Excon
     end
 
     # Sends the supplied request to the destination host.
-    #   @yield [chunk] @see Response#self.parse
-    #   @param [Hash<Symbol, >] params One or more optional params, override defaults set in Connection.new
-    #     @option params [String] :body text to be sent over a socket
-    #     @option params [Hash<Symbol, String>] :headers The default headers to supply in a request
-    #     @option params [String] :path appears after 'scheme://host:port/'
-    #     @option params [Hash]   :query appended to the 'scheme://host:port/path/' in the form of '?key=value'
+    # @yield [chunk] @see Response#self.parse
+    # @param [Hash<Symbol, >] params One or more optional params, override defaults set in Connection.new
+    # @option params [String] :body text to be sent over a socket
+    # @option params [Hash<Symbol, String>] :headers The default headers to supply in a request
+    # @option params [String] :path appears after 'scheme://host:port/'
+    # @option params [Hash]   :query appended to the 'scheme://host:port/path/' in the form of '?key=value'
     def request(params={}, &block)
       # @data has defaults, merge in new params to override
       datum = @data.merge(params)
@@ -257,10 +257,15 @@ module Excon
 
       if block_given?
         Excon.display_warning('Excon requests with a block are deprecated, pass :response_block instead.')
-        datum[:response_block] = Proc.new
+        datum[:response_block] = block
       end
 
       datum[:connection] = self
+
+      # cleanup data left behind on persistent connection after interrupt
+      if datum[:persistent] && !@persistent_socket_reusable
+        reset
+      end
 
       datum[:stack] = datum[:middlewares].map do |middleware|
         lambda {|stack| middleware.new(stack)}
@@ -270,7 +275,9 @@ module Excon
       datum = datum[:stack].request_call(datum)
 
       unless datum[:pipeline]
+        @persistent_socket_reusable = false
         datum = response(datum)
+        @persistent_socket_reusable = true
 
         if datum[:persistent]
           if key = datum[:response][:headers].keys.detect {|k| k.casecmp('Connection') == 0 }
@@ -301,7 +308,7 @@ module Excon
     end
 
     # Sends the supplied requests to the destination host using pipelining.
-    #   @pipeline_params [Array<Hash>] pipeline_params An array of one or more optional params, override defaults set in Connection.new, see #request for details
+    # @param pipeline_params [Array<Hash>] An array of one or more optional params, override defaults set in Connection.new, see #request for details
     def requests(pipeline_params)
       pipeline_params.each {|params| params.merge!(:pipeline => true, :persistent => true) }
       pipeline_params.last.merge!(:persistent => @data[:persistent])
@@ -328,7 +335,7 @@ module Excon
     # Sends the supplied requests to the destination host using pipelining in
     # batches of @limit [Numeric] requests. This is your soft file descriptor
     # limit by default, typically 256.
-    #   @pipeline_params [Array<Hash>] pipeline_params An array of one or more optional params, override defaults set in Connection.new, see #request for details
+    # @param pipeline_params [Array<Hash>] An array of one or more optional params, override defaults set in Connection.new, see #request for details
     def batch_requests(pipeline_params, limit = nil)
       limit ||= Process.respond_to?(:getrlimit) ? Process.getrlimit(:NOFILE).first : 256
       responses = []
@@ -344,6 +351,7 @@ module Excon
       if old_socket = sockets.delete(@socket_key)
         old_socket.close rescue nil
       end
+      @persistent_socket_reusable = true
     end
 
     # Generate HTTP request verb methods
@@ -440,7 +448,7 @@ module Excon
       datum[:stack].response_call(datum)
     rescue => error
       case error
-      when Excon::Errors::HTTPStatusError, Excon::Errors::Timeout
+      when Excon::Errors::HTTPStatusError, Excon::Errors::Timeout, Excon::Errors::TooManyRedirects
         raise(error)
       else
         raise_socket_error(error)

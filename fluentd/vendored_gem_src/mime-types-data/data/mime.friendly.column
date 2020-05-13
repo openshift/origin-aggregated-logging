@@ -128,6 +128,7 @@ en^Efficient XML Interchange
 -
 -
 -
+-
 en^Portable Font Resource
 en^Web Open Font Format
 -
@@ -227,6 +228,7 @@ en^Metadata Encoding and Transmission Standard
 -
 -
 -
+-
 en^Metadata Object Description Schema
 -
 -
@@ -242,6 +244,7 @@ en^MPEG4
 -
 -
 en^Microsoft Word
+-
 -
 en^Material Exchange Format
 -
@@ -374,6 +377,7 @@ en^S Hexdump Format
 -
 -
 -
+-
 en^Synchronized Multimedia Integration Language
 -
 -
@@ -402,12 +406,14 @@ en^Speech Synthesis Markup Language
 -
 -
 -
+-
 en^Text Encoding and Interchange
 -
 en^Sharing Transaction Fraud Data
 -
 -
 en^Time Stamped Data Envelope
+-
 -
 -
 -
@@ -500,6 +506,7 @@ en^Amazon Kindle eBook format
 en^Active Content Compression
 en^AmigaDE
 -
+-
 en^Android Package Archive
 -
 en^ANSER-WEB Terminal Client - Certificate Issue
@@ -534,10 +541,13 @@ en^Audiograph
 -
 -
 -
+-
 en^Blueice Research Multipass
 -
 -
 en^BMI Drawing Data Interchange
+-
+-
 en^BusinessObjects
 -
 -
@@ -549,6 +559,7 @@ en^BusinessObjects
 en^CambridgeSoft Chem Draw
 -
 en^Karaoke on Chipnuts Chipsets
+-
 en^Interactive Geometry Software Cinderella
 -
 -
@@ -580,6 +591,8 @@ en^CrickSoftware - Clicker - Palette
 en^CrickSoftware - Clicker - Template
 en^CrickSoftware - Clicker - Wordbank
 en^Critical Tools - PERT Chart EXPERT
+-
+-
 en^PosML
 -
 -
@@ -703,6 +716,7 @@ en^Digital Siesmograph Networks - SEED Datafiles
 -
 -
 -
+-
 en^NpGraphIt
 en^FluxTime Clip
 -
@@ -819,6 +833,7 @@ en^IP Unplugged Roaming Client
 en^iRepository / Lucidoc Editor
 en^Express by Infoseek
 en^International Society for Advancement of Cytometry
+-
 en^Lightspeed Audio Lab
 -
 -
@@ -847,11 +862,15 @@ en^Kinar Applications
 en^SSEYO Koan Play File
 en^Kodak Storyshare
 -
+-
 en^Laser App Enterprise
+-
 -
 -
 en^Life Balance - Desktop Edition
 en^Life Balance - Exchange Format
+-
+-
 en^Lotus 1-2-3
 en^Lotus Approach
 en^Lotus Freelance
@@ -1239,10 +1258,12 @@ en^SeeMail
 en^Secured eMail
 en^Secured eMail
 en^Secured eMail
+-
 en^Shana Informed Filler
 en^Shana Informed Filler
 en^Shana Informed Filler
 en^Shana Informed Filler
+-
 -
 -
 en^SimTech MindMapper
@@ -1327,6 +1348,7 @@ en^Unique Object Markup Language
 -
 -
 en^VirtualCatalog
+-
 -
 -
 -
@@ -1684,6 +1706,7 @@ en^Sun Audio - Au file format
 -
 -
 -
+-
 en^MIDI - Musical Instrument Digital Interface
 -
 en^MPEG-4 Audio
@@ -1812,10 +1835,20 @@ en^Graphics Interchange Format
 -
 -
 -
+-
+-
 en^Image Exchange Format
 -
 -
 en^JPEG Image
+-
+-
+-
+-
+-
+-
+-
+-
 -
 -
 -
@@ -1982,6 +2015,7 @@ en^Comma-Separated Values
 -
 -
 -
+-
 en^HyperText Markup Language (HTML)
 -
 -
@@ -2024,6 +2058,7 @@ en^Curl - Source Code
 -
 -
 -
+-
 en^mod_fly / fly.cgi
 en^FLEXSTOR
 -
@@ -2031,6 +2066,7 @@ en^Graphviz
 -
 en^In3D - 3DML
 en^In3D - 3DML
+-
 -
 -
 -
@@ -2069,6 +2105,7 @@ en^vCard
 en^3GP
 -
 en^3GP2
+-
 -
 -
 -
@@ -2148,6 +2185,7 @@ en^Microsoft PlayReady Ecosystem Video
 -
 en^DECE MP4
 en^Vivo
+-
 -
 en^Open Web Media Project - Video
 -

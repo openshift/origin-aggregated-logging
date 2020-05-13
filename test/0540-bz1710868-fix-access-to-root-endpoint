@@ -11,10 +11,6 @@ os::util::environment::use_sudo
 test_name=$(basename $0)
 os::test::junit::declare_suite_start ${test_name}
 
-if [ -n "${DEBUG:-}" ] ; then
-    set -x
-fi
-
 cleanup() {
     local return_code="$?"
     set +e

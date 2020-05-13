@@ -13,28 +13,32 @@ ENV HOME=/opt/app-root/src \
     CURATOR_ACTIONS_FILE=/etc/curator/settings/actions.yaml \
     CURATOR_LOG_LEVEL=ERROR \
     CURATOR_SCRIPT_LOG_LEVEL=INFO \
-    CURATOR_VER=5.2 \
-    CURATOR_TIMEOUT=300
+    CURATOR_TIMEOUT=300 \
+    CURATOR_VER=5.8.1 \
+    container=oci \
+    LC_ALL=en_US.UTF-8 
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
   io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-ADD elasticsearch.repo /etc/yum.repos.d/
-RUN yum install -y epel-release && \
-    rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
-RUN yum install -y --setopt=tsflags=nodocs \
-        python-pip && \
-    pip install --no-cache-dir 'pyyaml==3.12' 'ruamel.yaml<=0.15' elasticsearch-curator==${CURATOR_VER} && \
-    yum clean all
+RUN yum install -y epel-release
+RUN INSTALLED_PKGS="python3" && \
+    yum install -y --setopt=tsflags=nodocs ${INSTALLED_PKGS} && \
+    rpm -V ${INSTALLED_PKGS} && \
+    yum clean all && \
+    ln -sf /usr/bin/python3 /usr/bin/python
 
-COPY run.sh lib/oalconverter/* ${HOME}/
-
+COPY . ${HOME}
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
     chmod -R u+x ${HOME} && \
     chgrp -R 0 ${HOME} && \
-    chmod -R g=u ${HOME}
+    chmod -R g=u ${HOME} && \
+    for pkg in "$(ls $HOME/vendor/*.tar.gz)" ; do \
+      pip3 install --no-deps $pkg; \
+    done  && \
+    rm -rf $HOME/vendor
 
 WORKDIR ${HOME}
 USER 1001

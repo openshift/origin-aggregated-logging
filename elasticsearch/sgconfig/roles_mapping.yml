@@ -1,0 +1,42 @@
+kibana_server:
+  users:
+    - 'CN=system.logging.kibana,OU=OpenShift,O=Logging'
+
+sg_role_fluentd:
+  users:
+    - 'CN=system.logging.fluentd,OU=OpenShift,O=Logging'
+
+sg_role_rsyslog:
+  users:
+    - 'CN=system.logging.rsyslog,OU=OpenShift,O=Logging'
+
+sg_role_curator:
+  users:
+    - 'CN=system.logging.curator,OU=OpenShift,O=Logging'
+  backendroles:
+    - 'index-management'
+
+sg_role_admin:
+  users:
+    - 'CN=system.admin,OU=OpenShift,O=Logging'
+  backendroles:
+    - 'elasticsearch-operator'
+
+sg_role_prometheus:
+  backendroles:
+    - 'prometheus'
+
+sg_role_jaeger:
+  users:
+    - 'CN=user.jaeger,OU=OpenShift,O=Logging'
+  backendroles:
+    - 'jaeger'
+
+admin_user:
+  backendroles:
+    - 'admin_reader'
+
+project_user:
+  readonly: true    
+  users:    
+    - '*'

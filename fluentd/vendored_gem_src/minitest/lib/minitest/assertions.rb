@@ -27,20 +27,18 @@ module Minitest
     # figure out what diff to use.
 
     def self.diff
+      return @diff if defined? @diff
+
       @diff = if (RbConfig::CONFIG["host_os"] =~ /mswin|mingw/ &&
                   system("diff.exe", __FILE__, __FILE__)) then
                 "diff.exe -u"
-              elsif Minitest::Test.maglev? then
-                "diff -u"
               elsif system("gdiff", __FILE__, __FILE__)
                 "gdiff -u" # solaris and kin suck
               elsif system("diff", __FILE__, __FILE__)
                 "diff -u"
               else
                 nil
-              end unless defined? @diff
-
-      @diff
+              end
     end
 
     ##
@@ -55,22 +53,16 @@ module Minitest
     # diff command or if it doesn't make sense to diff the output
     # (single line, short output), then it simply returns a basic
     # comparison between the two.
+    #
+    # See +things_to_diff+ for more info.
 
     def diff exp, act
-      expect = mu_pp_for_diff exp
-      butwas = mu_pp_for_diff act
       result = nil
 
-      need_to_diff =
-        (expect.include?("\n")    ||
-         butwas.include?("\n")    ||
-         expect.size > 30         ||
-         butwas.size > 30         ||
-         expect == butwas)        &&
-        Minitest::Assertions.diff
+      expect, butwas = things_to_diff(exp, act)
 
       return "Expected: #{mu_pp exp}\n  Actual: #{mu_pp act}" unless
-        need_to_diff
+        expect
 
       Tempfile.open("expect") do |a|
         a.puts expect
@@ -100,9 +92,39 @@ module Minitest
     end
 
     ##
+    # Returns things to diff [expect, butwas], or [nil, nil] if nothing to diff.
+    #
+    # Criterion:
+    #
+    # 1. Strings include newlines or escaped newlines, but not both.
+    # 2. or:  String lengths are > 30 characters.
+    # 3. or:  Strings are equal to each other (but maybe different encodings?).
+    # 4. and: we found a diff executable.
+
+    def things_to_diff exp, act
+      expect = mu_pp_for_diff exp
+      butwas = mu_pp_for_diff act
+
+      e1, e2 = expect.include?("\n"), expect.include?("\\n")
+      b1, b2 = butwas.include?("\n"), butwas.include?("\\n")
+
+      need_to_diff =
+        (e1 ^ e2                  ||
+         b1 ^ b2                  ||
+         expect.size > 30         ||
+         butwas.size > 30         ||
+         expect == butwas)        &&
+        Minitest::Assertions.diff
+
+      need_to_diff && [expect, butwas]
+    end
+
+    ##
     # This returns a human-readable version of +obj+. By default
-    # #inspect is called. You can override this to use #pretty_print
+    # #inspect is called. You can override this to use #pretty_inspect
     # if you want.
+    #
+    # See Minitest::Test.make_my_diffs_pretty!
 
     def mu_pp obj
       s = obj.inspect
@@ -110,8 +132,11 @@ module Minitest
       if defined? Encoding then
         s = s.encode Encoding.default_external
 
-        if String === obj && obj.encoding != Encoding.default_external then
-          s = "# encoding: #{obj.encoding}\n#{s}"
+        if String === obj && (obj.encoding != Encoding.default_external ||
+                              !obj.valid_encoding?) then
+          enc = "# encoding: #{obj.encoding}"
+          val = "#    valid: #{obj.valid_encoding?}"
+          s = "#{enc}\n#{val}\n#{s}"
         end
       end
 
@@ -119,13 +144,32 @@ module Minitest
     end
 
     ##
-    # This returns a diff-able human-readable version of +obj+. This
-    # differs from the regular mu_pp because it expands escaped
-    # newlines and makes hex-values generic (like object_ids). This
+    # This returns a diff-able more human-readable version of +obj+.
+    # This differs from the regular mu_pp because it expands escaped
+    # newlines and makes hex-values (like object_ids) generic. This
     # uses mu_pp to do the first pass and then cleans it up.
 
     def mu_pp_for_diff obj
-      mu_pp(obj).gsub(/\\n/, "\n").gsub(/:0x[a-fA-F0-9]{4,}/m, ":0xXXXXXX")
+      str = mu_pp obj
+
+      # both '\n' & '\\n' (_after_ mu_pp (aka inspect))
+      single = !!str.match(/(?<!\\|^)\\n/)
+      double = !!str.match(/(?<=\\|^)\\n/)
+
+      process =
+        if single ^ double then
+          if single then
+            lambda { |s| s == "\\n"   ? "\n"    : s } # unescape
+          else
+            lambda { |s| s == "\\\\n" ? "\\n\n" : s } # unescape a bit, add nls
+          end
+        else
+          :itself                                     # leave it alone
+        end
+
+      str.
+        gsub(/\\?\\n/, &process).
+        gsub(/:0x[a-fA-F0-9]{4,}/m, ":0xXXXXXX") # anonymize hex values
     end
 
     ##
@@ -283,6 +327,9 @@ module Minitest
     # See also: #assert_silent
 
     def assert_output stdout = nil, stderr = nil
+      flunk "assert_output requires a block to capture output." unless
+        block_given?
+
       out, err = capture_io do
         yield
       end
@@ -294,6 +341,18 @@ module Minitest
       x = send out_msg, stdout, out, "In stdout" if out_msg
 
       (!stdout || x) && (!stderr || y)
+    rescue Assertion
+      raise
+    rescue => e
+      raise UnexpectedError, e
+    end
+
+    ##
+    # Fails unless +path+ exists.
+
+    def assert_path_exists path, msg = nil
+      msg = message(msg) { "Expected path '#{path}' to exist" }
+      assert File.exist?(path), msg
     end
 
     ##
@@ -316,9 +375,26 @@ module Minitest
     #
     # +exp+ takes an optional message on the end to help explain
     # failures and defaults to StandardError if no exception class is
-    # passed.
+    # passed. Eg:
+    #
+    #   assert_raises(CustomError) { method_with_custom_error }
+    #
+    # With custom error message:
+    #
+    #   assert_raises(CustomError, 'This should have raised CustomError') { method_with_custom_error }
+    #
+    # Using the returned object:
+    #
+    #   error = assert_raises(CustomError) do
+    #     raise CustomError, 'This is really bad'
+    #   end
+    #
+    #   assert_equal 'This is really bad', error.message
 
     def assert_raises *exp
+      flunk "assert_raises requires a block to capture errors." unless
+        block_given?
+
       msg = "#{exp.pop}.\n" if String === exp.last
       exp << StandardError if exp.empty?
 
@@ -327,7 +403,7 @@ module Minitest
       rescue *exp => e
         pass # count assertion
         return e
-      rescue Minitest::Skip, Minitest::Assertion
+      rescue Minitest::Assertion # incl Skip & UnexpectedError
         # don't count assertion
         raise
       rescue SignalException, SystemExit
@@ -413,6 +489,10 @@ module Minitest
       end
 
       assert caught, message(msg) { default }
+    rescue Assertion
+      raise
+    rescue => e
+      raise UnexpectedError, e
     end
 
     ##
@@ -485,6 +565,11 @@ module Minitest
           captured_stderr.unlink
           $stdout.reopen orig_stdout
           $stderr.reopen orig_stderr
+
+          orig_stdout.close
+          orig_stderr.close
+          captured_stdout.close
+          captured_stderr.close
         end
       end
     end
@@ -504,7 +589,16 @@ module Minitest
     end
 
     ##
-    # Fails with +msg+
+    # Fails after a given date (in the local time zone). This allows
+    # you to put time-bombs in your tests if you need to keep
+    # something around until a later date lest you forget about it.
+
+    def fail_after y,m,d,msg
+      flunk msg if Time.now > Time.local(y, m, d)
+    end
+
+    ##
+    # Fails with +msg+.
 
     def flunk msg = nil
       msg ||= "Epic Fail!"
@@ -639,6 +733,14 @@ module Minitest
     end
 
     ##
+    # Fails if +path+ exists.
+
+    def refute_path_exists path, msg = nil
+      msg = message(msg) { "Expected path '#{path}' to not exist" }
+      refute File.exist?(path), msg
+    end
+
+    ##
     # For testing with predicates.
     #
     #   refute_predicate str, :empty?
@@ -681,6 +783,18 @@ module Minitest
       msg ||= "Skipped, no message given"
       @skip = true
       raise Minitest::Skip, msg, bt
+    end
+
+    ##
+    # Skips the current run until a given date (in the local time
+    # zone). This allows you to put some fixes on hold until a later
+    # date, but still holds you accountable and prevents you from
+    # forgetting it.
+
+    def skip_until y,m,d,msg
+      skip msg if Time.now < Time.local(y, m, d)
+      where = caller.first.split(/:/, 3).first(2).join ":"
+      warn "Stale skip_until %p at %s" % [msg, where]
     end
 
     ##

@@ -3,10 +3,6 @@
 # This script updates the vendored libraries
 # added to Kibana
 
-if [[ -n ${DEBUG:-""} ]] ; then
-    set -x
-fi
-
 set -o errexit
 set -o nounset
 set -o pipefail

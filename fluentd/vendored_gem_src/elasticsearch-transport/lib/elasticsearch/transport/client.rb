@@ -1,19 +1,6 @@
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Licensed to Elasticsearch B.V under one or more agreements.
+# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
+# See the LICENSE file in the project root for more information
 
 require 'base64'
 
@@ -125,7 +112,7 @@ module Elasticsearch
         @arguments[:randomize_hosts]    ||= false
         @arguments[:transport_options]  ||= {}
         @arguments[:http]               ||= {}
-        @options[:http]               ||= {}
+        @options[:http]                 ||= {}
 
         @seeds = extract_cloud_creds(@arguments)
         @seeds ||= __extract_hosts(@arguments[:hosts] ||
@@ -169,7 +156,8 @@ module Elasticsearch
 
       def extract_cloud_creds(arguments)
         return unless arguments[:cloud_id]
-        cloud_url, elasticsearch_instance = Base64.decode64(arguments[:cloud_id].gsub('name:', '')).split('$')
+        name = arguments[:cloud_id].split(':')[0]
+        cloud_url, elasticsearch_instance = Base64.decode64(arguments[:cloud_id].gsub("#{name}:", '')).split('$')
         [ { scheme: 'https',
             user: arguments[:user],
             password: arguments[:password],

@@ -1,0 +1,32 @@
+opendistro_security:
+  dynamic:
+    kibana:
+      server_username: 'CN=system.logging.kibana,OU=OpenShift,O=Logging'
+      do_not_fail_on_forbidden: true
+    http:
+      xff:
+        enabled: true
+        remoteIpHeader: 'x-forwarded-for'
+        internalProxies: '0:0:0:0:0:0:0:1|127\.0\.0\.1'
+        trustedProxies: '.*'
+    authc:
+      openshift_domain:
+        enabled: true
+        order: 0
+        http_authenticator:
+          challenge: false
+          type: extended-proxy
+          config:
+            user_header: 'x-forwarded-user'
+            roles_header: 'x-forwarded-roles'
+            attr_header_prefix: 'x-ocp-'
+        authentication_backend:
+          type: noop
+      authentication_domain_basic_internal:
+        enabled: true
+        order: 1
+        http_authenticator:
+          type: clientcert
+          challenge: false
+        authentication_backend:
+          type: noop

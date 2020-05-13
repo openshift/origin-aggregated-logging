@@ -1,0 +1,169 @@
+# For the kibana server
+kibana_server:
+  readonly: true
+  cluster:
+      - CLUSTER_MONITOR
+      - CLUSTER_COMPOSITE_OPS
+      - indices:admin/template*
+      - indices:data/read/scroll*
+      - indices:data/write/reindex
+  indices:
+    '?kibana':
+      '*':
+        - INDICES_ALL
+    '?kibana-6':
+      '*':
+        - INDICES_ALL
+    '?kibana_*':
+      '*':
+        - INDICES_ALL
+    '?reporting*':
+      '*':
+        - INDICES_ALL
+    '?monitoring*':
+      '*':
+        - INDICES_ALL
+    '?tasks':
+      '*':
+        - INDICES_ALL
+    '*':
+      '*':
+        - "indices:admin/aliases*"
+    '?opendistro':
+      '?security':
+        - indices:admin/get
+
+sg_role_prometheus:
+  cluster:
+    - METRICS
+  indices:
+    '*':
+      '*':
+        - indices:monitor*
+
+sg_role_fluentd:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_rsyslog:
+  cluster:
+    - indices:data/write/bulk
+    - CLUSTER_MONITOR
+  indices:
+    '*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+
+sg_role_curator:
+  cluster:
+    - CLUSTER_MONITOR
+    - MANAGE
+  indices:
+    '*':
+      '*':
+        - READ
+        - MANAGE
+
+sg_role_admin:
+  indices:
+    '*':
+      '*':
+        - ALL
+  cluster:
+    - CLUSTER_ALL
+    - ALL
+
+sg_role_jaeger:
+  cluster:
+    - indices:data/write/bulk
+    - SEARCH
+    - CLUSTER_MONITOR
+    - MANAGE
+  indices:
+    '*jaeger-span-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-service-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+    '*jaeger-span-archive-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
+
+sg_project_operations:
+  indices:
+    '?operations?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*
+    '*?*?*':
+      '*':
+        - READ
+        - indices:admin/mappings/fields/get*
+        - indices:admin/validate/query*
+        - indices:admin/get*
+
+# To support multi-tenancy. User's access to indices is restricted to indices belonging to the user's projects, enforced by DLS.    
+project_user:
+  readonly: true
+  cluster:
+    - CLUSTER_COMPOSITE_OPS_RO
+    - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
+  indices:
+    app:
+      '*':
+        - READ
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+    '?kibana_*':
+      '*':
+        - CRUD
+
+admin_user:
+  readonly: true
+  cluster:
+    - CLUSTER_COMPOSITE_OPS_RO
+    - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
+  indices:
+    app:
+      '*':
+        - READ
+      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
+    infra:
+      '*':
+        - READ
+    audit:
+      '*':
+        - READ
+    '?kibana_*':
+      '*':
+        - CRUD
+  tenants:
+    admin: RW

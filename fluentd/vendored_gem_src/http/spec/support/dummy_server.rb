@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "webrick"
 require "webrick/ssl"
 
@@ -22,7 +24,7 @@ class DummyServer < WEBrick::HTTPServer
     :SSLStartImmediately  => true
   ).freeze
 
-  def initialize(options = {})
+  def initialize(options = {}) # rubocop:disable Style/OptionHash
     super(options[:ssl] ? SSL_CONFIG : CONFIG)
     mount("/", Servlet)
   end

@@ -14,7 +14,7 @@ require 'forwardable'
 #   conn.get '/'
 #
 module Faraday
-  VERSION = "0.15.4"
+  VERSION = "0.17.3"
 
   class << self
     # Public: Gets or sets the root path that Faraday is being loaded from.
@@ -64,8 +64,7 @@ module Faraday
     #     :params => {:page => 1}
     #
     # Returns a Faraday::Connection.
-    def new(url = nil, options = nil)
-      block = block_given? ? Proc.new : nil
+    def new(url = nil, options = nil, &block)
       options = options ? default_connection_options.merge(options) : default_connection_options
       Faraday::Connection.new(url, options, &block)
     end

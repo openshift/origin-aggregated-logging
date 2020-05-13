@@ -20,7 +20,7 @@ class MIME::Type::Columnar < MIME::Type
   end
 
   def self.column(*methods, file: nil) # :nodoc:
-    file = methods.first unless file
+    file ||= methods.first
 
     file_method = :"load_#{file}"
     methods.each do |m|
@@ -36,7 +36,7 @@ class MIME::Type::Columnar < MIME::Type
   column :docs, :docs=
   column :preferred_extension, :preferred_extension=
   column :obsolete, :obsolete=, :obsolete?, :registered, :registered=,
-    :registered?, :signature, :signature=, :signature?, file: 'flags'
+         :registered?, :signature, :signature=, :signature?, file: 'flags'
   column :xrefs, :xrefs=, :xref_urls
   column :use_instead, :use_instead=
 

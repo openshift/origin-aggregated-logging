@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/ClassLength
+
 require "http/headers"
 require "openssl"
 require "socket"
@@ -8,11 +12,13 @@ module HTTP
     @default_socket_class     = TCPSocket
     @default_ssl_socket_class = OpenSSL::SSL::SSLSocket
     @default_timeout_class    = HTTP::Timeout::Null
+    @available_features       = {}
 
     class << self
       attr_accessor :default_socket_class, :default_ssl_socket_class, :default_timeout_class
+      attr_reader :available_features
 
-      def new(options = {})
+      def new(options = {}) # rubocop:disable Style/OptionHash
         return options if options.is_a?(self)
         super
       end
@@ -21,14 +27,22 @@ module HTTP
         @defined_options ||= []
       end
 
+      def register_feature(name, impl)
+        @available_features[name] = impl
+      end
+
       protected
 
-      def def_option(name, &interpreter)
+      def def_option(name, reader_only: false, &interpreter)
         defined_options << name.to_sym
         interpreter ||= lambda { |v| v }
 
-        attr_accessor name
-        protected :"#{name}="
+        if reader_only
+          attr_reader name
+        else
+          attr_accessor name
+          protected :"#{name}="
+        end
 
         define_method(:"with_#{name}") do |value|
           dup { |opts| opts.send(:"#{name}=", instance_exec(value, &interpreter)) }
@@ -36,18 +50,21 @@ module HTTP
       end
     end
 
-    def initialize(options = {})
+    def initialize(options = {}) # rubocop:disable Style/OptionHash
       defaults = {
         :response           => :auto,
         :proxy              => {},
         :timeout_class      => self.class.default_timeout_class,
         :timeout_options    => {},
         :socket_class       => self.class.default_socket_class,
+        :nodelay            => false,
         :ssl_socket_class   => self.class.default_ssl_socket_class,
         :ssl                => {},
         :keep_alive_timeout => 5,
         :headers            => {},
-        :cookies            => {}
+        :cookies            => {},
+        :encoding           => nil,
+        :features           => {}
       }
 
       opts_w_defaults = defaults.merge(options)
@@ -55,33 +72,74 @@ module HTTP
       opts_w_defaults.each { |(k, v)| self[k] = v }
     end
 
-    def_option :headers do |headers|
-      self.headers.merge(headers)
+    def_option :headers do |new_headers|
+      headers.merge(new_headers)
     end
 
-    def_option :cookies do |cookies|
-      cookies.each_with_object self.cookies.dup do |(k, v), jar|
+    def_option :cookies do |new_cookies|
+      new_cookies.each_with_object cookies.dup do |(k, v), jar|
         cookie = k.is_a?(Cookie) ? k : Cookie.new(k.to_s, v.to_s)
         jar[cookie.name] = cookie.cookie_value
       end
     end
 
-    %w(
-      proxy params form json body follow response
-      socket_class ssl_socket_class ssl_context ssl
-      persistent keep_alive_timeout timeout_class timeout_options
-    ).each do |method_name|
+    def_option :encoding do |encoding|
+      self.encoding = Encoding.find(encoding)
+    end
+
+    def_option :features, :reader_only => true do |new_features|
+      # Normalize features from:
+      #
+      #     [{feature_one: {opt: 'val'}}, :feature_two]
+      #
+      # into:
+      #
+      #     {feature_one: {opt: 'val'}, feature_two: {}}
+      normalized_features = new_features.each_with_object({}) do |feature, h|
+        if feature.is_a?(Hash)
+          h.merge!(feature)
+        else
+          h[feature] = {}
+        end
+      end
+
+      features.merge(normalized_features)
+    end
+
+    def features=(features)
+      @features = features.each_with_object({}) do |(name, opts_or_feature), h|
+        h[name] = if opts_or_feature.is_a?(Feature)
+                    opts_or_feature
+                  else
+                    unless (feature = self.class.available_features[name])
+                      argument_error! "Unsupported feature: #{name}"
+                    end
+                    feature.new(**opts_or_feature)
+                  end
+      end
+    end
+
+    %w[
+      proxy params form json body response
+      socket_class nodelay ssl_socket_class ssl_context ssl
+      keep_alive_timeout timeout_class timeout_options
+    ].each do |method_name|
       def_option method_name
     end
 
+    def_option :follow, :reader_only => true
+
     def follow=(value)
-      @follow = case
-                when !value                    then nil
-                when true == value             then {}
-                when value.respond_to?(:fetch) then value
-                else argument_error! "Unsupported follow options: #{value}"
-                end
+      @follow =
+        case
+        when !value                    then nil
+        when true == value             then {}
+        when value.respond_to?(:fetch) then value
+        else argument_error! "Unsupported follow options: #{value}"
+        end
     end
+
+    def_option :persistent, :reader_only => true
 
     def persistent=(value)
       @persistent = value ? HTTP::URI.parse(value).origin : nil
@@ -89,15 +147,6 @@ module HTTP
 
     def persistent?
       !persistent.nil?
-    end
-
-    # @deprecated
-    def [](option)
-      send(option)
-    rescue
-      warn "[DEPRECATED] `HTTP::Options#[:#{option}]` was deprecated. " \
-        "Use `HTTP::Options##{option}` instead."
-      nil
     end
 
     def merge(other)
@@ -119,7 +168,7 @@ module HTTP
     def to_hash
       hash_pairs = self.class.
                    defined_options.
-                   flat_map { |opt_name| [opt_name, self[opt_name]] }
+                   flat_map { |opt_name| [opt_name, send(opt_name)] }
       Hash[*hash_pairs]
     end
 
@@ -127,6 +176,10 @@ module HTTP
       dupped = super
       yield(dupped) if block_given?
       dupped
+    end
+
+    def feature(name)
+      features[name]
     end
 
     protected
@@ -138,7 +191,7 @@ module HTTP
     private
 
     def argument_error!(message)
-      fail(Error, message, caller[1..-1])
+      raise(Error, message, caller(1..-1))
     end
   end
 end

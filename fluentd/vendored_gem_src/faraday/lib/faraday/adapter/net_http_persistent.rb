@@ -10,7 +10,7 @@ module Faraday
           if Net::HTTP::Persistent.instance_method(:initialize).parameters.first == [:key, :name]
             options = {name: 'Faraday'}
             options[:pool_size] = @connection_options[:pool_size] if @connection_options.key?(:pool_size)
-            Net::HTTP::Persistent.new(options)
+            Net::HTTP::Persistent.new(**options)
           else
             Net::HTTP::Persistent.new('Faraday')
           end
@@ -37,12 +37,12 @@ module Faraday
       def perform_request(http, env)
         http.request env[:url], create_request(env)
       rescue Errno::ETIMEDOUT => error
-        raise Faraday::Error::TimeoutError, error
+        raise Faraday::TimeoutError, error
       rescue Net::HTTP::Persistent::Error => error
         if error.message.include? 'Timeout'
-          raise Faraday::Error::TimeoutError, error
+          raise Faraday::TimeoutError, error
         elsif error.message.include? 'connection refused'
-          raise Faraday::Error::ConnectionFailed, error
+          raise Faraday::ConnectionFailed, error
         else
           raise
         end

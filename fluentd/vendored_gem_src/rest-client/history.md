@@ -1,3 +1,40 @@
+# 2.1.0
+
+- Add a dependency on http-accept for parsing Content-Type charset headers.
+  This works around a bad memory leak introduced in MRI Ruby 2.4.0 and fixed in
+  Ruby 2.4.2. (#615)
+- Use mime/types/columnar from mime-types 2.6.1+, which is leaner in memory
+  usage than the older storage model of mime-types. (#393)
+- Add `:log` option to individual requests. This allows users to set a log on a
+  per-request / per-resource basis instead of the kludgy global log. (#538)
+- Log request duration by tracking request start and end times. Make
+  `log_response` a method on the Response object, and ensure the `size` method
+  works on RawResponse objects. (#126)
+  - `# => 200 OK | text/html 1270 bytes, 0.08s`
+  - Also add a new `:stream_log_percent` parameter, which is applicable only
+    when `:raw_response => true` is set. This causes progress logs to be
+    emitted only on every N% (default 10%) of the total download size rather
+    than on every chunk.
+- Drop custom handling of compression and use built-in Net::HTTP support for
+  supported Content-Encodings like gzip and deflate. Don't set any explicit
+  `Accept-Encoding` header, rely instead on Net::HTTP defaults. (#597)
+  - Note: this changes behavior for compressed responses when using
+    `:raw_response => true`. Previously the raw response would not have been
+    uncompressed by rest-client, but now Net::HTTP will uncompress it.
+- The previous fix to avoid having Netrc username/password override an
+  Authorization header was case-sensitive and incomplete. Fix this by
+  respecting existing Authorization headers, regardless of letter case. (#550)
+- Handle ParamsArray payloads. Previously, rest-client would silently drop a
+  ParamsArray passed as the payload. Instead, automatically use
+  Payload::Multipart if the ParamsArray contains a file handle, or use
+  Payload::UrlEncoded if it doesn't. (#508)
+- Gracefully handle Payload objects (Payload::Base or subclasses) that are
+  passed as a payload argument. Previously, `Payload.generate` would wrap a
+  Payload object in Payload::Streamed, creating a pointlessly nested payload.
+  Also add a `closed?` method to Payload objects, and don't error in
+  `short_inspect` if `size` returns nil. (#603)
+- Test with an image in the public domain to avoid licensing complexity. (#607)
+
 # 2.0.2
 
 - Suppress the header override warning introduced in 2.0.1 if the value is the
@@ -178,6 +215,22 @@ release:
   - Save raw responses to binary mode tempfile (#110)
   - Disable timeouts with :timeout => nil rather than :timeout => -1
   - Drop all Net::HTTP monkey patches
+
+# 1.6.14
+
+- This release is unchanged from 1.6.9. It was published in order to supersede
+  the malicious 1.6.10-13 versions, even for users who are still pinning to the
+  legacy 1.6.x series. All users are encouraged to upgrade to rest-client 2.x.
+
+# 1.6.10, 1.6.11, 1.6.12, 1.6.13 (CVE-2019-15224)
+
+- These versions were pushed by a malicious actor and included a backdoor permitting
+  remote code execution in Rails environments. (#713)
+- They were live for about five days before being yanked.
+
+# 1.6.9
+
+- Move rdoc to a development dependency
 
 # 1.6.8
 

@@ -1,9 +1,9 @@
-# FormData
+# HTTP::FormData
 
-[![Gem Version](https://badge.fury.io/rb/http-form_data.png)](http://rubygems.org/gems/http-form_data)
-[![Build Status](https://secure.travis-ci.org/httprb/form_data.rb.png?branch=master)](http://travis-ci.org/httprb/form_data.rb)
-[![Code Climate](https://codeclimate.com/github/httprb/form_data.rb.png)](https://codeclimate.com/github/httprb/form_data.rb)
-[![Coverage Status](https://coveralls.io/repos/httprb/form_data.rb/badge.png?branch=master)](https://coveralls.io/r/httprb/form_data.rb)
+[![Gem Version](https://badge.fury.io/rb/http-form_data.svg)](http://rubygems.org/gems/http-form_data)
+[![Build Status](https://secure.travis-ci.org/httprb/form_data.svg?branch=master)](http://travis-ci.org/httprb/form_data)
+[![Code Climate](https://codeclimate.com/github/httprb/form_data.svg)](https://codeclimate.com/github/httprb/form_data)
+[![Coverage Status](https://coveralls.io/repos/httprb/form_data.rb/badge.svg?branch=master)](https://coveralls.io/r/httprb/form_data.rb)
 
 Utility-belt to build form data request bodies.
 
@@ -58,13 +58,10 @@ form = HTTP::FormData.create({
 This library aims to support and is [tested against][ci] the following Ruby
 versions:
 
-* Ruby 1.9.x
-* Ruby 2.0.x
-* Ruby 2.1.x
-* Ruby 2.2.x
-* Ruby 2.3.x
 * Ruby 2.4.x
-* JRuby 1.7.x
+* Ruby 2.5.x
+* Ruby 2.6.x
+* Ruby 2.7.x
 * JRuby 9.1.x.x
 
 If something doesn't work on one of these versions, it's a bug.

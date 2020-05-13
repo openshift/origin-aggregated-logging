@@ -4,6 +4,11 @@ AllCops:
   Exclude:
     - "vendor/**/*"
 
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+Layout/SpaceInsideBlockBraces:
+  EnforcedStyle: space
+  SpaceBeforeBlockParameters: false
 Lint/UnderscorePrefixedVariableName:
   Enabled: false
 Lint/UnusedMethodArgument:
@@ -19,6 +24,9 @@ Metrics/ParameterLists:
 Metrics/MethodLength:
   Max: 30
 
+Naming/FileName:
+  Enabled: false
+
 Style/AsciiComments:
   Enabled: false
 Style/HashSyntax:
@@ -29,11 +37,11 @@ Style/FrozenStringLiteralComment:
   Enabled: false
 Style/StringLiterals:
   EnforcedStyle: double_quotes
-Style/TrailingCommaInLiteral:
+Style/TrailingCommaInArrayLiteral:
+  Enabled: false
+Style/TrailingCommaInHashLiteral:
   Enabled: false
 Style/TrailingCommaInArguments:
-  Enabled: false
-Style/FileName:
   Enabled: false
 Style/Documentation:
   Enabled: false
@@ -41,13 +49,8 @@ Style/WordArray:
   Enabled: false
 Style/BarePercentLiterals:
   EnforcedStyle: percent_q
-Style/SpaceInsideBlockBraces:
-  EnforcedStyle: space
-  SpaceBeforeBlockParameters: false
 Style/BracesAroundHashParameters:
   Enabled: false
-Style/MultilineMethodCallIndentation:
-  EnforcedStyle: indented
 Style/DoubleNegation:
   Enabled: false
 Style/EmptyCaseCondition:

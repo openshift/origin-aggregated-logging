@@ -1,6 +1,7 @@
+# frozen_string_literal: true
+
 require "forwardable"
 
-require "http/client"
 require "http/headers"
 require "http/response/parser"
 
@@ -9,32 +10,43 @@ module HTTP
   class Connection
     extend Forwardable
 
+    # Allowed values for CONNECTION header
+    KEEP_ALIVE = "Keep-Alive"
+    CLOSE      = "close"
+
     # Attempt to read this much data
     BUFFER_SIZE = 16_384
 
     # HTTP/1.0
-    HTTP_1_0 = "1.0".freeze
+    HTTP_1_0 = "1.0"
 
     # HTTP/1.1
-    HTTP_1_1 = "1.1".freeze
+    HTTP_1_1 = "1.1"
+
+    # Returned after HTTP CONNECT (via proxy)
+    attr_reader :proxy_response_headers
 
     # @param [HTTP::Request] req
     # @param [HTTP::Options] options
+    # @raise [HTTP::ConnectionError] when failed to connect
     def initialize(req, options)
       @persistent           = options.persistent?
-      @keep_alive_timeout   = options[:keep_alive_timeout].to_f
+      @keep_alive_timeout   = options.keep_alive_timeout.to_f
       @pending_request      = false
       @pending_response     = false
       @failed_proxy_connect = false
+      @buffer               = "".b
 
       @parser = Response::Parser.new
 
-      @socket = options[:timeout_class].new(options[:timeout_options])
-      @socket.connect(options[:socket_class], req.socket_host, req.socket_port)
+      @socket = options.timeout_class.new(options.timeout_options)
+      @socket.connect(options.socket_class, req.socket_host, req.socket_port, options.nodelay)
 
       send_proxy_connect_request(req)
       start_tls(req, options)
       reset_timer
+    rescue IOError, SocketError, SystemCallError => ex
+      raise ConnectionError, "failed to connect: #{ex}", ex.backtrace
     end
 
     # @see (HTTP::Response::Parser#status_code)
@@ -56,11 +68,8 @@ module HTTP
     # @param [Request] req Request to send to the server
     # @return [nil]
     def send_request(req)
-      if @pending_response
-        fail StateError, "Tried to send a request while one is pending already. Make sure you read off the body."
-      elsif @pending_request
-        fail StateError, "Tried to send a request while a response is pending. Make sure you've fully read the body from the request."
-      end
+      raise StateError, "Tried to send a request while one is pending already. Make sure you read off the body." if @pending_response
+      raise StateError, "Tried to send a request while a response is pending. Make sure you read off the body."  if @pending_request
 
       @pending_request = true
 
@@ -77,34 +86,25 @@ module HTTP
     def readpartial(size = BUFFER_SIZE)
       return unless @pending_response
 
-      if read_more(size) == :eof
-        finished = true
-      else
-        finished = @parser.finished?
-      end
+      chunk = @parser.read(size)
+      return chunk if chunk
 
-      chunk = @parser.chunk
-
+      finished = (read_more(size) == :eof) || @parser.finished?
+      chunk    = @parser.read(size)
       finish_response if finished
 
-      chunk.to_s
+      chunk || "".b
     end
 
     # Reads data from socket up until headers are loaded
     # @return [void]
     def read_headers!
-      loop do
-        if read_more(BUFFER_SIZE) == :eof
-          fail EOFError unless @parser.headers?
-          break
-        else
-          break if @parser.headers?
-        end
+      until @parser.headers?
+        result = read_more(BUFFER_SIZE)
+        raise ConnectionError, "couldn't read response headers" if result == :eof
       end
 
       set_keep_alive
-    rescue IOError, Errno::ECONNRESET, Errno::EPIPE => e
-      raise IOError, "problem making HTTP request: #{e}"
     end
 
     # Callback for when we've reached the end of a response
@@ -148,14 +148,14 @@ module HTTP
     def start_tls(req, options)
       return unless req.uri.https? && !failed_proxy_connect?
 
-      ssl_context = options[:ssl_context]
+      ssl_context = options.ssl_context
 
       unless ssl_context
         ssl_context = OpenSSL::SSL::SSLContext.new
-        ssl_context.set_params(options[:ssl] || {})
+        ssl_context.set_params(options.ssl || {})
       end
 
-      @socket.start_tls(req.uri.host, options[:ssl_socket_class], ssl_context)
+      @socket.start_tls(req.uri.host, options.ssl_socket_class, ssl_context)
     end
 
     # Open tunnel through proxy
@@ -166,18 +166,19 @@ module HTTP
 
       req.connect_using_proxy @socket
 
-      @pending_request = false
+      @pending_request  = false
       @pending_response = true
 
       read_headers!
+      @proxy_response_headers = @parser.headers
 
-      if @parser.status_code == 200
-        @parser.reset
-        @pending_response = false
+      if @parser.status_code != 200
+        @failed_proxy_connect = true
         return
       end
 
-      @failed_proxy_connect = true
+      @parser.reset
+      @pending_response = false
     end
 
     # Resets expiration of persistent connection.
@@ -192,14 +193,15 @@ module HTTP
     def set_keep_alive
       return @keep_alive = false unless @persistent
 
-      case @parser.http_version
-      when HTTP_1_0 # HTTP/1.0 requires opt in for Keep Alive
-        @keep_alive = @parser.headers[Headers::CONNECTION] == Client::KEEP_ALIVE
-      when HTTP_1_1 # HTTP/1.1 is opt-out
-        @keep_alive = @parser.headers[Headers::CONNECTION] != Client::CLOSE
-      else # Anything else we assume doesn't supportit
-        @keep_alive = false
-      end
+      @keep_alive =
+        case @parser.http_version
+        when HTTP_1_0 # HTTP/1.0 requires opt in for Keep Alive
+          @parser.headers[Headers::CONNECTION] == KEEP_ALIVE
+        when HTTP_1_1 # HTTP/1.1 is opt-out
+          @parser.headers[Headers::CONNECTION] != CLOSE
+        else # Anything else we assume doesn't supportit
+          false
+        end
     end
 
     # Feeds some more data into parser
@@ -207,12 +209,15 @@ module HTTP
     def read_more(size)
       return if @parser.finished?
 
-      value = @socket.readpartial(size)
+      value = @socket.readpartial(size, @buffer)
       if value == :eof
+        @parser << ""
         :eof
       elsif value
         @parser << value
       end
+    rescue IOError, SocketError, SystemCallError => ex
+      raise ConnectionError, "error reading from socket: #{ex}", ex.backtrace
     end
   end
 end

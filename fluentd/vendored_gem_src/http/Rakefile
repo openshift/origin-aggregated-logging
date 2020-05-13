@@ -1,19 +1,12 @@
-#!/usr/bin/env rake
+# frozen_string_literal: true
+
 require "bundler/gem_tasks"
 
 require "rspec/core/rake_task"
 RSpec::Core::RakeTask.new
 
-task :test => :spec
-
-begin
-  require "rubocop/rake_task"
-  RuboCop::RakeTask.new
-rescue LoadError
-  task :rubocop do
-    $stderr.puts "RuboCop is disabled"
-  end
-end
+require "rubocop/rake_task"
+RuboCop::RakeTask.new
 
 require "yardstick/rake/measurement"
 Yardstick::Rake::Measurement.new do |measurement|
@@ -32,11 +25,11 @@ task :generate_status_codes do
 
   url = "http://www.iana.org/assignments/http-status-codes/http-status-codes.xml"
   xml = Nokogiri::XML HTTP.get url
-  arr = xml.xpath("//xmlns:record").reduce [] do |a, e|
+  arr = xml.xpath("//xmlns:record").reduce([]) do |a, e|
     code = e.xpath("xmlns:value").text.to_s
     desc = e.xpath("xmlns:description").text.to_s
 
-    next a if "Unassigned" == desc || "(Unused)" == desc
+    next a if %w[Unassigned (Unused)].include?(desc)
 
     a << "#{code} => #{desc.inspect}"
   end
@@ -68,4 +61,12 @@ task :generate_status_codes do
   end
 end
 
-task :default => [:spec, :rubocop, :verify_measurements]
+if ENV["CI"].nil?
+  task :default => %i[spec rubocop verify_measurements]
+else
+  case ENV["SUITE"]
+  when "rubocop"   then task :default => :rubocop
+  when "yardstick" then task :default => :verify_measurements
+  else                  task :default => :spec
+  end
+end
