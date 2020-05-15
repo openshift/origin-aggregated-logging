@@ -1,4 +1,4 @@
-FROM centos/ruby-25-centos7:latest
+FROM ubi7/ruby-25
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -14,8 +14,7 @@ ENV DATA_VERSION=1.6.0 \
 # iproute needed for ip command to get ip addresses
 # autoconf redhat-rpm-config for building jemalloc
 USER 0
-RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
-    yum install -y --setopt=tsflags=nodocs \
+RUN yum install -y --setopt=tsflags=nodocs \
       make \
       bc \
       git \
