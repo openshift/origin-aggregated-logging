@@ -57,8 +57,7 @@ done
 log::info "Checking deployment of kibana..."
 #HACK there should only be one
 try_until_text "oc -n $LOGGING_NS get pods -l component=kibana --no-headers | wc -l" "1" "$(( 3*$minute ))"
-#expect head to redirect to the 'kibana' app running with kibana as opposed to 'timelion'
-try_until_text "oc -n $LOGGING_NS exec $( oc -n $LOGGING_NS get pods -l component=kibana -o jsonpath={.items[0].metadata.name} ) -c kibana -- curl --silent --request HEAD --head --output /dev/null --write-out %{response_code} http://localhost:5601/" "302" "$(( 1*$minute ))"
+try_until_text "oc -n $LOGGING_NS get pod $(oc -n $LOGGING_NS get pods -l component=kibana -o jsonpath={.items[0].metadata.name}) -o jsonpath='{.status.conditions[?(@.type==\"ContainersReady\")].status}'" "True" "$(( 1*$minute ))"
 
 log::info "Check to see if we have expected indices..."
 pod=$(oc -n $LOGGING_NS get pods -l component=elasticsearch -o jsonpath={.items[0].metadata.name})
