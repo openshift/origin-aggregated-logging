@@ -18,7 +18,7 @@
 # You can do this even if you have built and pushed custom images to the
 # cluster e.g. you want to do an upgrade test - first deploy with
 # USE_CUSTOM_IMAGES=false, then edit the CR to use your custom
-# images and do an upgrade
+# images and do an upgrade (Note:  This upgrade is equivalent to a patch upgrade)
 
 # Installation requires the cluster-logging-operator and elasticsearch-operator
 # source.  By default, it will look for CLO in $CLO_DIR (default
@@ -31,6 +31,9 @@
 # CLO_IMAGE and EO_IMAGE.
 
 set -eux
+
+EO_BRANCH=${EO_BRANCH:-release-4.4}
+CLO_BRANCH=${CLO_BRANCH:-release-4.4}
 
 logging_err_exit() {
     set +e
