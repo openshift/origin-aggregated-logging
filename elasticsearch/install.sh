@@ -6,6 +6,9 @@ ln -s /usr/local/bin/logging ${HOME}/logging
 
 source ${HOME}/prep-install.${RELEASE_STREAM}
 
+echo "removing module: ingest-geoip"
+rm -rf ${ES_HOME}/modules/ingest-geoip
+
 echo "ES plugins: ${es_plugins[@]}"
 for es_plugin in ${es_plugins[@]}
 do
