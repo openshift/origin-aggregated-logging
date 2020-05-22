@@ -73,7 +73,7 @@ cleanup() {
     start_fluentd false $FLUENTD_WAIT_TIME 2>&1 | artifact_out
     oc process -f ${OS_O_A_L_DIR}/hack/testing/templates/eventrouter_template.yaml | \
         oc delete -f - 2>&1 | artifact_out
-    os::cmd::try_until_failure "oc get deploy/eventrouter > /dev/null 2>&1"
+    os::cmd::try_until_failure "oc get deployment/eventrouter > /dev/null 2>&1"
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
