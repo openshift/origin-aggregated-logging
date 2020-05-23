@@ -34,7 +34,6 @@ elasticsearch.hosts: ["https://elasticsearch.openshift-logging.svc.cluster.local
 
 # Kibana uses an index in Elasticsearch to store saved searches, visualizations and
 # dashboards. Kibana creates a new index if the index doesn't already exist.
-#kibana.index: ".kibana"
 
 # The default application to load.
 kibana.defaultAppId: "discover"
