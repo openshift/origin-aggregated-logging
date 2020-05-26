@@ -25,16 +25,16 @@ LABEL io.k8s.description="Curator elasticsearch container for elasticsearch dele
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 COPY . ${HOME}
-
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
     chmod -R u+x ${HOME} && \
     chgrp -R 0 ${HOME} && \
-    chmod -R g=u ${HOME} && \
-    for pkg in $(ls $HOME/vendor/*.tar.gz); do \
-      pip3 install --no-deps $pkg; \
-    done  && \
-    rm -rf $HOME/vendor
+    chmod -R g=u ${HOME}
+WORKDIR ${HOME}/vendor
+RUN pip3 install -q $(ls . | grep -v curator) --no-index --find-links . && \
+    pip3 install -q --no-index elasticsearch-curator*  && \
+    rm -rf $HOME/vendor && \
+    ls /usr/local/bin/curator
 
 WORKDIR ${HOME}
 USER 1001
