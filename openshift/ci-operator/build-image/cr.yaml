@@ -10,11 +10,10 @@ spec:
       nodeCount: 3
       storage:
         storageClassName: gp2
-        size: 32G
+        size: 200G
       redundancyPolicy: "ZeroRedundancy"
       resources:
         limits:
-          cpu: 500m
           memory: 4Gi
         requests:
           cpu: 500m
