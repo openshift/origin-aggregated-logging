@@ -30,7 +30,8 @@ RUN packages="java-${JAVA_VER}-openjdk-headless \
               hostname \
               openssl \
               zip \
-              unzip" && \
+              unzip \
+              jq" && \
     yum install -y --setopt=tsflags=nodocs ${packages} && \
     rpm -V ${packages} && \
     yum clean all
