@@ -36,7 +36,8 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     for pkg in $(ls $HOME/vendor/*.tar.gz); do \
       pip3 install --no-deps $pkg; \
     done  && \
-    rm -rf $HOME/vendor
+    rm -rf $HOME/vendor && \
+    ls /usr/local/bin/curator
 
 WORKDIR ${HOME}
 USER 1001
