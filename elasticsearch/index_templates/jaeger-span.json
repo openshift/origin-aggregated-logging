@@ -1,5 +1,5 @@
 {
-  "template": "*jaeger-span-*",
+  "index_patterns": "*jaeger-span-*",
   "settings":{
     "index.number_of_shards": $PRIMARY_SHARDS,
     "index.number_of_replicas": $REPLICA_SHARDS,
