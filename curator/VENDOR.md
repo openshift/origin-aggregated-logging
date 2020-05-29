@@ -11,12 +11,10 @@ source venv/bin/activate
 pip install elasticsearch-curator.tar.gz
 ```
 
-* List installed dependecies
-```
-pip list
-```
-
 * Download each dependency to the vendor directory
+```
+ pip download -r requirements.txt -d vendor
+```
 
 * Update manifest
 ```
