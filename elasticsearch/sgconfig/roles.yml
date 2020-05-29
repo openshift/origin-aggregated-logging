@@ -152,14 +152,7 @@ admin_user:
     - CLUSTER_COMPOSITE_OPS_RO
     - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
   indices:
-    app:
-      '*':
-        - READ
-      _dls_: "{\"bool\":{\"filter\":{\"script\":{\"script\":{\"lang\":\"painless\",\"params\":{\"param1\":\"${attr.proxy.ns}\"},\"source\":\"String namespace = doc['kubernetes.namespace_name'][0];StringTokenizer st = new StringTokenizer(params.param1,\\\",\\\");while (st.hasMoreTokens()){if (st.nextToken().equalsIgnoreCase(namespace)){return true;}}return false;\"}}}}}"
-    infra:
-      '*':
-        - READ
-    audit:
+    '*':
       '*':
         - READ
     '?kibana_*':

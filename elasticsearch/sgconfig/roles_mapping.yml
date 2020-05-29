@@ -38,5 +38,5 @@ admin_user:
 
 project_user:
   readonly: true    
-  users:    
-    - '*'
+  backendroles:
+    - 'project_user'
