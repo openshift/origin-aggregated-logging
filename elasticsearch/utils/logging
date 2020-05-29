@@ -105,6 +105,15 @@ check_index_exists() {
   [[ $response_code -eq 200 ]] || exit 1
 }
 
+check_newer_than_master() {
+  local master=$1
+
+  local master_version=$(es_util --query="_nodes/${master}/version?pretty" | jq -r '.nodes | .[].version')
+  local my_version=$(es_util --query="_nodes/${DC_NAME}/version?pretty" | jq -r '.nodes | .[].version')
+
+  [[ "$my_version" > "$master_version" ]]
+}
+
 # Pull in the certs provided in our secret and generate our necessary jks and truststore files
 build_jks_truststores() {
 

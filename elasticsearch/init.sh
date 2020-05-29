@@ -22,8 +22,8 @@ wait_for_port_open
 # find out who the master of the cluster is
 master_node=$(get_master_node)
 
-# if we're the master -- do the init
-if [[ "$master_node" == "$DC_NAME" ]]; then
+# if we're the master or we're a later version of the master -- do the init
+if check_newer_than_master $master_node || [[ "$master_node" == "$DC_NAME" ]]; then
 
   failed=0
 
