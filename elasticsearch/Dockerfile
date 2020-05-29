@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
+FROM openshift/ose-base:ubi7
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -23,7 +23,7 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
 
-ARG MAVEN_REPO_URL=http://download.eng.bos.redhat.com/brewroot/repos/lpc-openjdk-11-rhel-7-maven-build/latest/maven/
+ARG MAVEN_REPO_URL=file:///artifacts/
 
 RUN packages="java-${JAVA_VER}-openjdk-headless \
               PyYAML  \
@@ -37,7 +37,7 @@ RUN packages="java-${JAVA_VER}-openjdk-headless \
     yum clean all
 
 ADD extra-jvm.options install-es.sh /var/tmp
-
+COPY artifacts /artifacts
 RUN /var/tmp/install-es.sh
 
 ADD sgconfig/ ${HOME}/sgconfig/
@@ -52,7 +52,7 @@ COPY utils/** /usr/local/bin/
 ARG PROMETHEUS_EXPORTER_URL=${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 ARG OPENDISTRO_URL=${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
 
-RUN ${HOME}/install.sh
+RUN ${HOME}/install.sh && rm -rf /artifacts
 
 WORKDIR ${HOME}
 USER 1000

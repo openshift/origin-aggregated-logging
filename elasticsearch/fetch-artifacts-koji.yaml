@@ -1,0 +1,4 @@
+- nvr: org.elasticsearch-parent-6.8.1.redhat_6-1
+- nvr: org.elasticsearch.plugin.prometheus-elasticsearch-prometheus-exporter-6.8.1.0_redhat_1-2
+- nvr: com.amazon.opendistroforelasticsearch-opendistro_security-0.10.1.0_redhat_1-1
+
