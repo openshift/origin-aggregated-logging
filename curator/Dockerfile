@@ -31,8 +31,8 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     chgrp -R 0 ${HOME} && \
     chmod -R g=u ${HOME}
 WORKDIR ${HOME}/vendor
-RUN pip install -q $(ls . | grep -v curator) --no-index --find-links . && \
-    pip install -q --no-index elasticsearch-curator*  && \
+RUN pip3 install $(ls . | grep -v curator) -q --no-index --find-links . && \
+    pip3 install elasticsearch-curator* --no-index -q && \
     rm -rf $HOME/vendor && \
     command -v curator
 
