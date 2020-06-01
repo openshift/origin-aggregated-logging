@@ -7,6 +7,7 @@ fi
 if [ "$CURATOR_LOG_LEVEL" = WARN ] ; then
     export CURATOR_LOG_LEVEL="WARNING"
 fi
+PYTHON_BIN=${PYTHON_BIN:-python3}
 
 TIMES=60
 
@@ -26,7 +27,7 @@ waitForES
 
 # Check whether legacy config was supplied
 actions_location=${CURATOR_ACTIONS_FILE}
-python -u $HOME/lib/oalconverter/convert.py
+$PYTHON_BIN -u $HOME/lib/oalconverter/convert.py
 # 0 - actions file found
 # 1 - actions file generated from legacy config
 # 2 - an error occured
