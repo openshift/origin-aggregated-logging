@@ -42,6 +42,7 @@ function check_if_ready() {
   fi
 }
 
+#verify initialization is still running
 function check_for_init_running() {
   test -f ${HOME}/init_running
 }
