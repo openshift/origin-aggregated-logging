@@ -4,5 +4,5 @@
     "index.number_of_replicas": $REPLICA_SHARDS,
     "index.number_of_shards": $PRIMARY_SHARDS
   },
-  "template": ".kibana*"
+  "index_patterns": ".kibana*"
 }

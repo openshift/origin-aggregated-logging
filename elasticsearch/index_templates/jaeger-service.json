@@ -1,5 +1,5 @@
 {
-  "template": "*jaeger-service-*",
+  "index_patterns": "*jaeger-service-*",
   "settings":{
     "index.number_of_shards": $PRIMARY_SHARDS,
     "index.number_of_replicas": $REPLICA_SHARDS,

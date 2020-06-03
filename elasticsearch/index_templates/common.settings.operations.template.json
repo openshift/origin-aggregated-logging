@@ -7,5 +7,5 @@
     "index.translog.flush_threshold_size": "256mb",
     "index.unassigned.node_left.delayed_timeout": "2m"
   },
-  "template": ".operations*"
+  "index_patterns": [ "infra*", "audit*" ]
 }
