@@ -2,7 +2,9 @@
   "aliases": {
     ".all": {}
   },
-  "index_patterns": "app-*",
+  "index_patterns": [
+    "app*"
+  ],
   "mappings": {
     "_doc": {
       "_meta": {

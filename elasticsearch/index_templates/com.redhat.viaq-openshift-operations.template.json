@@ -3,8 +3,8 @@
     ".all": {}
   },
   "index_patterns": [
-    "infra-*",
-    "audit.infra-*"
+    "infra*",
+    "audit*"
   ],
   "mappings": {
     "_doc": {
