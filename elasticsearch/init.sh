@@ -19,26 +19,18 @@ source "logging"
 
 wait_for_port_open
 
-# find out who the master of the cluster is
-master_node=$(get_master_node)
+failed=0
 
-# if we're the master -- do the init
-if [[ "$master_node" == "$DC_NAME" ]]; then
+touch ${HOME}/init_running
+pushd "${ES_HOME}/init"
+  files=$(ls --hide common | sort)
+  for init_file in ${files}; do
+    if [ -f "${init_file}" ] ; then
+      ./"${init_file}" || { failed=1 ; echo "failed init: ${init_file}" >> ${HOME}/init_failures ; }
+    fi
+  done
+popd
 
-  failed=0
-
-  touch ${HOME}/init_running
-  pushd "${ES_HOME}/init"
-    files=$(ls --hide common | sort)
-    for init_file in ${files}; do
-      if [ -f "${init_file}" ] ; then
-        ./"${init_file}" || { failed=1 ; echo "failed init: ${init_file}" >> ${HOME}/init_failures ; }
-      fi
-    done
-  popd
-
-  if [ $failed -eq 1 ]; then
-    show_failures
-  fi
-
+if [ $failed -eq 1 ]; then
+  show_failures
 fi
