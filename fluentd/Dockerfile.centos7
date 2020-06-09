@@ -40,6 +40,7 @@ RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autoge
 
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     gem install -N --conservative --minimal-deps --no-ri --no-doc \
+     'ffi:<1.13' \
      'minitest:5.10.3' \
      'activesupport:4.2.10' \
      'public_suffix:2.0.5' \
