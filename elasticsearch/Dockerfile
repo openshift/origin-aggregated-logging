@@ -1,4 +1,4 @@
-FROM elasticsearch:5.6.16
+FROM openshift/ose-base:elasticsearch
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -14,7 +14,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     JAVA_VER=1.8.0 \
     NODE_QUORUM=1 \
     OSE_ES_VER=5.6.16.1-redhat-1 \
-    PROMETHEUS_EXPORTER_VER=5.6.16.0-redhat-1 \
+    PROMETHEUS_EXPORTER_VER=5.6.16.2-redhat-1 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -23,11 +23,11 @@ ENV ES_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     container=oci
 
-ARG OSE_ES_VER=5.6.16.1-redhat-1
+ARG OSE_ES_VER=5.6.16.1-redhat-1 
 ARG OSE_ES_URL
-ARG PROMETHEUS_EXPORTER_VER=5.6.16.0-redhat-1
+ARG PROMETHEUS_EXPORTER_VER=5.6.16.2-redhat-1
 ARG PROMETHEUS_EXPORTER_URL
-ARG MAVEN_REPO_URL=http://download-node-02.eng.bos.redhat.com/brewroot/repos/lpc-rhel-7-maven-build/latest/maven/
+ARG MAVEN_REPO_URL=file:///artifacts/
 
 ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
@@ -39,7 +39,8 @@ ADD init.sh run.sh prep-install* install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 RUN ln -s /usr/local/bin/logging ${HOME}/logging
 
-RUN ${HOME}/install.sh
+COPY artifacts /artifacts
+RUN ${HOME}/install.sh && rm -rf /artifacts
 
 WORKDIR ${HOME}
 USER 1000
