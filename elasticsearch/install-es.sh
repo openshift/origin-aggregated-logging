@@ -25,6 +25,7 @@ mkdir -p ${ES_PATH_CONF}/scripts
 chmod 777 ${ES_PATH_CONF}/scripts
 install -m 660 config/* ${ES_PATH_CONF}
 popd
+test $(arch) = x86_64 || echo "bootstrap.system_call_filter: false" >> ${ES_PATH_CONF}/elasticsearch.yml
 sed -i -e 's/^-Xms/#-Xms/' -e 's/^-Xmx/#-Xmx/' ${ES_PATH_CONF}/jvm.options
 cat extra-jvm.options >> ${ES_PATH_CONF}/jvm.options
 groupadd -r elasticsearch -g 1000
