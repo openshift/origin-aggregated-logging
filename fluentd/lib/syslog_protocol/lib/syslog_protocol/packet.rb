@@ -4,9 +4,14 @@ module SyslogProtocol
     attr_accessor :time, :content
 
     NILVALUE = '-'
+    # As per rfc5424, max appname length is 48, but typical fluentd tag is 200 chars long
+    MAX_APPNAME_LEN = 500
+    # As per rfc3164, max tag length is 32, but typical fluentd tag is 200 chars long
+    MAX_TAG_LEN = 500
 
     def initialize
       @rfc = :rfc3164
+      @appname = 'fluentd' ##TODO(vimalk78) change it to NILVALUE
       @procid = NILVALUE
       @msgid = NILVALUE
     end
@@ -17,7 +22,6 @@ module SyslogProtocol
 
     def assemble(max_size = 1024)
       if @rfc == :rfc5424
-        @appname = @tag
         assemble_rfc5424
       else
         assemble_rfc3164(max_size)
@@ -44,16 +48,17 @@ module SyslogProtocol
         raise "Could not assemble packet without hostname, appname, facility, and severity"
       end
       data = "<#{pri}>1 #{generate_timestamp_rfc5424} #{@hostname} #{@appname} #{@procid} #{@msgid} #{structured_data} #{@content}"
+      data
     end
 
     def facility=(f)
-      if f.is_a? Integer
+      if f.is_a?(Integer)
         if (0..23).include?(f)
           @facility = f
         else
           raise ArgumentError.new "Facility must be within 0-23"
         end
-      elsif f.is_a? String
+      elsif f.is_a?(String)
         if facility = FACILITIES[f]
           @facility = facility
         else
@@ -68,8 +73,8 @@ module SyslogProtocol
       unless t && t.is_a?(String) && t.length > 0
         raise ArgumentError, "Tag must not be omitted"
       end
-      if t.length > 32
-        raise ArgumentError, "Tag must not be longer than 32 characters"
+      if t.length > MAX_TAG_LEN
+        raise ArgumentError, "Tag must not be longer than #{MAX_TAG_LEN} characters"
       end
       if t =~ /\s/
         raise ArgumentError, "Tag may not contain spaces"
@@ -82,13 +87,13 @@ module SyslogProtocol
     end
 
     def severity=(s)
-      if s.is_a? Integer
+      if s.is_a?(Integer)
         if (0..7).include?(s)
           @severity = s
         else
           raise ArgumentError.new "Severity must be within 0-7"
         end
-      elsif s.is_a? String
+      elsif s.is_a?(String)
         if severity = SEVERITIES[s]
           @severity = severity
         else
@@ -100,7 +105,7 @@ module SyslogProtocol
     end
 
     def hostname=(h)
-      unless h and h.is_a? String and h.length > 0
+      unless h && h.is_a?(String) && h.length > 0
         raise ArgumentError.new("Hostname may not be omitted")
       end
       if h =~ /\s/
@@ -110,6 +115,54 @@ module SyslogProtocol
         raise ArgumentError.new("Hostname may only contain ASCII characters 33-126")
       end
       @hostname = h
+    end
+
+    def appname=(a)
+      unless a && a.is_a?(String) && a.length > 0
+        raise ArgumentError.new("Appname may not be omitted")
+      end
+      if a.length > MAX_APPNAME_LEN
+        raise ArgumentError, "Appname must not be longer than #{MAX_APPNAME_LEN} characters"
+      end
+      if a =~ /\s/
+        raise ArgumentError.new("Appname may not contain spaces")
+      end
+      if a =~ /[^\x21-\x7E]/
+        raise ArgumentError.new("Appname may only contain ASCII characters 33-126")
+      end
+      @appname = a
+    end
+
+    def procid=(p)
+      unless p && p.is_a?(String) && p.length > 0
+        raise ArgumentError.new("ProcID may not be omitted")
+      end
+      if p.length > 128
+        raise ArgumentError, "ProcID must not be longer than 128 characters"
+      end
+      if p =~ /\s/
+        raise ArgumentError.new("ProcID may not contain spaces")
+      end
+      if p =~ /[^\x21-\x7E]/
+        raise ArgumentError.new("ProcID may only contain ASCII characters 33-126")
+      end
+      @procid = p
+    end
+
+    def msgid=(m)
+      unless m && m.is_a?(String) && m.length > 0
+        raise ArgumentError.new("MsgID may not be omitted")
+      end
+      if m.length > 32
+        raise ArgumentError, "MsgID must not be longer than 32 characters"
+      end
+      if m =~ /\s/
+        raise ArgumentError.new("MsgID may not contain spaces")
+      end
+      if m =~ /[^\x21-\x7E]/
+        raise ArgumentError.new("MsgID may only contain ASCII characters 33-126")
+      end
+      @msgid = m
     end
 
     def facility_name
@@ -125,7 +178,7 @@ module SyslogProtocol
     end
 
     def pri=(p)
-      unless p.is_a? Integer and (0..191).include?(p)
+      unless p.is_a?(Integer) && (0..191).include?(p)
         raise ArgumentError.new "PRI must be a number between 0 and 191"
       end
       @facility = p / 8
@@ -133,7 +186,7 @@ module SyslogProtocol
     end
 
     def rfc=(r)
-      unless r == :rfc5424 or r == :rfc3164
+      unless r == :rfc5424 || r == :rfc3164
         raise ArgumentError.new "rfc must be rfc5424 or rfc3164"
       end
       @rfc = r
