@@ -105,7 +105,7 @@ COPY --from=builder /contents /contents
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
-ADD run.sh generate_syslog_config.rb ${HOME}/
+ADD run.sh generate_syslog_config.rb wait_for_es_version.rb wait_for_es_version.sh ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
