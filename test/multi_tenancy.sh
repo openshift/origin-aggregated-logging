@@ -169,6 +169,9 @@ create_users $LOG_NORMAL_USER $LOG_NORMAL_PW false $LOG_USER2 $LOG_PW2 false 2>&
 create_user_and_assign_to_projects $LOG_NORMAL_USER $LOG_NORMAL_PW multi-tenancy-1 multi-tenancy-2
 create_user_and_assign_to_projects $LOG_USER2 $LOG_PW2 multi-tenancy-2 multi-tenancy-3
 
+# allow api server to consume changes for intermittent failures we see
+sleep 30
+
 oc login --username=system:admin > /dev/null
 oc project $LOGGING_PROJECT > /dev/null
 
