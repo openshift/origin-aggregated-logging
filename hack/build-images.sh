@@ -230,12 +230,6 @@ function switch_to_admin_user() {
 }
 
 tag_prefix="${OS_IMAGE_PREFIX:-"openshift/origin-"}"
-docker_suffix='.centos7'
-# use .fedora if you really must build the fedora version
-if [ "${RELEASE_STREAM:-}" = 'prod' ] ; then
-  docker_suffix=''
-fi
-dockerfile="Dockerfile${docker_suffix}"
 
 name_suf="6"
 curbranch=$( git rev-parse --abbrev-ref HEAD )
@@ -299,7 +293,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
       dir=.
       fullimagename=openshift/logging-ci-test-runner:${CUSTOM_IMAGE_TAG}
     else
-      dfpath=$dir/$dockerfile
+      dfpath=$dir/Dockerfile
       fullimagename="${tag_prefix}$img:${CUSTOM_IMAGE_TAG}"
     fi
     pull_ubi_if_needed $dfpath
@@ -310,13 +304,17 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
       mountarg=""
     fi
 
+    suffix=""
+    if [ "$img" = "logging-elasticsearch6" ] ; then
+        suffix=".origin"
+    fi
+
     echo "----------------------------------------------------------------------------------------------------------------"
     echo "-                                                                                                              -"
     echo "Building image $img - this may take a few minutes until you see any output..."
     echo "-                                                                                                              -"
     echo "----------------------------------------------------------------------------------------------------------------"
-
-    $IMAGE_BUILDER build $IMAGE_BUILDER_OPTS $mountarg -f $dfpath -t "$fullimagename" $dir
+    $IMAGE_BUILDER build $IMAGE_BUILDER_OPTS $mountarg -f $dfpath$suffix -t "$fullimagename" $dir
     dir=""
     img=""
   done

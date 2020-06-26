@@ -8,14 +8,14 @@ USER 0
 
 ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
-    ES_VER=6.8.1.redhat-6 \
+    ES_VER=6.8.1 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=1.8.0 \
     JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
-    PROMETHEUS_EXPORTER_VER=6.8.1.0-redhat-1 \
-    OPENDISTRO_VER=0.10.1.0-redhat-1 \
+    PROMETHEUS_EXPORTER_VER=6.8.1.0 \
+    OPENDISTRO_VER=0.10.1.0 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
@@ -23,21 +23,23 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
 
-ARG MAVEN_REPO_URL=file:///artifacts/
+ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
 
-RUN packages="java-${JAVA_VER}-openjdk-headless \
+RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
+         https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+     packages="java-${JAVA_VER}-openjdk-headless \
               PyYAML  \
               hostname \
               openssl \
               zip \
               unzip \
               jq" && \
-    yum install -y --setopt=tsflags=nodocs ${packages} && \
-    rpm -V ${packages} && \
-    yum clean all
+     yum install -y --setopt=tsflags=nodocs ${packages} && \
+     rpm -V ${packages} && \
+     yum clean all
 
 ADD extra-jvm.options install-es.sh /var/tmp
-COPY artifacts /artifacts
+
 RUN /var/tmp/install-es.sh
 
 ADD sgconfig/ ${HOME}/sgconfig/
@@ -49,10 +51,10 @@ ADD probe/ ${ES_HOME}/probe/
 ADD init.sh run.sh prep-install* install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
-ARG PROMETHEUS_EXPORTER_URL=${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
-ARG OPENDISTRO_URL=${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
+ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/6.8.1.0/prometheus-exporter-6.8.1.0.zip
+ARG OPENDISTRO_URL=https://github.com/jcantrill/security/releases/download/v0.10.1.0/opendistro_security-0.10.1.0.zip
 
-RUN ${HOME}/install.sh && rm -rf /artifacts
+RUN ${HOME}/install.sh
 
 WORKDIR ${HOME}
 USER 1000

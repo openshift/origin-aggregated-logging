@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 ln -s /usr/local/bin/logging ${HOME}/logging
 

@@ -1,4 +1,4 @@
-FROM rhscl/nodejs-10-rhel7
+FROM ubi7/nodejs-10:latest
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -13,7 +13,6 @@ ENV ELASTICSEARCH_URL=https://elasticsearch.openshift-logging.svc.cluster.local:
     container=oci \
     NODE_ENV=production \
     NODE_PATH=/opt/rh/rh-nodejs10/root/usr/bin
-
 
 ARG LOCAL_REPO
 
@@ -33,16 +32,3 @@ RUN bin/kibana --optimize
 
 WORKDIR ${HOME}
 CMD ["./run.sh"]
-
-LABEL \
-        io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
-        com.redhat.component="logging-kibana6-container" \
-        vendor="Red Hat" \
-        name="openshift4/ose-logging-kibana6" \
-        License="GPLv2+" \
-        io.k8s.display-name="Kibana" \
-        version="v4.2.0" \
-        architecture="x86_64" \
-        release="0.0.0.1" \
-        io.openshift.expose-services="5601:http" \
-        io.openshift.tags="logging,elk,kibana"

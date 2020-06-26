@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 # install Elasticsearch from zip distribution file
 # put files in correct places in image
