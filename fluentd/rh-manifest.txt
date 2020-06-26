@@ -21,6 +21,7 @@ fluentd 1.9.2 https://www.fluentd.org/
 fluent-mixin-config-placeholders 0.4.0 https://github.com/tagomoris/fluent-mixin-config-placeholders
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
 fluent-plugin-elasticsearch 4.0.5 https://github.com/uken/fluent-plugin-elasticsearch
+fluent-plugin-grafana-loki 1.2.12 https://github.com/grafana/loki/
 fluent-plugin-kafka 0.13.0 https://github.com/fluent/fluent-plugin-kafka
 fluent-plugin-kubernetes_metadata_filter 2.4.2 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
