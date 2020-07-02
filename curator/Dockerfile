@@ -21,11 +21,6 @@ ENV HOME=/opt/app-root/src \
 USER 0
 COPY . ${HOME}
 
-#
-# TODO Remove after openshift/release provides ubi7/python36 base image
-#
-RUN ${HOME}/install-centos7-deps.sh
-
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \
     chmod -R u+x ${HOME} && \
