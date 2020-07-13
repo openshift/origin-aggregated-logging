@@ -19,7 +19,7 @@ fi
 fluentddir=$basedir/fluentd
 
 if [ -z "${FLUENTD_VERSION:-}" ] ; then
-    FLUENTD_VERSION=$( awk -F'[     =]+' '$2 == "FLUENTD_VERSION" {print $3; exit}' $fluentddir/Dockerfile.centos7 )
+    FLUENTD_VERSION=$( awk -F'[     =]+' '$2 == "FLUENTD_VERSION" {print $3; exit}' $fluentddir/Dockerfile)
 fi
 if [ -z "${FLUENTD_VERSION:-}" ] ; then
     echo ERROR: Could not determine FLUENTD_VERSION
@@ -27,15 +27,21 @@ if [ -z "${FLUENTD_VERSION:-}" ] ; then
 fi
 export FLUENTD_VERSION
 
+# update Gemfile.lock by installing Gemfile
+echo updating Gemfile.lock
+pushd $fluentddir
+  bundle update 
+popd
+
+if [ -n "${CLOBBER_VENDOR:-}" ] ; then
+    echo removing to cleanup unused deps: $fluentddir/vendored_gem_src
+    rm -rf $fluentddir/vendored_gem_src
+fi
+
 gemlist=$( mktemp )
 manifest=$( mktemp )
 trap "rm -f $gemlist $manifest" EXIT
-# the format of gem install --explain is
-# name-of-gem-file-X.Y.Z - we assume everything
-# after the last '-' is the version, and split
-# the output into name version
-gem install -N --explain -g $fluentddir/Gemfile | \
-sed -e '/^Gems/d' -e 's,[-]\([^-][^-]*\)$, \1,' | sort > $gemlist
+cat $fluentddir/Gemfile.lock | grep -E '\s{4}.*\s\([0-9.]*\)$' | sed 's/(//;s/)//' | sort > $gemlist
 while read gemname gemver ; do
     vendordir=$fluentddir/vendored_gem_src/$gemname
     gemfile=${gemname}-${gemver}.gem

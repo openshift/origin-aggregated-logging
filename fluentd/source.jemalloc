@@ -1,3 +1,3 @@
 JEMALLOC_VER=5.2.1
-JEMALLOG_SOURCE=https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/j/jemalloc-5.2.1-2.el8.x86_64.rpm
-JEMALLOC_SHA512SUM=2f7f089870cb1f2420c4ab737afaa8a19a9dacc251293124296d3bf687798faaf0a9676d7d77c92186d6385b56cca033aca4382f0dd24f3e7ab4f11685bc7259
+JEMALLOC_SOURCE=https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VER}/jemalloc-${JEMALLOC_VER}.tar.bz2
+JEMALLOC_SHA512SUM=0bbb77564d767cef0c6fe1b97b705d368ddb360d55596945aea8c3ba5889fbce10479d85ad492c91d987caacdbbdccc706aa3688e321460069f00c05814fae02
