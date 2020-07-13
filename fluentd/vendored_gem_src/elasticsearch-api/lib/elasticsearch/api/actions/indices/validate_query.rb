@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 module Elasticsearch
   module API
@@ -14,7 +27,7 @@ module Elasticsearch
         # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
         # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
         # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,none,all)
+        #   (options: open,closed,hidden,none,all)
 
         # @option arguments [String] :q Query in the Lucene query string syntax
         # @option arguments [String] :analyzer The analyzer to use for the query string
@@ -26,7 +39,7 @@ module Elasticsearch
         # @option arguments [Boolean] :lenient Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
         # @option arguments [Boolean] :rewrite Provide a more detailed explanation showing the actual Lucene query that will be executed.
         # @option arguments [Boolean] :all_shards Execute validation on all shards instead of one random shard per index
-
+        # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body The query definition specified with the Query DSL
         #
         # *Deprecation notice*:
@@ -34,9 +47,11 @@ module Elasticsearch
         # Deprecated since version 7.0.0
         #
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/search-validate.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/search-validate.html
         #
         def validate_query(arguments = {})
+          headers = arguments.delete(:headers) || {}
+
           arguments = arguments.clone
 
           _index = arguments.delete(:index)
@@ -50,11 +65,11 @@ module Elasticsearch
                      "#{Utils.__listify(_index)}/_validate/query"
                    else
                      "_validate/query"
-end
+      end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = arguments[:body]
-          perform_request(method, path, params, body).body
+          perform_request(method, path, params, body, headers).body
         end
 
         # Register this action with its valid params when the module is loaded.

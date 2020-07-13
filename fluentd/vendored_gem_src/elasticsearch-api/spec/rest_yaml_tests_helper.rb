@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 require "#{File.expand_path(File.dirname('..'), '..')}/api-spec-testing/test_file"
 require "#{File.expand_path(File.dirname('..'), '..')}/api-spec-testing/rspec_matchers"
@@ -11,10 +24,11 @@ PROJECT_PATH = File.join(File.dirname(__FILE__), '..', '..')
 
 if hosts = ELASTICSEARCH_URL
   split_hosts = hosts.split(',').map do |host|
-    /(http\:\/\/)?(\S+)/.match(host)[2]
+    /(http\:\/\/)?\S+/.match(host)
   end
-
-  TEST_HOST, TEST_PORT = split_hosts.first.split(':')
+  uri = URI.parse(split_hosts.first[0])
+  TEST_HOST = uri.host
+  TEST_PORT = uri.port
 else
   TEST_HOST, TEST_PORT = 'localhost', '9200'
 end

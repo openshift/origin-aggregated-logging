@@ -1,7 +1,9 @@
 # Fluent::Plugin::Elasticsearch, a plugin for [Fluentd](http://fluentd.org)
 
 [![Gem Version](https://badge.fury.io/rb/fluent-plugin-elasticsearch.png)](http://badge.fury.io/rb/fluent-plugin-elasticsearch)
-[![Build Status](https://travis-ci.org/uken/fluent-plugin-elasticsearch.png?branch=master)](https://travis-ci.org/uken/fluent-plugin-elasticsearch)
+![Testing on Windows](https://github.com/uken/fluent-plugin-elasticsearch/workflows/Testing%20on%20Windows/badge.svg?branch=master)
+![Testing on macOS](https://github.com/uken/fluent-plugin-elasticsearch/workflows/Testing%20on%20macOS/badge.svg?branch=master)
+![Testing on Ubuntu](https://github.com/uken/fluent-plugin-elasticsearch/workflows/Testing%20on%20Ubuntu/badge.svg?branch=master)
 [![Coverage Status](https://coveralls.io/repos/uken/fluent-plugin-elasticsearch/badge.png)](https://coveralls.io/r/uken/fluent-plugin-elasticsearch)
 [![Code Climate](https://codeclimate.com/github/uken/fluent-plugin-elasticsearch.png)](https://codeclimate.com/github/uken/fluent-plugin-elasticsearch)
 
@@ -31,6 +33,7 @@ Current maintainers: @cosmo0920
   + [time_key_exclude_timestamp](#time_key_exclude_timestamp)
   + [include_timestamp](#include_timestamp)
   + [utc_index](#utc_index)
+  + [suppress_type_name](#suppress_type_name)
   + [target_index_key](#target_index_key)
   + [target_type_key](#target_type_key)
   + [template_name](#template_name)
@@ -45,6 +48,7 @@ Current maintainers: @cosmo0920
   + [templates](#templates)
   + [max_retry_putting_template](#max_retry_putting_template)
   + [fail_on_putting_template_retry_exceed](#fail_on_putting_template_retry_exceed)
+  + [fail_on_detecting_es_version_retry_exceed](#fail_on_detecting_es_version_retry_exceed)
   + [max_retry_get_es_version](#max_retry_get_es_version)
   + [request_timeout](#request_timeout)
   + [reload_connections](#reload_connections)
@@ -65,6 +69,7 @@ Current maintainers: @cosmo0920
   + [content_type](#content_type)
   + [include_index_in_url](#include_index_in_url)
   + [http_backend](#http_backend)
+  + [http_backend_excon_nonblock](#http_backend_excon_nonblock)
   + [prefer_oj_serializer](#prefer_oj_serializer)
   + [compression_level](#compression_level)
   + [Client/host certificate options](#clienthost-certificate-options)
@@ -73,6 +78,7 @@ Current maintainers: @cosmo0920
   + [Hash flattening](#hash-flattening)
   + [Generate Hash ID](#generate-hash-id)
   + [sniffer_class_name](#sniffer-class-name)
+  + [selector_class_name](#selector-class-name)
   + [reload_after](#reload-after)
   + [validate_client_version](#validate-client-version)
   + [unrecoverable_error_types](#unrecoverable-error-types)
@@ -91,15 +97,17 @@ Current maintainers: @cosmo0920
   + [enable_ilm](#enable_ilm)
   + [ilm_policy_id](#ilm_policy_id)
   + [ilm_policy](#ilm_policy)
+  + [ilm_policies](#ilm_policies)
   + [ilm_policy_overwrite](#ilm_policy_overwrite)
   + [truncate_caches_interval](#truncate_caches_interval)
 * [Configuration - Elasticsearch Input](#configuration---elasticsearch-input)
+* [Configuration - Elasticsearch Filter GenID](#configuration---elasticsearch-filter-genid)
+* [Elasticsearch permissions](#elasticsearch-permissions)
 * [Troubleshooting](#troubleshooting)
   + [Cannot send events to elasticsearch](#cannot-send-events-to-elasticsearch)
   + [Cannot see detailed failure log](#cannot-see-detailed-failure-log)
   + [Cannot connect TLS enabled reverse Proxy](#cannot-connect-tls-enabled-reverse-proxy)
   + [Declined logs are resubmitted forever, why?](#declined-logs-are-resubmitted-forever-why)
-  + [Suggested to increase flush_thread_count, why?](#suggested-to-increase-flush_thread_count-why)
   + [Suggested to install typhoeus gem, why?](#suggested-to-install-typhoeus-gem-why)
   + [Stopped to send events on k8s, why?](#stopped-to-send-events-on-k8s-why)
   + [Random 400 - Rejected by Elasticsearch is occured, why?](#random-400---rejected-by-elasticsearch-is-occured-why)
@@ -348,6 +356,20 @@ utc_index true
 
 By default, the records inserted into index `logstash-YYMMDD` with UTC (Coordinated Universal Time). This option allows to use local time if you describe utc_index to false.
 
+### suppress_type_name
+
+In Elasticsearch 7.x, Elasticsearch cluster complains the following types removal warnings:
+
+```json
+{"type": "deprecation", "timestamp": "2020-07-03T08:02:20,830Z", "level": "WARN", "component": "o.e.d.a.b.BulkRequestParser", "cluster.name": "docker-cluster", "node.name": "70dd5c6b94c3", "message": "[types removal] Specifying types in bulk requests is deprecated.", "cluster.uuid": "NoJJmtzfTtSzSMv0peG8Wg", "node.id": "VQ-PteHmTVam2Pnbg7xWHw"  }
+```
+
+This can be suppressed with:
+
+```
+suppress_type_name true
+```
+
 ### target_index_key
 
 Tell this plugin to find the index name to write to in the record under this key in preference to other mechanisms. Key can be specified as path to nested record using dot ('.') as a separator.
@@ -500,6 +522,23 @@ If you have multiple output plugin, you could use this property to do not fail o
 
 ```
 fail_on_putting_template_retry_exceed false # defaults to true
+```
+
+### fail_on_detecting_es_version_retry_exceed
+
+Indicates whether to fail when `max_retry_get_es_version` is exceeded.
+If you want to use fallback mechanism for obtaining ELasticsearch version, you could use this property to do not fail on fluentd statup.
+
+```
+fail_on_detecting_es_version_retry_exceed false
+```
+
+And the following parameters should be working with:
+
+```
+verify_es_version_at_startup true
+max_retry_get_es_version 2 # greater than 0.
+default_elasticsearch_version 7 # This version is used when occurring fallback.
 ```
 
 ### max_retry_get_es_version
@@ -799,6 +838,21 @@ Default value is `excon` which is default http_backend of elasticsearch plugin.
 http_backend typhoeus
 ```
 
+### http_backend_excon_nonblock
+
+With `http_backend_excon_nonblock false`, elasticsearch plugin use excon with nonblock=false.
+If you use elasticsearch plugin with jRuby for https, you may need to consider to set `false` to avoid follwoing problems.
+- https://github.com/geemus/excon/issues/106
+- https://github.com/jruby/jruby-ossl/issues/19
+
+But for all other case, it strongly reccomend to set `true` to avoid process hangin problem reported in https://github.com/uken/fluent-plugin-elasticsearch/issues/732
+
+Default value is `true`.
+
+```
+http_backend_excon_nonblock false
+```
+
 ### compression_level
 You can add gzip compression of output data. In this case `default_compression`, `best_compression` or `best speed` option should be chosen.
 By default there is no compression, default value for this option is `no_compression`
@@ -848,7 +902,11 @@ ssl_min_version TLSv1_2
 
 Elasticsearch plugin will use TLSv1.2 as minimum ssl version and TLSv1.3 as maximum ssl version on transportation with TLS. Note that when they are used in Elastissearch plugin configuration, *`ssl_version` is not used* to set up TLS version.
 
-If they are *not* specified in the Elasticsearch plugin configuration, the value of `ssl_version` will be *used in `ssl_max_version` and `ssl_min_version`*.
+If they are *not* specified in the Elasticsearch plugin configuration, `ssl_max_version` and `ssl_min_version` is set up with:
+
+In Elasticsearch plugin v4.0.8 or later with Ruby 2.5 or later environment, `ssl_max_version` should be `TLSv1_3` and `ssl_min_version` should be `TLSv1_2`.
+
+From Elasticsearch plugin v4.0.4 to v4.0.7 with Ruby 2.5 or later environment, the value of `ssl_version` will be *used in `ssl_max_version` and `ssl_min_version`*.
 
 
 ### Proxy Support
@@ -930,6 +988,18 @@ sniffer_class_name Fluent::Plugin::ElasticsearchSimpleSniffer
 reload_after 100
 ```
 
+### Selector Class Name
+
+The default selector used by the `Elasticsearch::Transport` class works well when Fluentd should round robin and random selector cases. This doesn't work well when Fluentd should fallback behavior.
+The parameter `selector_class_name` gives you the ability to provide your own Selector class to implement whatever selection nodes logic you require.
+
+The below configuration is using plugin built-in `ElasticseatchFallbackSelector`:
+
+```
+hosts exhausted-host:9201,normal-host:9200
+selector_class_name "Fluent::Plugin::ElasticseatchFallbackSelector"
+```
+
 #### Tips
 
 The included sniffer class does not required `out_elasticsearch`.
@@ -946,7 +1016,7 @@ If you use Fluentd directly, you must pass the following lines as Fluentd comman
 
 ```
 sniffer=$(td-agent-gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb)
-$ fluentd -r $sniffer" [AND YOUR OTHER OPTIONS]
+$ fluentd -r $sniffer [AND YOUR OTHER OPTIONS]
 ```
 
 ### Reload After
@@ -1176,6 +1246,14 @@ Default value is `{}`.
 
 **NOTE:** This parameter requests to install elasticsearch-xpack gem.
 
+## ilm_policies
+
+A hash in the format `{"ilm_policy_id1":{ <ILM policy 1 hash> }, "ilm_policy_id2": { <ILM policy 2 hash> }}`.
+
+Default value is `{}`.
+
+**NOTE:** This parameter requests to install elasticsearch-xpack gem.
+
 ## ilm_policy_overwrite
 
 Specify whether overwriting ilm policy or not.
@@ -1195,6 +1273,36 @@ Default value is `nil`.
 ## Configuration - Elasticsearch Input
 
 See [Elasticsearch Input plugin document](README.ElasticsearchInput.md)
+
+## Configuration - Elasticsearch Filter GenID
+
+See [Elasticsearch Filter GenID document](README.ElasticsearchGenID.md)
+
+## Elasticsearch permissions
+
+If the target Elasticsearch requires authentication, a user holding the necessary permissions needs to be provided.
+
+The set of required permissions are the following:
+
+```json
+  "cluster": ["manage_index_templates", "monitor", "manage_ilm"],
+  "indices": [
+    {
+      "names": [ "*" ],
+      "privileges": ["write","create","delete","create_index","manage","manage_ilm"]
+    }
+  ]
+```
+
+These permissions can be narrowed down by:
+
+- Setting a more specific pattern for indices under the `names` field
+- Removing the `manage_index_templates` cluster permission when not using the feature within your plugin configuration
+- Removing the `manage_ilm` cluster permission and the `manage` and `manage_ilm` indices privileges when not using ilm
+features in the plugin configuration
+
+The list of privileges along with their description can be found in
+[security privileges](https://www.elastic.co/guide/en/elasticsearch/reference/current/security-privileges.html).
 
 ## Troubleshooting
 
@@ -1443,30 +1551,6 @@ The following configuration uses label:
     @type stdout
   </match>
 </label>
-```
-
-### Suggested to increase flush_thread_count, why?
-
-fluent-plugin-elasticsearch default behavior has a possibility to cause events traffic jam.
-When users use `flush_thread_count` = 1, ES plugin retries to send events if connection errors are disappeared.
-
-To prevent the following warning and sending events blocking, you must specify `flush_thread_count` >= 2:
-
-```log
-2018-12-24 14:32:06 +0900 [warn]: #0 To prevent events traffic jam, you should specify 2 or more 'flush_thread_count'.
-```
-
-```aconf
-<match out.elasticsearch.**>
-  @type elasticsearch
-  host localhost
-  port 9200
-  # ...
-  <buffer tag>
-    @type memory # or file
-    flush_thread_count 4
-  </buffer>
-</match>
 ```
 
 ### Suggested to install typhoeus gem, why?

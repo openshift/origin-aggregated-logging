@@ -71,12 +71,12 @@ module SWD
     end
 
     def cache_key
-      md5 = OpenSSL::Digest::MD5.hexdigest [
+      sha256 = OpenSSL::Digest::SHA256.hexdigest [
         principal,
         service,
         host
       ].join(' ')
-      "swd:resource:#{md5}"
+      "swd:resource:#{sha256}"
     end
   end
 end

@@ -136,6 +136,26 @@ class DefaultPodWatchStrategyTest < WatchTest
             }
          }
        )
+       @error = OpenStruct.new(
+         type: 'ERROR',
+         object: {
+           'message' => 'some error message'
+         }
+       )
+       @gone = OpenStruct.new(
+           type: 'ERROR',
+           object: {
+               'code' => 410,
+               'kind' => 'Status',
+               'message' => 'too old resource version: 123 (391079)',
+               'metadata' => {
+                   'name' => 'gone',
+                   'namespace' => 'gone',
+                   'uid' => 'gone_uid'
+               },
+               'reason' => 'Gone'
+           }
+       )
      end
 
     test 'pod list caches pods' do
@@ -219,6 +239,49 @@ class DefaultPodWatchStrategyTest < WatchTest
           assert_equal(3, @stats[:pod_watch_failures])
           assert_equal(2, Thread.current[:pod_watch_retry_count])
           assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+          assert_nil(@stats[:pod_watch_error_type_notices])
+        end
+      end
+    end
+
+     test 'pod watch raises a GoneError when a 410 Gone error is received' do
+       @cache['gone_uid'] = {}
+       @client.stub :watch_pods, [@gone] do
+         assert_raise KubernetesMetadata::GoneError do
+           process_pod_watcher_notices(start_pod_watch)
+         end
+         assert_equal(1, @stats[:pod_watch_gone_notices])
+       end
+     end
+
+    test 'pod watch retries when error is received' do
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@error] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_pod_thread
+          end
+          assert_equal(3, @stats[:pod_watch_failures])
+          assert_equal(2, Thread.current[:pod_watch_retry_count])
+          assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+          assert_equal(3, @stats[:pod_watch_error_type_notices])
+        end
+      end
+    end
+
+    test 'pod watch continues after retries succeed' do
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@modified, @error, @modified] do
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_pod_thread
+            end
+          end
+          assert_operator(@stats[:pod_watch_failures], :>=, 3)
+          assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
+          assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
+          assert_operator(@stats[:pod_watch_error_type_notices], :>=, 3)
         end
       end
     end

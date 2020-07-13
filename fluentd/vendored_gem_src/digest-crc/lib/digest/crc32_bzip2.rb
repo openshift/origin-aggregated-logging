@@ -58,3 +58,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc32_bzip2/crc32_bzip2_ext'; rescue LoadError; end
+end

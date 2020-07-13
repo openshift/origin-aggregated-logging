@@ -58,3 +58,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16_zmodem/crc16_zmodem_ext'; rescue LoadError; end
+end

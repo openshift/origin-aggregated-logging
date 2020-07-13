@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'faraday/deprecate'
-
 # Faraday namespace.
 module Faraday
   # Faraday error base class.
@@ -23,10 +21,10 @@ module Faraday
     end
 
     def inspect
-      inner = ''
-      inner += " wrapped=#{@wrapped_exception.inspect}" if @wrapped_exception
-      inner += " response=#{@response.inspect}" if @response
-      inner += " #{super}" if inner.empty?
+      inner = +''
+      inner << " wrapped=#{@wrapped_exception.inspect}" if @wrapped_exception
+      inner << " response=#{@response.inspect}" if @response
+      inner << " #{super}" if inner.empty?
       %(#<#{self.class}#{inner}>)
     end
 
@@ -100,7 +98,7 @@ module Faraday
   end
 
   # A unified client error for timeouts.
-  class TimeoutError < ClientError
+  class TimeoutError < ServerError
     def initialize(exc = 'timeout', response = nil)
       super(exc, response)
     end
@@ -110,49 +108,25 @@ module Faraday
   class NilStatusError < ServerError
     def initialize(exc, response = nil)
       exc_msg_and_response!(exc, response)
-      @response = unwrap_resp!(@response)
       super('http status could not be derived from the server response')
     end
-
-    private
-
-    extend Faraday::Deprecate
-
-    def unwrap_resp(resp)
-      if inner = (resp.keys.size == 1 && resp[:response])
-        return unwrap_resp(inner)
-      end
-
-      resp
-    end
-
-    alias_method :unwrap_resp!, :unwrap_resp
-    deprecate('unwrap_resp', nil, '1.0')
   end
 
   # A unified error for failed connections.
-  class ConnectionFailed < ClientError
+  class ConnectionFailed < Error
   end
 
   # A unified client error for SSL errors.
-  class SSLError < ClientError
+  class SSLError < Error
   end
 
   # Raised by FaradayMiddleware::ResponseMiddleware
-  class ParsingError < ClientError
+  class ParsingError < Error
   end
 
   # Exception used to control the Retry middleware.
   #
   # @see Faraday::Request::Retry
-  class RetriableResponse < ClientError
-  end
-
-  [:ClientError, :ConnectionFailed, :ResourceNotFound,
-    :ParsingError, :TimeoutError, :SSLError, :RetriableResponse].each do |const|
-    Error.const_set(
-      const,
-      DeprecatedClass.proxy_class(Faraday.const_get(const))
-    )
+  class RetriableResponse < Error
   end
 end

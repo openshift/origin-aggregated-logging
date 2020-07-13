@@ -120,3 +120,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc64/crc64_ext'; rescue LoadError; end
+end

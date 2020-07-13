@@ -1,0 +1,20 @@
+== 0.1.1 / 2012-02-22
+
+* Bug fixes
+
+  * Fix edge case with Regexp.union(*ESCAPE_HTML.keys) seen in the wild with rack-1.2.5/lib/rack/utils.rb
+
+== 0.1.0 / yanked!
+
+* Enhancements
+
+  * New :literal option. For example, 'foo'.to_regexp(:literal => true, :ignore_case => true)
+  * Allow setting :ignore_case, :multiline, :extended as options passed to #to_regexp.
+
+== 0.0.3 / 2011-04-27
+
+* first production ready version!
+
+== 0.0.2 / yanked!
+
+== 0.0.1 / yanked!

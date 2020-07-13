@@ -185,6 +185,10 @@ if Fluent.windows?
     opts[:regwinsvcautostart] = s
   }
 
+  op.on('--[no-]reg-winsvc-delay-start', "Automatically start the Windows Service at boot with delay. (only effective with '--reg-winsvc i' and '--reg-winsvc-auto-start') (Windows only)") {|s|
+    opts[:regwinsvcdelaystart] = s
+  }
+
   op.on('--reg-winsvc-fluentdopt OPTION', "specify fluentd option parameters for Windows Service. (Windows only)") {|s|
     opts[:fluentdopt] = s
   }
@@ -285,6 +289,13 @@ if winsvcinstmode = opts[:regwinsvc]
       dependencies: [""],
       display_name: opts[:winsvc_display_name]
     )
+
+    if opts[:regwinsvcdelaystart]
+      Service.configure(
+        service_name: opts[:winsvc_name],
+        delayed_start: true
+      )
+    end
   when 'u'
     if Service.status(opts[:winsvc_name]).current_state != 'stopped'
       begin
@@ -335,5 +346,18 @@ else
   end
   worker = Fluent::Supervisor.new(opts)
   worker.configure
-  worker.run_worker
+
+  if opts[:daemonize] && opts[:standalone_worker]
+    require 'fluent/daemonizer'
+    args = ARGV.dup
+    i = args.index('--daemon')
+    args.delete_at(i + 1)          # value of --daemon
+    args.delete_at(i)              # --daemon itself
+
+    Fluent::Daemonizer.daemonize(opts[:daemonize], args) do
+      worker.run_worker
+    end
+  else
+    worker.run_worker
+  end
 end

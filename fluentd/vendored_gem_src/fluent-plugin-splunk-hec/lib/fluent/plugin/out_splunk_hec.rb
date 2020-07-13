@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-
+$LOAD_PATH.unshift(File.expand_path('..', __dir__))
 require 'fluent/env'
 require 'fluent/output'
 require 'fluent/plugin/output'
@@ -72,9 +72,6 @@ module Fluent::Plugin
     desc 'The Splunk index to index events. When not set, will be decided by HEC. This is exclusive with `index_key`'
     config_param :index, :string, default: nil
 
-    desc 'Field name to contain Splunk event time. By default will use fluentd\'d time'
-    config_param :time_key, :string, default: nil
-
     desc 'Field name to contain Splunk index name. This is exclusive with `index`.'
     config_param :index_key, :string, default: nil
 
@@ -94,7 +91,7 @@ module Fluent::Plugin
     config_section :fields, init: false, multi: false, required: false do
       # this is blank on purpose
     end
-
+    
     config_section :format do
       config_set_default :usage, '**'
       config_set_default :@type, 'json'

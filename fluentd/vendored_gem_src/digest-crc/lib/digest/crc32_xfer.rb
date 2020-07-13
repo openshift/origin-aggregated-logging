@@ -62,3 +62,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc32_xfer/crc32_xfer_ext'; rescue LoadError; end
+end

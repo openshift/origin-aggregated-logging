@@ -31,8 +31,6 @@ module Fluent
       DEFAULT_CHUNK_LIMIT_SIZE = 256 * 1024 * 1024        # 256MB
       DEFAULT_TOTAL_LIMIT_SIZE =  64 * 1024 * 1024 * 1024 #  64GB, same with v0.12 (TimeSlicedOutput + buf_file)
 
-      DIR_PERMISSION = 0755
-
       desc 'The path where buffer chunks are stored.'
       config_param :path, :string, default: nil
       desc 'The suffix of buffer chunks'
@@ -108,7 +106,7 @@ module Fluent
         if @dir_permission
           @dir_permission = @dir_permission.to_i(8) if @dir_permission.is_a?(String)
         else
-          @dir_permission = system_config.dir_permission || DIR_PERMISSION
+          @dir_permission = system_config.dir_permission || Fluent::DEFAULT_DIR_PERMISSION
         end
       end
 
@@ -166,7 +164,17 @@ module Fluent
 
           case chunk.state
           when :staged
-            stage[chunk.metadata] = chunk
+            # unstaged chunk created at Buffer#write_step_by_step is identified as the staged chunk here because FileChunk#assume_chunk_state checks only the file name.
+            # https://github.com/fluent/fluentd/blob/9d113029d4550ce576d8825bfa9612aa3e55bff0/lib/fluent/plugin/buffer.rb#L663
+            # This case can happen when fluentd process is killed by signal or other reasons between creating unstaged chunks and changing them to staged mode in Buffer#write
+            # these chunks(unstaged chunks) has shared the same metadata
+            # So perform enqueue step again https://github.com/fluent/fluentd/blob/9d113029d4550ce576d8825bfa9612aa3e55bff0/lib/fluent/plugin/buffer.rb#L364
+            if chunk_size_full?(chunk) || stage.key?(chunk.metadata)
+              chunk.metadata.seq = 0 # metadata.seq should be 0 for counting @queued_num
+              queue << chunk.enqueued!
+            else
+              stage[chunk.metadata] = chunk
+            end
           when :queued
             queue << chunk
           end

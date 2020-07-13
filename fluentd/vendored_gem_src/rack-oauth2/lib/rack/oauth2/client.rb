@@ -16,12 +16,12 @@ module Rack
       end
 
       def authorization_uri(params = {})
+        params[:redirect_uri] ||= self.redirect_uri
         params[:response_type] ||= :code
         params[:response_type] = Array(params[:response_type]).join(' ')
         params[:scope] = Array(params[:scope]).join(' ')
         Util.redirect_uri absolute_uri_for(authorization_endpoint), :query, params.merge(
-          client_id: self.identifier,
-          redirect_uri: self.redirect_uri
+          client_id: self.identifier
         )
       end
 
@@ -73,17 +73,20 @@ module Rack
         http_client = Rack::OAuth2.http_client
 
         # NOTE:
-        #  Using Array#estract_options! for backward compatibility.
+        #  Using Array#extract_options! for backward compatibility.
         #  Until v1.0.5, the first argument was 'client_auth_method' in scalar.
         options = args.extract_options!
-        client_auth_method = args.first || options.delete(:client_auth_method) || :basic
+        client_auth_method = args.first || options.delete(:client_auth_method).try(:to_sym) || :basic
 
         params[:scope] = Array(options.delete(:scope)).join(' ') if options[:scope].present?
         params.merge! options
 
         case client_auth_method
         when :basic
-          cred = ["#{identifier}:#{secret}"].pack('m').tr("\n", '')
+          cred = Base64.strict_encode64 [
+            Util.www_form_urlencode(identifier),
+            Util.www_form_urlencode(secret)
+          ].join(':')
           headers.merge!(
             'Authorization' => "Basic #{cred}"
           )

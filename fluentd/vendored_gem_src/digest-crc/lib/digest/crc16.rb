@@ -80,3 +80,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16/crc16_ext'; rescue LoadError; end
+end

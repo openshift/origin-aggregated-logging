@@ -1,10 +1,10 @@
 require 'spec_helper'
-require 'crc_examples'
 require 'digest/crc16_qt'
 
-describe Digest::CRC16QT do
-  let(:string)   { '1234567890' }
-  let(:expected) { '4b13' }
+describe "Digest::CRC16QT" do
+  subject { Digest::CRC16QT }
 
-  it_should_behave_like "CRC"
+  it "should be an alias to Digest::CRC16X25" do
+    expect(subject).to be(Digest::CRC16X25)
+  end
 end
