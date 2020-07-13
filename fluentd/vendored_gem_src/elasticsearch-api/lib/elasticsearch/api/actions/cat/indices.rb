@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 module Elasticsearch
   module API
@@ -11,7 +24,7 @@ module Elasticsearch
         # @option arguments [List] :index A comma-separated list of index names to limit the returned information
         # @option arguments [String] :format a short version of the Accept header, e.g. json, yaml
         # @option arguments [String] :bytes The unit in which to display byte values
-        #   (options: b,k,m,g)
+        #   (options: b,k,kb,m,mb,g,gb,t,tb,p,pb)
 
         # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
         # @option arguments [Time] :master_timeout Explicit operation timeout for connection to master node
@@ -23,15 +36,20 @@ module Elasticsearch
         # @option arguments [Boolean] :pri Set to true to return stats only for primary shards
         # @option arguments [List] :s Comma-separated list of column names or column aliases to sort by
         # @option arguments [String] :time The unit in which to display time values
-        #   (options: d (Days),h (Hours),m (Minutes),s (Seconds),ms (Milliseconds),micros (Microseconds),nanos (Nanoseconds))
+        #   (options: d,h,m,s,ms,micros,nanos)
 
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Boolean] :include_unloaded_segments If set to true segment stats will include stats for segments that are not currently loaded into memory
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
+        #   (options: open,closed,hidden,none,all)
 
+        # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/cat-indices.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-indices.html
         #
         def indices(arguments = {})
+          headers = arguments.delete(:headers) || {}
+
           arguments = arguments.clone
 
           _index = arguments.delete(:index)
@@ -41,12 +59,12 @@ module Elasticsearch
                      "_cat/indices/#{Utils.__listify(_index)}"
                    else
                      "_cat/indices"
-end
+      end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
           params[:h] = Utils.__listify(params[:h]) if params[:h]
 
           body = nil
-          perform_request(method, path, params, body).body
+          perform_request(method, path, params, body, headers).body
         end
 
         # Register this action with its valid params when the module is loaded.
@@ -64,7 +82,8 @@ end
           :s,
           :time,
           :v,
-          :include_unloaded_segments
+          :include_unloaded_segments,
+          :expand_wildcards
         ].freeze)
 end
       end

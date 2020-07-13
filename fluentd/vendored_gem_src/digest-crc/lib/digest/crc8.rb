@@ -59,3 +59,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc8/crc8_ext'; rescue LoadError; end
+end

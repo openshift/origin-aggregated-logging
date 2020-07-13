@@ -8,7 +8,7 @@ require 'uri'
 require 'openssl'
 require 'async'
 
-class HtttpHelperTest < Test::Unit::TestCase
+class HttpHelperTest < Test::Unit::TestCase
   PORT = unused_port
   NULL_LOGGER = Logger.new(nil)
   CERT_DIR = File.expand_path(File.dirname(__FILE__) + '/data/cert/without_ca')
@@ -110,7 +110,7 @@ class HtttpHelperTest < Test::Unit::TestCase
       end
 
       context.cert_store = cert_store
-      if !hostname && context.respond_to?(:verify_hostname=)
+      if !hostname
         context.verify_hostname = false # In test code, using hostname to be connected is very difficult
       end
 
@@ -161,18 +161,10 @@ class HtttpHelperTest < Test::Unit::TestCase
         assert_equal(nil, resp.body)
         assert_equal('text/plain', resp['Content-Type'])
 
-        %w[get put post put delete trace].each do |n|
+        %w[get put post put delete options trace].each do |n|
           resp = send(n, "http://127.0.0.1:#{PORT}/example/hello")
           assert_equal('200', resp.code)
           assert_equal("hello #{n}", resp.body)
-          assert_equal('text/plain', resp['Content-Type'])
-        end
-
-        # TODO: remove when fluentd drop ruby 2.1
-        if Gem::Version.create(RUBY_VERSION) >= Gem::Version.create('2.2.0')
-          resp = options("http://127.0.0.1:#{PORT}/example/hello")
-          assert_equal('200', resp.code)
-          assert_equal("hello options", resp.body)
           assert_equal('text/plain', resp['Content-Type'])
         end
       end

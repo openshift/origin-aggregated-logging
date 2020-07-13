@@ -1,10 +1,14 @@
+## 0.0.7.7 (2019-03-19)
+
+- Include Windows binaries for Ruby 2.7.
+
 ## 0.0.7.6 (2019-03-19)
 
-- Version bump just for adding Windows binaries for Ruby 2.6.
+- Include Windows binaries for Ruby 2.6.
 
 ## 0.0.7.5 (2018-02-06)
 
-- Version bump just for adding Windows binaries for Ruby 2.5.
+- Include Windows binaries for Ruby 2.5.
 
 ## 0.0.7.4 (2017-04-19)
 
@@ -18,7 +22,7 @@
 
 ## 0.0.7.2 (2016-02-01)
 
-- Version bump just for adding Windows binaries for Ruby 2.3.
+- Include Windows binaries for Ruby 2.3.
 
 ## 0.0.7.1 (2015-04-18)
 

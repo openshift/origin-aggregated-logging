@@ -19,6 +19,13 @@
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
+
+  class GoneError < StandardError
+    def initialize(msg="410 Gone")
+      super
+    end
+  end
+
   module WatchPods
 
     include ::KubernetesMetadata::Common
@@ -35,10 +42,15 @@ module KubernetesMetadata
       # processing will be swallowed and retried. These failures /
       # exceptions could be caused by Kubernetes API being temporarily
       # down. We assume the configuration is correct at this point.
-      while thread_current_running?
+      while true
         begin
           pod_watcher ||= get_pods_and_start_watcher
           process_pod_watcher_notices(pod_watcher)
+        rescue GoneError
+          # Expected error. Quietly go back through the loop in order to
+          # start watching from the latest resource versions
+          log.debug("410 Gone encountered. Restarting watch to reset resource versions.")
+          pod_watcher = nil
         rescue Exception => e
           @stats.bump(:pod_watch_failures)
           if Thread.current[:pod_watch_retry_count] < @watch_retry_max_times
@@ -99,11 +111,19 @@ module KubernetesMetadata
       watcher
     end
 
+    # Reset pod watch retry count and backoff interval as there is a
+    # successful watch notice.
+    def reset_pod_watch_retry_stats
+      Thread.current[:pod_watch_retry_count] = 0
+      Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+    end
+
     # Process a watcher notice and potentially raise an exception.
     def process_pod_watcher_notices(watcher)
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
+            reset_pod_watch_retry_stats
             cache_key = notice.object['metadata']['uid']
             cached    = @cache[cache_key]
             if cached
@@ -116,10 +136,21 @@ module KubernetesMetadata
               @stats.bump(:pod_cache_watch_misses)
             end
           when 'DELETED'
+            reset_pod_watch_retry_stats
             # ignore and let age out for cases where pods
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
+          when 'ERROR'
+            if notice.object && notice.object['code'] == 410
+              @stats.bump(:pod_watch_gone_notices)
+              raise GoneError
+            else
+              @stats.bump(:pod_watch_error_type_notices)
+              message = notice['object']['message'] if notice['object'] && notice['object']['message']
+              raise "Error while watching pods: #{message}"
+            end
           else
+            reset_pod_watch_retry_stats
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
             @stats.bump(:pod_cache_watch_ignored)

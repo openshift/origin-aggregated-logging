@@ -58,3 +58,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16_xmodem/crc16_xmodem_ext'; rescue LoadError; end
+end

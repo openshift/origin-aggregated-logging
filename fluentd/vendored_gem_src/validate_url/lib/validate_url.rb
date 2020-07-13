@@ -20,16 +20,16 @@ module ActiveModel
       def validate_each(record, attribute, value)
         schemes = [*options.fetch(:schemes)].map(&:to_s)
         begin
-          escaped_uri = value ? URI.escape(value) : nil
-          uri = URI.parse(escaped_uri)
+          uri = URI.parse(value)
           host = uri && uri.host
           scheme = uri && uri.scheme
 
-          valid_suffix = !options.fetch(:public_suffix) || (host && PublicSuffix.valid?(host, :default_rule => nil))
-          valid_no_local = !options.fetch(:no_local) || (host && host.include?('.'))
+          valid_raw_url = scheme && value =~ /\A#{URI::regexp([scheme])}\z/
           valid_scheme = host && scheme && schemes.include?(scheme)
+          valid_no_local = !options.fetch(:no_local) || (host && host.include?('.'))
+          valid_suffix = !options.fetch(:public_suffix) || (host && PublicSuffix.valid?(host, :default_rule => nil))
 
-          unless valid_scheme && valid_no_local && valid_suffix
+          unless valid_raw_url && valid_scheme && valid_no_local && valid_suffix
             record.errors.add(attribute, options.fetch(:message), value: value)
           end
         rescue URI::InvalidURIError

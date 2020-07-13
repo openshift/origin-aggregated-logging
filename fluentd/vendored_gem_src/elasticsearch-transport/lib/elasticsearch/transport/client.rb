@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 require 'base64'
 
@@ -99,6 +112,11 @@ module Elasticsearch
       #   The default is false. Responses will automatically be inflated if they are compressed.
       #   If a custom transport object is used, it must handle the request compression and response inflation.
       #
+      # @option api_key [String, Hash] :api_key Use API Key Authentication, either the base64 encoding of `id` and `api_key`
+      #                                         joined by a colon as a String, or a hash with the `id` and `api_key` values.
+      # @option opaque_id_prefix [String] :opaque_id_prefix set a prefix for X-Opaque-Id when initializing the client. This
+      # will be prepended to the id you set before each request if you're using X-Opaque-Id
+      #
       # @yield [faraday] Access and configure the `Faraday::Connection` instance directly with a block
       #
       def initialize(arguments={}, &block)
@@ -114,6 +132,8 @@ module Elasticsearch
         @arguments[:http]               ||= {}
         @options[:http]                 ||= {}
 
+        set_api_key if (@api_key = @arguments[:api_key])
+
         @seeds = extract_cloud_creds(@arguments)
         @seeds ||= __extract_hosts(@arguments[:hosts] ||
                                      @arguments[:host] ||
@@ -123,9 +143,10 @@ module Elasticsearch
                                      DEFAULT_HOST)
 
         @send_get_body_as = @arguments[:send_get_body_as] || 'GET'
+        @opaque_id_prefix = @arguments[:opaque_id_prefix] || nil
 
         if @arguments[:request_timeout]
-          @arguments[:transport_options][:request] = { :timeout => @arguments[:request_timeout] }
+          @arguments[:transport_options][:request] = { timeout: @arguments[:request_timeout] }
         end
 
         if @arguments[:transport]
@@ -133,26 +154,40 @@ module Elasticsearch
         else
           transport_class  = @arguments[:transport_class] || DEFAULT_TRANSPORT_CLASS
           if transport_class == Transport::HTTP::Faraday
-            @transport = transport_class.new(:hosts => @seeds, :options => @arguments) do |faraday|
-              block.call faraday if block
-              unless (h = faraday.builder.handlers.last) && h.name.start_with?("Faraday::Adapter")
-                faraday.adapter(@arguments[:adapter] || __auto_detect_adapter)
-              end
+            @transport = transport_class.new(hosts: @seeds, options: @arguments) do |faraday|
+              faraday.adapter(@arguments[:adapter] || __auto_detect_adapter)
+              block&.call faraday
             end
           else
-            @transport = transport_class.new(:hosts => @seeds, :options => @arguments)
+            @transport = transport_class.new(hosts: @seeds, options: @arguments)
           end
         end
       end
 
       # Performs a request through delegation to {#transport}.
       #
-      def perform_request(method, path, params={}, body=nil, headers=nil)
+      def perform_request(method, path, params = {}, body = nil, headers = nil)
         method = @send_get_body_as if 'GET' == method && body
+        if (opaque_id = params.delete(:opaque_id))
+          headers = {} if headers.nil?
+          opaque_id = @opaque_id_prefix ? "#{@opaque_id_prefix}#{opaque_id}" : opaque_id
+          headers.merge!('X-Opaque-Id' => opaque_id)
+        end
         transport.perform_request(method, path, params, body, headers)
       end
 
       private
+
+      def set_api_key
+        @api_key = __encode(@api_key) if @api_key.is_a? Hash
+        headers = @arguments[:transport_options]&.[](:headers) || {}
+        headers.merge!('Authorization' => "ApiKey #{@api_key}")
+        @arguments[:transport_options].merge!(
+          headers: headers
+        )
+        @arguments.delete(:user)
+        @arguments.delete(:password)
+      end
 
       def extract_cloud_creds(arguments)
         return unless arguments[:cloud_id]
@@ -225,8 +260,14 @@ module Elasticsearch
           raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
         end
 
-        @options[:http][:user] ||= host_parts[:user]
-        @options[:http][:password] ||= host_parts[:password]
+        if @api_key
+          # Remove Basic Auth if using API KEY
+          host_parts.delete(:user)
+          host_parts.delete(:password)
+        else
+          @options[:http][:user] ||= host_parts[:user]
+          @options[:http][:password] ||= host_parts[:password]
+        end
 
         host_parts[:port] = host_parts[:port].to_i if host_parts[:port]
         host_parts[:path].chomp!('/') if host_parts[:path]
@@ -254,6 +295,13 @@ module Elasticsearch
         else
           ::Faraday.default_adapter
         end
+      end
+
+      # Encode credentials for the Authorization Header
+      # Credentials is the base64 encoding of id and api_key joined by a colon
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html
+      def __encode(api_key)
+        Base64.strict_encode64([api_key[:id], api_key[:api_key]].join(':'))
       end
     end
   end

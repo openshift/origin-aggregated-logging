@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'benchmark'
-$LOAD_PATH.unshift(File.expand_path('lib'))
+$LOAD_PATH.unshift(File.expand_path('../ext',__FILE__))
+$LOAD_PATH.unshift(File.expand_path('../lib',__FILE__))
 
 CRCs = {
   'crc1'          => 'CRC1',
@@ -34,9 +35,12 @@ CRCs = {
 puts "Loading Digest::CRC classes ..."
 CRCs.each_key { |crc| require "digest/#{crc}" }
 
-puts "Generating random lengthed strings ..."
-SAMPLES = Array.new(100) do
-  Array.new(100 * rand(1024)) { rand(256).chr }.join
+N = 1000
+BLOCK_SIZE = 8 * 1024
+
+puts "Generating #{N} #{BLOCK_SIZE / 1024}Kb lengthed strings ..."
+SAMPLES = Array.new(N) do
+  Array.new(BLOCK_SIZE) { rand(256).chr }.join
 end
 
 puts "Benchmarking Digest::CRC classes ..."

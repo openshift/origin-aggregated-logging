@@ -72,3 +72,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc5/crc5_ext'; rescue LoadError; end
+end

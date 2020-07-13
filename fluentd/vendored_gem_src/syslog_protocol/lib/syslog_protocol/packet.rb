@@ -1,5 +1,6 @@
 module SyslogProtocol
   class Packet
+<<<<<<< HEAD
     attr_reader :facility, :severity, :hostname, :tag, :rfc, :appname, :procid, :msgid
     attr_accessor :time, :content
 
@@ -11,11 +12,17 @@ module SyslogProtocol
       @msgid = NILVALUE
     end
 
+=======
+    attr_reader :facility, :severity, :hostname, :tag
+    attr_accessor :time, :content
+
+>>>>>>> 7c7988dbf... Bug 1833486: Bump fluent to 1.11.1 and dependencies to address performance
     def to_s
       assemble
     end
 
     def assemble(max_size = 1024)
+<<<<<<< HEAD
       if @rfc == :rfc5424
         @appname = @tag
         assemble_rfc5424
@@ -29,6 +36,12 @@ module SyslogProtocol
         raise "Could not assemble packet without hostname, tag, facility, and severity"
       end
       data = "<#{pri}>#{generate_timestamp_rfc3164} #{@hostname} #{@tag}: #{@content}"
+=======
+      unless @hostname and @facility and @severity and @tag
+        raise "Could not assemble packet without hostname, tag, facility, and severity"
+      end
+      data = "<#{pri}>#{generate_timestamp} #{@hostname} #{@tag}: #{@content}"
+>>>>>>> 7c7988dbf... Bug 1833486: Bump fluent to 1.11.1 and dependencies to address performance
 
       if string_bytesize(data) > max_size
         data = data.slice(0, max_size)
@@ -36,6 +49,7 @@ module SyslogProtocol
           data = data.slice(0, data.length - 1)
         end
       end
+<<<<<<< HEAD
       data
     end
 
@@ -44,6 +58,10 @@ module SyslogProtocol
         raise "Could not assemble packet without hostname, appname, facility, and severity"
       end
       data = "<#{pri}>1 #{generate_timestamp_rfc5424} #{@hostname} #{@appname} #{@procid} #{@msgid} #{structured_data} #{@content}"
+=======
+
+      data
+>>>>>>> 7c7988dbf... Bug 1833486: Bump fluent to 1.11.1 and dependencies to address performance
     end
 
     def facility=(f)
@@ -132,6 +150,7 @@ module SyslogProtocol
       @severity = p - (@facility * 8)
     end
 
+<<<<<<< HEAD
     def rfc=(r)
       unless r == :rfc5424 or r == :rfc3164
         raise ArgumentError.new "rfc must be rfc5424 or rfc3164"
@@ -140,6 +159,9 @@ module SyslogProtocol
     end
 
     def generate_timestamp_rfc3164
+=======
+    def generate_timestamp
+>>>>>>> 7c7988dbf... Bug 1833486: Bump fluent to 1.11.1 and dependencies to address performance
       time = @time || Time.now
       # The timestamp format requires that a day with fewer than 2 digits have
       # what would normally be a preceding zero, be instead an extra space.
@@ -148,6 +170,7 @@ module SyslogProtocol
       time.strftime("%b #{day} %H:%M:%S")
     end
 
+<<<<<<< HEAD
     def generate_timestamp_rfc5424
       time = @time || Time.now
       time.strftime("%Y-%m-%dT%H:%M:%S.%6N%:z")
@@ -157,6 +180,8 @@ module SyslogProtocol
       NILVALUE
     end
 
+=======
+>>>>>>> 7c7988dbf... Bug 1833486: Bump fluent to 1.11.1 and dependencies to address performance
     if "".respond_to?(:bytesize)
       def string_bytesize(string)
         string.bytesize

@@ -1,7 +1,7 @@
 # encoding: UTF-8
 
 # This file contains data derived from the IANA Time Zone Database
-# (http://www.iana.org/time-zones).
+# (https://www.iana.org/time-zones).
 
 module TZInfo
   module Data
@@ -124,7 +124,7 @@ module TZInfo
         linked_timezone 'America/Fort_Wayne'
         timezone 'America/Fortaleza'
         timezone 'America/Glace_Bay'
-        timezone 'America/Godthab'
+        linked_timezone 'America/Godthab'
         timezone 'America/Goose_Bay'
         timezone 'America/Grand_Turk'
         linked_timezone 'America/Grenada'
@@ -184,6 +184,7 @@ module TZInfo
         timezone 'America/North_Dakota/Beulah'
         timezone 'America/North_Dakota/Center'
         timezone 'America/North_Dakota/New_Salem'
+        timezone 'America/Nuuk'
         timezone 'America/Ojinaga'
         timezone 'America/Panama'
         timezone 'America/Pangnirtung'

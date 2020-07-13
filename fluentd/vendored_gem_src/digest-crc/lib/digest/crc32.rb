@@ -6,7 +6,7 @@ module Digest
   #
   class CRC32 < CRC
 
-    WIDTH = 4
+    WIDTH = 32
 
     INIT_CRC = 0xffffffff
 
@@ -115,4 +115,8 @@ module Digest
     end
 
   end
+end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc32/crc32_ext'; rescue LoadError; end
 end

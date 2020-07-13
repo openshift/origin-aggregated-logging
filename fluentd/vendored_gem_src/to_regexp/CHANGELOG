@@ -1,0 +1,19 @@
+0.2.1 / 2013-05-21
+
+* Bug fixes
+
+  * Make sure (for example) '/foo/imn'.to_regexp(detect: true) is detected as a case-insensitive, multiline, no-encoding regexp
+
+0.2.0 / 2013-02-13
+
+* Breaking changes
+  
+  * Strings are no longer stripped before conversion is attempted
+  * :detect will make '' into nil and '//' into //
+
+0.1.2 / 2013-02-13
+
+* Enhancements
+
+  * Start keeping CHANGELOG!
+  * add :detect option

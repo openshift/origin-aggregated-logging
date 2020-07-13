@@ -8,8 +8,12 @@ A fluent plugin that instruments metrics from records and exposes them via web i
 
 | fluent-plugin-prometheus | fluentd    | ruby   |
 |--------------------------|------------|--------|
-| 1.x.y                    | >= v0.14.8 | >= 2.1 |
+| 1.x.y                    | >= v1.9.1  | >= 2.4 |
+| 1.[0-7].y                | >= v0.14.8 | >= 2.1 |
 | 0.x.y                    | >= v0.12.0 | >= 1.9 |
+
+Since v1.8.0, fluent-plugin-prometheus uses [http_server helper](https://docs.fluentd.org/plugin-helper-overview/api-plugin-helper-http_server) to launch HTTP server.
+If you want to handle lots of connections, install `async-http` gem.
 
 ## Installation
 
@@ -63,6 +67,19 @@ More configuration parameters:
 When using multiple workers, each worker binds to port + `fluent_worker_id`.
 To scrape metrics from all workers at once, you can access http://localhost:24231/aggregated_metrics.
 
+#### TLS setting
+
+Use `<trasnport tls>`. See [transport config article](https://docs.fluentd.org/configuration/transport-section) for more details.
+
+```
+<source>
+  @type prometheus
+  <transport tls>
+    # TLS parameters...
+  </transport
+</source>
+```
+
 ### prometheus_monitor input plugin
 
 This plugin collects internal metrics in Fluentd. The metrics are similar to/part of [monitor_agent](https://docs.fluentd.org/input/monitor_agent).
@@ -71,7 +88,7 @@ This plugin collects internal metrics in Fluentd. The metrics are similar to/par
 #### Exposed metrics
 
 - `fluentd_status_buffer_queue_length`
-- `fluentd_status_buffer_total_queued_size`
+- `fluentd_status_buffer_total_bytes`
 - `fluentd_status_retry_count`
 - `fluentd_status_buffer_newest_timekey` from fluentd v1.4.2
 - `fluentd_status_buffer_oldest_timekey` from fluentd v1.4.2
@@ -107,7 +124,7 @@ Metrics for output
 - `fluentd_output_status_emit_records`
 - `fluentd_output_status_write_count`
 - `fluentd_output_status_rollback_count`
-- `fluentd_output_status_flush_time_count` from fluentd v1.6.0
+- `fluentd_output_status_flush_time_count` in milliseconds from fluentd v1.6.0
 - `fluentd_output_status_slow_flush_count` from fluentd v1.6.0
 
 Metrics for buffer

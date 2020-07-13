@@ -12,14 +12,18 @@ Gem::Specification.new do |s|
   s.description = "PublicSuffix can parse and decompose a domain name into top level domain, domain and subdomains."
   s.licenses    = ["MIT"]
 
+  s.metadata = {
+    "bug_tracker_uri" => "https://github.com/weppos/publicsuffix-ruby/issues",
+    "changelog_uri" => "https://github.com/weppos/publicsuffix-ruby/blob/master/CHANGELOG.md",
+    "documentation_uri" => "https://rubydoc.info/gems/#{s.name}/#{s.version}",
+    "homepage_uri" => s.homepage,
+    "source_code_uri" => "https://github.com/weppos/publicsuffix-ruby/tree/v#{s.version}",
+  }
+
   s.required_ruby_version = ">= 2.3"
 
   s.require_paths    = ["lib"]
   s.files            = `git ls-files`.split("\n")
   s.test_files       = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.extra_rdoc_files = %w( LICENSE.txt )
-
-  s.add_development_dependency "rake"
-  s.add_development_dependency "mocha"
-  s.add_development_dependency "yard"
 end

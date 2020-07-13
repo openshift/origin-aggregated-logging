@@ -116,6 +116,10 @@ module Kernel
   end
   
   def assert_sub_process_returns(expected_lines, code, extra_load_path = [], required = ['tzinfo'])
+    if defined?(RUBY_ENGINE) && RUBY_ENGINE == 'jruby' && JRUBY_VERSION.start_with?('9.0.') && RbConfig::CONFIG['host_os'] =~ /mswin/
+      skip('JRuby 9.0 on Windows cannot handle writing to the IO instance returned by popen')
+    end
+
     ruby = File.join(RbConfig::CONFIG['bindir'], 
       RbConfig::CONFIG['ruby_install_name'] + RbConfig::CONFIG['EXEEXT'])
       
@@ -165,7 +169,7 @@ end
 
 
 # Object#taint is a deprecated no-op in Ruby 2.7 and outputs a warning. It will
-# be removed in 3.0. Silence the warning or supply a replacement.
+# be removed in 3.2. Silence the warning or supply a replacement.
 if TZInfo::RubyCoreSupport.const_defined?(:UntaintExt)
   module TaintExt
     refine Object do
