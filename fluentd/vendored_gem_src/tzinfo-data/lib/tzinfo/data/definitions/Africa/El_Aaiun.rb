@@ -1,7 +1,7 @@
 # encoding: UTF-8
 
 # This file contains data derived from the IANA Time Zone Database
-# (http://www.iana.org/time-zones).
+# (https://www.iana.org/time-zones).
 
 module TZInfo
   module Data
@@ -65,7 +65,7 @@ module TZInfo
             tz.transition 2019, 5, :o5, 1557021600
             tz.transition 2019, 6, :o4, 1560045600
             tz.transition 2020, 4, :o5, 1587261600
-            tz.transition 2020, 5, :o4, 1590285600
+            tz.transition 2020, 5, :o4, 1590890400
             tz.transition 2021, 4, :o5, 1618106400
             tz.transition 2021, 5, :o4, 1621130400
             tz.transition 2022, 3, :o5, 1648346400
@@ -81,7 +81,7 @@ module TZInfo
             tz.transition 2027, 2, :o5, 1801965600
             tz.transition 2027, 3, :o4, 1804989600
             tz.transition 2028, 1, :o5, 1832205600
-            tz.transition 2028, 2, :o4, 1835229600
+            tz.transition 2028, 3, :o4, 1835834400
             tz.transition 2029, 1, :o5, 1863050400
             tz.transition 2029, 2, :o4, 1866074400
             tz.transition 2029, 12, :o5, 1893290400
@@ -97,7 +97,7 @@ module TZInfo
             tz.transition 2034, 11, :o5, 2046304800
             tz.transition 2034, 12, :o4, 2049933600
             tz.transition 2035, 10, :o5, 2077149600
-            tz.transition 2035, 12, :o4, 2080173600
+            tz.transition 2035, 12, :o4, 2080778400
             tz.transition 2036, 10, :o5, 2107994400
             tz.transition 2036, 11, :o4, 2111018400
             tz.transition 2037, 10, :o5, 2138234400
@@ -113,7 +113,7 @@ module TZInfo
             tz.transition 2042, 8, :o5, 2291248800, 29605279, 12
             tz.transition 2042, 9, :o4, 2294877600, 29605783, 12
             tz.transition 2043, 8, :o5, 2322093600, 29609563, 12
-            tz.transition 2043, 9, :o4, 2325117600, 29609983, 12
+            tz.transition 2043, 9, :o4, 2325722400, 29610067, 12
             tz.transition 2044, 7, :o5, 2352938400, 29613847, 12
             tz.transition 2044, 8, :o4, 2355962400, 29614267, 12
             tz.transition 2045, 7, :o5, 2383178400, 29618047, 12
@@ -129,7 +129,7 @@ module TZInfo
             tz.transition 2050, 5, :o5, 2536192800, 29639299, 12
             tz.transition 2050, 6, :o4, 2539821600, 29639803, 12
             tz.transition 2051, 5, :o5, 2567037600, 29643583, 12
-            tz.transition 2051, 6, :o4, 2570061600, 29644003, 12
+            tz.transition 2051, 6, :o4, 2570666400, 29644087, 12
             tz.transition 2052, 4, :o5, 2597882400, 29647867, 12
             tz.transition 2052, 6, :o4, 2600906400, 29648287, 12
             tz.transition 2053, 4, :o5, 2628122400, 29652067, 12
@@ -145,7 +145,7 @@ module TZInfo
             tz.transition 2058, 2, :o5, 2781136800, 29673319, 12
             tz.transition 2058, 3, :o4, 2784765600, 29673823, 12
             tz.transition 2059, 2, :o5, 2811981600, 29677603, 12
-            tz.transition 2059, 3, :o4, 2815005600, 29678023, 12
+            tz.transition 2059, 3, :o4, 2815610400, 29678107, 12
             tz.transition 2060, 2, :o5, 2842826400, 29681887, 12
             tz.transition 2060, 3, :o4, 2845850400, 29682307, 12
             tz.transition 2061, 1, :o5, 2873066400, 29686087, 12
@@ -155,19 +155,21 @@ module TZInfo
             tz.transition 2062, 12, :o5, 2934756000, 29694655, 12
             tz.transition 2063, 2, :o4, 2937780000, 29695075, 12
             tz.transition 2063, 12, :o5, 2964996000, 29698855, 12
-            tz.transition 2064, 1, :o4, 2968020000, 29699275, 12
+            tz.transition 2064, 1, :o4, 2968624800, 29699359, 12
             tz.transition 2064, 12, :o5, 2995840800, 29703139, 12
             tz.transition 2065, 1, :o4, 2998864800, 29703559, 12
             tz.transition 2065, 11, :o5, 3026080800, 29707339, 12
             tz.transition 2066, 1, :o4, 3029709600, 29707843, 12
             tz.transition 2066, 11, :o5, 3056925600, 29711623, 12
-            tz.transition 2066, 12, :o4, 3059949600, 29712043, 12
+            tz.transition 2066, 12, :o4, 3060554400, 29712127, 12
             tz.transition 2067, 11, :o5, 3087770400, 29715907, 12
             tz.transition 2067, 12, :o4, 3090794400, 29716327, 12
             tz.transition 2068, 10, :o5, 3118010400, 29720107, 12
             tz.transition 2068, 12, :o4, 3121639200, 29720611, 12
             tz.transition 2069, 10, :o5, 3148855200, 29724391, 12
             tz.transition 2069, 11, :o4, 3151879200, 29724811, 12
+            tz.transition 2070, 10, :o5, 3179700000, 29728675, 12
+            tz.transition 2070, 11, :o4, 3182724000, 29729095, 12
           end
         end
       end

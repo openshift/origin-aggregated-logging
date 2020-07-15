@@ -51,7 +51,7 @@ You can use `ConnectionPool::Wrapper` to wrap a single global connection,
 making it easier to migrate existing connection code over time:
 
 ``` ruby
-$redis = ConnectionPool::Wrapper.new(size: 5, timeout: 3) { Redis.connect }
+$redis = ConnectionPool::Wrapper.new(size: 5, timeout: 3) { Redis.new }
 $redis.sadd('foo', 1)
 $redis.smembers('foo')
 ```
@@ -87,6 +87,20 @@ Shutting down a connection pool will block until all connections are checked in 
 **Note that shutting down is completely optional**; Ruby's garbage collector will reclaim
 unreferenced pools under normal circumstances.
 
+## Current State
+
+There are several methods that return information about a pool.
+
+```ruby
+cp = ConnectionPool.new(size: 10) { Redis.new }
+cp.size # => 10
+cp.available # => 10
+
+cp.with do |conn|
+  cp.size # => 10
+  cp.available # => 9
+end
+```
 
 Notes
 -----

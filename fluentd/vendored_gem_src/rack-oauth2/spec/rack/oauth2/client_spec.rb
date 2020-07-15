@@ -1,10 +1,12 @@
 require 'spec_helper.rb'
 
 describe Rack::OAuth2::Client do
+  let(:client_id) { 'client_id' }
+  let(:client_secret) { 'client_secret' }
   let :client do
     Rack::OAuth2::Client.new(
-      identifier: 'client_id',
-      secret: 'client_secret',
+      identifier: client_id,
+      secret: client_secret,
       host: 'server.example.com',
       redirect_uri: 'https://client.example.com/callback'
     )
@@ -49,12 +51,12 @@ describe Rack::OAuth2::Client do
 
     context 'when response_type is an Array' do
       subject { client.authorization_uri(response_type: [:token, :code]) }
-      it { should include 'response_type=token+code' }
+      it { should include 'response_type=token%20code' }
     end
 
     context 'when scope is given' do
       subject { client.authorization_uri(scope: [:scope1, :scope2]) }
-      it { should include 'scope=scope1+scope2' }
+      it { should include 'scope=scope1%20scope2' }
     end
   end
 
@@ -95,6 +97,24 @@ describe Rack::OAuth2::Client do
             }
           )
           client.access_token!
+        end
+
+        context 'when Basic auth method is used' do
+          context 'when client_id is a url' do
+            let(:client_id) { 'https://client.example.com'}
+
+            it 'should be encoded in "application/x-www-form-urlencoded"' do
+              mock_response(
+                :post,
+                'https://server.example.com/oauth2/token',
+                'tokens/bearer.json',
+                request_header: {
+                  'Authorization' => 'Basic aHR0cHMlM0ElMkYlMkZjbGllbnQuZXhhbXBsZS5jb206Y2xpZW50X3NlY3JldA=='
+                }
+              )
+              client.access_token!
+            end
+          end
         end
 
         context 'when jwt_bearer auth method specified' do

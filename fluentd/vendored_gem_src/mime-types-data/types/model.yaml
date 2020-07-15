@@ -68,6 +68,26 @@
     - rfc2077
   registered: true
 - !ruby/object:MIME::Type
+  content-type: model/mtl
+  encoding: base64
+  xrefs:
+    person:
+    - DICOM_Standards_Committee
+    - Luiza_Kowalczyk
+    template:
+    - model/mtl
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/obj
+  encoding: base64
+  xrefs:
+    person:
+    - DICOM_Standards_Committee
+    - Luiza_Kowalczyk
+    template:
+    - model/obj
+  registered: true
+- !ruby/object:MIME::Type
   content-type: model/stl
   encoding: base64
   xrefs:

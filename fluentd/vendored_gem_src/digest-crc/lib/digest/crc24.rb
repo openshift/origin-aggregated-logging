@@ -81,3 +81,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc24/crc24_ext'; rescue LoadError; end
+end

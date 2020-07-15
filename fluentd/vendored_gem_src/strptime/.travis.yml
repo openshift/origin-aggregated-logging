@@ -12,10 +12,13 @@ rvm:
   - 2.4.2
   - 2.4.2-clang
   - 2.5.0
+  - 2.6.5
+  - 2.7.0
   - ruby-head
 matrix:
   allow_failures:
     - rvm: ruby-head
 before_install:
-  - gem install bundler
+  # install bundler 1.17.3 is for ruby 2.0.0 - 2.2.4
+  - gem install bundler || gem install bundler -v 1.17.3
 cache: bundler

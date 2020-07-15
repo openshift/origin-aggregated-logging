@@ -16,7 +16,11 @@ Gem::Specification.new do |spec|
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   spec.require_paths = ['lib']
 
-  spec.add_development_dependency 'rake', '~> 10.0'
-  spec.add_development_dependency 'rspec', '~> 3.2.0'
+  spec.add_development_dependency 'test_bench', '~> 1.0'
+  spec.add_development_dependency 'gem-release'
+
+  # code climate doesn't support v0.18+
+  # see: https://github.com/codeclimate/test-reporter/issues/413
+  spec.add_development_dependency 'simplecov', '< 0.18'
 end
 

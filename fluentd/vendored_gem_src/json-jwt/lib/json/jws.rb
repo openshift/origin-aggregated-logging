@@ -13,7 +13,7 @@ module JSON
     end
 
     def sign!(private_key_or_secret)
-      self.alg = autodetected_algorithm_from(private_key_or_secret) if algorithm == :autodetect
+      self.alg = autodetected_algorithm_from(private_key_or_secret) if alg == :autodetect
       self.signature = sign signature_base_string, private_key_or_secret
       self
     end
@@ -43,31 +43,23 @@ module JSON
     private
 
     def digest
-      OpenSSL::Digest.new "SHA#{algorithm.to_s[2, 3]}"
+      OpenSSL::Digest.new "SHA#{alg.to_s[2, 3]}"
     end
 
     def hmac?
-      [:HS256, :HS384, :HS512].include? algorithm&.to_sym
+      [:HS256, :HS384, :HS512].include? alg&.to_sym
     end
 
     def rsa?
-      [:RS256, :RS384, :RS512].include? algorithm&.to_sym
+      [:RS256, :RS384, :RS512].include? alg&.to_sym
     end
 
     def rsa_pss?
-      if [:PS256, :PS384, :PS512].include? algorithm&.to_sym
-        if OpenSSL::VERSION < '2.1.0'
-          raise "#{alg} isn't supported. OpenSSL gem v2.1.0+ is required to use #{alg}."
-        else
-          true
-        end
-      else
-        false
-      end
+      [:PS256, :PS384, :PS512].include? alg&.to_sym
     end
 
     def ecdsa?
-      [:ES256, :ES384, :ES512].include? algorithm&.to_sym
+      [:ES256, :ES384, :ES512, :ES256K].include? alg&.to_sym
     end
 
     def autodetected_algorithm_from(private_key_or_secret)
@@ -85,6 +77,8 @@ module JSON
           :ES384
         when 'secp521r1'
           :ES512
+        when 'secp256k1'
+          :ES256K
         else
           raise UnknownAlgorithm.new('Unknown EC Curve')
         end
@@ -118,8 +112,7 @@ module JSON
         private_key = private_key_or_secret
         verify_ecdsa_group! private_key
         asn1_to_raw(
-          private_key.dsa_sign_asn1(digest.digest signature_base_string),
-          # private_key.sign(digest, signature_base_string), # NOTE: this causes `undefined method `private?'` error in ruby 2.3
+          private_key.sign(digest, signature_base_string),
           private_key
         )
       else
@@ -152,7 +145,12 @@ module JSON
     def verify_ecdsa_group!(key)
       group_name = case digest.digest_length * 8
       when 256
-        :prime256v1
+        case key.group.curve_name
+        when 'secp256k1'
+          :secp256k1
+        else
+          :prime256v1
+        end
       when 384
         :secp384r1
       when 512

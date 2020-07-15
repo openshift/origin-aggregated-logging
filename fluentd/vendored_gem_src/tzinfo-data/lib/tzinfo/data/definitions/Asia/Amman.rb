@@ -1,7 +1,7 @@
 # encoding: UTF-8
 
 # This file contains data derived from the IANA Time Zone Database
-# (http://www.iana.org/time-zones).
+# (https://www.iana.org/time-zones).
 
 module TZInfo
   module Data
@@ -196,6 +196,8 @@ module TZInfo
             tz.transition 2068, 10, :o1, 3118428000, 29720165, 12
             tz.transition 2069, 3, :o2, 3131733600, 29722013, 12
             tz.transition 2069, 10, :o1, 3149877600, 29724533, 12
+            tz.transition 2070, 3, :o2, 3163183200, 29726381, 12
+            tz.transition 2070, 10, :o1, 3181932000, 29728985, 12
           end
         end
       end

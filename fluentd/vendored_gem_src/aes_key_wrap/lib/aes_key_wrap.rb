@@ -5,6 +5,8 @@ require 'openssl'
 #
 module AESKeyWrap
   DEFAULT_IV = 0xA6A6A6A6A6A6A6A6
+  IV_SIZE = 8 # bytes
+
   UnwrapFailedError = Class.new(StandardError)
 
   class << self
@@ -18,7 +20,9 @@ module AESKeyWrap
     #
     # @param unwrapped_key [String] The plaintext key to be wrapped, as a binary string
     # @param kek [String] The key-encrypting key, as a binary_string
-    # @param iv [Integer] The "initial value", as unsigned 64bit integer
+    # @param iv [Integer, String] The "initial value", as either an unsigned
+    #   64-bit integer (e.g. `0xDEADBEEFC0FFEEEE`) or an 8-byte string (e.g.
+    #   `"\xDE\xAD\xBE\xEF\xC0\xFF\xEE\xEE"`).
     # @return [String] The wrapped key, as a binary string
     #
     def wrap(unwrapped_key, kek, iv=DEFAULT_IV)
@@ -31,7 +35,7 @@ module AESKeyWrap
       #    n: block_count
       #    AES: aes(:encrypt, _, _)
       #    IV: iv
-      buffer = [iv] + unwrapped_key.unpack('Q>*')
+      buffer = [coerce_uint64(iv)] + unwrapped_key.unpack('Q>*')
       block_count = buffer.size - 1
 
       # 2) Calculate intermediate values.
@@ -61,10 +65,12 @@ module AESKeyWrap
     #
     # @param wrapped_key [String] The wrapped key (cyphertext), as a binary string
     # @param kek [String] The key-encrypting key, as a binary string
-    # @param expected_iv [Integer] The IV used to wrap the key, as an unsigned 64bit integer
+    # @param expected_iv [Integer, String] The IV used to wrap the key, as either
+    #   an unsigned 64-bit integer (e.g. `0xDEADBEEFC0FFEEEE`) or an 8-byte
+    #   string (e.g. `"\xDE\xAD\xBE\xEF\xC0\xFF\xEE\xEE"`).
     # @return [String] The unwrapped (plaintext) key as a binary string, or
-    #                  `nil` if unwrapping failed due to `expected_iv` not matching the
-    #                  decrypted IV
+    #   `nil` if unwrapping failed due to `expected_iv` not matching the
+    #   decrypted IV
     #
     # @see #unwrap!
     #
@@ -95,7 +101,7 @@ module AESKeyWrap
       end
 
       # 3) Output the results.
-      if buffer[0] == expected_iv
+      if buffer[0] == coerce_uint64(expected_iv)
         buffer.drop(1).pack('Q>*')
       else
         nil
@@ -113,6 +119,8 @@ module AESKeyWrap
 
     private
 
+      MAX_UINT64 = 0xFFFFFFFFFFFFFFFF
+
       def aes(encrypt_or_decrypt, key, data)
         decipher = OpenSSL::Cipher::AES.new(key.bytesize * 8, :ECB)
         decipher.send(encrypt_or_decrypt)
@@ -120,6 +128,27 @@ module AESKeyWrap
         decipher.padding = 0
 
         decipher.update(data) + decipher.final
+      end
+
+      def coerce_uint64(value)
+        case value
+        when Integer
+          if value > MAX_UINT64
+            raise ArgumentError, "IV is too large to fit in a 64-bit unsigned integer"
+          elsif value < 0
+            raise ArgumentError, "IV is not an unsigned integer (it's negative)"
+          else
+            value
+          end
+        when String
+          if value.bytesize == IV_SIZE
+            value.unpack("Q>").first
+          else
+            raise ArgumentError, "IV is not #{IV_SIZE} bytes long"
+          end
+        else
+          raise ArgumentError, "IV is not valid: #{value.inspect}"
+        end
       end
   end
 end

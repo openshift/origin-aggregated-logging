@@ -28,12 +28,16 @@ Features overview:
 * Node reloading (based on cluster state) on errors or on demand
 
 For optimal performance, use a HTTP library which supports persistent ("keep-alive") connections,
-such as [Typhoeus](https://github.com/typhoeus/typhoeus).
-Just require the library (`require 'typhoeus'; require 'typhoeus/adapters/faraday'`) in your code,
-and it will be automatically used; currently these libraries will be automatically detected and used:
-[Patron](https://github.com/toland/patron),
-[HTTPClient](https://rubygems.org/gems/httpclient) and
-[Net::HTTP::Persistent](https://rubygems.org/gems/net-http-persistent).
+such as [patron](https://github.com/toland/patron) or [Typhoeus](https://github.com/typhoeus/typhoeus).
+Just require the library (`require 'patron'`) in your code, and it will be automatically used.
+
+Currently these libraries will be automatically detected and used:
+- [Patron](https://github.com/toland/patron)
+- [Typhoeus](https://github.com/typhoeus/typhoeus)
+- [HTTPClient](https://rubygems.org/gems/httpclient)
+- [Net::HTTP::Persistent](https://rubygems.org/gems/net-http-persistent)
+
+**Note on [Typhoeus](https://github.com/typhoeus/typhoeus)**: You need to use v1.4.0 or up since older versions are not compatible with Faraday 1.0.
 
 For detailed information, see example configurations [below](#transport-implementations).
 
@@ -68,6 +72,23 @@ without any configuration:
 Full documentation is available at <http://rubydoc.info/gems/elasticsearch-transport>.
 
 ## Configuration
+
+* [Setting Hosts](#setting-hosts)
+* [Default port](#default-port)
+* [Connect using an Elastic Cloud ID](#connect-using-an-elastic-cloud-id)
+* [Authentication](#authentication)
+* [Logging](#logging)
+* [Custom HTTP Headers](#custom-http-headers)
+* [Identifying running tasks with X-Opaque-Id](#identifying-running-tasks-with-x-opaque-id)
+* [Setting Timeouts](#setting-timeouts)
+* [Randomizing Hosts](#randomizing-hosts)
+* [Retrying on Failures](#retrying-on-failures)
+* [Reloading Hosts](#reloading-hosts)
+* [Connection Selector](#connection-selector)
+* [Transport Implementations](#transport-implementations)
+* [Serializer implementations](#serializer-implementations)
+* [Exception Handling](#exception-handling)
+* [Development and Community](#development-and-community)
 
 The client supports many configurations options for setting up and managing connections,
 configuring logging, customizing the transport library, etc.
@@ -144,35 +165,108 @@ use the `transport_options` option:
     Elasticsearch::Client.new url: 'https://username:password@example.com:9200',
                               transport_options: { ssl: { ca_file: '/path/to/cacert.pem' } }
 
+You can also use [**API Key authentication**](https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html):
+
+``` ruby
+Elasticsearch::Client.new(
+  host: host,
+  transport_options: transport_options,
+  api_key: credentials
+)
+```
+
+Where credentials is either the base64 encoding of `id` and `api_key` joined by a colon or a hash with the `id` and `api_key`:
+
+``` ruby
+Elasticsearch::Client.new(
+  host: host,
+  transport_options: transport_options,
+  api_key: {id: 'my_id', api_key: 'my_api_key'}
+)
+```
+
 ### Logging
 
 To log requests and responses to standard output with the default logger (an instance of Ruby's {::Logger} class),
 set the `log` argument:
 
-    Elasticsearch::Client.new log: true
+```ruby
+Elasticsearch::Client.new log: true
+```
+
 
 To trace requests and responses in the _Curl_ format, set the `trace` argument:
 
-    Elasticsearch::Client.new trace: true
+```ruby
+Elasticsearch::Client.new trace: true
+```
 
 You can customize the default logger or tracer:
 
+```ruby
     client.transport.logger.formatter = proc { |s, d, p, m| "#{s}: #{m}\n" }
     client.transport.logger.level = Logger::INFO
+```
 
 Or, you can use a custom `::Logger` instance:
 
-    Elasticsearch::Client.new logger: Logger.new(STDERR)
+```ruby
+Elasticsearch::Client.new logger: Logger.new(STDERR)
+```
 
 You can pass the client any conforming logger implementation:
 
-    require 'logging' # https://github.com/TwP/logging/
+```ruby
+require 'logging' # https://github.com/TwP/logging/
 
-    log = Logging.logger['elasticsearch']
-    log.add_appenders Logging.appenders.stdout
-    log.level = :info
+log = Logging.logger['elasticsearch']
+log.add_appenders Logging.appenders.stdout
+log.level = :info
 
-    client = Elasticsearch::Client.new logger: log
+client = Elasticsearch::Client.new logger: log
+```
+
+### Custom HTTP Headers
+
+You can set a custom HTTP header on the client's initializer:
+
+```ruby
+client = Elasticsearch::Client.new(
+  transport_options: {
+    headers:
+      {user_agent: "My App"}
+  }
+)
+```
+
+You can also pass in `headers` as a parameter to any of the API Endpoints to set custom headers for the request:
+
+```ruby
+client.search(index: 'myindex', q: 'title:test', headers: {user_agent: "My App"})
+```
+
+### Identifying running tasks with X-Opaque-Id
+
+The X-Opaque-Id header allows to track certain calls, or associate certain tasks with the client that started them ([more on the Elasticsearch docs](https://www.elastic.co/guide/en/elasticsearch/reference/master/tasks.html#_identifying_running_tasks)). To use this feature, you need to set an id for `opaque_id` on the client on each request. Example:
+
+```ruby
+client = Elasticsearch::Client.new
+client.search(index: 'myindex', q: 'title:test', opaque_id: '123456')
+```
+The search request will include the following HTTP Header:
+```
+X-Opaque-Id: 123456
+```
+
+You can also set a prefix for X-Opaque-Id when initializing the client. This will be prepended to the id you set before each request if you're using X-Opaque-Id. Example:
+```ruby
+client = Elasticsearch::Client.new(opaque_id_prefix: 'eu-west1')
+client.search(index: 'myindex', q: 'title:test', opaque_id: '123456')
+```
+The request will include the following HTTP Header:
+```
+X-Opaque-Id: eu-west1_123456
+```
 
 ### Setting Timeouts
 
@@ -268,25 +362,29 @@ preferring HTTP clients with support for persistent connections.
 
 To use the [_Patron_](https://github.com/toland/patron) HTTP, for example, just require it:
 
-    require 'patron'
+```ruby
+require 'patron'
+```
 
 Then, create a new client, and the _Patron_  gem will be used as the "driver":
 
-    client = Elasticsearch::Client.new
+```ruby
+client = Elasticsearch::Client.new
 
-    client.transport.connections.first.connection.builder.handlers
-    # => [Faraday::Adapter::Patron]
+client.transport.connections.first.connection.builder.adapter
+# => Faraday::Adapter::Patron
 
-    10.times do
-      client.nodes.stats(metric: 'http')['nodes'].values.each do |n|
-        puts "#{n['name']} : #{n['http']['total_opened']}"
-      end
-    end
+10.times do
+  client.nodes.stats(metric: 'http')['nodes'].values.each do |n|
+    puts "#{n['name']} : #{n['http']['total_opened']}"
+  end
+end
 
-    # => Stiletoo : 24
-    # => Stiletoo : 24
-    # => Stiletoo : 24
-    # => ...
+# => Stiletoo : 24
+# => Stiletoo : 24
+# => Stiletoo : 24
+# => ...
+```
 
 To use a specific adapter for _Faraday_, pass it as the `adapter` argument:
 
@@ -308,44 +406,35 @@ constructor, use the `transport_options` key:
 
 To configure the _Faraday_ instance directly, use a block:
 
-    require 'typhoeus'
-    require 'typhoeus/adapters/faraday'
+    require 'patron'
 
     client = Elasticsearch::Client.new(host: 'localhost', port: '9200') do |f|
       f.response :logger
-      f.adapter  :typhoeus
+      f.adapter  :patron
     end
 
-You can use any standard Faraday middleware and plugins in the configuration block,
-for example sign the requests for the [AWS Elasticsearch service](https://aws.amazon.com/elasticsearch-service/):
-
-    require 'faraday_middleware/aws_signers_v4'
-
-    client = Elasticsearch::Client.new url: 'https://search-my-cluster-abc123....es.amazonaws.com' do |f|
-      f.request :aws_signers_v4,
-                credentials: Aws::Credentials.new(ENV['AWS_ACCESS_KEY'], ENV['AWS_SECRET_ACCESS_KEY']),
-                service_name: 'es',
-                region: 'us-east-1'
-    end
+You can use any standard Faraday middleware and plugins in the configuration block, for example sign the requests for the [AWS Elasticsearch service](https://aws.amazon.com/elasticsearch-service/). See [the AWS documentation](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-request-signing.html#es-request-signing-ruby) for an example.
 
 You can also initialize the transport class yourself, and pass it to the client constructor
 as the `transport` argument:
 
-    require 'typhoeus'
-    require 'typhoeus/adapters/faraday'
+```ruby
+require 'patron'
 
-    transport_configuration = lambda do |f|
-      f.response :logger
-      f.adapter  :typhoeus
-    end
+transport_configuration = lambda do |f|
+  f.response :logger
+  f.adapter  :patron
+end
 
-    transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new \
-      hosts: [ { host: 'localhost', port: '9200' } ],
-      &transport_configuration
+transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new \
+  hosts: [ { host: 'localhost', port: '9200' } ],
+  &transport_configuration
 
-    # Pass the transport to the client
-    #
-    client = Elasticsearch::Client.new transport: transport
+# Pass the transport to the client
+#
+client = Elasticsearch::Client.new transport: transport
+```
+
 
 Instead of passing the transport to the constructor, you can inject it at run time:
 

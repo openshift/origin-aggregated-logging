@@ -50,8 +50,6 @@ module JSON
       end
     end
 
-    private
-
     def rsa?
       self[:kty]&.to_sym == :RSA
     end
@@ -62,12 +60,6 @@ module JSON
 
     def oct?
       self[:kty]&.to_sym == :oct
-    end
-
-    def calculate_default_kid
-      self[:kid] = thumbprint
-    rescue
-      # ignore
     end
 
     def normalize
@@ -93,6 +85,14 @@ module JSON
       else
         raise UnknownAlgorithm.new('Unknown Key Type')
       end
+    end
+
+    private
+
+    def calculate_default_kid
+      self[:kid] = thumbprint
+    rescue
+      # ignore
     end
 
     def to_rsa_key
@@ -127,6 +127,8 @@ module JSON
         'secp384r1'
       when :'P-521'
         'secp521r1'
+      when :secp256k1
+        'secp256k1'
       else
         raise UnknownAlgorithm.new('Unknown EC Curve')
       end

@@ -286,9 +286,11 @@ class ChildProcessTest < Test::Unit::TestCase
       assert_equal [], @d.log.out.logs
 
       @d.stop # nothing occurs
-      sleep TEST_WAIT_INTERVAL_FOR_LOOP
-      lines1 = ary.size
-      assert{ lines1 > 1 }
+      lines1 = nil
+      waiting(TEST_WAIT_INTERVAL_FOR_LOOP * 3) do
+        lines1 = ary.size
+        lines1 > 1
+      end
 
       pid = @d._child_process_processes.keys.first
       # default value 10 is too long for test
@@ -815,6 +817,21 @@ class ChildProcessTest < Test::Unit::TestCase
         assert_equal 9, exit_status.termsig # SIGKILL
       end
       assert File.exist?(@temp_path)
+    end
+
+    test 'execute child process writing data to stdout which is unread' do
+      callback_called = false
+      exit_status = nil
+      prog = "echo writing to stdout"
+      callback = ->(status){ exit_status = status; callback_called = true }
+      Timeout.timeout(TEST_DEADLOCK_TIMEOUT) do
+        @d.child_process_execute(:out_exec_process, prog, stderr: :connect, immediate: true, parallel: true, mode: [], wait_timeout: 1, on_exit_callback: callback)
+        sleep TEST_WAIT_INTERVAL_FOR_BLOCK_RUNNING until callback_called
+      end
+      assert callback_called
+      assert exit_status
+      assert exit_status.success?
+      assert_equal 0, exit_status.exitstatus
     end
   end
 end

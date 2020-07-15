@@ -23,7 +23,6 @@ require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
-require 'fluent/plugin_helper/thread'
 require 'fluent/plugin/filter'
 require 'resolv'
 
@@ -38,8 +37,6 @@ module Fluent::Plugin
     include KubernetesMetadata::WatchPods
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
-
-    helpers :thread
 
     config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
@@ -65,7 +62,7 @@ module Fluent::Plugin
     # Field 2 is the container_hash, field 5 is the pod_id, and field 6 is the pod_randhex
     # I would have included them as named groups, but you can't have named groups that are
     # non-capturing :P
-    # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317
+    # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/kubelet/dockertools/docker.go#L317
     config_param :container_name_to_kubernetes_regexp,
                  :string,
                  :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
@@ -85,11 +82,11 @@ module Fluent::Plugin
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
     # The time interval in seconds for retry backoffs when watch connections fail.
-    config_param :watch_retry_interval, :bool, default: 1
+    config_param :watch_retry_interval, :integer, default: 1
     # The base number of exponential backoff for retries.
-    config_param :watch_retry_exponential_backoff_base, :bool, default: 2
+    config_param :watch_retry_exponential_backoff_base, :integer, default: 2
     # The maximum number of times to retry pod and namespace watches.
-    config_param :watch_retry_max_times, :bool, default: 10
+    config_param :watch_retry_max_times, :integer, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -211,6 +208,8 @@ module Fluent::Plugin
           end
           @kubernetes_url = "https://#{env_host}:#{env_port}/api"
           log.debug "Kubernetes URL is now '#{@kubernetes_url}'"
+        else
+          log.debug "No Kubernetes URL could be found in config or environ"
         end
       end
 
@@ -274,14 +273,10 @@ module Fluent::Plugin
         end
 
         if @watch
-          pod_thread = thread_create :"pod_watch_thread" do
-            set_up_pod_thread
-          end
+          pod_thread = Thread.new(self) { |this| this.set_up_pod_thread }
           pod_thread.abort_on_exception = true
 
-          namespace_thread = thread_create :"namespace_watch_thread" do
-            set_up_namespace_thread
-          end
+          namespace_thread = Thread.new(self) { |this| this.set_up_namespace_thread }
           namespace_thread.abort_on_exception = true
         end
       end

@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.files = ["LICENCE".freeze, "README.md".freeze, "lib/fluent/plugin/filter_systemd_entry.rb".freeze, "lib/fluent/plugin/in_systemd.rb".freeze, "lib/fluent/plugin/systemd/entry_mutator.rb".freeze]
   s.homepage = "https://github.com/reevoo/fluent-plugin-systemd".freeze
   s.licenses = ["Apache-2.0".freeze]
-  s.rubygems_version = "3.0.3".freeze
+  s.rubygems_version = "3.0.8".freeze
   s.summary = "Input plugin to read from systemd journal.".freeze
 
   if s.respond_to? :specification_version then

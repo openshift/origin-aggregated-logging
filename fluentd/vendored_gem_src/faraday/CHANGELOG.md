@@ -1,5 +1,49 @@
 # Faraday Changelog
 
+## v1.0
+
+Features:
+
+* Add #trace support to Faraday::Connection #861 (@technoweenie)
+* Add the log formatter that is easy to override and safe to inherit #889 (@prikha)
+* Support standalone adapters #941 (@iMacTia)
+* Introduce Faraday::ConflictError for 409 response code #979 (@lucasmoreno)
+* Add support for setting `read_timeout` option separately #1003 (@springerigor)
+* Refactor and cleanup timeout settings across adapters #1022 (@technoweenie)
+* Create ParamPart class to allow multipart posts with JSON content and file upload at the same time #1017 (@jeremy-israel)
+* Copy UploadIO const -> FilePart for consistency with ParamPart #1018, #1021 (@technoweenie)
+* Implement streaming responses in the Excon adapter #1026 (@technoweenie)
+* Add default implementation of `Middleware#close`. #1069 (@ioquatix)
+* Add `Adapter#close` so that derived classes can call super. #1091 (@ioquatix)
+* Add log_level option to logger default formatter #1079 (@amrrbakry)
+* Fix empty array for FlatParamsEncoder `{key: []} -> "key="` #1084 (@mrexox)
+
+Bugs:
+
+* Explicitly require date for DateTime library in Retry middleware #844 (@nickpresta)
+* Refactor Adapter as final endpoints #846 (@iMacTia)
+* Separate Request and Response bodies in Faraday::Env #847 (@iMacTia)
+* Implement Faraday::Connection#options to make HTTP requests with the OPTIONS verb. #857 (@technoweenie)
+* Multipart: Drop Ruby 1.8 String behavior compat #892 (@olleolleolle)
+* Fix Ruby warnings in Faraday::Options.memoized #962 (@technoweenie)
+* Allow setting min/max SSL version for a Net::HTTP::Persistent connection #972, #973 (@bdewater, @olleolleolle)
+* Fix instances of frozen empty string literals #1040 (@BobbyMcWho)
+* remove temp_proxy and improve proxy tests #1063 (@technoweenie)
+* improve error initializer consistency #1095 (@technoweenie)
+
+Misc:
+
+* Convert minitest suite to RSpec #832 (@iMacTia, with help from @gaynetdinov, @Insti, @technoweenie)
+* Major effort to update code to RuboCop standards. #854 (@olleolleolle, @iMacTia, @technoweenie, @htwroclau, @jherdman, @Drenmi, @Insti)
+* Rubocop #1044, #1047 (@BobbyMcWho, @olleolleolle)
+* Documentation tweaks (@adsteel, @Hubro, @iMacTia, @olleolleolle, @technoweenie)
+* Update license year #981 (@Kevin-Kawai)
+* Configure Jekyll plugin jekyll-remote-theme to support Docker usage #999 (@Lewiscowles1986)
+* Fix Ruby 2.7 warnings #1009 (@tenderlove)
+* Cleanup adapter connections #1023 (@technoweenie)
+* Describe clearing cached stubs #1045 (@viraptor)
+* Add project metadata to the gemspec #1046 (@orien)
+
 ## v0.17.3
 
 Fixes:
@@ -85,17 +129,17 @@ Fixes:
 
 Features:
 
-* Allow overriding env proxy (#754)
-* Remove legacy Typhoeus adapter (#715)
-* External Typhoeus Adapter Compatibility (#748)
-* Warn about missing adapter when making a request (#743)
-* Faraday::Adapter::Test stubs now support entire urls (with host) (#741)
+* Allow overriding env proxy #754 (@iMacTia)
+* Remove legacy Typhoeus adapter #715 (@olleolleolle)
+* External Typhoeus Adapter Compatibility #748 (@iMacTia)
+* Warn about missing adapter when making a request #743 (@antstorm)
+* Faraday::Adapter::Test stubs now support entire urls (with host) #741 (@erik-escobedo)
 
 Fixes:
 
-* If proxy is manually provided, this takes priority over `find_proxy` (#724)
-* Fixes the behaviour for Excon's open_timeout (not setting write_timeout anymore) (#731)
-* Handle all connection timeout messages in Patron (#687)
+* If proxy is manually provided, this takes priority over `find_proxy` #724 (@iMacTia)
+* Fixes the behaviour for Excon's open_timeout (not setting write_timeout anymore) #731 (@apachelogger)
+* Handle all connection timeout messages in Patron #687 (@stayhero)
 
 ## v0.13.1
 
