@@ -8,6 +8,7 @@ fluentd 1.11.1 https://www.fluentd.org/
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
 fluent-plugin-kafka 0.13.0 https://github.com/fluent/fluent-plugin-kafka
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
+fluent-plugin-remote_syslog 1.0.0 https://github.com/dlackty/fluent-plugin-remote_syslog
 fluent-plugin-splunk-hec 1.2.2 https://github.com/splunk/fluent-plugin-splunk-hec
 http-accept 1.7.0 https://github.com/ioquatix/http-accept
 http-parser 1.2.1 https://github.com/cotag/http-parser
@@ -17,6 +18,7 @@ jsonpath 1.0.5 https://github.com/joshbuddy/jsonpath
 ltsv 0.1.2 https://github.com/condor/ltsv
 openid_connect 1.1.8 https://github.com/nov/openid_connect
 rack-oauth2 1.15.0 http://github.com/nov/rack-oauth2
+remote_syslog_sender 1.2.1 https://github.com/reproio/remote_syslog_logger
 rubygem-activemodel 5.2.4.3 http://rubyonrails.org
 rubygem-activesupport 5.2.4.3 http://rubyonrails.org
 rubygem-addressable 2.7.0 https://github.com/sporkmonger/addressable

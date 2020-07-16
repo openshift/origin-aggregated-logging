@@ -65,6 +65,9 @@ GEM
       fluent-mixin-config-placeholders
       fluentd
       syslog_protocol
+    fluent-plugin-remote_syslog (1.0.0)
+      fluentd
+      remote_syslog_sender (>= 1.1.1)
     fluent-plugin-rewrite-tag-filter (2.3.0)
       fluent-config-regexp-type
       fluentd (>= 0.14.2, < 2)
@@ -155,6 +158,8 @@ GEM
       rack (>= 2.1.0)
     rake (13.0.1)
     recursive-open-struct (1.1.2)
+    remote_syslog_sender (1.2.1)
+      syslog_protocol
     rest-client (2.1.0)
       http-accept (>= 1.7.0, < 2.0)
       http-cookie (>= 1.0.2, < 2.0)
@@ -210,6 +215,7 @@ DEPENDENCIES
   fluent-plugin-prometheus
   fluent-plugin-record-modifier
   fluent-plugin-remote-syslog
+  fluent-plugin-remote_syslog
   fluent-plugin-rewrite-tag-filter
   fluent-plugin-splunk-hec
   fluent-plugin-systemd

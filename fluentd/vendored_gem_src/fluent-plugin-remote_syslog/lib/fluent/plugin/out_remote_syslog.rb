@@ -16,7 +16,6 @@ module Fluent
       config_param :facility, :string, :default => "user"
       config_param :severity, :string, :default => "notice"
       config_param :program, :string, :default => "fluentd"
-      config_param :rfc, :enum, list: [:rfc3164, :rfc5424], :default => :rfc5424
 
       config_param :protocol, :enum, list: [:udp, :tcp], :default => :udp
       config_param :tls, :bool, :default => false
@@ -99,7 +98,6 @@ module Fluent
 
         packet_options = {facility: facility, severity: severity, program: program}
         packet_options[:hostname] = hostname unless hostname.empty?
-        packet_options[:rfc] = @rfc
 
         begin
           chunk.open do |io|
