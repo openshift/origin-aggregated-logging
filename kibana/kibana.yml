@@ -120,3 +120,7 @@ opendistro_security.multitenancy.enabled: true
 opendistro_security.allow_client_certificates: true
 opendistro_security.multitenancy.tenants.enable_global: false
 opendistro_security.multitenancy.tenants.enable_private: true
+
+# addresses https://access.redhat.com/security/cve/CVE-2020-7013
+# addresses https://access.redhat.com/security/cve/CVE-2020-7015
+metrics.enabled: false
