@@ -107,3 +107,7 @@ elasticsearch.requestHeadersWhitelist: [ 'authorization', 'X-Proxy-Remote-User',
 # The default locale. This locale can be used in certain circumstances to substitute any missing
 # translations.
 #i18n.defaultLocale: "en"
+
+# addresses https://access.redhat.com/security/cve/CVE-2020-7013
+# addresses https://access.redhat.com/security/cve/CVE-2020-7015
+metrics.enabled: false
