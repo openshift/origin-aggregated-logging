@@ -80,8 +80,6 @@ class HTTPOutputTest < Test::Unit::TestCase
         req.body.each_line { |l|
           data << JSON.parse(l)
         }
-      when 'application/json'
-        data = JSON.parse(req.body)
       when 'text/plain'
         # Use single_value in this test
         req.body.each_line { |line|
@@ -119,7 +117,7 @@ class HTTPOutputTest < Test::Unit::TestCase
     Fluent::Test.setup
     FileUtils.rm_rf(TMP_DIR)
 
-    @@result = Result.new(nil, nil, {}, nil)
+    @@result = Result.new(nil, nil, {}, nil)    
     @@http_server_thread ||= Thread.new do
       run_http_server
     end
@@ -170,32 +168,6 @@ class HTTPOutputTest < Test::Unit::TestCase
     assert_nil d.instance.headers
   end
 
-  def test_configure_with_warn
-    d = create_driver(config)
-    assert_match(/Status code 503 is going to be removed/, d.instance.log.out.logs.join)
-  end
-
-  def test_configure_without_warn
-    d = create_driver(<<~CONFIG)
-      endpoint #{base_endpoint}/test
-      retryable_response_codes [503]
-    CONFIG
-    assert_not_match(/Status code 503 is going to be removed/, d.instance.log.out.logs.join)
-  end
-
-  # Check if an exception is raised on not JSON format use
-  data('not_json' => 'msgpack')
-  def test_configure_with_json_array_err(format_type)
-    assert_raise(Fluent::ConfigError) do
-      create_driver(config + %[
-        json_array true
-        <format>
-          @type #{format_type}
-        </format>
-      ])
-    end
-  end
-
   data('json' => ['json', 'application/x-ndjson'],
        'ltsv' => ['ltsv', 'text/tab-separated-values'],
        'msgpack' => ['msgpack', 'application/x-msgpack'],
@@ -207,14 +179,6 @@ class HTTPOutputTest < Test::Unit::TestCase
         @type #{format_type}
       </format>
     ])
-    assert_equal content_type, d.instance.content_type
-  end
-
-  # Check that json_array setting sets content_type = application/json
-  data('json' => 'application/json')
-  def test_configure_content_type_json_array(content_type)
-    d = create_driver(config + "json_array true")
-
     assert_equal content_type, d.instance.content_type
   end
 
@@ -230,21 +194,6 @@ class HTTPOutputTest < Test::Unit::TestCase
     result = @@result
     assert_equal method.upcase, result.method
     assert_equal 'application/x-ndjson', result.content_type
-    assert_equal test_events, result.data
-    assert_not_empty result.headers
-  end
-
-  # Check that JSON at HTTP request body is valid
-  def test_write_with_json_array_setting
-    d = create_driver(config + "json_array true")
-    d.run(default_tag: 'test.http') do
-      test_events.each { |event|
-        d.feed(event)
-      }
-    end
-
-    result = @@result
-    assert_equal 'application/json', result.content_type
     assert_equal test_events, result.data
     assert_not_empty result.headers
   end
@@ -281,9 +230,6 @@ class HTTPOutputTest < Test::Unit::TestCase
   end
 
   def test_write_with_retryable_response
-    old_report_on_exception = Thread.report_on_exception
-    Thread.report_on_exception = false # thread finished as invalid state since RetryableResponse raises.
-
     d = create_driver("endpoint #{base_endpoint}/503")
     assert_raise(Fluent::Plugin::HTTPOutput::RetryableResponse) do
       d.run(default_tag: 'test.http', shutdown: false) do
@@ -292,10 +238,7 @@ class HTTPOutputTest < Test::Unit::TestCase
         }
       end
     end
-
-    d.instance_shutdown(log: $log)
-  ensure
-    Thread.report_on_exception = old_report_on_exception
+    d.instance_shutdown
   end
 
   def test_write_with_disabled_unrecoverable
@@ -308,7 +251,7 @@ class HTTPOutputTest < Test::Unit::TestCase
         d.feed(event)
       }
     end
-    assert_match(/got error response from.*404 Not Found Not Found/, d.instance.log.out.logs.join)
+    assert_match(/got error response from.*404 Not Found Not Found/, d.instance.log.out.logs.first)
     d.instance_shutdown
   end
 
@@ -364,7 +307,7 @@ class HTTPOutputTest < Test::Unit::TestCase
           d.feed(event)
         }
       end
-      assert_match(/got unrecoverable error/, d.instance.log.out.logs.join)
+      assert_match(/got unrecoverable error/, d.instance.log.out.logs.first)
 
       d.instance_shutdown
     end

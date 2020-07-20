@@ -50,6 +50,7 @@ public class TestNoOverflowLongBody {
   }
 
   public static void test () {
+    p(TestNoOverflowLongBody.class);
     test(http_parser.ParserType.HTTP_REQUEST, 1000);
     test(http_parser.ParserType.HTTP_REQUEST, 100000);
     test(http_parser.ParserType.HTTP_RESPONSE, 1000);

@@ -59,7 +59,7 @@ for dir in * ; do
 done
 
 if CONFIGURE_ARGS="--with-cflags='$( rpm --eval %optflags )' ${CONFIGURE_ARGS:-}" \
-   gem install -V --local -N *.gem ; then
+   gem install *.gem  -V --local -N --ignore-dependencies ; then
    echo INFO: all gems installed successfully
    rc=0
 else

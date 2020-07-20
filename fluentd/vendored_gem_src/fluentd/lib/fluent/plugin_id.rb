@@ -15,29 +15,25 @@
 #
 
 require 'set'
-require 'fluent/variable_store'
 
 module Fluent
   module PluginId
+    @@configured_ids = Set.new
 
     def initialize
       super
-
-      @_plugin_id_variable_store = nil
       @_plugin_root_dir = nil
-      @id = nil
     end
 
     def configure(conf)
-      @_plugin_id_variable_store = Fluent::VariableStore.fetch_or_build(:pluing_id, default_value: Set.new)
       @id = conf['@id']
       @_id_configured = !!@id # plugin id is explicitly configured by users (or not)
       if @id
         @id = @id.to_s
-        if @_plugin_id_variable_store.include?(@id) && !plugin_id_for_test?
+        if @@configured_ids.include?(@id) && !plugin_id_for_test?
           raise Fluent::ConfigError, "Duplicated plugin id `#{@id}`. Check whole configuration and fix it."
         end
-        @_plugin_id_variable_store.add(@id)
+        @@configured_ids.add(@id)
       end
 
       super
@@ -76,17 +72,9 @@ module Fluent
 
       # Fluent::Plugin::Base#fluentd_worker_id
       dir = File.join(system_config.root_dir, "worker#{fluentd_worker_id}", plugin_id)
-      FileUtils.mkdir_p(dir, mode: system_config.dir_permission || 0755) unless Dir.exist?(dir)
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       @_plugin_root_dir = dir.freeze
       dir
-    end
-
-    def stop
-      if @_plugin_id_variable_store
-        @_plugin_id_variable_store.delete(@id)
-      end
-
-      super
     end
   end
 end

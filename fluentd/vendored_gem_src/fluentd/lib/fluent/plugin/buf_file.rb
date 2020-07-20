@@ -19,7 +19,6 @@ require 'fileutils'
 require 'fluent/plugin/buffer'
 require 'fluent/plugin/buffer/file_chunk'
 require 'fluent/system_config'
-require 'fluent/variable_store'
 
 module Fluent
   module Plugin
@@ -30,6 +29,8 @@ module Fluent
 
       DEFAULT_CHUNK_LIMIT_SIZE = 256 * 1024 * 1024        # 256MB
       DEFAULT_TOTAL_LIMIT_SIZE =  64 * 1024 * 1024 * 1024 #  64GB, same with v0.12 (TimeSlicedOutput + buf_file)
+
+      DIR_PERMISSION = 0755
 
       desc 'The path where buffer chunks are stored.'
       config_param :path, :string, default: nil
@@ -42,19 +43,17 @@ module Fluent
       config_param :file_permission, :string, default: nil # '0644'
       config_param :dir_permission,  :string, default: nil # '0755'
 
+      @@buffer_paths = {}
+
       def initialize
         super
         @symlink_path = nil
         @multi_workers_available = false
         @additional_resume_path = nil
-        @buffer_path = nil
-        @variable_store = nil
       end
 
       def configure(conf)
         super
-
-        @variable_store = Fluent::VariableStore.fetch_or_build(:buf_file)
 
         multi_workers_configured = owner.system_config.workers > 1 ? true : false
 
@@ -69,13 +68,12 @@ module Fluent
         end
 
         type_of_owner = Plugin.lookup_type_from_class(@_owner.class)
-        if @variable_store.has_key?(@path) && !called_in_test?
-          type_using_this_path = @variable_store[@path]
+        if @@buffer_paths.has_key?(@path) && !called_in_test?
+          type_using_this_path = @@buffer_paths[@path]
           raise ConfigError, "Other '#{type_using_this_path}' plugin already use same buffer path: type = #{type_of_owner}, buffer path = #{@path}"
         end
 
-        @buffer_path = @path
-        @variable_store[@buffer_path] = type_of_owner
+        @@buffer_paths[@path] = type_of_owner
 
         specified_directory_exists = File.exist?(@path) && File.directory?(@path)
         unexisting_path_for_directory = !File.exist?(@path) && !@path.include?('.*')
@@ -106,7 +104,7 @@ module Fluent
         if @dir_permission
           @dir_permission = @dir_permission.to_i(8) if @dir_permission.is_a?(String)
         else
-          @dir_permission = system_config.dir_permission || Fluent::DEFAULT_DIR_PERMISSION
+          @dir_permission = system_config.dir_permission || DIR_PERMISSION
         end
       end
 
@@ -120,14 +118,6 @@ module Fluent
 
       def start
         FileUtils.mkdir_p File.dirname(@path), mode: @dir_permission
-
-        super
-      end
-
-      def stop
-        if @variable_store
-          @variable_store.delete(@buffer_path)
-        end
 
         super
       end
@@ -164,17 +154,7 @@ module Fluent
 
           case chunk.state
           when :staged
-            # unstaged chunk created at Buffer#write_step_by_step is identified as the staged chunk here because FileChunk#assume_chunk_state checks only the file name.
-            # https://github.com/fluent/fluentd/blob/9d113029d4550ce576d8825bfa9612aa3e55bff0/lib/fluent/plugin/buffer.rb#L663
-            # This case can happen when fluentd process is killed by signal or other reasons between creating unstaged chunks and changing them to staged mode in Buffer#write
-            # these chunks(unstaged chunks) has shared the same metadata
-            # So perform enqueue step again https://github.com/fluent/fluentd/blob/9d113029d4550ce576d8825bfa9612aa3e55bff0/lib/fluent/plugin/buffer.rb#L364
-            if chunk_size_full?(chunk) || stage.key?(chunk.metadata)
-              chunk.metadata.seq = 0 # metadata.seq should be 0 for counting @queued_num
-              queue << chunk.enqueued!
-            else
-              stage[chunk.metadata] = chunk
-            end
+            stage[chunk.metadata] = chunk
           when :queued
             queue << chunk
           end
@@ -187,8 +167,12 @@ module Fluent
 
       def generate_chunk(metadata)
         # FileChunk generates real path with unique_id
-        perm = @file_permission || system_config.file_permission
-        chunk = Fluent::Plugin::Buffer::FileChunk.new(metadata, @path, :create, perm: perm, compress: @compress)
+        if @file_permission
+          chunk = Fluent::Plugin::Buffer::FileChunk.new(metadata, @path, :create, perm: @file_permission, compress: @compress)
+        else
+          chunk = Fluent::Plugin::Buffer::FileChunk.new(metadata, @path, :create, compress: @compress)
+        end
+
         log.debug "Created new chunk", chunk_id: dump_unique_id_hex(chunk.unique_id), metadata: metadata
 
         return chunk

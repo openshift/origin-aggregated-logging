@@ -19,7 +19,7 @@ require 'stringio'
 require 'json'
 require 'yajl'
 require 'socket'
-require 'ripper'
+require 'irb/ruby-lex'  # RubyLex
 
 require 'fluent/config/basic_parser'
 
@@ -52,16 +52,6 @@ module Fluent
       def initialize(strscan, eval_context)
         super(strscan)
         @eval_context = eval_context
-        unless @eval_context.respond_to?(:use_nil)
-          def @eval_context.use_nil
-            raise SetNil
-          end
-        end
-        unless @eval_context.respond_to?(:use_default)
-          def @eval_context.use_default
-            raise SetDefault
-          end
-        end
       end
 
       def parse_literal(string_boundary_charset = LINE_END)
@@ -91,13 +81,7 @@ module Fluent
         string = []
         while true
           if skip(/\"/)
-            if string.include?(nil)
-              return nil
-            elsif string.include?(:default)
-              return :default
-            else
-              return string.join
-            end
+            return string.join
           elsif check(/[^"]#{LINE_END_WITHOUT_SPACING_AND_COMMENT}/)
             if s = check(/[^\\]#{LINE_END_WITHOUT_SPACING_AND_COMMENT}/)
               string << s
@@ -155,20 +139,15 @@ module Fluent
       end
 
       def scan_embedded_code
-        src = '"#{'+@ss.rest+"\n=begin\n=end\n}"
+        rlex = RubyLex.new
+        src = '"#{'+@ss.rest+"\n=end\n}"
 
-        seek = -1
-        while (seek = src.index('}', seek + 1))
-          unless Ripper.sexp(src[0..seek] + '"').nil? # eager parsing until valid expression
-            break
-          end
-        end
+        input = StringIO.new(src)
+        input.define_singleton_method(:encoding) { external_encoding }
+        rlex.set_input(input)
 
-        unless seek
-          raise Fluent::ConfigParseError, @ss.rest
-        end
-
-        code = src[3, seek-3]
+        tk = rlex.token
+        code = src[3,tk.seek-3]
 
         if @ss.rest.length < code.length
           @ss.pos += @ss.rest.length
@@ -189,13 +168,7 @@ module Fluent
 hostname = Socket.gethostname
 worker_id = ENV['SERVERENGINE_WORKER_ID'] || ''
 EOM
-        begin
-          @eval_context.instance_eval(code)
-        rescue SetNil => e
-          nil
-        rescue SetDefault => e
-          :default
-        end
+        @eval_context.instance_eval(code)
       end
 
       def eval_escape_char(c)

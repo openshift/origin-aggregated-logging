@@ -14,6 +14,7 @@ public class WrongContentLength {
                                       "hello" +
                                       "hello_again";
   static void test () {
+    p(WrongContentLength.class);
     HTTPParser parser = new HTTPParser(ParserType.HTTP_REQUEST);
     ByteBuffer buf    = buffer(contentLength);
     
@@ -43,7 +44,7 @@ public class WrongContentLength {
       this.on_body = new HTTPDataCallback() {
         public int cb (HTTPParser p, ByteBuffer b, int pos, int len) {
           bodyCount += len;
-          p(str(b, pos, len));
+          check ("hello".equals(str(b, pos, len)));
           return 0;
         }
       }; 

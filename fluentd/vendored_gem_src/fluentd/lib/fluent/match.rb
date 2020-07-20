@@ -125,7 +125,7 @@ module Fluent
     end
 
     def match(str)
-      @regex.match?(str)
+      @regex.match(str) != nil
     end
   end
 

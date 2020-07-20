@@ -14,67 +14,55 @@
 #    limitations under the License.
 #
 
-require 'fluent/env'
-require 'fluent/plugin/input'
-require 'fluent/msgpack_factory'
-
-require 'cool.io'
-require 'yajl'
 require 'fileutils'
 require 'socket'
 
-module Fluent::Plugin
-  # TODO: This plugin will be 3rd party plugin
-  class UnixInput < Input
-    Fluent::Plugin.register_input('unix', self)
+require 'cool.io'
+require 'yajl'
 
-    helpers :event_loop
+require 'fluent/input'
+require 'fluent/event'
+
+module Fluent
+  # obsolete
+  class StreamInput < Input
+    config_param :blocking_timeout, :time, default: 0.5
 
     def initialize
-      super
-
-      @lsock = nil
-    end
-
-    desc 'The path to your Unix Domain Socket.'
-    config_param :path, :string, default: Fluent::DEFAULT_SOCKET_PATH
-    desc 'The backlog of Unix Domain Socket.'
-    config_param :backlog, :integer, default: nil
-    desc "New tag instead of incoming tag"
-    config_param :tag, :string, default: nil
-
-    def configure(conf)
+      require 'socket'
+      require 'yajl'
       super
     end
 
     def start
       super
 
+      @loop = Coolio::Loop.new
       @lsock = listen
-      event_loop_attach(@lsock)
+      @loop.attach(@lsock)
+      @thread = Thread.new(&method(:run))
     end
 
     def shutdown
-      if @lsock
-        event_loop_detach(@lsock)
-        @lsock.close
-      end
+      @loop.watchers.each {|w| w.detach }
+      @loop.stop
+      @lsock.close
+      @thread.join
 
       super
     end
 
-    def listen
-      if File.exist?(@path)
-        log.warn "Found existing '#{@path}'. Remove this file for in_unix plugin"
-        File.unlink(@path)
-      end
-      FileUtils.mkdir_p(File.dirname(@path))
+    #def listen
+    #end
 
-      log.info "listening fluent socket on #{@path}"
-      s = Coolio::UNIXServer.new(@path, Handler, log, method(:on_message))
-      s.listen(@backlog) unless @backlog.nil?
-      s
+    def run
+      @loop.run(@blocking_timeout)
+    rescue
+      log.error "unexpected error", error: $!.to_s
+      log.error_backtrace
     end
+
+    private
 
     # message Entry {
     #   1: long time
@@ -97,27 +85,23 @@ module Fluent::Plugin
     #   3: object record
     # }
     def on_message(msg)
-      unless msg.is_a?(Array)
-        log.warn "incoming data is broken:", msg: msg
-        return
-      end
-
-      tag = @tag || (msg[0].to_s)
+      # TODO format error
+      tag = msg[0].to_s
       entries = msg[1]
 
-      case entries
-      when String
+      if entries.class == String
         # PackedForward
-        es = Fluent::MessagePackEventStream.new(entries)
+        es = MessagePackEventStream.new(entries)
         router.emit_stream(tag, es)
 
-      when Array
+      elsif entries.class == Array
         # Forward
-        es = Fluent::MultiEventStream.new
+        es = MultiEventStream.new
         entries.each {|e|
           record = e[1]
           next if record.nil?
-          time = convert_time(e[0])
+          time = e[0]
+          time = (now ||= Engine.now) if time.to_i == 0
           es.add(time, record)
         }
         router.emit_stream(tag, es)
@@ -127,28 +111,25 @@ module Fluent::Plugin
         record = msg[2]
         return if record.nil?
 
-        time = convert_time(msg[1])
+        time = msg[1]
+        time = Engine.now if time.to_i == 0
         router.emit(tag, time, record)
-      end
-    end
-
-    def convert_time(time)
-      case time
-      when nil, 0
-        Fluent::EventTime.now
-      when Fluent::EventTime
-        time
-      else
-        Fluent::EventTime.from_time(Time.at(time))
       end
     end
 
     class Handler < Coolio::Socket
       def initialize(io, log, on_message)
         super(io)
-
+        if io.is_a?(TCPSocket)
+          opt = [1, @timeout.to_i].pack('I!I!')  # { int l_onoff; int l_linger; }
+          io.setsockopt(Socket::SOL_SOCKET, Socket::SO_LINGER, opt)
+        end
         @on_message = on_message
         @log = log
+        @log.trace {
+          remote_port, remote_addr = *Socket.unpack_sockaddr_in(@_io.getpeername) rescue nil
+          "accepted fluent socket from '#{remote_addr}:#{remote_port}': object_id=#{self.object_id}"
+        }
       end
 
       def on_connect
@@ -156,13 +137,13 @@ module Fluent::Plugin
 
       def on_read(data)
         first = data[0]
-        if first == '{'.freeze || first == '['.freeze
+        if first == '{' || first == '['
           m = method(:on_read_json)
-          @parser = Yajl::Parser.new
-          @parser.on_parse_complete = @on_message
+          @y = Yajl::Parser.new
+          @y.on_parse_complete = @on_message
         else
           m = method(:on_read_msgpack)
-          @parser = Fluent::MessagePackFactory.msgpack_unpacker
+          @u = Fluent::Engine.msgpack_factory.unpacker
         end
 
         singleton_class.module_eval do
@@ -172,17 +153,17 @@ module Fluent::Plugin
       end
 
       def on_read_json(data)
-        @parser << data
-      rescue => e
-        @log.error "unexpected error in json payload", error: e.to_s
+        @y << data
+      rescue
+        @log.error "unexpected error", error: $!.to_s
         @log.error_backtrace
         close
       end
 
       def on_read_msgpack(data)
-        @parser.feed_each(data, &@on_message)
-      rescue => e
-        @log.error "unexpected error in msgpack payload", error: e.to_s
+        @u.feed_each(data, &@on_message)
+      rescue
+        @log.error "unexpected error", error: $!.to_s
         @log.error_backtrace
         close
       end
@@ -190,6 +171,31 @@ module Fluent::Plugin
       def on_close
         @log.trace { "closed fluent socket object_id=#{self.object_id}" }
       end
+    end
+  end
+
+  class UnixInput < StreamInput
+    Plugin.register_input('unix', self)
+
+    desc 'The path to your Unix Domain Socket.'
+    config_param :path, :string, default: DEFAULT_SOCKET_PATH
+    desc 'The backlog of Unix Domain Socket.'
+    config_param :backlog, :integer, default: nil
+
+    def configure(conf)
+      super
+      #log.warn "'unix' input is obsoleted and will be removed. Use 'forward' instead."
+    end
+
+    def listen
+      if File.exist?(@path)
+        File.unlink(@path)
+      end
+      FileUtils.mkdir_p File.dirname(@path)
+      log.info "listening fluent socket on #{@path}"
+      s = Coolio::UNIXServer.new(@path, Handler, log, method(:on_message))
+      s.listen(@backlog) unless @backlog.nil?
+      s
     end
   end
 end

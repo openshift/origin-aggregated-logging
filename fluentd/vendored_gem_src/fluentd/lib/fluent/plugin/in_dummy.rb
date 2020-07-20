@@ -37,7 +37,7 @@ module Fluent::Plugin
     desc "If specified, each generated event has an auto-incremented key field."
     config_param :auto_increment_key, :string, default: nil
     desc "The boolean to suspend-and-resume incremental value after restart"
-    config_param :suspend, :bool, default: false,deprecated: 'This parameters is ignored'
+    config_param :suspend, :bool, default: false
     desc "The dummy data to be generated. An array of JSON hashes or a single JSON hash."
     config_param :dummy, default: [{"message"=>"dummy"}] do |val|
       begin
@@ -105,10 +105,10 @@ module Fluent::Plugin
       begin
         if @size > 1
           num.times do
-            router.emit_array(@tag, Array.new(@size) { [Fluent::EventTime.now, generate] })
+            router.emit_array(@tag, Array.new(@size) { [Fluent::Engine.now, generate] })
           end
         else
-          num.times { router.emit(@tag, Fluent::EventTime.now, generate) }
+          num.times { router.emit(@tag, Fluent::Engine.now, generate) }
         end
       rescue => _
         # ignore all errors not to stop emits by emit errors

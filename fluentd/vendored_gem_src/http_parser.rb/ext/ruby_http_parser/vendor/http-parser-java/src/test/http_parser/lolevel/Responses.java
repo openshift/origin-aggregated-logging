@@ -13,6 +13,7 @@ public class Responses {
   
 
   public static void test () {
+    p(Responses.class);
     List<Message> all = TestLoaderNG.load("tests.dumped");
     List<Message> responses = new LinkedList<Message>();
     for (Message m : all) {

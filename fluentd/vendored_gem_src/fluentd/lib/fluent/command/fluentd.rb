@@ -131,10 +131,6 @@ op.on('--use-v0-config', "Use v0 configuration format", TrueClass) {|b|
   opts[:use_v1_config] = !b
 }
 
-op.on('--strict-config-value', "Parse config values strictly", TrueClass) {|b|
-  opts[:strict_config_value] = b
-}
-
 op.on('-v', '--verbose', "increase verbose level (-v: debug, -vv: trace)", TrueClass) {|b|
   if b
     opts[:log_level] = [opts[:log_level] - 1, Fluent::Log::LEVEL_TRACE].max
@@ -166,7 +162,7 @@ op.on('--conf-encoding ENCODING', "specify configuration file encoding") { |s|
 if Fluent.windows?
   require 'windows/library'
   include Windows::Library
-
+  
   opts.merge!(
     :winsvc_name => 'fluentdwinsvc',
     :winsvc_display_name => 'Fluentd Windows Service',
@@ -185,22 +181,18 @@ if Fluent.windows?
     opts[:regwinsvcautostart] = s
   }
 
-  op.on('--[no-]reg-winsvc-delay-start', "Automatically start the Windows Service at boot with delay. (only effective with '--reg-winsvc i' and '--reg-winsvc-auto-start') (Windows only)") {|s|
-    opts[:regwinsvcdelaystart] = s
-  }
-
   op.on('--reg-winsvc-fluentdopt OPTION', "specify fluentd option parameters for Windows Service. (Windows only)") {|s|
     opts[:fluentdopt] = s
   }
-
+  
   op.on('--winsvc-name NAME', "The Windows Service name to run as (Windows only)") {|s|
     opts[:winsvc_name] = s
   }
-
+  
   op.on('--winsvc-display-name DISPLAY_NAME', "The Windows Service display name (Windows only)") {|s|
     opts[:winsvc_display_name] = s
   }
-
+  
   op.on('--winsvc-desc DESC', "The Windows Service description (Windows only)") {|s|
     opts[:winsvc_desc] = s
   }
@@ -276,7 +268,7 @@ if winsvcinstmode = opts[:regwinsvc]
       start_service = true
     end
 
-
+    
     Service.create(
       service_name: opts[:winsvc_name],
       host: nil,
@@ -289,13 +281,6 @@ if winsvcinstmode = opts[:regwinsvc]
       dependencies: [""],
       display_name: opts[:winsvc_display_name]
     )
-
-    if opts[:regwinsvcdelaystart]
-      Service.configure(
-        service_name: opts[:winsvc_name],
-        delayed_start: true
-      )
-    end
   when 'u'
     if Service.status(opts[:winsvc_name]).current_state != 'stopped'
       begin
@@ -324,6 +309,7 @@ end
 
 exit 0 if early_exit
 
+require 'fluent/supervisor'
 if opts[:supervise]
   if Fluent.windows?
     if opts[:log_path] && opts[:log_path] != "-"
@@ -335,29 +321,11 @@ if opts[:supervise]
       end
     end
   end
-
-  supervisor = Fluent::Supervisor.new(opts)
-  supervisor.configure(supervisor: true)
-  supervisor.run_supervisor(dry_run: opts[:dry_run])
+  Fluent::Supervisor.new(opts).run_supervisor
 else
   if opts[:standalone_worker] && opts[:workers] && opts[:workers] > 1
     puts "Error: multi workers is not supported with --no-supervisor"
     exit 2
   end
-  worker = Fluent::Supervisor.new(opts)
-  worker.configure
-
-  if opts[:daemonize] && opts[:standalone_worker]
-    require 'fluent/daemonizer'
-    args = ARGV.dup
-    i = args.index('--daemon')
-    args.delete_at(i + 1)          # value of --daemon
-    args.delete_at(i)              # --daemon itself
-
-    Fluent::Daemonizer.daemonize(opts[:daemonize], args) do
-      worker.run_worker
-    end
-  else
-    worker.run_worker
-  end
+  Fluent::Supervisor.new(opts).run_worker
 end
