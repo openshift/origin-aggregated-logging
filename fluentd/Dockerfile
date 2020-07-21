@@ -1,18 +1,10 @@
-FROM rhel7:7-released
+FROM ubi7/ruby-25:latest as builder
 
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV DATA_VERSION=1.6.0 \
-    FLUENTD_VERSION=0.12.43 \
-    FLUENTD_ES=1.13.0-1 \
-    FLUENTD_KUBE_METADATA=1.0.1-1 \
-    FLUENTD_REWRITE_TAG=1.5.6-1 \
-    FLUENTD_SECURE_FWD=0.4.5-2 \
-    FLUENTD_SYSTEMD=0.0.9-1 \
-    FLUENTD_VIAQ_DATA_MODEL=0.0.13 \
-    FLUENTD_AUDIT_LOG_PARSER_VERSION=0.0.5 \
-    FLUENTD_RECORD_MODIFIER=0.6.1 \
+    FLUENTD_VERSION=1.7.4 \
     GEM_HOME=/usr/share/gems \
     HOME=/opt/app-root/src \
     PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/libexec/fluentd/bin:$PATH \
@@ -22,32 +14,18 @@ ENV DATA_VERSION=1.6.0 \
     LOGGING_FILE_SIZE=1024000 \
     container=oci
 
-ARG TEST_REPO
-
-RUN yum-config-manager --enable rhel-7-server-ose-3.10-rpms && \
-  INSTALL_PKGS="fluentd-${FLUENTD_VERSION} \
-                hostname \
+USER 0
+RUN yum-config-manager --enable rhel-server-rhscl-rpms && \
+  BUILD_PKGS="make gcc-c++ libffi-devel \
+              autoconf automake libtool m4 \
+              redhat-rpm-config" && \
+  RUNTIME_PKGS="hostname \
                 bc \
-                iproute \
-                rubygem-syslog_protocol \
-                rubygem-fluent-mixin-config-placeholders \
-                rubygem-fluent-plugin-elasticsearch \
-                rubygem-fluent-plugin-flatten-hash \
-                rubygem-fluent-plugin-kubernetes_metadata_filter \
-                rubygem-fluent-plugin-record-modifier \
-                rubygem-fluent-plugin-remote-syslog \
-                rubygem-fluent-plugin-rewrite-tag-filter \
-                rubygem-fluent-plugin-secure-forward \
-                rubygem-fluent-plugin-systemd \
-                rubygem-fluent-plugin-viaq_data_model \
-                rubygem-fluent-plugin-prometheus" && \
-  yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-  rpm -V $INSTALL_PKGS && \
+                iproute" && \
+  yum install -y --setopt=tsflags=nodocs $BUILD_PKGS $RUNTIME_PKGS && \
+  rpm -V $BUILD_PKGS && \
+  rpm -V $RUNTIME_PKGS && \
   yum clean all
-
-# uncomment if you want to try out test rpm builds
-#ADD *.rpm /tmp/
-#RUN yum -y install /tmp/*.rpm
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
@@ -55,29 +33,20 @@ ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
 ADD lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
-ADD lib/filter_concat/lib/filter_concat.rb /etc/fluent/plugin/
 ADD lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
-ADD patch/in_prometheus.rb ${GEM_HOME}/gems/fluent-plugin-prometheus-0.4.0/lib/fluent/plugin/
 
 RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
     chmod 777 /etc/fluent/configs.d/dynamic && \
     ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
-ADD patch/logger/log.rb patch/logger/supervisor.rb ${HOME}/
-# for some reason, this isn't able to be loaded from the gem
-RUN if [ ! -d /etc/fluent/plugin ] ; then \
-      mkdir -p /etc/fluent/plugin ; \
-    fi ; \
-    sniffer=$( rpm -ql rubygem-fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb ) ; \
-    if [ -z "$sniffer" -o ! -f "$sniffer" ] ; then \
-        echo Error: sniffer not found - possibly not using rubygem-fluent-plugin-elasticsearch 1.17.2 or later ; \
-    else \
-        cp $sniffer /etc/fluent/plugin/ ; \
-    fi ; \
-    logrbpath=$( gem contents fluentd | grep lib/fluent/log.rb\$ ) ; \
-    suprbpath=$( gem contents fluentd | grep lib/fluent/supervisor.rb\$ ) ; \
-    cp ${HOME}/log.rb $logrbpath ; \
-    cp ${HOME}/supervisor.rb $suprbpath
+ADD vendored_gem_src/ ${HOME}/vendored_gem_src/
+ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
+RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
+
+RUN BUILD_PKGS="make gcc-c++ libffi-devel \
+                autoconf automake libtool m4 \
+                redhat-rpm-config" && \
+    yum remove -y $BUILD_PKGS
 
 COPY utils/** /usr/local/bin/
 

@@ -1,0 +1,18 @@
+source "https://rubygems.org"
+gem 'fluentd', ENV['FLUENTD_VERSION'], :source=>"https://rubygems.org"
+gem 'elasticsearch-transport'
+gem 'elasticsearch-api'
+gem 'elasticsearch'
+gem 'fluent-plugin-concat'
+gem 'fluent-plugin-elasticsearch'
+gem 'fluent-plugin-kubernetes_metadata_filter'
+gem 'fluent-plugin-prometheus'
+gem 'fluent-plugin-record-modifier'
+gem 'fluent-plugin-remote-syslog'
+gem 'fluent-plugin-rewrite-tag-filter'
+gem 'fluent-plugin-secure-forward'
+gem 'fluent-plugin-systemd'
+gem 'fluent-plugin-viaq_data_model'
+
+gem 'ffi', '1.11.3'
+gem 'uuidtools', '2.1.5'

@@ -1,0 +1,87 @@
+Release 2.1.0 - 2019/12/18
+
+  * Add <record> keys to whitelist_keys
+
+Release 2.0.1 - 2019/02/06
+
+  * Update output plugin to support multi process environment
+
+Release 2.0.0 - 2019/01/23
+
+  * Update output plugin to follow filter plugin
+  * Remove backward compatibility check for 0.5.0 or earlier version
+
+Release 1.1.0 - 2018/06/01
+
+  * Add `replace` config sections
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/33
+
+Release 1.0.2 - 2017/12/27
+
+  * Add prepare_value parameter
+  * Fix non-string object handling
+  * Remove deprecated code
+
+Release 1.0.1 - 2017/12/16
+
+  * Fix fluentd dependency
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/28
+
+Release 1.0.0 - 2017/12/12
+
+  * Use v0.14 API
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/14
+  * Support frozen object
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/26
+
+Release 0.5.0 - 2016/08/23
+
+  * Remove fluent-plugin-config-placeholder dependency
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/13
+
+Release 0.4.1 - 2016/02/26
+
+  * Set/Convert encoding recursively
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/9
+  * Add whitelist_keys option
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/11
+
+Release 0.4.0 - 2016/01/08
+
+  * Introduce <record> directive
+  * Support ${xxx} placeholders
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/6
+
+
+Release 0.3.0 - 2015/06/09
+
+  * Add record_modifier filter
+  * Change fluentd dependency version
+
+
+Release 0.2.0 - 2014/09/29
+
+  * Update fluent-mixin-config-placeholders to v0.3.0
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/6
+
+
+Release 0.1.3 - 2014/04/16
+
+  * Add remove_keys option to remove needless fields from record
+    https://github.com/repeatedly/fluent-plugin-record-modifier#remove_keys
+
+
+Release 0.1.2 - 2013/11/22
+
+  * Add char_encoding parameter to handle charactor encoding in event record
+    https://github.com/repeatedly/fluent-plugin-record-modifier#char_encoding
+
+
+Release 0.1.1 - 2013/04/24
+
+  * Fix SetTagKeyMixin
+    https://github.com/repeatedly/fluent-plugin-record-modifier/pull/1
+
+Release 0.1.0 - 2013/04/7
+
+  * First release

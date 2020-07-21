@@ -29,6 +29,7 @@ if [ ${LOGGING_FILE_PATH} != "console" ] ; then
         mkdir -p $dirname
     fi
     touch $LOGGING_FILE_PATH; exec >> $LOGGING_FILE_PATH 2>&1
+    logargs="-o ${LOGGING_FILE_PATH} --log-rotate-age ${LOGGING_FILE_AGE:-10} --log-rotate-size ${LOGGING_FILE_SIZE:-1024000}"
 fi
 
 fluentdargs="--no-supervisor"
@@ -357,7 +358,7 @@ mkdir -p /var/log/fluentd/
 
 issue_deprecation_warnings
 if [[ $DEBUG ]] ; then
-    exec fluentd $fluentdargs > /var/log/fluentd.log 2>&1
+    exec fluentd $fluentdargs ${logargs:-} > /var/log/fluentd.log 2>&1
 else
-    exec fluentd $fluentdargs
+    exec fluentd $fluentdargs ${logargs:-}
 fi

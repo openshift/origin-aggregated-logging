@@ -18,8 +18,6 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
 
   def create_driver(conf = '')
     d = Test::FilterTestDriver.new(ElasticsearchGenidExtFilter, 'this.is.a.tag').configure(conf, true)
-    d.instance.log_level = 'DEBUG'
-    @dlog = d.instance.log
     d
   end
 
@@ -33,6 +31,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
   sub_test_case 'configure' do
     test 'check setting all params to non-default values' do
       d = create_driver('
+        @log_level debug
         hash_id_key viaq_msg_id
         alt_key kubernetes.event.metadata.uid
         alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"
@@ -46,6 +45,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     test 'no alt_key config' do
       record = JSON.parse('{"log":{"message":"a log record"},"key":{"subkey":"0123456789"},"time":"2018-08-22T17:04:12.385850123Z"}')
       rec = emit_with_tag('tag', record, '
+        @log_level debug
         hash_id_key viaq_msg_id
       ')
       assert_not_equal('0123456789', rec["viaq_msg_id"])
@@ -53,6 +53,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     test 'record has no alt_key; no alt_tags' do
       record = JSON.parse('{"log":{"message":"a log record"},"key":{"bogus":"0123456789"},"time":"2018-08-22T17:04:12.385850123Z"}')
       rec = emit_with_tag('tag', record, '
+        @log_level debug
         hash_id_key viaq_msg_id
         alt_key key.subkey
       ')
@@ -61,6 +62,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     test 'record has no alt_key; has matched alt_tags' do
       record = JSON.parse('{"log":{"message":"a log record"},"key":{"bogus":"0123456789"},"time":"2018-08-22T17:04:12.385850123Z"}')
       rec = emit_with_tag('kubernetes.var.log.containers.logging-eventrouter-9876543210', record, '
+        @log_level debug
         hash_id_key viaq_msg_id
         alt_key key.subkey
         alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"
@@ -70,6 +72,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     test 'record has alt_key; no alt_tags' do
       record = JSON.parse('{"log":{"message":"a log record"},"key":{"subkey":"0123456789"},"time":"2018-08-22T17:04:12.385850123Z"}')
       rec = emit_with_tag('tag', record, '
+        @log_level debug
         hash_id_key viaq_msg_id
         alt_key key.subkey
       ')
@@ -78,6 +81,7 @@ class ElasticsearchGenidExtFilterTest < Test::Unit::TestCase
     test 'record has alt_key; has matched alt_tags' do
       record = JSON.parse('{"log":{"message":"a log record"},"key":{"subkey":"0123456789"},"time":"2018-08-22T17:04:12.385850123Z"}')
       rec = emit_with_tag('kubernetes.var.log.containers.logging-eventrouter-9876543210', record, '
+        @log_level debug
         hash_id_key viaq_msg_id
         alt_key key.subkey
         alt_tags "kubernetes.var.log.containers.logging-eventrouter-*.** kubernetes.journal.container._default_.kubernetes-event"

@@ -1,3 +1,5 @@
+before_install:
+  - gem update --system --conservative || gem install --conservative bundler -v '<2'
 matrix:
   include:
     - name: fluentd - generate_throttle_configs test
@@ -5,39 +7,28 @@ matrix:
         - NAME='fluentd - generate_throttle_configs test'
       language: ruby
       rvm:
-      - 2.0
+      - 2.5
       before_script:
         cd fluentd/lib/generate_throttle_configs
       script:
         rake test
     - name: fluentd - filter_parse_json_field test
       env:
-        - FLUENTD_VERSION=0.12.0
+        - FLUENTD_VERSION=1.11.1
       language: ruby
       rvm:
-      - 2.0
+      - 2.5
       gemfile: fluentd/lib/filter_parse_json_field/Gemfile
       before_script:
         cd fluentd/lib/filter_parse_json_field
       script:
         rake test
-    - name: fluentd - filter_concat test
-      env:
-        - FLUENTD_VERSION=0.12.0
-      language: ruby
-      rvm:
-      - 2.0
-      gemfile: fluentd/lib/filter_concat/Gemfile
-      before_script:
-        cd fluentd/lib/filter_concat
-      script:
-        rake test
     - name: fluentd - filter_elasticsearch_genid_ext test
       env:
-        - FLUENTD_VERSION=0.12.0
+        - FLUENTD_VERSION=1.11.1
       language: ruby
       rvm:
-      - 2.0
+      - 2.5
       gemfile: fluentd/lib/filter_elasticsearch_genid_ext/Gemfile
       before_script:
         cd fluentd/lib/filter_elasticsearch_genid_ext

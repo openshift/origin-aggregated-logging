@@ -14,8 +14,6 @@ if [ -n "${DEBUG:-}" ] ; then
     set -x
 fi
 
-FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
-
 cleanup() {
     local return_code="$?"
     set +e
@@ -36,11 +34,10 @@ cleanup() {
         orig_CDM_UNDEFINED_TO_STRING="CDM_UNDEFINED_TO_STRING-"
     fi
     if [ -n "${orig_MERGE_JSON_LOG:-}" -o -n "${orig_CDM_UNDEFINED_TO_STRING:-}" ] ; then
-        stop_fluentd 2>&1 | artifact_out
-        oc set env daemonset/logging-fluentd ${orig_MERGE_JSON_LOG:-} ${orig_CDM_UNDEFINED_TO_STRING:-} 2>&1 | artifact_out
-        start_fluentd true 2>&1 | artifact_out
+        stop_fluentd
+        oc set env $fluentd_ds ${orig_MERGE_JSON_LOG:-} ${orig_CDM_UNDEFINED_TO_STRING:-}
+        start_fluentd
     fi
-
     # this will call declare_test_end, suite_end, etc.
     os::test::junit::reconcile_output
     exit $return_code
@@ -50,17 +47,17 @@ trap "cleanup" EXIT
 os::log::info Starting json-parsing test at $( date )
 
 # enable merge json log
-orig_MERGE_JSON_LOG=$( oc set env daemonset/logging-fluentd --list | grep \^MERGE_JSON_LOG= ) || :
+orig_MERGE_JSON_LOG=$( oc set env $fluentd_ds --list | grep \^MERGE_JSON_LOG= ) || :
 if [ -z "$orig_MERGE_JSON_LOG" ] ; then
     orig_MERGE_JSON_LOG=unset
 fi
-orig_CDM_UNDEFINED_TO_STRING=$( oc set env daemonset/logging-fluentd --list | grep \^CDM_UNDEFINED_TO_STRING= ) || :
+orig_CDM_UNDEFINED_TO_STRING=$( oc set env $fluentd_ds --list | grep \^CDM_UNDEFINED_TO_STRING= ) || :
 if [ -z "$orig_CDM_UNDEFINED_TO_STRING" ] ; then
     orig_CDM_UNDEFINED_TO_STRING=unset
 fi
-stop_fluentd 2>&1 | artifact_out
-oc set env daemonset/logging-fluentd MERGE_JSON_LOG=true CDM_UNDEFINED_TO_STRING=false 2>&1 | artifact_out
-start_fluentd true 2>&1 | artifact_out
+stop_fluentd
+oc set env $fluentd_ds MERGE_JSON_LOG=true CDM_UNDEFINED_TO_STRING=false
+start_fluentd
 
 # generate a log message in the Kibana logs - Kibana log messages are in JSON format:
 # {"type":"response","@timestamp":"2017-04-07T02:03:37Z","tags":[],"pid":1,"method":"get","statusCode":404,"req":{"url":"/ca30cead-d470-4db8-a2a2-bb71439987e2","method":"get","headers":{"user-agent":"curl/7.29.0","host":"localhost:5601","accept":"*/*"},"remoteAddress":"127.0.0.1","userAgent":"127.0.0.1"},"res":{"statusCode":404,"responseTime":3,"contentLength":9},"message":"GET /ca30cead-d470-4db8-a2a2-bb71439987e2 404 3ms - 9.0B"}

@@ -275,7 +275,7 @@ function add_test_message() {
 }
 
 function flush_fluentd_pos_files() {
-    sudo rm -f /var/log/journal.pos
+  return
 }
 
 # $1 - command to call to pass the uuid_es
@@ -352,8 +352,6 @@ function wait_for_fluentd_to_catch_up() {
             os::log::error apps record for "$fullmsg" not found in source
         fi
         if docker_uses_journal ; then
-            os::log::error here is the current fluentd journal cursor
-            sudo cat /var/log/journal.pos
             echo ""
             os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
             # first and last couple of records in the journal
@@ -390,8 +388,6 @@ function wait_for_fluentd_to_catch_up() {
         else
             os::log::error ops record for "$uuid_es_ops" not found in journal
         fi
-        os::log::error here is the current fluentd journal cursor
-        sudo cat /var/log/journal.pos
         echo ""
         os::log::error starttime in journald format is $( date --date=@$starttime +%s%6N )
         # first and last couple of records in the journal
@@ -439,7 +435,6 @@ docker_uses_journal() {
 wait_for_fluentd_ready() {
     local timeout=${1:-60}
     # wait until fluentd is actively reading from the source (journal or files)
-    os::cmd::try_until_success "sudo test -f /var/log/journal.pos" $(( timeout * second ))
     if docker_uses_journal ; then
         : # done
     else

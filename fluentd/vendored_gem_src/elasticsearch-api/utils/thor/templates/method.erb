@@ -1,0 +1,73 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+module Elasticsearch
+<%- if @current_api == :xpack -%>
+  <%= '  '*(@namespace_depth) %>module XPack
+<%- end %>
+<%= '  '*(@namespace_depth) %>module API
+<%- @module_namespace.each_with_index do |name, i| -%>
+  <%= '  '*i %>module <%= module_name_helper(name) %>
+<%- end -%>
+<%= '  '*(@namespace_depth+2) %>module Actions
+<%= ERB.new(File.new("./thor/templates/_documentation_top.erb").read, trim_mode: '-').result(binding) -%>
+<%# Method definition -%>
+<%= '  '*(@namespace_depth+3) -%>def <%= @method_name %>(arguments = {})
+<%- if @endpoint_name == 'create' -%>
+  <%= '  '*(@namespace_depth+3) %>if arguments[:id]
+  <%= '  '*(@namespace_depth+3) %>  index arguments.update op_type: 'create'
+  <%= '  '*(@namespace_depth+3) %>else
+  <%= '  '*(@namespace_depth+3) %>  index arguments
+  <%= '  '*(@namespace_depth+3) %>end
+  <%= '  '*(@namespace_depth+2) %>end
+<%- else -%>
+  <%- if @method_name == 'get_field_mapping' %>
+    _fields = arguments.delete(:field) || arguments.delete(:fields)
+    raise ArgumentError, "Required argument 'field' missing" unless _fields
+  <%- else -%>
+    <%- @required_parts.each do |required| %><%# Arguments -%>
+      <%= '  '*(@namespace_depth+3) + "raise ArgumentError, \"Required argument '#{required}' missing\" unless arguments[:#{required}]" + "\n" -%>
+    <%- end -%>
+    <%- end -%>
+    headers = arguments.delete(:headers) || {}
+    <%- # Method setup -%>
+    <%= ERB.new(File.new("./thor/templates/_method_setup.erb").read, trim_mode: '-').result(binding) %>
+    <%- # Perform request -%>
+    <%= ERB.new(File.new("./thor/templates/_perform_request.erb").read, trim_mode: '-').result(binding) %>
+<%- end -%>
+<%- if @method_name.match?(/^exists\S*/) -%>
+  alias_method :<%= @method_name %>?, :<%= @method_name %>
+<%- end -%>
+<%- if @method_name == 'termvectors' %>
+
+  # Deprecated: Use the plural version, {#termvectors}
+  #
+  def termvector(arguments={})
+    termvectors(arguments.merge endpoint: '_termvector')
+  end
+<%- end -%>
+<%# Params Registry Template -%>
+<%- unless @endpoint_name == 'create' -%>
+  <%= ERB.new(File.new("./thor/templates/_params_registry.erb").read, trim_mode: '-').result(binding) %>
+<%- end -%>
+
+<%- @namespace_depth.downto(1) do |i| -%>
+<%= '  '*(i-1) %>end
+<%- end if @namespace_depth > 0 -%>
+    end
+  end
+end

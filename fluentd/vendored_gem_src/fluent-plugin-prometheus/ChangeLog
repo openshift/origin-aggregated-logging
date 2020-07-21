@@ -1,0 +1,15 @@
+Release 1.8.2 - 2020/07/17
+
+	* in_prometheus_output_monitor/in_prometheus_tail_monitor: Support USR2 reload
+
+Release 1.8.1 - 2020/07/06
+
+	* Fix aggregate bug with async-http
+
+Release 1.8.0 - 2020/04/17
+
+	* Use http_server helper
+	* Require fluentd v1.9.1 or later
+
+
+For older releases, see commits on github repository.

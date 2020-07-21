@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+executable = Gem.ruby
+full_gem_path = Gem.loaded_specs["proxifier"].full_gem_path
+load_paths = Gem.loaded_specs["proxifier"].require_paths.map { |p| "-I#{File.join(full_gem_path, p)}" }
+# TODO: support argument switches
+
+exec(executable, *load_paths, "-rproxifier/env", *ARGV)

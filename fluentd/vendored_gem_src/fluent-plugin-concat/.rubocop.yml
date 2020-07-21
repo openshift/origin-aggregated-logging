@@ -1,0 +1,58 @@
+AllCops:
+  TargetRubyVersion: 2.3
+  DisplayCopNames: true
+  Exclude:
+    - "vendor/**/*"
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+Layout/SpaceInsideBlockBraces:
+  EnforcedStyle: space
+  SpaceBeforeBlockParameters: false
+Lint/UnderscorePrefixedVariableName:
+  Enabled: false
+Lint/UnusedMethodArgument:
+  Enabled: false
+
+Metrics/LineLength:
+  Enabled: false
+Metrics/ClassLength:
+  Exclude:
+    - "test/**/*.rb"
+Metrics/ParameterLists:
+  Max: 7
+Metrics/MethodLength:
+  Max: 30
+
+Naming/FileName:
+  Enabled: false
+
+Style/AsciiComments:
+  Enabled: false
+Style/HashSyntax:
+  Exclude:
+    - "**/*.rake"
+    - "Rakefile"
+Style/FrozenStringLiteralComment:
+  Enabled: false
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+Style/TrailingCommaInArrayLiteral:
+  Enabled: false
+Style/TrailingCommaInHashLiteral:
+  Enabled: false
+Style/TrailingCommaInArguments:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/WordArray:
+  Enabled: false
+Style/BarePercentLiterals:
+  EnforcedStyle: percent_q
+Style/BracesAroundHashParameters:
+  Enabled: false
+Style/DoubleNegation:
+  Enabled: false
+Style/EmptyCaseCondition:
+  Enabled: false
+

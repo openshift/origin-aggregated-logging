@@ -1,0 +1,103 @@
+.install-template:
+  before_script:
+    - gem update --system=2.7.8
+    - ruby -v
+
+.test-template:
+  before_script:
+    - gem install rake
+    - bundle install
+    - chmod 777 -R ./test
+
+stages:
+  - build
+  - tests
+
+2-4-5:
+  image: "ruby:2.4.5"
+  stage: build
+  extends: .install-template
+  script:
+    - bundle install --jobs=3 --retry=3
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-4-5"
+    paths:
+
+2-5-5:
+  image: "ruby:2.5.5"
+  stage: build
+  extends: .install-template
+  script:
+    - bundle install --jobs=3 --retry=3
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-5-5"
+    paths:
+
+2-6-3:
+  image: "ruby:2.6.3"
+  stage: build
+  extends: .install-template
+  script:
+    - bundle install --jobs=3 --retry=3
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-6-3"
+    paths:
+
+rubyhead:
+  image: "ruby:latest"
+  stage: build
+  extends: .install-template
+  script:
+    - bundle install --jobs=3 --retry=3
+  cache:
+    key: "$CI_COMMIT_REF_SLUG latest"
+    paths:
+      - ./*
+
+2-4-5-test:
+  image: "ruby:2.4.5"
+  stage: tests
+  allow_failure: true
+  extends: .test-template
+  script:
+    - bundle exec rake test
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-4-5"
+    paths:
+      - ./*
+
+2-5-5-test:
+  image: "ruby:2.5.5"
+  stage: tests
+  allow_failure: true
+  extends: .test-template
+  script:
+    - bundle exec rake test
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-5-5"
+    paths:
+      - ./*
+
+2-6-3-test:
+  image: "ruby:2.6.3"
+  stage: tests
+  allow_failure: true
+  extends: .test-template
+  script:
+    - bundle exec rake test
+  cache:
+    key: "$CI_COMMIT_REF_SLUG 2-6-3"
+    paths:
+      - ./*
+
+rubyhead-test:
+  image: "ruby:latest"
+  stage: tests
+  allow_failure: true
+  extends: .test-template
+  script:
+    - bundle exec rake test
+  cache:
+    key: "$CI_COMMIT_REF_SLUG latest"
+    paths:
+      - ./*

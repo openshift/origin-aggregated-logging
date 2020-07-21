@@ -1,0 +1,154 @@
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+require 'bundler/gem_tasks'
+
+def __current__
+  Pathname( File.expand_path('..', __FILE__) )
+end
+
+def git_specs(command, options={})
+  sh "git --git-dir=#{__current__.join('../tmp/elasticsearch/.git')} --work-tree=#{__current__.join('../tmp/elasticsearch')} #{command}", options
+end
+
+task(:default) { system 'rake --tasks' }
+task test: 'test:unit'
+
+# ----- Test tasks ------------------------------------------------------------
+
+require 'rake/testtask'
+require 'rspec/core/rake_task'
+
+namespace :test do
+  desc 'Wait for Elasticsearch to be in a green state'
+  task :wait_for_green do
+    sh '../scripts/wait-cluster.sh'
+  end
+
+  # Unit tests - rake test:unit
+  #
+  task unit: :spec
+  RSpec::Core::RakeTask.new(:spec) do |t|
+    t.exclude_pattern = 'spec/**{,/*/**}/rest_api_yaml_spec.rb'
+  end
+
+  # Rest API Spec tests - rake test:rest_api
+  RSpec::Core::RakeTask.new(:rest_api) do |t|
+    t.pattern = 'spec/**{,/*/**}/rest_api_yaml_spec.rb'
+  end
+
+  desc 'Update the repository with YAML tests'
+  task :update do
+    git_specs 'fetch origin', verbose: true
+  end
+
+  desc "Run integration tests"
+  task integration: :update do
+    require 'elasticsearch'
+
+    branches = `git --git-dir=#{__current__.join('../tmp/elasticsearch/.git')} --work-tree=#{__current__.join('../tmp/elasticsearch')} branch --no-color`
+
+    current_branch = branches.
+      split("\n").
+      select { |b| b =~ /^\*/ }.
+      reject { |b| b =~ /no branch|detached/ }.
+      map    { |b| b.gsub(/^\*\s*/, '') }.
+      first
+
+    unless current_branch
+      STDERR.puts "[!] Unable to determine current branch, defaulting to 'master'"
+      current_branch = 'master'
+    end
+
+    # Check if a test cluster is running
+    begin
+      url = ENV['TEST_CLUSTER_URL'] || ENV['TEST_ES_SERVER']
+      url = "http://localhost:#{ENV['TEST_CLUSTER_PORT'] || 9250}" unless url
+      client = Elasticsearch::Client.new :url => url
+      es_version_info = client.info['version']
+      build_hash      = es_version_info['build_hash']
+      cluster_running = true
+    rescue Faraday::ConnectionFailed
+      STDERR.puts "[!] Test cluster not running?"
+      cluster_running = false
+    end
+
+    checkout_specs_version = ENV['TEST_NO_CHECKOUT'].nil? ? true : false
+    checkout_build_hash    = ENV['TEST_BUILD_REF'] || build_hash
+    ENV['TEST_BUILD_REF']  = checkout_build_hash
+
+    begin
+      unless checkout_specs_version
+        STDERR.puts '-'*80, "YAML tests: Not switching, TEST_NO_CHECKOUT=y", '-'*80
+      end
+
+      if checkout_specs_version && !checkout_build_hash
+        STDERR.puts "[!] Cannot determine checkout build hash -- server not running or TEST_BUILD_REF not specified"
+        exit(1)
+      end
+
+      if checkout_specs_version && checkout_build_hash
+        # Checkout the commit corresponding to the running server build, or passed TEST_BUILD_REF
+        name = ENV['CI'] ? checkout_build_hash : "[\e[1m#{checkout_build_hash}\e[0m]"
+        STDERR.puts '-'*80, "YAML tests: Switching to #{name} from #{current_branch}", '-'*80
+        git_specs "checkout #{checkout_build_hash} --force --quiet"
+      end
+
+      Rake::Task['test:rest_api'].invoke
+
+    ensure
+      git_specs "checkout #{current_branch} --force --quiet" if checkout_specs_version && current_branch
+    end
+  end
+
+  desc 'Run unit and integration tests'
+  task :all do
+    Rake::Task['test:unit'].invoke
+    Rake::Task['test:integration'].invoke
+  end
+
+  namespace :cluster do
+    desc "Start Elasticsearch nodes for tests"
+    task :start do
+      $LOAD_PATH << File.expand_path('../../elasticsearch-transport/lib', __FILE__) << File.expand_path('../test', __FILE__)
+      require 'elasticsearch/extensions/test/cluster'
+      Elasticsearch::Extensions::Test::Cluster.start
+    end
+
+    desc "Stop Elasticsearch nodes for tests"
+    task :stop do
+      $LOAD_PATH << File.expand_path('../../elasticsearch-transport/lib', __FILE__) << File.expand_path('../test', __FILE__)
+      require 'elasticsearch/extensions/test/cluster'
+      Elasticsearch::Extensions::Test::Cluster.stop
+    end
+  end
+end
+
+# ----- Documentation tasks ---------------------------------------------------
+
+require 'yard'
+YARD::Rake::YardocTask.new(:doc) do |t|
+  t.options = %w| --embed-mixins --markup=markdown |
+end
+
+# ----- Code analysis tasks ---------------------------------------------------
+
+require 'cane/rake_task'
+Cane::RakeTask.new(:quality) do |cane|
+  cane.abc_max = 15
+  cane.no_style = true
+end
