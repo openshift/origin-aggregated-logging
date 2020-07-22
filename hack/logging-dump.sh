@@ -28,7 +28,7 @@ declare -a components=()
 while (($#))
 do
 case $1 in
-    kibana|collector|curator|elasticsearch|project_info|elasticsearch-operator|cluster-logging-operator)
+    kibana|collector|curator|elasticsearch|project_info|elasticsearch-operator|cluster-logging-operator|install_info)
       components+=($1)
       ;;
     --outdir=*)
@@ -58,6 +58,7 @@ curator_folder="$target/curator"
 project_folder="$target/project"
 eo_folder="$target/eo"
 clo_folder="$target/clo"
+install_folder="$target/install"
 
 dump_resource_items() {
   local type=$1
@@ -370,6 +371,21 @@ check_elasticsearch() {
     anypod=$(oc get po --selector="component=${comp}" --no-headers | grep Running | awk '{print$1}' | tail -1 || :)
     get_elasticsearch_status ${comp} ${anypod}
   done
+}
+
+check_install_info() {
+  echo Gathering install info
+  mkdir $install_folder
+
+  echo Getting install objects
+  echo -- Subscription
+  oc get -n ${NAMESPACE} subscription -o yaml > "$install_folder>subscription"
+  echo -- Install Plan
+  oc get -n ${NAMESPACE} installplan -o yaml > "$install_folder>install_plan"
+  echo -- Catalog Operator logs
+  oc logs -n openshift-operator-lifecycle-manager -l app=catalog-operator > "$install_folder>co_logs"
+  echo -- OLM Operator logs
+  oc logs -n openshift-operator-lifecycle-manager -l app=olm-operator > "$install_folder>olmo_logs"
 }
 
 oc project $NAMESPACE
