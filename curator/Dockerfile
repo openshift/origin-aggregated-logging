@@ -1,4 +1,4 @@
-FROM rhel7:7-released
+FROM ubi7/python-36:latest
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -16,13 +16,13 @@ ENV HOME=/opt/app-root/src \
     CURATOR_TIMEOUT=300 \
     CURATOR_VER=5.8.1 \
     container=oci \
-    LC_ALL=en_US.UTF-8 
+    LC_ALL=en_US.UTF-8
 
 LABEL io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
   io.k8s.display-name="Curator ${CURATOR_VER}" \
   io.openshift.tags="logging,elk,elasticsearch,curator"
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python
+USER 0
 
 COPY . ${HOME}
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
@@ -31,8 +31,8 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     chgrp -R 0 ${HOME} && \
     chmod -R g=u ${HOME}
 WORKDIR ${HOME}/vendor
-RUN pip3 install -q $(ls . | grep -v curator) --no-index --find-links . && \
-    pip3 install -q --no-index elasticsearch-curator*  && \
+RUN pip install -q $(ls . | grep -v curator) --no-index --find-links . && \
+    pip install -q --no-index elasticsearch-curator*  && \
     rm -rf $HOME/vendor && \
     ls /usr/local/bin/curator
 
