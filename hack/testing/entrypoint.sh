@@ -63,7 +63,7 @@ oc set -n ${LOGGING_NS} env ds/logging-fluentd COLLECT_JOURNAL_DEBUG_LOGS=true
 oc set -n ${LOGGING_NS} env ds/logging-fluentd MUX_CLIENT_MODE-
 
 # Starting in 3.10, we can no longer mount /var/lib/docker/containers
-oc volumes -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
+oc set volume -n ${LOGGING_NS} ds/logging-fluentd --overwrite --add -t hostPath \
     --name=varlibdockercontainers -m /var/lib/docker --path=/var/lib/docker || :
 
 # speed up tests by making fluentd read from tail of logs
