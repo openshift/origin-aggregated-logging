@@ -34,7 +34,7 @@ WORKDIR ${HOME}/vendor
 RUN pip install -q $(ls . | grep -v curator) --no-index --find-links . && \
     pip install -q --no-index elasticsearch-curator*  && \
     rm -rf $HOME/vendor && \
-    ls /usr/local/bin/curator
+    command -v curator
 
 WORKDIR ${HOME}
 USER 1001
