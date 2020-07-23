@@ -28,7 +28,7 @@ declare -a components=()
 while (($#))
 do
 case $1 in
-    kibana|collector|curator|elasticsearch|project_info|elasticsearch-operator)
+    kibana|collector|curator|elasticsearch|project_info|elasticsearch-operator|cluster-logging-operator|install_info)
       components+=($1)
       ;;
     --outdir=*)
@@ -43,7 +43,7 @@ done
 
 if [[ ${#components[@]} -eq 0 ]]
 then
-    components=( "kibana" "collector" "curator" "elasticsearch" "project_info" "elasticsearch-operator" )
+    components=( "kibana" "collector" "curator" "elasticsearch" "project_info" "elasticsearch-operator" "cluster-logging-operator" )
 fi
 
 NAMESPACE=openshift-logging
@@ -51,12 +51,14 @@ NAMESPACE=openshift-logging
 DATE=`date +%Y%m%d_%H%M%S`
 target=${target:-"logging-$DATE"}
 logs_folder="$target/logs"
-es_folder="$target/es"
+es_folder="$target/elasticsearch"
 collector_folder="$target/collector"
 kibana_folder="$target/kibana"
 curator_folder="$target/curator"
 project_folder="$target/project"
-es_operator_folder="$target/es-operator"
+eo_folder="$target/eo"
+clo_folder="$target/clo"
+install_folder="$target/install"
 
 dump_resource_items() {
   local type=$1
@@ -194,17 +196,37 @@ check_collector() {
   done
 }
 
+check_cluster-logging-operator() {
+  echo "Checking cluster-logging-operator"
+  mkdir $clo_folder
+  namespace="${NAMESPACE}"
+  pods=$(oc -n $namespace get pods -l name=cluster-logging-operator -o jsonpath={.items[*].metadata.name})
+  for pod in $pods
+  do
+    get_env $pod $clo_folder $namespace "Dockerfile-*operator*"
+    get_pod_logs $pod $clo_folder $namespace
+  done
+  oc -n $namespace get deployment cluster-logging-operator -o yaml > $clo_folder/deployment
+  csv_name="$(oc -n $namespace get csv -o name | grep 'cluster-logging-operator')"
+  oc -n $namespace get "${csv_name}" -o yaml > "${clo_folder}/csv"
+  oc -n $namespace get clusterlogging instance -o yaml > "${clo_folder}/cr"
+  oc -n $namespace get logforwarding instance -o yaml > "${clo_folder}/logforwarding_cr" ||:
+  oc -n $namespace get clusterlogforwarder instance -o yaml > "${clo_folder}/clusterlogforwarder_cr" ||:
+}
+
 check_elasticsearch-operator() {
   echo "Checking elasticsearch-operator"
-  mkdir $es_operator_folder
+  mkdir $eo_folder
   namespace=openshift-operators-redhat
   pods=$(oc -n $namespace get pods -l name=elasticsearch-operator -o jsonpath={.items[*].metadata.name})
   for pod in $pods
   do
-    get_env $pod $es_operator_folder $namespace "Dockerfile-*operator*"
-    get_pod_logs $pod $es_operator_folder $namespace
+    get_env $pod $eo_folder $namespace "Dockerfile-*operator*"
+    get_pod_logs $pod $eo_folder $namespace
   done
-  oc -n $namespace get deployment elasticsearch-operator -o yaml > $es_operator_folder/deployment
+  oc -n $namespace get deployment elasticsearch-operator -o yaml > $eo_folder/deployment
+  csv_name="$(oc -n $namespace get csv -o name | grep 'elasticsearch-operator')"
+  oc -n $namespace get "${csv_name}" -o yaml > "${eo_folder}/csv"
 }
 
 check_curator_connectivity() {
@@ -231,6 +253,10 @@ check_curator() {
   check_curator_connectivity curator
 }
 
+get_kibana_cr() {
+  oc get -n ${NAMESPACE} kibana kibana -o yaml > $kibana_folder>cr
+}
+
 check_kibana_connectivity() {
   pod=$1
   echo ---- Connectivity between $pod and elasticsearch >> $kibana_folder/$pod
@@ -251,7 +277,12 @@ check_kibana() {
     get_env $pod $kibana_folder
     get_pod_logs $pod $kibana_folder
     check_kibana_connectivity $pod
+    get_kibana_cr
   done
+}
+
+get_elasticsearch_cr() {
+  oc get -n ${NAMESPACE} elasticsearch elasticsearch -o yaml > $es_folder>cr
 }
 
 get_elasticsearch_status() {
@@ -330,6 +361,7 @@ check_elasticsearch() {
     get_pod_logs $pod $es_folder
     get_es_logs $pod $es_folder
     list_es_storage $pod
+    get_elasticsearch_cr
   done
 
   local anypod=""
@@ -339,6 +371,21 @@ check_elasticsearch() {
     anypod=$(oc get po --selector="component=${comp}" --no-headers | grep Running | awk '{print$1}' | tail -1 || :)
     get_elasticsearch_status ${comp} ${anypod}
   done
+}
+
+check_install_info() {
+  echo Gathering install info
+  mkdir $install_folder
+
+  echo Getting install objects
+  echo -- Subscription
+  oc get -n ${NAMESPACE} subscription -o yaml > "$install_folder>subscription"
+  echo -- Install Plan
+  oc get -n ${NAMESPACE} installplan -o yaml > "$install_folder>install_plan"
+  echo -- Catalog Operator logs
+  oc logs -n openshift-operator-lifecycle-manager -l app=catalog-operator > "$install_folder>co_logs"
+  echo -- OLM Operator logs
+  oc logs -n openshift-operator-lifecycle-manager -l app=olm-operator > "$install_folder>olmo_logs"
 }
 
 oc project $NAMESPACE
