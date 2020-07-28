@@ -168,14 +168,24 @@ get_cluster_version_maj_min() {
     fi
 }
 
+MASTER_RELEASE_VERSION=4.6
 get_cluster_version_maj_min
 # what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.4}}
+MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.5}}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 # for dev purposes, image builds will typically be pushed to this namespace
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
+
+
+CLO_BRANCH="release-${MASTER_VERSION}"
+EO_BRANCH="release-${MASTER_VERSION}"
+
+if [ "${MASTER_VERSION}" == "${MASTER_RELEASE_VERSION}" ]; then
+  CLO_BRANCH="master"
+  EO_BRANCH="master"
+fi
 
 construct_image_name() {
     local component="$1"
