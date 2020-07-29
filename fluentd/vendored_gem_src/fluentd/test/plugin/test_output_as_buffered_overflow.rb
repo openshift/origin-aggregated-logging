@@ -141,7 +141,7 @@ class BufferedOutputOverflowTest < Test::Unit::TestCase
       assert !@i.buffer.storable?
 
       Thread.new do
-        sleep 1
+        sleep 3
         failing = false
       end
 

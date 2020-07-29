@@ -18,8 +18,8 @@ require 'fluent/plugin/buffer'
 require 'fluent/plugin/compressable'
 require 'fluent/unique_id'
 require 'fluent/event'
-require 'fluent/ext_monitor_require'
 
+require 'monitor'
 require 'tempfile'
 require 'zlib'
 
@@ -202,11 +202,11 @@ module Fluent
             if kwargs[:compressed] == :gzip
               super
             else
-              super(**kwargs) do |chunk_io|
+              super(kwargs) do |chunk_io|
                 output_io = if chunk_io.is_a?(StringIO)
                               StringIO.new
                             else
-                              Tempfile.new('decompressed-data').binmode
+                              Tempfile.new('decompressed-data')
                             end
                 decompress(input_io: chunk_io, output_io: output_io)
                 output_io.seek(0, IO::SEEK_SET)

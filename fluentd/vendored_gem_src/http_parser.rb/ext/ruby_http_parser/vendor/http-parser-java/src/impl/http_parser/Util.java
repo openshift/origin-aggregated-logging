@@ -30,7 +30,7 @@ public class Util {
 //
 //  }
 
-  public static String error (String mes, ByteBuffer b, int begining) {
+  public static String error (String mes, ByteBuffer b, int beginning) {
       // the error message should look like this:
       //
       // Bla expected something, but it's not there (mes)
@@ -50,7 +50,7 @@ public class Util {
       final int mes_width = 72;
       int p   = b.position();      // error position
       int end = b.limit();         // this is the end
-      int m   = end - begining;    // max mes length  
+      int m   = end - beginning;    // max mes length
       
       StringBuilder builder = new StringBuilder();
       int p_adj = p;
@@ -58,9 +58,9 @@ public class Util {
       byte [] orig = new byte[0];
       if (m <= mes_width) {
         orig = new byte[m];
-        b.position(begining);
+        b.position(beginning);
         b.get(orig, 0, m);
-        p_adj = p-begining;
+        p_adj = p-beginning;
         
         
       } else {
@@ -73,7 +73,7 @@ public class Util {
         // CAN'T be not enough stuff aorund p in total, because 
         // m>meswidth (see if to this else)
 
-        int before = p-begining;
+        int before = p-beginning;
         int after  = end - p;
         if ( (before > mes_width/2) && (after > mes_width/2)) {
           // plenty of stuff in front of and behind error
@@ -82,7 +82,7 @@ public class Util {
           b.get(orig, 0, mes_width);
         } else if  (before <= mes_width/2) {
           // take all of the begining.
-          b.position(begining);
+          b.position(beginning);
           // and as much of the rest as possible
           
           b.get(orig, 0, mes_width);

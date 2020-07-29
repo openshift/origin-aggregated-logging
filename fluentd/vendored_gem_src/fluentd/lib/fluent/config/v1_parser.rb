@@ -147,13 +147,11 @@ module Fluent
       end
 
       def eval_include(attrs, elems, uri)
-        # replace space(s)(' ') with '+' to prevent invalid uri due to space(s).
-        # See: https://github.com/fluent/fluentd/pull/2780#issuecomment-576081212
-        u = URI.parse(uri.gsub(/ /, '+'))
-        if u.scheme == 'file' || (!u.scheme.nil? && u.scheme.length == 1) || u.path == uri.gsub(/ /, '+') # file path
+        u = URI.parse(uri)
+        if u.scheme == 'file' || (!u.scheme.nil? && u.scheme.length == 1) || u.path == uri # file path
           # When the Windows absolute path then u.scheme.length == 1
           # e.g. C:
-          path = URI.decode_www_form_component(u.path)
+          path = u.path
           if path[0] != ?/
             pattern = File.expand_path("#{@include_basepath}/#{path}")
           else

@@ -479,6 +479,8 @@ deflector_alias test-current
 
 If [rollover_index](#rollover_index) is set, then this parameter will be in effect otherwise ignored.
 
+**NOTE:** Since 4.1.1, `deflector_alias` is prohibited to use with `enable_ilm`.
+
 ### index_prefix
 
 This parameter is marked as obsoleted.
@@ -988,21 +990,9 @@ sniffer_class_name Fluent::Plugin::ElasticsearchSimpleSniffer
 reload_after 100
 ```
 
-### Selector Class Name
-
-The default selector used by the `Elasticsearch::Transport` class works well when Fluentd should round robin and random selector cases. This doesn't work well when Fluentd should fallback behavior.
-The parameter `selector_class_name` gives you the ability to provide your own Selector class to implement whatever selection nodes logic you require.
-
-The below configuration is using plugin built-in `ElasticseatchFallbackSelector`:
-
-```
-hosts exhausted-host:9201,normal-host:9200
-selector_class_name "Fluent::Plugin::ElasticseatchFallbackSelector"
-```
-
 #### Tips
 
-The included sniffer class does not required `out_elasticsearch`.
+The included sniffer class is not required `out_elasticsearch`.
 You should tell Fluentd where the sniffer class exists.
 
 If you use td-agent, you must put the following lines into `TD_AGENT_DEFAULT` file:
@@ -1017,6 +1007,38 @@ If you use Fluentd directly, you must pass the following lines as Fluentd comman
 ```
 sniffer=$(td-agent-gem contents fluent-plugin-elasticsearch|grep elasticsearch_simple_sniffer.rb)
 $ fluentd -r $sniffer [AND YOUR OTHER OPTIONS]
+```
+
+### Selector Class Name
+
+The default selector used by the `Elasticsearch::Transport` class works well when Fluentd should behave round robin and random selector cases. This doesn't work well when Fluentd should behave fallbacking from exhausted ES cluster to normal ES cluster.
+The parameter `selector_class_name` gives you the ability to provide your own Selector class to implement whatever selection nodes logic you require.
+
+The below configuration is using plugin built-in `ElasticseatchFallbackSelector`:
+
+```
+hosts exhausted-host:9201,normal-host:9200
+selector_class_name "Fluent::Plugin::ElasticseatchFallbackSelector"
+```
+
+#### Tips
+
+The included selector class is required in `out_elasticsearch` by default.
+But, your custom selector class is not required in `out_elasticsearch`.
+You should tell Fluentd where the selector class exists.
+
+If you use td-agent, you must put the following lines into `TD_AGENT_DEFAULT` file:
+
+```
+selector=/path/to/your_awesome_selector.rb
+TD_AGENT_OPTIONS="--use-v1-config -r $selector"
+```
+
+If you use Fluentd directly, you must pass the following lines as Fluentd command line option:
+
+```
+selector=/path/to/your_awesome_selector.rb
+$ fluentd -r $selector [AND YOUR OTHER OPTIONS]
 ```
 
 ### Reload After
@@ -1733,7 +1755,7 @@ ILM target index alias is created with `index_name` or an index which is calcula
 
 From Elasticsearch plugin v4.0.0, ILM target index will be calculated from `index_name` (normal mode) or `logstash_prefix` (using with `logstash_format`as true).
 
-When using `deflector_alias` parameter, Elasticsearch plugin will create ILM target indices alias with `deflector_alias` instead of `index_name` or an index which is calculated from `logstash_prefix`. This behavior should be kept due to backward ILM feature compatibility.
+**NOTE:** Before Elasticsearch plugin v4.1.0, using `deflector_alias` parameter when ILM is enabled is permitted and handled, but, in the later releases such that 4.1.1 or later, it cannot use with when ILM is enabled.
 
 And also, ILM feature users should specify their Elasticsearch template for ILM enabled indices.
 Because ILM settings are injected into their Elasticsearch templates.
@@ -1746,7 +1768,13 @@ It usually should be used with default value which is `default`.
 
 Then, ILM parameters are used in alias index like as:
 
-`<index_name/logstash_prefix><index_separator><application_name>-000001`.
+##### Simple `index_name` case:
+
+`<index_name><index_separator><application_name>-000001`.
+
+##### `logstash_format` as `true` case:
+
+`<logstash_prefix><logstash_prefix_separator><application_name><logstash_prefix_separator><logstash_dateformat>-000001`.
 
 #### Example ILM settings
 

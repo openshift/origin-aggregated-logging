@@ -68,7 +68,7 @@ module Fluent
         chain = NullOutputChain.instance
         chunk.open {|io|
           # TODO use MessagePackIoEventStream
-          u = Fluent::MessagePackFactory.msgpack_unpacker(io)
+          u = Fluent::Engine.msgpack_factory.unpacker(io)
           begin
             u.each {|(tag,entries)|
               es = MultiEventStream.new

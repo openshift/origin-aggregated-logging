@@ -16,7 +16,6 @@ class TestFluentdCommand < ::Test::Unit::TestCase
     FileUtils.mkdir_p(TMP_DIR)
     @supervisor_pid = nil
     @worker_pids = []
-    ENV["TEST_RUBY_PATH"] = nil
   end
 
   def process_exist?(pid)
@@ -47,20 +46,17 @@ class TestFluentdCommand < ::Test::Unit::TestCase
   end
 
   def create_cmdline(conf_path, *fluentd_options)
-    if Fluent.windows?
-      cmd_path = File.expand_path(File.dirname(__FILE__) + "../../../bin/fluentd")
-      ["bundle", "exec", ServerEngine.ruby_bin_path, cmd_path, "-c", conf_path, *fluentd_options]
-    else
-      cmd_path = File.expand_path(File.dirname(__FILE__) + "../../../bin/fluentd")
-      ["bundle", "exec", cmd_path, "-c", conf_path, *fluentd_options]
-    end
+    cmd_path = File.expand_path(File.dirname(__FILE__) + "../../../bin/fluentd")
+    ["bundle", "exec", "ruby", cmd_path, "-c", conf_path, *fluentd_options]
   end
 
-  def execute_command(cmdline, chdir=TMP_DIR, env = {})
+  def execute_command(cmdline, chdir=TMP_DIR)
     null_stream = File.open(File::NULL, 'w')
     gemfile_path = File.expand_path(File.dirname(__FILE__) + "../../../Gemfile")
 
-    env = { "BUNDLE_GEMFILE" => gemfile_path }.merge(env)
+    env = {
+      "BUNDLE_GEMFILE" => gemfile_path,
+    }
     cmdname = cmdline.shift
     arg0 = "testing-fluentd"
     # p(here: "executing process", env: env, cmdname: cmdname, arg0: arg0, args: cmdline)
@@ -85,25 +81,12 @@ class TestFluentdCommand < ::Test::Unit::TestCase
     null_stream.close rescue nil
   end
 
-  def eager_read(io)
-    buf = +''
-
-    loop do
-      b = io.read_nonblock(1024, nil, exception: false)
-      if b == :wait_readable || b.nil?
-        return buf
-      end
-      buf << b
-    end
-  end
-
-  def assert_log_matches(cmdline, *pattern_list, patterns_not_match: [], timeout: 10, env: {})
+  def assert_log_matches(cmdline, *pattern_list, patterns_not_match: [], timeout: 10)
     matched = false
-    matched_wrongly = false
-    assert_error_msg = ""
+    assert_error_msg = "matched correctly"
     stdio_buf = ""
     begin
-      execute_command(cmdline, TMP_DIR, env) do |pid, stdout|
+      execute_command(cmdline) do |pid, stdout|
         begin
           waiting(timeout) do
             while process_exist?(pid) && !matched
@@ -111,7 +94,7 @@ class TestFluentdCommand < ::Test::Unit::TestCase
               next unless readables
               break if readables.first.eof?
 
-              buf = eager_read(readables.first)
+              buf = readables.first.readpartial(1024)
               # puts buf
               stdio_buf << buf
               lines = stdio_buf.split("\n")
@@ -130,18 +113,13 @@ class TestFluentdCommand < ::Test::Unit::TestCase
         end
       end
     rescue Timeout::Error
-      assert_error_msg = "execution timeout"
+      assert_error_msg = "execution timeout with command out:\n" + stdio_buf
     rescue => e
-      assert_error_msg = "unexpected error in launching fluentd: #{e.inspect}"
-    else
-      assert_error_msg = "log doesn't match" unless matched
+      assert_error_msg = "unexpected error in launching fluentd: #{e.inspect}\n" + stdio_buf
     end
+    assert matched, assert_error_msg
 
-    if patterns_not_match.empty?
-      assert_error_msg = build_message(assert_error_msg,
-                                       "<?>\nwas expected to include:\n<?>",
-                                       stdio_buf, pattern_list)
-    else
+    unless patterns_not_match.empty?
       lines = stdio_buf.split("\n")
       patterns_not_match.each do |ptn|
         matched_wrongly = if ptn.is_a? Regexp
@@ -149,17 +127,9 @@ class TestFluentdCommand < ::Test::Unit::TestCase
                           else
                             lines.any?{|line| line.include?(ptn) }
                           end
-        if matched_wrongly
-          assert_error_msg << "\n" unless assert_error_msg.empty?
-          assert_error_msg << "pattern exists in logs wrongly: #{ptn}"
-        end
+        assert_false matched_wrongly, "pattern exists in logs wrongly:\n" + stdio_buf
       end
-      assert_error_msg = build_message(assert_error_msg,
-                                       "<?>\nwas expected to include:\n<?>\nand not include:\n<?>",
-                                       stdio_buf, pattern_list, patterns_not_match)
     end
-
-    assert matched && !matched_wrongly, assert_error_msg
   end
 
   def assert_fluentd_fails_to_start(cmdline, *pattern_list, timeout: 10)
@@ -177,7 +147,7 @@ class TestFluentdCommand < ::Test::Unit::TestCase
               next unless readables
               next if readables.first.eof?
 
-              stdio_buf << eager_read(readables.first)
+              stdio_buf << readables.first.readpartial(1024)
               lines = stdio_buf.split("\n")
               if lines.any?{|line| line.include?("fluentd worker is now running") }
                 running = true
@@ -315,7 +285,7 @@ CONF
 
       assert_fluentd_fails_to_start(
         create_cmdline(conf_path),
-        "non directory entry exists:#{@root_path}",
+        "non directory entry exists:#{@root_path} (Fluent::InvalidRootDirectory)",
       )
     end
   end
@@ -347,8 +317,7 @@ CONF
         create_cmdline(conf_path),
         "fluentd worker is now running",
         'fluent.info: {"worker":0,"message":"fluentd worker is now running worker=0"}',
-        "define <match fluent.**> to capture fluentd logs in top level is deprecated. Use <label @FLUENT_LOG> instead",
-        patterns_not_match: ['[warn]: some tags for log events are not defined in top level (to be ignored) tags=["fluent.trace", "fluent.debug"]'],
+        patterns_not_match: ['[warn]: some tags for log events are not defined (to be ignored) tags=["fluent.trace", "fluent.debug"]'],
       )
     end
 
@@ -362,8 +331,7 @@ CONF
       assert_log_matches(
         create_cmdline(conf_path),
         "fluentd worker is now running",
-        '[warn]: #0 match for some tags of log events are not defined in top level (to be ignored) tags=["fluent.trace", "fluent.debug", "fluent.info"]',
-        "define <match fluent.warn>, <match fluent.error>, <match fluent.fatal> to capture fluentd logs in top level is deprecated. Use <label @FLUENT_LOG> instead",
+        '[warn]: #0 match for some tags of log events are not defined (to be ignored) tags=["fluent.trace", "fluent.debug", "fluent.info"]',
         '[warn]: #0 no patterns matched tag="fluent.info"',
       )
     end
@@ -381,7 +349,7 @@ CONF
         create_cmdline(conf_path),
         "fluentd worker is now running",
         'fluent.info: {"worker":0,"message":"fluentd worker is now running worker=0"}',
-        patterns_not_match: ['[warn]: some tags for log events are not defined in @FLUENT_LOG label (to be ignored)'],
+        patterns_not_match: ['[warn]: some tags for log events are not defined (to be ignored)'],
       )
     end
 
@@ -400,7 +368,7 @@ CONF
       assert_log_matches(
         create_cmdline(conf_path),
         "fluentd worker is now running",
-        '[warn]: #0 match for some tags of log events are not defined in @FLUENT_LOG label (to be ignored) tags=["fluent.info", "fluent.fatal"]',
+        '[warn]: #0 match for some tags of log events are not defined (to be ignored) tags=["fluent.info", "fluent.fatal"]',
         patterns_not_match: ['[warn]: no patterns matched tag="fluent.info"'],
       )
     end
@@ -657,8 +625,7 @@ CONF
   workers 2
 </system>
 <source>
-  @type dummy
-  tag dummy
+  @type single
   @id single
   @label @dummydata
 </source>
@@ -702,8 +669,7 @@ EOC
   workers 2
 </system>
 <source>
-  @type dummy
-  tag dummy
+  @type single
   @id single
   @label @dummydata
 </source>
@@ -724,28 +690,6 @@ CONF
         create_cmdline(conf_path, "-p", File.dirname(plugin_path)),
         "Plugin 'single' does not support multi workers configuration (Fluent::Plugin::SingleOutput)",
       )
-    end
-
-    test 'success to start a worker2 with worker specific configuration' do
-      conf = <<CONF
-<system>
-  root_dir #{@root_path}
-  dir_permission 0744
-</system>
-CONF
-      conf_path = create_conf_file('worker_section0.conf', conf)
-
-      FileUtils.rm_rf(@root_path) rescue nil
-
-      assert_path_not_exist(@root_path)
-      assert_log_matches(create_cmdline(conf_path), 'spawn command to main') # any message is ok
-      assert_path_exist(@root_path)
-      if Fluent.windows?
-        # In Windows, dir permission is always 755.
-        assert_equal '755', File.stat(@root_path).mode.to_s(8)[-3, 3]
-      else
-        assert_equal '744', File.stat(@root_path).mode.to_s(8)[-3, 3]
-      end
     end
 
     test 'success to start a worker with worker specific configuration' do
@@ -832,116 +776,6 @@ CONF
       )
     end
 
-    test "multiple values are set to RUBYOPT" do
-      conf = <<CONF
-<source>
-  @type dummy
-  tag dummy
-</source>
-<match>
-  @type null
-</match>
-CONF
-      conf_path = create_conf_file('rubyopt_test.conf', conf)
-      assert_log_matches(
-        create_cmdline(conf_path),
-        '#0 fluentd worker is now running worker=0',
-        patterns_not_match: ['(LoadError)'],
-        env: { 'RUBYOPT' => '-rtest-unit -rbundler/setup' },
-      )
-    end
-
-    data(
-      '-E' => '-Eutf-8',
-      '-encoding' => '--encoding=utf-8',
-      '-external-encoding' => '--external-encoding=utf-8',
-      '-internal-encoding' => '--internal-encoding=utf-8',
-    )
-    test "-E option is set to RUBYOPT" do |opt|
-      conf = <<CONF
-<source>
-  @type dummy
-  tag dummy
-</source>
-<match>
-  @type null
-</match>
-CONF
-      conf_path = create_conf_file('rubyopt_test.conf', conf)
-      opt << " #{ENV['RUBYOPT']}" if ENV['RUBYOPT']
-      assert_log_matches(
-        create_cmdline(conf_path),
-        *opt.split(' '),
-        patterns_not_match: ['-Eascii-8bit:ascii-8bit'],
-        env: { 'RUBYOPT' => opt },
-      )
-    end
-
-    test "without RUBYOPT" do
-      conf = <<CONF
-<source>
-  @type dummy
-  tag dummy
-</source>
-<match>
-  @type null
-</match>
-CONF
-      conf_path = create_conf_file('rubyopt_test.conf', conf)
-      assert_log_matches(create_cmdline(conf_path), '-Eascii-8bit:ascii-8bit')
-    end
-
-    test 'invalid values are set to RUBYOPT' do
-      omit "hard to run correctly because RUBYOPT=-r/path/to/bundler/setup is required on Windows while this test set invalid RUBYOPT" if Fluent.windows?
-      conf = <<CONF
-<source>
-  @type dummy
-  tag dummy
-</source>
-<match>
-  @type null
-</match>
-CONF
-      conf_path = create_conf_file('rubyopt_invalid_test.conf', conf)
-      assert_log_matches(
-        create_cmdline(conf_path),
-        'Invalid option is passed to RUBYOPT',
-        env: { 'RUBYOPT' => 'a' },
-      )
-    end
-
-    # https://github.com/fluent/fluentd/issues/2915
-    test "ruby path contains spaces" do
-      conf = <<CONF
-<source>
-  @type dummy
-  tag dummy
-</source>
-<match>
-  @type null
-</match>
-CONF
-      ruby_path = ServerEngine.ruby_bin_path
-      tmp_ruby_path = File.join(TMP_DIR, "ruby with spaces")
-      if Fluent.windows?
-        tmp_ruby_path << ".bat"
-        File.open(tmp_ruby_path, "w") do |file|
-          file.write "#{ruby_path} %*"
-        end
-      else
-        FileUtils.ln_sf(ruby_path, tmp_ruby_path)
-      end
-      ENV["TEST_RUBY_PATH"] = tmp_ruby_path
-      cmd_path = File.expand_path(File.dirname(__FILE__) + "../../../bin/fluentd")
-      conf_path = create_conf_file('space_mixed_ruby_path_test.conf', conf)
-      args = ["bundle", "exec", tmp_ruby_path, cmd_path, "-c", conf_path]
-      assert_log_matches(
-        args,
-        'spawn command to main:',
-        '-Eascii-8bit:ascii-8bit'
-      )
-    end
-
     test 'success to start workers when file buffer is configured in non-workers way only for specific worker' do
       conf = <<CONF
 <system>
@@ -959,7 +793,7 @@ CONF
     @id   blackhole
     <buffer>
       @type file
-      path #{File.join(@root_path, "buf")}
+      path #{File.join(@root_path, "buf", "file.*.log")}
     </buffer>
   </match>
 </worker>
@@ -1029,7 +863,6 @@ module Fluent::Plugin
   class FakeInput < Input
     Fluent::Plugin.register_input('fake', self)
     config_param :secret, :string, secret: true
-    def multi_workers_ready?; true; end
   end
 end
 EOC

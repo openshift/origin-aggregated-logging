@@ -23,10 +23,8 @@ module FluentPluginFileBufferTest
 end
 
 class FileBufferTest < Test::Unit::TestCase
-  def metadata(timekey: nil, tag: nil, variables: nil, seq: 0)
-    m = Fluent::Plugin::Buffer::Metadata.new(timekey, tag, variables)
-    m.seq = seq
-    m
+  def metadata(timekey: nil, tag: nil, variables: nil)
+    Fluent::Plugin::Buffer::Metadata.new(timekey, tag, variables)
   end
 
   def write_metadata_old(path, chunk_id, metadata, size, ctime, mtime)
@@ -45,7 +43,6 @@ class FileBufferTest < Test::Unit::TestCase
   def write_metadata(path, chunk_id, metadata, size, ctime, mtime)
     metadata = {
       timekey: metadata.timekey, tag: metadata.tag, variables: metadata.variables,
-      seq: metadata.seq,
       id: chunk_id,
       s: size,
       c: ctime,
@@ -281,7 +278,7 @@ class FileBufferTest < Test::Unit::TestCase
       assert_equal m1, c1.metadata
       assert c1.empty?
       assert_equal :unstaged, c1.state
-      assert_equal Fluent::DEFAULT_FILE_PERMISSION, c1.permission
+      assert_equal Fluent::Plugin::Buffer::FileChunk::FILE_PERMISSION, c1.permission
       assert_equal @bufpath.gsub('.*.', ".b#{Fluent::UniqueId.hex(c1.unique_id)}."), c1.path
       assert{ File.stat(c1.path).mode.to_s(8).end_with?('644') }
 
@@ -291,7 +288,7 @@ class FileBufferTest < Test::Unit::TestCase
       assert_equal m2, c2.metadata
       assert c2.empty?
       assert_equal :unstaged, c2.state
-      assert_equal Fluent::DEFAULT_FILE_PERMISSION, c2.permission
+      assert_equal Fluent::Plugin::Buffer::FileChunk::FILE_PERMISSION, c2.permission
       assert_equal @bufpath.gsub('.*.', ".b#{Fluent::UniqueId.hex(c2.unique_id)}."), c2.path
       assert{ File.stat(c2.path).mode.to_s(8).end_with?('644') }
 
@@ -329,46 +326,6 @@ class FileBufferTest < Test::Unit::TestCase
 
       plugin.stop; plugin.before_shutdown; plugin.shutdown; plugin.after_shutdown; plugin.close; plugin.terminate
       FileUtils.rm_r bufdir
-    end
-
-    test '#generate_chunk generates blank file chunk with specified permission with system_config' do
-      omit "NTFS doesn't support UNIX like permissions" if Fluent.windows?
-
-      begin
-        plugin = Fluent::Plugin::FileBuffer.new
-        plugin.owner = @d
-        rand_num = rand(0..100)
-        bufpath = File.join(File.expand_path("../../tmp/buffer_file_#{rand_num}", __FILE__), 'testbuf.*.log')
-        bufdir = File.dirname(bufpath)
-
-        FileUtils.rm_r bufdir if File.exist?(bufdir)
-        assert !File.exist?(bufdir)
-
-        plugin.configure(config_element('buffer', '', { 'path' => bufpath }))
-
-        assert !File.exist?(bufdir)
-        plugin.start
-
-        m = metadata()
-        c = nil
-        Fluent::SystemConfig.overwrite_system_config("file_permission" => "700") do
-           c = plugin.generate_chunk(m)
-        end
-
-        assert c.is_a? Fluent::Plugin::Buffer::FileChunk
-        assert_equal m, c.metadata
-        assert c.empty?
-        assert_equal :unstaged, c.state
-        assert_equal 0700, c.permission
-        assert_equal bufpath.gsub('.*.', ".b#{Fluent::UniqueId.hex(c.unique_id)}."), c.path
-        assert{ File.stat(c.path).mode.to_s(8).end_with?('700') }
-
-        c.purge
-
-        plugin.stop; plugin.before_shutdown; plugin.shutdown; plugin.after_shutdown; plugin.close; plugin.terminate
-      ensure
-        FileUtils.rm_r bufdir
-      end
     end
   end
 
@@ -996,85 +953,6 @@ class FileBufferTest < Test::Unit::TestCase
       assert_equal 0, queue[3].size
       assert_equal :queued, queue[3].state
       assert_equal Time.parse('2016-04-17 14:01:22 -0700'), queue[3].modified_at
-    end
-  end
-
-  sub_test_case 'there are the same timekey metadata in stage' do
-    setup do
-      @bufdir = File.expand_path('../../tmp/buffer_file', __FILE__)
-      @bufpath = File.join(@bufdir, 'testbuf.*.log')
-      FileUtils.rm_r(@bufdir) if File.exist?(@bufdir)
-      FileUtils.mkdir_p(@bufdir)
-
-      m = metadata(timekey: event_time('2016-04-17 13:58:00 -0700').to_i)
-
-      c1id = Fluent::UniqueId.generate
-      p1 = File.join(@bufdir, "testbuf.b#{Fluent::UniqueId.hex(c1id)}.log")
-      File.open(p1, 'wb') do |f|
-        f.write ["t1.test", event_time('2016-04-17 14:00:15 -0700').to_i, {"message" => "yay1"}].to_json + "\n"
-        f.write ["t4.test", event_time('2016-04-17 14:00:28 -0700').to_i, {"message" => "yay2"}].to_json + "\n"
-      end
-      write_metadata(p1 + '.meta', c1id, m, 2, event_time('2016-04-17 14:00:00 -0700').to_i, event_time('2016-04-17 14:00:28 -0700').to_i)
-
-      c2id = Fluent::UniqueId.generate
-      p2 = File.join(@bufdir, "testbuf.b#{Fluent::UniqueId.hex(c2id)}.log")
-      File.open(p2, 'wb') do |f|
-        f.write ["t1.test", event_time('2016-04-17 14:00:15 -0700').to_i, {"message" => "yay3"}].to_json + "\n"
-        f.write ["t4.test", event_time('2016-04-17 14:00:28 -0700').to_i, {"message" => "yay4"}].to_json + "\n"
-      end
-      m2 = m.dup_next
-      write_metadata(p2 + '.meta', c2id, m2, 2, event_time('2016-04-17 14:00:00 -0700').to_i, event_time('2016-04-17 14:00:28 -0700').to_i)
-
-      c3id = Fluent::UniqueId.generate
-      p3 = File.join(@bufdir, "testbuf.b#{Fluent::UniqueId.hex(c3id)}.log")
-      File.open(p3, 'wb') do |f|
-        f.write ["t1.test", event_time('2016-04-17 14:00:15 -0700').to_i, {"message" => "yay5"}].to_json + "\n"
-        f.write ["t4.test", event_time('2016-04-17 14:00:28 -0700').to_i, {"message" => "yay6"}].to_json + "\n"
-      end
-      m3 = m2.dup_next
-      write_metadata(p3 + '.meta', c3id, m3, 2, event_time('2016-04-17 14:00:00 -0700').to_i, event_time('2016-04-17 14:00:28 -0700').to_i)
-
-      c4id = Fluent::UniqueId.generate
-      p4 = File.join(@bufdir, "testbuf.b#{Fluent::UniqueId.hex(c4id)}.log")
-      File.open(p4, 'wb') do |f|
-        f.write ["t1.test", event_time('2016-04-17 14:00:15 -0700').to_i, {"message" => "yay5"}].to_json + "\n"
-        f.write ["t4.test", event_time('2016-04-17 14:00:28 -0700').to_i, {"message" => "yay6"}].to_json + "\n"
-      end
-      write_metadata(p4 + '.meta', c4id, m3, 2, event_time('2016-04-17 14:00:00 -0700').to_i, event_time('2016-04-17 14:00:28 -0700').to_i)
-
-      Fluent::Test.setup
-      @d = FluentPluginFileBufferTest::DummyOutputPlugin.new
-      @p = Fluent::Plugin::FileBuffer.new
-      @p.owner = @d
-      @p.configure(config_element('buffer', '', {'path' => @bufpath}))
-      @p.start
-    end
-    teardown do
-      if @p
-        @p.stop unless @p.stopped?
-        @p.before_shutdown unless @p.before_shutdown?
-        @p.shutdown unless @p.shutdown?
-        @p.after_shutdown unless @p.after_shutdown?
-        @p.close unless @p.closed?
-        @p.terminate unless @p.terminated?
-      end
-
-      if @bufdir
-        Dir.glob(File.join(@bufdir, '*')).each do |path|
-          next if ['.', '..'].include?(File.basename(path))
-          # Windows does not permit to delete files which are used in another process.
-          # Just ignore for removing failure.
-          File.delete(path) rescue nil
-        end
-      end
-    end
-
-    test '#resume returns each chunks' do
-      s, e = @p.resume
-      assert_equal 3, s.size
-      assert_equal [0, 1, 2], s.keys.map(&:seq).sort
-      assert_equal 1, e.size
-      assert_equal [0], e.map { |e| e.metadata.seq }
     end
   end
 

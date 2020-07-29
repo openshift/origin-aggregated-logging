@@ -62,9 +62,7 @@ module Fluent
 
       # initialize <match> and <filter> elements
       conf.elements('filter', 'match').each { |e|
-        if !Fluent::Engine.supervisor_mode && e.for_another_worker?
-          next
-        end
+        next if e.for_another_worker?
         pattern = e.arg.empty? ? '**' : e.arg
         type = e['@type']
         raise ConfigError, "Missing '@type' parameter on <#{e.name}> directive" unless type

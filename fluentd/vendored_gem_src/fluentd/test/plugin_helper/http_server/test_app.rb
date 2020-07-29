@@ -9,7 +9,7 @@ rescue LoadError => _
 end
 
 unless skip
-  class HttpHelperAppTest < Test::Unit::TestCase
+  class HtttpHelperAppTest < Test::Unit::TestCase
     NULL_LOGGER = Logger.new(nil)
 
     class DummyRounter

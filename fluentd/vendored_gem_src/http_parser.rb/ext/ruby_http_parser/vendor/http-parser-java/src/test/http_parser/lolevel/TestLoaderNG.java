@@ -99,7 +99,7 @@ public class TestLoaderNG {
           } 
           else if ("should_keep_alive".equals(key)) 
           {curr.should_keep_alive = (1 == Integer.parseInt(value));}
-          else if ("upgrade".equals(key))      {curr.upgrade           = (1 == Integer.parseInt(value));}
+          else if ("upgrade".equals(key))      { curr.upgrade = toByteArray(value);}
           else if ("http_major".equals(key))   {curr.http_major = Integer.parseInt(value);}
           else if ("http_minor".equals(key))   {curr.http_minor = Integer.parseInt(value);}
         } else {
@@ -189,12 +189,12 @@ public class TestLoaderNG {
 //      for (int i =0; i!= t.raw.length; ++i) {
 //        p(i+":"+t.raw[i]);
 //      }
-      try {
+//      try {
       t.execute_permutations();
-      } catch (Throwable th) {
-        p("failed: "+t.name);
-      }
-      //	t.execute();
+//      } catch (Throwable th) {
+//        p("failed: "+t.name);
+//      }
+      t.execute();
       //	System.exit(0);
     }
   }
@@ -209,15 +209,4 @@ public class TestLoaderNG {
       ,VALUE
   }
 
-  static class TestSettings extends ParserSettings {
-    public boolean success;
-    Map<String, String> map;
-    TestSettings () {
-      map = new HashMap<String, String>();
-      map.put("path", "");
-      map.put("query_string", "");
-      map.put("url", "");
-      map.put("fragment", "");
-    }
-  }
 }

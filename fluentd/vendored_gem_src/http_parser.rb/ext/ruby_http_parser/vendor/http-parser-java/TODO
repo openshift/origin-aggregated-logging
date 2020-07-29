@@ -1,4 +1,10 @@
+decide how to handle errs per default:
+  - ry: "set state to dead", return `read`
+  - current: call on_error w/ details, if no on_error handler set,
+    throw Exception, else call on_error and behave like orig...
+
 some tests from test.c left to port
+  (scan ...)
 documentation
 
 hi level callback interface 

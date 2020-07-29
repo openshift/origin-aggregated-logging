@@ -281,8 +281,7 @@ HELP
       @text = ""
       @preamble_source = ""
       @preamble = nil
-      uri = URI.parse(LICENSE_URL)
-      uri.open do |io|
+      open(LICENSE_URL) do |io|
         @text = io.read
       end
       @preamble_source = @text[/^(\s*Copyright.+)/m, 1]
