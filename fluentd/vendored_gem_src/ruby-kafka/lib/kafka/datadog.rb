@@ -31,7 +31,7 @@ module Kafka
 
     class << self
       def statsd
-        @statsd ||= ::Datadog::Statsd.new(host, port, namespace: namespace, tags: tags)
+        @statsd ||= ::Datadog::Statsd.new(host, port, namespace: namespace, tags: tags, socket_path: socket_path)
       end
 
       def statsd=(statsd)
@@ -54,6 +54,15 @@ module Kafka
 
       def port=(port)
         @port = port
+        clear
+      end
+
+      def socket_path
+        @socket_path
+      end
+
+      def socket_path=(socket_path)
+        @socket_path = socket_path
         clear
       end
 
@@ -160,6 +169,8 @@ module Kafka
       def process_batch(event)
         offset = event.payload.fetch(:last_offset)
         messages = event.payload.fetch(:message_count)
+        create_time = event.payload.fetch(:last_create_time)
+        time_lag = create_time && ((Time.now - create_time) * 1000).to_i
 
         tags = {
           client: event.payload.fetch(:client_id),
@@ -176,6 +187,10 @@ module Kafka
         end
 
         gauge("consumer.offset", offset, tags: tags)
+
+        if time_lag
+          gauge("consumer.time_lag", time_lag, tags: tags)
+        end
       end
 
       def fetch_batch(event)

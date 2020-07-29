@@ -17,6 +17,8 @@
 -
 -
 -
+-
+-
 en^Andrew Toolkit
 -
 -
@@ -28,6 +30,10 @@ en^Atom Publishing Protocol
 -
 -
 en^Atom Publishing Protocol Service Document
+-
+-
+-
+-
 -
 -
 -
@@ -73,12 +79,14 @@ en^Cloud Data Management Interface (CDMI) - Queue
 -
 -
 -
+-
 en^CU-SeeMe
 -
 -
 -
 -
 en^Web Distributed Authoring and Versioning
+-
 -
 -
 -
@@ -176,6 +184,7 @@ en^JavaScript
 -
 -
 en^JavaScript Object Notation (JSON)
+-
 -
 -
 -
@@ -315,6 +324,7 @@ en^Portable Symmetric Key Container
 -
 -
 -
+-
 en^Resource Description Framework
 en^IMS Networks
 en^Relax NG Compact Syntax
@@ -342,6 +352,7 @@ en^Rich Text Format
 -
 -
 -
+-
 en^Systems Biology Markup Language
 -
 -
@@ -350,6 +361,8 @@ en^Server-Based Certificate Validation Protocol - Validation Response
 en^Server-Based Certificate Validation Protocol - Validation Policies - Request
 en^Server-Based Certificate Validation Protocol - Validation Policies - Response
 en^Session Description Protocol
+-
+-
 -
 -
 -
@@ -392,6 +405,7 @@ en^Speech Recognition Grammar Specification - XML
 en^Search/Retrieve via URL Response Format
 -
 en^Speech Synthesis Markup Language
+-
 -
 -
 -
@@ -497,6 +511,15 @@ en^Adobe XML Forms Data Format
 -
 -
 -
+-
+-
+-
+-
+-
+-
+-
+-
+-
 en^Ahead AIR Application
 en^AirZip FileSECURE
 en^AirZip FileSECURE
@@ -512,6 +535,7 @@ en^Android Package Archive
 en^ANSER-WEB Terminal Client - Certificate Issue
 en^ANSER-WEB Terminal Client - Web Funds Transfer
 en^Antix Game Player
+-
 -
 -
 -
@@ -615,6 +639,7 @@ en^RemoteDocs R-Viewer
 -
 -
 -
+-
 en^FCS Express Layout Link
 -
 -
@@ -633,6 +658,7 @@ en^DreamFactory
 -
 -
 en^Digital Video Broadcasting
+-
 -
 -
 -
@@ -741,6 +767,7 @@ en^Fujitsu - Xerox DocuWorks Binder
 -
 en^FuzzySheet
 en^Genomatix Tuxedo Framework
+-
 -
 -
 en^GeoGebra
@@ -1039,6 +1066,7 @@ en^Open Document Text Web
 -
 -
 -
+-
 en^Sugar Linux Application Bundle
 -
 -
@@ -1254,6 +1282,7 @@ en^SailingTracker
 -
 -
 -
+-
 en^SeeMail
 en^Secured eMail
 en^Secured eMail
@@ -1266,11 +1295,14 @@ en^Shana Informed Filler
 -
 -
 -
+-
+-
 en^SimTech MindMapper
 -
 en^SMAF File
 -
 en^SMART Technologies Apps
+-
 -
 -
 en^SudokuMagic
@@ -1518,6 +1550,7 @@ en^LaTeX
 en^Mobipocket
 en^Microsoft ClickOnce
 -
+-
 en^Microsoft Windows Media Player Download Package
 en^Microsoft Windows Media Player Skin Package
 en^Microsoft XAML Browser Application
@@ -1547,6 +1580,7 @@ en^PKCS #7 - Cryptographic Message Syntax Standard (Certificates)
 en^PKCS #7 - Cryptographic Message Syntax Standard (Certificate Request Response)
 -
 -
+-
 en^RAR Archive
 -
 -
@@ -1557,6 +1591,7 @@ en^Bourne Shell Script
 en^Shell Archive
 en^Adobe Flash
 en^Microsoft Silverlight
+-
 -
 -
 -
@@ -1592,6 +1627,8 @@ en^WAIS Source
 -
 -
 en^X.509 Certificate
+-
+-
 en^Xfig
 -
 en^XPInstall - Mozilla
@@ -1707,6 +1744,7 @@ en^Sun Audio - Au file format
 -
 -
 -
+-
 en^MIDI - Musical Instrument Digital Interface
 -
 en^MPEG-4 Audio
@@ -1716,6 +1754,7 @@ en^MPEG-4 Audio
 en^MPEG Audio
 -
 en^Ogg Audio
+-
 -
 -
 -
@@ -1789,9 +1828,11 @@ en^Hit'n'Mix
 -
 -
 -
+en^Waveform Audio File Format (WAV)
 en^Open Web Media Project - Audio
 en^Advanced Audio Coding (AAC)
 en^Audio Interchange File Format
+-
 -
 -
 -
@@ -1900,24 +1941,41 @@ en^eXtended Image File Format (XIFF)
 en^WebP Image
 -
 -
+en^Adobe Digital Negative
 -
+en^Canon Raw Image
+en^Canon Raw Image
 en^CMU Image
 en^Corel Metafile Exchange (CMX)
 -
 -
+en^Epson Raw Image
 en^FreeHand MX
+en^Fuji Raw Image
 -
 en^Icon Image
+en^Kodak Raw Image
+en^Kodak Raw Image
+en^Kodak Raw Image
+en^Minolta Raw Image
 -
 en^Bitmap Image File
+en^Nikon Raw Image
+en^Olympus Raw Image
 -
+en^Panasonic Raw Image
 en^PCX Image
+en^Pentax Raw Image
 en^PICT Image
 en^Portable Anymap Image
 en^Portable Bitmap Format
 en^Portable Graymap Format
 en^Portable Pixmap Format
 en^Silicon Graphics RGB Bitmap
+en^Sigma Raw Image
+en^Sony Raw Image
+en^Sony Raw Image
+en^Sony Raw Image
 -
 -
 -
@@ -1955,6 +2013,8 @@ en^Email Message
 -
 en^Initial Graphics Exchange Specification (IGES)
 en^Mesh Data Type
+-
+-
 -
 en^COLLADA
 en^Autodesk Design Web Format (DWF)
@@ -2040,6 +2100,7 @@ en^Rich Text Format (RTF)
 en^Standard Generalized Markup Language (SGML)
 -
 -
+-
 en^Tab Separated Values
 en^troff
 en^Turtle (Terse RDF Triple Language)
@@ -2082,6 +2143,7 @@ en^J2ME App Descriptor
 -
 en^Wireless Markup Language (WML)
 en^Wireless Markup Language Script (WMLScript)
+-
 en^Assembler Source File
 en^C Source File
 -

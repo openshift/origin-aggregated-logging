@@ -1,5 +1,5 @@
 ARG DATA_VERSION_VALUE=1.6.0
-ARG FLUENTD_VERSION_VALUE=1.9.2
+ARG FLUENTD_VERSION_VALUE=1.7.4
 ARG HOME_VALUE=/opt/app-root/src
 ARG PATH_VALUE=/opt/app-root/src/bin:/opt/app-root/bin
 ARG LOGGING_FILE_PATH_VALUE=/var/log/fluentd/fluentd.log

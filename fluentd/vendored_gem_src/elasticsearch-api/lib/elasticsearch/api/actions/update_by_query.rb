@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 module Elasticsearch
   module API
@@ -23,7 +36,7 @@ module Elasticsearch
       #   (options: abort,proceed)
 
       # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-      #   (options: open,closed,none,all)
+      #   (options: open,closed,hidden,none,all)
 
       # @option arguments [Boolean] :lenient Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
       # @option arguments [String] :pipeline Ingest pipeline to set on index requests made by this action. (default: none)
@@ -52,8 +65,8 @@ module Elasticsearch
       # @option arguments [Number] :scroll_size Size on the scroll request powering the update by query
       # @option arguments [Boolean] :wait_for_completion Should the request should block until the update by query operation is complete.
       # @option arguments [Number] :requests_per_second The throttle to set on this request in sub-requests per second. -1 means no throttle.
-      # @option arguments [Number] :slices The number of slices this task should be divided into. Defaults to 1 meaning the task isn't sliced into subtasks.
-
+      # @option arguments [Number|string] :slices The number of slices this task should be divided into. Defaults to 1, meaning the task isn't sliced into subtasks. Can be set to `auto`.
+      # @option arguments [Hash] :headers Custom HTTP headers
       # @option arguments [Hash] :body The search definition using the Query DSL
       #
       # *Deprecation notice*:
@@ -61,10 +74,12 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/docs-update-by-query.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/docs-update-by-query.html
       #
       def update_by_query(arguments = {})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
+
+        headers = arguments.delete(:headers) || {}
 
         arguments = arguments.clone
 
@@ -81,7 +96,7 @@ module Elasticsearch
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
-        perform_request(method, path, params, body).body
+        perform_request(method, path, params, body, headers).body
       end
 
       # Register this action with its valid params when the module is loaded.

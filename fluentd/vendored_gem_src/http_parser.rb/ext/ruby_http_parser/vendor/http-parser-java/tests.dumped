@@ -13,7 +13,6 @@ header_0 :{ "User-Agent": "curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSS
 header_1 :{ "Host": "0.0.0.0=5000"}
 header_2 :{ "Accept": "*/*"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -37,7 +36,6 @@ header_5 :{ "Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7"}
 header_6 :{ "Keep-Alive": "300"}
 header_7 :{ "Connection": "keep-alive"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -54,7 +52,6 @@ body        :""
 body_size   :0
 header_0 :{ "aaaaaaaaaaaaa": "++++++++++"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -70,7 +67,6 @@ query_string:page=1
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -86,7 +82,6 @@ query_string:
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -103,7 +98,6 @@ body        :""
 body_size   :0
 header_0 :{ "Accept": "*/*"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -120,7 +114,6 @@ body        :"HELLO"
 body_size   :0
 header_0 :{ "conTENT-Length": "5"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :0
 
@@ -139,7 +132,6 @@ header_0 :{ "Accept": "*/*"}
 header_1 :{ "Transfer-Encoding": "identity"}
 header_2 :{ "Content-Length": "5"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -156,7 +148,6 @@ body        :"all your base are belong to us"
 body_size   :0
 header_0 :{ "Transfer-Encoding": "chunked"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -173,7 +164,6 @@ body        :"hello world"
 body_size   :0
 header_0 :{ "Transfer-Encoding": "chunked"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -192,7 +182,6 @@ header_0 :{ "Transfer-Encoding": "chunked"}
 header_1 :{ "Vary": "*"}
 header_2 :{ "Content-Type": "text/plain"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -209,7 +198,6 @@ body        :"hello world"
 body_size   :0
 header_0 :{ "Transfer-Encoding": "chunked"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -225,7 +213,6 @@ query_string:foo="bar"
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -244,7 +231,6 @@ header_0 :{ "Host": "0.0.0.0:5000"}
 header_1 :{ "User-Agent": "ApacheBench/2.3"}
 header_2 :{ "Accept": "*/*"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :0
 
@@ -260,7 +246,6 @@ query_string:foo=bar?baz
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -276,12 +261,11 @@ query_string:
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
 name  :upgrade request
-raw   :"GET /demo HTTP/1.1\r\nHost: example.com\r\nConnection: Upgrade\r\nSec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\nSec-WebSocket-Protocol: sample\r\nUpgrade: WebSocket\r\nSec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\nOrigin: http://example.com\r\n\r\n"
+raw   :"GET /demo HTTP/1.1\r\nHost: example.com\r\nConnection: Upgrade\r\nSec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\nSec-WebSocket-Protocol: sample\r\nUpgrade: WebSocket\r\nSec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\nOrigin: http://example.com\r\n\r\nHot diggity dogg"
 type  :HTTP_REQUEST
 method: HTTP_GET
 status_code :0
@@ -299,17 +283,17 @@ header_4 :{ "Upgrade": "WebSocket"}
 header_5 :{ "Sec-WebSocket-Key1": "4 @1  46546xW%0l 1 5"}
 header_6 :{ "Origin": "http://example.com"}
 should_keep_alive         :1
-upgrade                   :1
+upgrade                   :"Hot diggity dogg"
 http_major                :1
 http_minor                :1
 
 name  :connect request
-raw   :"CONNECT home0.netscape.com:443 HTTP/1.0\r\nUser-agent: Mozilla/1.1N\r\nProxy-authorization: basic aGVsbG86d29ybGQ=\r\n\r\n"
+raw   :"CONNECT 0-home0.netscape.com:443 HTTP/1.0\r\nUser-agent: Mozilla/1.1N\r\nProxy-authorization: basic aGVsbG86d29ybGQ=\r\n\r\nsome data\r\nand yet even more data"
 type  :HTTP_REQUEST
 method: HTTP_CONNECT
 status_code :0
 request_path:
-request_url :home0.netscape.com:443
+request_url :0-home0.netscape.com:443
 fragment    :
 query_string:
 body        :""
@@ -317,7 +301,7 @@ body_size   :0
 header_0 :{ "User-agent": "Mozilla/1.1N"}
 header_1 :{ "Proxy-authorization": "basic aGVsbG86d29ybGQ="}
 should_keep_alive         :0
-upgrade                   :1
+upgrade                   :"some data\r\nand yet even more data"
 http_major                :1
 http_minor                :0
 
@@ -333,7 +317,6 @@ query_string:
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -349,7 +332,6 @@ query_string:
 body        :""
 body_size   :0
 should_keep_alive         :0
-upgrade                   :0
 http_major                :0
 http_minor                :9
 
@@ -368,24 +350,23 @@ header_0 :{ "HOST": "239.255.255.250:1900"}
 header_1 :{ "MAN": ""ssdp:discover""}
 header_2 :{ "ST": ""ssdp:all""}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
-name  :utf-8 path request
-raw   :"GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\nHost: github.com\r\n\r\n"
+name  :line folding in header value
+raw   :"GET / HTTP/1.1\r\nLine1:   abc\r\n	def\r\n ghi\r\n		jkl\r\n  mno \r\n	 	qrs\r\nLine2: 	 line2	\r\n\r\n"
 type  :HTTP_REQUEST
 method: HTTP_GET
 status_code :0
-request_path:/δ¶/δt/pope
-request_url :/δ¶/δt/pope?q=1#narf
-fragment    :narf
-query_string:q=1
+request_path:/
+request_url :/
+fragment    :
+query_string:
 body        :""
 body_size   :0
-header_0 :{ "Host": "github.com"}
+header_0 :{ "Line1": "abcdefghijklmno qrs"}
+header_1 :{ "Line2": "line2	"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -401,7 +382,6 @@ query_string:hail=all
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -417,7 +397,6 @@ query_string:hail=all
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -433,7 +412,96 @@ query_string:
 body        :""
 body_size   :0
 should_keep_alive         :1
-upgrade                   :0
+http_major                :1
+http_minor                :1
+
+name  :PATCH request
+raw   :"PATCH /file.txt HTTP/1.1\r\nHost: www.example.com\r\nContent-Type: application/example\r\nIf-Match: \"e0023aa4e\"\r\nContent-Length: 10\r\n\r\ncccccccccc"
+type  :HTTP_REQUEST
+method: UNKNOWN
+status_code :0
+request_path:/file.txt
+request_url :/file.txt
+fragment    :
+query_string:
+body        :"cccccccccc"
+body_size   :0
+header_0 :{ "Host": "www.example.com"}
+header_1 :{ "Content-Type": "application/example"}
+header_2 :{ "If-Match": ""e0023aa4e""}
+header_3 :{ "Content-Length": "10"}
+should_keep_alive         :1
+http_major                :1
+http_minor                :1
+
+name  :connect caps request
+raw   :"CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\nUser-agent: Mozilla/1.1N\r\nProxy-authorization: basic aGVsbG86d29ybGQ=\r\n\r\n"
+type  :HTTP_REQUEST
+method: HTTP_CONNECT
+status_code :0
+request_path:
+request_url :HOME0.NETSCAPE.COM:443
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "User-agent": "Mozilla/1.1N"}
+header_1 :{ "Proxy-authorization": "basic aGVsbG86d29ybGQ="}
+should_keep_alive         :0
+upgrade                   :""
+http_major                :1
+http_minor                :0
+
+name  :eat CRLF between requests, no "Connection: close" header
+raw   :"POST / HTTP/1.1\r\nHost: www.example.com\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 4\r\n\r\nq=42\r\n"
+type  :HTTP_REQUEST
+method: HTTP_POST
+status_code :0
+request_path:/
+request_url :/
+fragment    :
+query_string:
+body        :"q=42"
+body_size   :0
+header_0 :{ "Host": "www.example.com"}
+header_1 :{ "Content-Type": "application/x-www-form-urlencoded"}
+header_2 :{ "Content-Length": "4"}
+should_keep_alive         :1
+http_major                :1
+http_minor                :1
+
+name  :eat CRLF between requests even if "Connection: close" is set
+raw   :"POST / HTTP/1.1\r\nHost: www.example.com\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 4\r\nConnection: close\r\n\r\nq=42\r\n"
+type  :HTTP_REQUEST
+method: HTTP_POST
+status_code :0
+request_path:/
+request_url :/
+fragment    :
+query_string:
+body        :"q=42"
+body_size   :0
+header_0 :{ "Host": "www.example.com"}
+header_1 :{ "Content-Type": "application/x-www-form-urlencoded"}
+header_2 :{ "Content-Length": "4"}
+header_3 :{ "Connection": "close"}
+should_keep_alive         :0
+http_major                :1
+http_minor                :1
+
+name  :PURGE request
+raw   :"PURGE /file.txt HTTP/1.1\r\nHost: www.example.com\r\n\r\n"
+type  :HTTP_REQUEST
+method: UNKNOWN
+status_code :0
+request_path:/file.txt
+request_url :/file.txt
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "Host": "www.example.com"}
+should_keep_alive         :1
 http_major                :1
 http_minor                :1
 
@@ -457,7 +525,6 @@ header_5 :{ "Cache-Control": "public, max-age=2592000"}
 header_6 :{ "Server": "gws"}
 header_7 :{ "Content-Length": "219  "}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -478,7 +545,6 @@ header_2 :{ "X-Powered-By": "Servlet/2.5 JSP/2.1"}
 header_3 :{ "Content-Type": "text/xml; charset=utf-8"}
 header_4 :{ "Connection": "close"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -493,8 +559,7 @@ fragment    :
 query_string:
 body        :""
 body_size   :0
-should_keep_alive         :1
-upgrade                   :0
+should_keep_alive         :0
 http_major                :1
 http_minor                :1
 
@@ -509,8 +574,7 @@ fragment    :
 query_string:
 body        :""
 body_size   :0
-should_keep_alive         :1
-upgrade                   :0
+should_keep_alive         :0
 http_major                :1
 http_minor                :1
 
@@ -528,7 +592,6 @@ body_size   :65
 header_0 :{ "Content-Type": "text/plain"}
 header_1 :{ "Transfer-Encoding": "chunked"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -546,7 +609,6 @@ body_size   :0
 header_0 :{ "Content-Type": "text/html; charset=utf-8"}
 header_1 :{ "Connection": "close"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -566,7 +628,6 @@ header_1 :{ "Content-Length": "11"}
 header_2 :{ "Proxy-Connection": "close"}
 header_3 :{ "Date": "Thu, 31 Dec 2009 20:55:48 +0000"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -586,7 +647,6 @@ header_1 :{ "Content-Type": "text/xml"}
 header_2 :{ "Content-Length": "0"}
 header_3 :{ "DCLK_imp": "v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;dcmt=text/xml;;~cs=o"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -611,32 +671,8 @@ header_6 :{ "Content-Length": "0"}
 header_7 :{ "Content-Type": "text/html; charset=UTF-8"}
 header_8 :{ "Connection": "keep-alive"}
 should_keep_alive         :1
-upgrade                   :0
 http_major                :1
 http_minor                :0
-
-name  :field space
-raw   :"HTTP/1.1 200 OK\r\nServer: Microsoft-IIS/6.0\r\nX-Powered-By: ASP.NET\r\nen-US Content-Type: text/xml\r\nContent-Type: text/xml\r\nContent-Length: 16\r\nDate: Fri, 23 Jul 2010 18:45:38 GMT\r\nConnection: keep-alive\r\n\r\n<xml>hello</xml>"
-type  :HTTP_RESPONSE
-method: HTTP_DELETE
-status_code :200
-request_path:
-request_url :
-fragment    :
-query_string:
-body        :"<xml>hello</xml>"
-body_size   :0
-header_0 :{ "Server": "Microsoft-IIS/6.0"}
-header_1 :{ "X-Powered-By": "ASP.NET"}
-header_2 :{ "en-US Content-Type": "text/xml"}
-header_3 :{ "Content-Type": "text/xml"}
-header_4 :{ "Content-Length": "16"}
-header_5 :{ "Date": "Fri, 23 Jul 2010 18:45:38 GMT"}
-header_6 :{ "Connection": "keep-alive"}
-should_keep_alive         :1
-upgrade                   :0
-http_major                :1
-http_minor                :1
 
 name  :field underscore
 raw   :"HTTP/1.1 200 OK\r\nDate: Tue, 28 Sep 2010 01:14:13 GMT\r\nServer: Apache\r\nCache-Control: no-cache, must-revalidate\r\nExpires: Mon, 26 Jul 1997 05:00:00 GMT\r\n.et-Cookie: PlaxoCS=1274804622353690521; path=/; domain=.plaxo.com\r\nVary: Accept-Encoding\r\n_eep-Alive: timeout=45\r\n_onnection: Keep-Alive\r\nTransfer-Encoding: chunked\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n0\r\n\r\n"
@@ -661,7 +697,6 @@ header_8 :{ "Transfer-Encoding": "chunked"}
 header_9 :{ "Content-Type": "text/html"}
 header_10 :{ "Connection": "close"}
 should_keep_alive         :0
-upgrade                   :0
 http_major                :1
 http_minor                :1
 
@@ -680,7 +715,131 @@ header_0 :{ "Date": "Fri, 5 Nov 2010 23:07:12 GMT+2"}
 header_1 :{ "Content-Length": "0"}
 header_2 :{ "Connection": "close"}
 should_keep_alive         :0
-upgrade                   :0
+http_major                :1
+http_minor                :1
+
+name  :http version 0.9
+raw   :"HTTP/0.9 200 OK\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :200
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+should_keep_alive         :0
+http_major                :0
+http_minor                :9
+
+name  :neither content-length nor transfer-encoding response
+raw   :"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhello world"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :200
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :"hello world"
+body_size   :0
+header_0 :{ "Content-Type": "text/plain"}
+should_keep_alive         :0
+http_major                :1
+http_minor                :1
+
+name  :HTTP/1.0 with keep-alive and EOF-terminated 200 status
+raw   :"HTTP/1.0 200 OK\r\nConnection: keep-alive\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :200
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "Connection": "keep-alive"}
+should_keep_alive         :0
+http_major                :1
+http_minor                :0
+
+name  :HTTP/1.0 with keep-alive and a 204 status
+raw   :"HTTP/1.0 204 No content\r\nConnection: keep-alive\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :204
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "Connection": "keep-alive"}
+should_keep_alive         :1
+http_major                :1
+http_minor                :0
+
+name  :HTTP/1.1 with an EOF-terminated 200 status
+raw   :"HTTP/1.1 200 OK\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :200
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+should_keep_alive         :0
+http_major                :1
+http_minor                :1
+
+name  :HTTP/1.1 with a 204 status
+raw   :"HTTP/1.1 204 No content\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :204
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+should_keep_alive         :1
+http_major                :1
+http_minor                :1
+
+name  :HTTP/1.1 with a 204 status and keep-alive disabled
+raw   :"HTTP/1.1 204 No content\r\nConnection: close\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :204
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "Connection": "close"}
+should_keep_alive         :0
+http_major                :1
+http_minor                :1
+
+name  :HTTP/1.1 with chunked endocing and a 200 response
+raw   :"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
+type  :HTTP_RESPONSE
+method: HTTP_DELETE
+status_code :200
+request_path:
+request_url :
+fragment    :
+query_string:
+body        :""
+body_size   :0
+header_0 :{ "Transfer-Encoding": "chunked"}
+should_keep_alive         :1
 http_major                :1
 http_minor                :1
 

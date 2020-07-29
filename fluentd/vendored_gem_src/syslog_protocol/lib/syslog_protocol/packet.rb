@@ -1,34 +1,17 @@
 module SyslogProtocol
   class Packet
-    attr_reader :facility, :severity, :hostname, :tag, :rfc, :appname, :procid, :msgid
+    attr_reader :facility, :severity, :hostname, :tag
     attr_accessor :time, :content
-
-    NILVALUE = '-'
-
-    def initialize
-      @rfc = :rfc3164
-      @procid = NILVALUE
-      @msgid = NILVALUE
-    end
 
     def to_s
       assemble
     end
 
     def assemble(max_size = 1024)
-      if @rfc == :rfc5424
-        @appname = @tag
-        assemble_rfc5424
-      else
-        assemble_rfc3164(max_size)
-      end
-    end
-
-    def assemble_rfc3164(max_size = 1024)
-      unless @hostname && @facility && @severity && @tag
+      unless @hostname and @facility and @severity and @tag
         raise "Could not assemble packet without hostname, tag, facility, and severity"
       end
-      data = "<#{pri}>#{generate_timestamp_rfc3164} #{@hostname} #{@tag}: #{@content}"
+      data = "<#{pri}>#{generate_timestamp} #{@hostname} #{@tag}: #{@content}"
 
       if string_bytesize(data) > max_size
         data = data.slice(0, max_size)
@@ -36,14 +19,8 @@ module SyslogProtocol
           data = data.slice(0, data.length - 1)
         end
       end
-      data
-    end
 
-    def assemble_rfc5424
-      unless @hostname && @facility && @severity && @appname
-        raise "Could not assemble packet without hostname, appname, facility, and severity"
-      end
-      data = "<#{pri}>1 #{generate_timestamp_rfc5424} #{@hostname} #{@appname} #{@procid} #{@msgid} #{structured_data} #{@content}"
+      data
     end
 
     def facility=(f)
@@ -132,29 +109,13 @@ module SyslogProtocol
       @severity = p - (@facility * 8)
     end
 
-    def rfc=(r)
-      unless r == :rfc5424 or r == :rfc3164
-        raise ArgumentError.new "rfc must be rfc5424 or rfc3164"
-      end
-      @rfc = r
-    end
-
-    def generate_timestamp_rfc3164
+    def generate_timestamp
       time = @time || Time.now
       # The timestamp format requires that a day with fewer than 2 digits have
       # what would normally be a preceding zero, be instead an extra space.
       day = time.strftime("%d")
       day = day.sub(/^0/, ' ') if day =~ /^0\d/
       time.strftime("%b #{day} %H:%M:%S")
-    end
-
-    def generate_timestamp_rfc5424
-      time = @time || Time.now
-      time.strftime("%Y-%m-%dT%H:%M:%S.%6N%:z")
-    end
-
-    def structured_data
-      NILVALUE
     end
 
     if "".respond_to?(:bytesize)

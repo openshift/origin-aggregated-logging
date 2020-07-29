@@ -24,24 +24,24 @@ RSpec.describe Faraday::Response::RaiseError do
     expect { conn.get('ok') }.not_to raise_error
   end
 
-  it 'raises Faraday::ClientError for 400 responses' do
-    expect { conn.get('bad-request') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::BadRequestError for 400 responses' do
+    expect { conn.get('bad-request') }.to raise_error(Faraday::BadRequestError) do |ex|
       expect(ex.message).to eq('the server responded with status 400')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(400)
     end
   end
 
-  it 'raises Faraday::ClientError for 401 responses' do
-    expect { conn.get('unauthorized') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::UnauthorizedError for 401 responses' do
+    expect { conn.get('unauthorized') }.to raise_error(Faraday::UnauthorizedError) do |ex|
       expect(ex.message).to eq('the server responded with status 401')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(401)
     end
   end
 
-  it 'raises Faraday::ClientError for 403 responses' do
-    expect { conn.get('forbidden') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::ForbiddenError for 403 responses' do
+    expect { conn.get('forbidden') }.to raise_error(Faraday::ForbiddenError) do |ex|
       expect(ex.message).to eq('the server responded with status 403')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(403)
@@ -56,24 +56,24 @@ RSpec.describe Faraday::Response::RaiseError do
     end
   end
 
-  it 'raises Faraday::ConnectionFailed for 407 responses' do
-    expect { conn.get('proxy-error') }.to raise_error(Faraday::ConnectionFailed) do |ex|
-      expect(ex.message).to eq('407 "Proxy Authentication Required "')
+  it 'raises Faraday::ProxyAuthError for 407 responses' do
+    expect { conn.get('proxy-error') }.to raise_error(Faraday::ProxyAuthError) do |ex|
+      expect(ex.message).to eq('407 "Proxy Authentication Required"')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(407)
     end
   end
 
-  it 'raises Faraday::ClientError for 409 responses' do
-    expect { conn.get('conflict') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::ConflictError for 409 responses' do
+    expect { conn.get('conflict') }.to raise_error(Faraday::ConflictError) do |ex|
       expect(ex.message).to eq('the server responded with status 409')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(409)
     end
   end
 
-  it 'raises Faraday::ClientError for 422 responses' do
-    expect { conn.get('unprocessable-entity') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::UnprocessableEntityError for 422 responses' do
+    expect { conn.get('unprocessable-entity') }.to raise_error(Faraday::UnprocessableEntityError) do |ex|
       expect(ex.message).to eq('the server responded with status 422')
       expect(ex.response[:headers]['X-Reason']).to eq('because')
       expect(ex.response[:status]).to eq(422)
@@ -96,8 +96,8 @@ RSpec.describe Faraday::Response::RaiseError do
     end
   end
 
-  it 'raises Faraday::ClientError for 500 responses' do
-    expect { conn.get('server-error') }.to raise_error(Faraday::ClientError) do |ex|
+  it 'raises Faraday::ServerError for 500 responses' do
+    expect { conn.get('server-error') }.to raise_error(Faraday::ServerError) do |ex|
       expect(ex.message).to eq('the server responded with status 500')
       expect(ex.response[:headers]['X-Error']).to eq('bailout')
       expect(ex.response[:status]).to eq(500)

@@ -53,26 +53,13 @@ module Fluent
           @section_name = ''
         end
 
-        def configure(conf)
+        def configure(conf, syntax: :v1)
           if conf.is_a?(Fluent::Config::Element)
             @config = conf
           elsif conf.is_a?(Hash)
             @config = Fluent::Config::Element.new(@section_name, "", Hash[conf.map{|k,v| [k.to_s, v]}], [])
           else
-            @config = Fluent::Config.parse(conf, @section_name, "", syntax: :v1)
-          end
-          @instance.configure(@config)
-          self
-        end
-
-        # this is special method for v0 and should be deleted
-        def configure_v0(conf)
-          if conf.is_a?(Fluent::Config::Element)
-            @config = conf
-          elsif conf.is_a?(Hash)
-            @config = Fluent::Config::Element.new(@section_name, "", Hash[conf.map{|k,v| [k.to_s, v]}], [])
-          else
-            @config = Fluent::Config.parse(conf, @section_name, "", syntax: :v0)
+            @config = Fluent::Config.parse(conf, @section_name, "", syntax: syntax)
           end
           @instance.configure(@config)
           self

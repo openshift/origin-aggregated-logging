@@ -38,10 +38,8 @@ module Fluent
       def parse(text)
         r = {}
         text.split(@delimiter).each do |pair|
-          if pair.include? @label_delimiter
-            key, value = pair.split(@label_delimiter, 2)
-            r[key] = value
-          end
+          key, value = pair.split(@label_delimiter, 2)
+          r[key] = value
         end
         time, record = convert_values(parse_time(r), r)
         yield time, record

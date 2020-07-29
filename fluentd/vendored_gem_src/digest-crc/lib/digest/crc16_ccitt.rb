@@ -60,3 +60,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16_ccitt/crc16_ccitt_ext'; rescue LoadError; end
+end

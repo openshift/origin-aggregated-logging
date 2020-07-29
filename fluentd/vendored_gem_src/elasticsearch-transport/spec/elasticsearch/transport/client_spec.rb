@@ -1,11 +1,23 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 require 'spec_helper'
 
 describe Elasticsearch::Transport::Client do
-
   let(:client) do
     described_class.new.tap do |_client|
       allow(_client).to receive(:__build_connections)
@@ -49,13 +61,55 @@ describe Elasticsearch::Transport::Client do
   end
 
   context 'when a User-Agent header is specified as client option' do
-
     let(:client) do
       described_class.new(transport_options: { headers: { 'User-Agent' => 'testing' } })
     end
 
     it 'sets the specified User-Agent header' do
       expect(client.transport.connections.first.connection.headers['User-Agent']).to eq('testing')
+    end
+  end
+
+  context 'when an encoded api_key is provided' do
+    let(:client) do
+      described_class.new(api_key: 'an_api_key')
+    end
+    let(:authorization_header) do
+      client.transport.connections.first.connection.headers['Authorization']
+    end
+
+    it 'Adds the ApiKey header to the connection' do
+      expect(authorization_header).to eq('ApiKey an_api_key')
+    end
+  end
+
+  context 'when an un-encoded api_key is provided' do
+    let(:client) do
+      described_class.new(api_key: { id: 'my_id', api_key: 'my_api_key' })
+    end
+    let(:authorization_header) do
+      client.transport.connections.first.connection.headers['Authorization']
+    end
+
+    it 'Adds the ApiKey header to the connection' do
+      expect(authorization_header).to eq("ApiKey #{Base64.strict_encode64('my_id:my_api_key')}")
+    end
+  end
+
+  context 'when basic auth and api_key are provided' do
+    let(:client) do
+      described_class.new(
+        api_key: { id: 'my_id', api_key: 'my_api_key' },
+        host: 'http://elastic:password@localhost:9200'
+      )
+    end
+    let(:authorization_header) do
+      client.transport.connections.first.connection.headers['Authorization']
+    end
+
+    it 'removes basic auth credentials' do
+      expect(authorization_header).not_to match(/^Basic/)
+      expect(authorization_header).to match(/^ApiKey/)
     end
   end
 
@@ -176,22 +230,33 @@ describe Elasticsearch::Transport::Client do
   end
 
   describe 'adapter' do
-
     context 'when no adapter is specified' do
-
       let(:adapter) do
-        client.transport.connections.all.first.connection.builder.handlers
+        client.transport.connections.all.first.connection.builder.adapter
       end
 
       it 'uses Faraday NetHttp' do
-        expect(adapter).to include(Faraday::Adapter::NetHttp)
+        expect(adapter).to eq Faraday::Adapter::NetHttp
       end
     end
 
-    context 'when the adapter is specified' do
-
+    context 'when the adapter is patron' do
       let(:adapter) do
-        client.transport.connections.all.first.connection.builder.handlers
+        client.transport.connections.all.first.connection.builder.adapter
+      end
+
+      let(:client) do
+        described_class.new(adapter: :patron)
+      end
+
+      it 'uses Faraday with the adapter' do
+        expect(adapter).to eq Faraday::Adapter::Patron
+      end
+    end
+
+    context 'when the adapter is typhoeus' do
+      let(:adapter) do
+        client.transport.connections.all.first.connection.builder.adapter
       end
 
       let(:client) do
@@ -199,22 +264,21 @@ describe Elasticsearch::Transport::Client do
       end
 
       it 'uses Faraday with the adapter' do
-        expect(adapter).to include(Faraday::Adapter::Typhoeus)
+        expect(adapter).to eq Faraday::Adapter::Typhoeus
       end
     end
 
     context 'when the adapter is specified as a string key' do
-
       let(:adapter) do
-        client.transport.connections.all.first.connection.builder.handlers
+        client.transport.connections.all.first.connection.builder.adapter
       end
 
       let(:client) do
-        described_class.new('adapter' => :typhoeus)
+        described_class.new('adapter' => :patron)
       end
 
       it 'uses Faraday with the adapter' do
-        expect(adapter).to include(Faraday::Adapter::Typhoeus)
+        expect(adapter).to eq Faraday::Adapter::Patron
       end
     end
 
@@ -226,11 +290,11 @@ describe Elasticsearch::Transport::Client do
       end
 
       let(:adapter) do
-        client.transport.connections.all.first.connection.builder.handlers
+        client.transport.connections.all.first.connection.builder.adapter
       end
 
       it 'uses the detected adapter' do
-        expect(adapter).to include(Faraday::Adapter::Patron)
+        expect(adapter).to eq Faraday::Adapter::Patron
       end
     end
 
@@ -238,9 +302,13 @@ describe Elasticsearch::Transport::Client do
 
       let(:client) do
         described_class.new do |faraday|
-          faraday.adapter :typhoeus
+          faraday.adapter :patron
           faraday.response :logger
         end
+      end
+
+      let(:adapter) do
+        client.transport.connections.all.first.connection.builder.adapter
       end
 
       let(:handlers) do
@@ -248,7 +316,7 @@ describe Elasticsearch::Transport::Client do
       end
 
       it 'sets the adapter' do
-        expect(handlers).to include(Faraday::Adapter::Typhoeus)
+        expect(adapter).to eq Faraday::Adapter::Patron
       end
 
       it 'sets the logger' do
@@ -1055,10 +1123,81 @@ describe Elasticsearch::Transport::Client do
         expect(request).to be(true)
       end
     end
+
+    context 'when x-opaque-id is set' do
+      let(:client) { described_class.new(host: hosts) }
+
+      it 'uses x-opaque-id on a request' do
+        expect(client.perform_request('GET', '/', { opaque_id: '12345' }).headers['x-opaque-id']).to eq('12345')
+      end
+    end
+
+    context 'when an x-opaque-id prefix is set on initialization' do
+      let(:prefix) { 'elastic_cloud' }
+      let(:client) do
+        described_class.new(host: hosts, opaque_id_prefix: prefix)
+      end
+
+      it 'uses x-opaque-id on a request' do
+        expect(client.perform_request('GET', '/', { opaque_id: '12345' }).headers['x-opaque-id']).to eq("#{prefix}12345")
+      end
+
+      context 'when using an API call' do
+        let(:client) { described_class.new(host: hosts) }
+
+        it 'doesnae raise an ArgumentError' do
+          expect { client.search(opaque_id: 'no_error') }.not_to raise_error
+        end
+
+        it 'uses X-Opaque-Id in the header' do
+          allow(client).to receive(:perform_request) { OpenStruct.new(body: '') }
+          expect { client.search(opaque_id: 'opaque_id') }.not_to raise_error
+          expect(client).to have_received(:perform_request)
+            .with('GET', '_search', { opaque_id: 'opaque_id' }, nil, {})
+        end
+      end
+    end
+
+    context 'when Elasticsearch response includes a warning header' do
+      let(:client) do
+        Elasticsearch::Transport::Client.new(hosts: hosts)
+      end
+
+      let(:warning) { 'Elasticsearch warning: "deprecation warning"' }
+
+      it 'prints a warning' do
+        allow_any_instance_of(Elasticsearch::Transport::Transport::Response).to receive(:headers) do
+          { 'warning' => warning }
+        end
+
+        begin
+          stderr      = $stderr
+          fake_stderr = StringIO.new
+          $stderr     = fake_stderr
+
+          client.perform_request('GET', '/')
+          fake_stderr.rewind
+          expect(fake_stderr.string).to eq("warning: #{warning}\n")
+        ensure
+          $stderr = stderr
+        end
+      end
+    end
+
+    context 'when a header is set on an endpoint request' do
+      let(:client) { described_class.new(host: hosts) }
+      let(:headers) { { 'user-agent' => 'my ruby app' } }
+
+      it 'performs the request with the header' do
+        allow(client).to receive(:perform_request) { OpenStruct.new(body: '') }
+        expect { client.search(headers: headers) }.not_to raise_error
+        expect(client).to have_received(:perform_request)
+          .with('GET', '_search', {}, nil, headers)
+      end
+    end
   end
 
   context 'when the client connects to Elasticsearch' do
-
     let(:logger) do
       Logger.new(STDERR).tap do |logger|
         logger.formatter = proc do |severity, datetime, progname, msg|
@@ -1136,15 +1275,14 @@ describe Elasticsearch::Transport::Client do
         end
 
         context 'when the Faraday adapter is set in the block' do
-
           let(:client) do
             Elasticsearch::Client.new(host: ELASTICSEARCH_HOSTS.first, logger: logger) do |client|
               client.adapter(:net_http_persistent)
             end
           end
 
-          let(:connection_handler) do
-            client.transport.connections.first.connection.builder.handlers.first
+          let(:handler_name) do
+            client.transport.connections.first.connection.builder.adapter.name
           end
 
           let(:response) do
@@ -1152,7 +1290,7 @@ describe Elasticsearch::Transport::Client do
           end
 
           it 'sets the adapter' do
-            expect(connection_handler.name).to eq('Faraday::Adapter::NetHttpPersistent')
+            expect(handler_name).to eq('Faraday::Adapter::NetHttpPersistent')
           end
 
           it 'uses the adapter to connect' do
@@ -1202,7 +1340,7 @@ describe Elasticsearch::Transport::Client do
           expect(client.perform_request('GET', '_nodes/_local'))
           expect {
             client.perform_request('GET', '_nodes/_local')
-          }.to raise_exception(Faraday::Error::ConnectionFailed)
+          }.to raise_exception(Faraday::ConnectionFailed)
         end
       end
 
@@ -1486,12 +1624,39 @@ describe Elasticsearch::Transport::Client do
           { adapter: :patron }
         end
 
-        let(:connection_handler) do
-          client.transport.connections.first.connection.builder.handlers.first
+        let(:adapter) do
+          client.transport.connections.first.connection.builder.adapter
         end
 
         it 'uses the patron connection handler' do
-          expect(connection_handler).to eq('Faraday::Adapter::Patron')
+          expect(adapter).to eq('Faraday::Adapter::Patron')
+        end
+
+        it 'keeps connections open' do
+          response = client.perform_request('GET', '_nodes/stats/http')
+          connections_before = response.body['nodes'].values.find { |n| n['name'] == node_names.first }['http']['total_opened']
+          client.transport.reload_connections!
+          response = client.perform_request('GET', '_nodes/stats/http')
+          connections_after = response.body['nodes'].values.find { |n| n['name'] == node_names.first }['http']['total_opened']
+          expect(connections_after).to be >= (connections_before)
+        end
+      end
+
+      context 'when typhoeus is used as an adapter', unless: jruby? do
+        before do
+          require 'typhoeus'
+        end
+
+        let(:options) do
+          { adapter: :typhoeus }
+        end
+
+        let(:adapter) do
+          client.transport.connections.first.connection.builder.adapter
+        end
+
+        it 'uses the patron connection handler' do
+          expect(adapter).to eq('Faraday::Adapter::Typhoeus')
         end
 
         it 'keeps connections open' do

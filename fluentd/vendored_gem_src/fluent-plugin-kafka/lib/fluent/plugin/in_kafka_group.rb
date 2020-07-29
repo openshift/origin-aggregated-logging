@@ -29,6 +29,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :deprecated => "Use 'time_source record' instead."
   config_param :time_source, :enum, :list => [:now, :kafka, :record], :default => :now,
                :desc => "Source for message timestamp."
+  config_param :record_time_key, :string, :default => 'time',
+               :desc => "Time field when time_source is 'record'"
   config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
@@ -166,16 +168,17 @@ class Fluent::KafkaGroupInput < Fluent::Input
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
-                         sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl)
+                         sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
     elsif @username != nil && @password != nil
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password,
-                         sasl_over_ssl: @sasl_over_ssl)
+                         sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
     else
       @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
-                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab)
+                         ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab,
+                         ssl_verify_hostname: @ssl_verify_hostname)
     end
 
     @consumer = setup_consumer
@@ -198,7 +201,14 @@ class Fluent::KafkaGroupInput < Fluent::Input
   def setup_consumer
     consumer = @kafka.consumer(@consumer_opts)
     @topics.each { |topic|
-      consumer.subscribe(topic, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
+      if m = /^\/(.+)\/$/.match(topic)
+        topic_or_regex = Regexp.new(m[1])
+        $log.info "Subscribe to topics matching the regex #{topic}"
+      else
+        topic_or_regex = topic
+        $log.info "Subscribe to topic #{topic}"
+      end
+      consumer.subscribe(topic_or_regex, start_from_beginning: @start_from_beginning, max_bytes_per_partition: @max_bytes)
     }
     consumer
   end
@@ -243,9 +253,9 @@ class Fluent::KafkaGroupInput < Fluent::Input
                 record_time = Fluent::Engine.now
               when :record
                 if @time_format
-                  record_time = @time_parser.parse(record['time'].to_s)
+                  record_time = @time_parser.parse(record[@record_time_key].to_s)
                 else
-                  record_time = record['time']
+                  record_time = record[@record_time_key]
                 end
               else
                 log.fatal "BUG: invalid time_source: #{@time_source}"

@@ -66,3 +66,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16_genibus/crc16_genibus_ext'; rescue LoadError; end
+end

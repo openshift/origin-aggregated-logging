@@ -1,13 +1,3 @@
-require 'thread'
-require 'timeout'
-require_relative 'monotonic_time'
-
-##
-# Raised when you attempt to retrieve a connection from a pool that has been
-# shut down.
-
-class ConnectionPool::PoolShuttingDownError < RuntimeError; end
-
 ##
 # The TimedStack manages a pool of homogeneous connections (or any resource
 # you wish to manage).  Connections are created lazily up to a given maximum
@@ -59,7 +49,7 @@ class ConnectionPool::TimedStack
       @resource.broadcast
     end
   end
-  alias_method :<<, :push
+  alias << push
 
   ##
   # Retrieves a connection from the stack.  If a connection is available it is
@@ -74,7 +64,7 @@ class ConnectionPool::TimedStack
     options, timeout = timeout, 0.5 if Hash === timeout
     timeout = options.fetch :timeout, timeout
 
-    deadline = ConnectionPool.monotonic_time + timeout
+    deadline = current_time + timeout
     @mutex.synchronize do
       loop do
         raise ConnectionPool::PoolShuttingDownError if @shutdown_block
@@ -83,8 +73,8 @@ class ConnectionPool::TimedStack
         connection = try_create(options)
         return connection if connection
 
-        to_wait = deadline - ConnectionPool.monotonic_time
-        raise Timeout::Error, "Waited #{timeout} sec" if to_wait <= 0
+        to_wait = deadline - current_time
+        raise ConnectionPool::TimeoutError, "Waited #{timeout} sec" if to_wait <= 0
         @resource.wait(@mutex, to_wait)
       end
     end
@@ -120,6 +110,10 @@ class ConnectionPool::TimedStack
   end
 
   private
+
+  def current_time
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
 
   ##
   # This is an extension point for TimedStack and is called with a mutex.

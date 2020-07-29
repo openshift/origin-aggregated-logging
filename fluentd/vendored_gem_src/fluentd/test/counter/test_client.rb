@@ -128,8 +128,7 @@ class CounterClientTest < ::Test::Unit::TestCase
     test 'raise an error when @scope is nil' do
       @client.instance_variable_set(:@scope, nil)
       assert_raise 'Call `establish` method to get a `scope` before calling this method' do
-        params = { name: 'key1', reset_interval: 10 }
-        @client.init(params).get
+        @client.init(name: 'key1', reset_interval: 10).get
       end
     end
 
@@ -152,8 +151,7 @@ class CounterClientTest < ::Test::Unit::TestCase
       ]
     )
     test 'return an error object' do |(param, expected_error)|
-      params = { name: 'key1', reset_interval: 10 }
-      @client.init(params).get
+      @client.init(:name => 'key1', :reset_interval => 10).get
       response = @client.init(param).get
       errors = response.errors.first
 
@@ -166,8 +164,7 @@ class CounterClientTest < ::Test::Unit::TestCase
     end
 
     test 'return an existing value when passed key already exists and ignore option is true' do
-      params = { name: 'key1', reset_interval: 10 }
-      res1 = @client.init(params).get
+      res1 = @client.init(name: 'key1', reset_interval: 10).get
       res2 = nil
       assert_nothing_raised do
         res2 = @client.init({ name: 'key1', reset_interval: 10 }, options: { ignore: true }).get
@@ -315,8 +312,7 @@ class CounterClientTest < ::Test::Unit::TestCase
     test 'raise an error when @scope is nil' do
       @client.instance_variable_set(:@scope, nil)
       assert_raise 'Call `establish` method to get a `scope` before calling this method' do
-        params = { name: 'name', value: 1 }
-        @client.inc(params).get
+        @client.inc(name: 'name', value: 1).get
       end
     end
 

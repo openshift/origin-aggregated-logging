@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 module Elasticsearch
   module API
@@ -17,16 +30,18 @@ module Elasticsearch
         #   (options: cpu,wait,block)
 
         # @option arguments [Time] :timeout Explicit operation timeout
-
+        # @option arguments [Hash] :headers Custom HTTP headers
         #
         # *Deprecation notice*:
         # The hot accepts /_cluster/nodes as prefix for backwards compatibility reasons
         # Deprecated since version 7.0.0
         #
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.5/cluster-nodes-hot-threads.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cluster-nodes-hot-threads.html
         #
         def hot_threads(arguments = {})
+          headers = arguments.delete(:headers) || {}
+
           arguments = arguments.clone
 
           _node_id = arguments.delete(:node_id)
@@ -36,11 +51,11 @@ module Elasticsearch
                      "_cluster/nodes/#{Utils.__listify(_node_id)}/hot_threads"
                    else
                      "_cluster/nodes/hot_threads"
-end
+      end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
-          perform_request(method, path, params, body).body
+          perform_request(method, path, params, body, headers).body
         end
 
         # Register this action with its valid params when the module is loaded.

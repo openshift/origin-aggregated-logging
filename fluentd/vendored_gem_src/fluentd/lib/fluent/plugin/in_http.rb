@@ -331,29 +331,29 @@ module Fluent::Plugin
         headers.each_pair {|k,v|
           @env["HTTP_#{k.gsub('-','_').upcase}"] = v
           case k
-          when /\AExpect\z/i
+          when /Expect/i
             expect = v
-          when /\AContent-Length\Z/i
+          when /Content-Length/i
             size = v.to_i
-          when /\AContent-Type\Z/i
+          when /Content-Type/i
             @content_type = v
-          when /\AContent-Encoding\Z/i
+          when /Content-Encoding/i
             @content_encoding = v
-          when /\AConnection\Z/i
+          when /Connection/i
             if v =~ /close/i
               @keep_alive = false
             elsif v =~ /Keep-alive/i
               @keep_alive = true
             end
-          when /\AOrigin\Z/i
+          when /Origin/i
             @origin  = v
-          when /\AX-Forwarded-For\Z/i
+          when /X-Forwarded-For/i
             # For multiple X-Forwarded-For headers. Use first header value.
             v = v.first if v.is_a?(Array)
             @remote_addr = v.split(",").first
-          when /\AAccess-Control-Request-Method\Z/i
+          when /Access-Control-Request-Method/i
             @access_control_request_method = v
-          when /\AAccess-Control-Request-Headers\Z/i
+          when /Access-Control-Request-Headers/i
             @access_control_request_headers = v
           end
         }
@@ -526,20 +526,14 @@ module Fluent::Plugin
       end
 
       def include_cors_allow_origin
-        if @origin.nil?
-          return false
-        end
-
         if @cors_allow_origins.include?(@origin)
           return true
         end
         filtered_cors_allow_origins = @cors_allow_origins.select {|origin| origin != ""}
-        r = filtered_cors_allow_origins.find do |origin|
-          (start_str, end_str) = origin.split("*", 2)
-          @origin.start_with?(start_str) && @origin.end_with?(end_str)
-        end
-
-        !r.nil?
+        return filtered_cors_allow_origins.find do |origin|
+          (start_str,end_str) = origin.split("*",2)
+          @origin.start_with?(start_str) and @origin.end_with?(end_str)
+        end != nil
       end
     end
   end

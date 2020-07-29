@@ -128,6 +128,9 @@
 - !ruby/object:MIME::Type
   content-type: image/heic
   encoding: base64
+  extensions:
+  - heic
+  - hif
   xrefs:
     person:
     - David_Singer
@@ -138,6 +141,9 @@
 - !ruby/object:MIME::Type
   content-type: image/heic-sequence
   encoding: base64
+  extensions:
+  - heics
+  - hif
   xrefs:
     person:
     - David_Singer
@@ -148,6 +154,9 @@
 - !ruby/object:MIME::Type
   content-type: image/heif
   encoding: base64
+  extensions:
+  - heif
+  - hif
   xrefs:
     person:
     - David_Singer
@@ -158,6 +167,9 @@
 - !ruby/object:MIME::Type
   content-type: image/heif-sequence
   encoding: base64
+  extensions:
+  - heifs
+  - hif
   xrefs:
     person:
     - David_Singer
@@ -849,10 +861,34 @@
   - 3ds
   registered: false
 - !ruby/object:MIME::Type
+  content-type: image/x-adobe-dng
+  friendly:
+    en: Adobe Digital Negative
+  encoding: base64
+  extensions:
+  - dng
+  registered: false
+- !ruby/object:MIME::Type
   content-type: image/x-bmp
   encoding: base64
   extensions:
   - bmp
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-canon-cr2
+  friendly:
+    en: Canon Raw Image
+  encoding: base64
+  extensions:
+  - cr2
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-canon-crw
+  friendly:
+    en: Canon Raw Image
+  encoding: base64
+  extensions:
+  - crw
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-cmu-raster
@@ -892,6 +928,14 @@
     - "- DEPRECATED in favor of image/emf"
   registered: true
 - !ruby/object:MIME::Type
+  content-type: image/x-epson-erf
+  friendly:
+    en: Epson Raw Image
+  encoding: base64
+  extensions:
+  - erf
+  registered: false
+- !ruby/object:MIME::Type
   content-type: image/x-freehand
   friendly:
     en: FreeHand MX
@@ -902,6 +946,14 @@
   - fh5
   - fh7
   - fhc
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-fuji-raf
+  friendly:
+    en: Fuji Raw Image
+  encoding: base64
+  extensions:
+  - raf
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-hasselblad-3fr
@@ -916,6 +968,38 @@
   encoding: base64
   extensions:
   - ico
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-kodak-dcr
+  friendly:
+    en: Kodak Raw Image
+  encoding: base64
+  extensions:
+  - dcr
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-kodak-k25
+  friendly:
+    en: Kodak Raw Image
+  encoding: base64
+  extensions:
+  - k25
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-kodak-kdc
+  friendly:
+    en: Kodak Raw Image
+  encoding: base64
+  extensions:
+  - kdc
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-minolta-mrw
+  friendly:
+    en: Minolta Raw Image
+  encoding: base64
+  extensions:
+  - mrw
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-mrsid-image
@@ -933,11 +1017,35 @@
   obsolete: true
   registered: false
 - !ruby/object:MIME::Type
+  content-type: image/x-nikon-nef
+  friendly:
+    en: Nikon Raw Image
+  encoding: base64
+  extensions:
+  - nef
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-olympus-orf
+  friendly:
+    en: Olympus Raw Image
+  encoding: base64
+  extensions:
+  - orf
+  registered: false
+- !ruby/object:MIME::Type
   content-type: image/x-paintshoppro
   encoding: base64
   extensions:
   - psp
   - pspimage
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-panasonic-raw
+  friendly:
+    en: Panasonic Raw Image
+  encoding: base64
+  extensions:
+  - raw
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-pcx
@@ -946,6 +1054,14 @@
   encoding: base64
   extensions:
   - pcx
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-pentax-pef
+  friendly:
+    en: Pentax Raw Image
+  encoding: base64
+  extensions:
+  - pef
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-pict
@@ -995,6 +1111,38 @@
   encoding: base64
   extensions:
   - rgb
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-sigma-x3f
+  friendly:
+    en: Sigma Raw Image
+  encoding: base64
+  extensions:
+  - x3f
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-sony-arw
+  friendly:
+    en: Sony Raw Image
+  encoding: base64
+  extensions:
+  - arw
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-sony-sr2
+  friendly:
+    en: Sony Raw Image
+  encoding: base64
+  extensions:
+  - sr2
+  registered: false
+- !ruby/object:MIME::Type
+  content-type: image/x-sony-srf
+  friendly:
+    en: Sony Raw Image
+  encoding: base64
+  extensions:
+  - srf
   registered: false
 - !ruby/object:MIME::Type
   content-type: image/x-targa

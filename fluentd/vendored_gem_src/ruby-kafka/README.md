@@ -118,7 +118,13 @@ Or install it yourself as:
     <td>Limited support</td>
     <td>Limited support</td>
   </tr>
+  <tr>
     <th>Kafka 2.4</th>
+    <td>Limited support</td>
+    <td>Limited support</td>
+  </tr>
+  <tr>
+    <th>Kafka 2.5</th>
     <td>Limited support</td>
     <td>Limited support</td>
   </tr>
@@ -136,6 +142,7 @@ This library is targeting Kafka 0.9 with the v0.4.x series and Kafka 0.10 with t
 - **Kafka 2.2:** Everything that works with Kafka 2.1 should still work, but so far no features specific to Kafka 2.2 have been added.
 - **Kafka 2.3:** Everything that works with Kafka 2.2 should still work, but so far no features specific to Kafka 2.3 have been added.
 - **Kafka 2.4:** Everything that works with Kafka 2.3 should still work, but so far no features specific to Kafka 2.4 have been added.
+- **Kafka 2.5:** Everything that works with Kafka 2.4 should still work, but so far no features specific to Kafka 2.5 have been added.
 
 This library requires Ruby 2.1 or higher.
 
@@ -944,6 +951,8 @@ This configures the store to look up CA certificates from the system default cer
 ##### Client Authentication
 
 In order to authenticate the client to the cluster, you need to pass in a certificate and key created for the client and trusted by the brokers.
+
+**NOTE**: You can disable hostname validation by passing `verify_hostname: false`.
 
 ```ruby
 kafka = Kafka.new(

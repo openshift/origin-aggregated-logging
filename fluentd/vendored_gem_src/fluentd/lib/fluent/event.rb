@@ -20,6 +20,7 @@ require 'fluent/plugin/compressable'
 module Fluent
   class EventStream
     include Enumerable
+    include MessagePackFactory::Mixin
     include Fluent::Plugin::Compressable
 
     # dup does deep copy for event stream
@@ -55,7 +56,7 @@ module Fluent
 
     def to_msgpack_stream(time_int: false, packer: nil)
       return to_msgpack_stream_forced_integer(packer: packer) if time_int
-      out = packer || Fluent::MessagePackFactory.msgpack_packer
+      out = packer || msgpack_packer
       each {|time,record|
         out.write([time,record])
       }
@@ -68,7 +69,7 @@ module Fluent
     end
 
     def to_msgpack_stream_forced_integer(packer: nil)
-      out = packer || Fluent::MessagePackFactory.msgpack_packer
+      out = packer || msgpack_packer
       each {|time,record|
         out.write([time.to_i,record])
       }
@@ -237,7 +238,7 @@ module Fluent
       return if @unpacked_times && @unpacked_records
       @unpacked_times = []
       @unpacked_records = []
-      (unpacker || Fluent::MessagePackFactory.msgpack_unpacker).feed_each(@data) do |time, record|
+      (unpacker || msgpack_unpacker).feed_each(@data) do |time, record|
         @unpacked_times << time
         @unpacked_records << record
       end
@@ -261,7 +262,7 @@ module Fluent
       else
         @unpacked_times = []
         @unpacked_records = []
-        (unpacker || Fluent::MessagePackFactory.msgpack_unpacker).feed_each(@data) do |time, record|
+        (unpacker || msgpack_unpacker).feed_each(@data) do |time, record|
           @unpacked_times << time
           @unpacked_records << record
           block.call(time, record)
@@ -318,11 +319,12 @@ module Fluent
   end
 
   module ChunkMessagePackEventStreamer
+    include MessagePackFactory::Mixin
     # chunk.extend(ChunkEventStreamer)
     #  => chunk.each{|time, record| ... }
     def each(unpacker: nil, &block)
       open do |io|
-        (unpacker || Fluent::MessagePackFactory.msgpack_unpacker(io)).each(&block)
+        (unpacker || msgpack_unpacker(io)).each(&block)
       end
       nil
     end

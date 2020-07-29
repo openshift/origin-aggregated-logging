@@ -95,3 +95,7 @@ module Digest
   # @deprecated Please use {CRC32MPEG}.
   CRC32Mpeg = CRC32MPEG
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc32_mpeg/crc32_mpeg_ext'; rescue LoadError; end
+end
