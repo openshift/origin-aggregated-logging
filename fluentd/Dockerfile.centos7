@@ -14,7 +14,8 @@ ENV DATA_VERSION=1.6.0 \
 # iproute needed for ip command to get ip addresses
 # autoconf redhat-rpm-config for building jemalloc
 USER 0
-RUN yum install -y --setopt=tsflags=nodocs \
+RUN yum-config-manager --enable rhel-7-server-ose-4.2-rpms && \
+    yum install -y --setopt=tsflags=nodocs \
       make \
       bc \
       git \
