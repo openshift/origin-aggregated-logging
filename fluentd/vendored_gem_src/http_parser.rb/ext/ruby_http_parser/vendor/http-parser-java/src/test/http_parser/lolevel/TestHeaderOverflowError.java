@@ -39,6 +39,7 @@ public class TestHeaderOverflowError {
   }
 
   public static void test () {
+    p(TestHeaderOverflowError.class);
     test(http_parser.ParserType.HTTP_REQUEST);
     test(http_parser.ParserType.HTTP_RESPONSE);
   }

@@ -121,7 +121,8 @@ Consume events by kafka consumer group features..
       add_prefix <tag prefix (Optional)>
       add_suffix <tag suffix (Optional)>
       retry_emit_limit <Wait retry_emit_limit x 1s when BuffereQueueLimitError happens. The default is nil and it means waiting until BufferQueueLimitError is resolved>
-      use_record_time <If true, replace event time with contents of 'time' field of fetched record>
+      use_record_time (Deprecated. Use 'time_source record' instead.) <If true, replace event time with contents of 'time' field of fetched record>
+      time_source <source for message timestamp (now|kafka|record)> :default => now
       time_format <string (Optional when use_record_time is used)>
 
       # ruby-kafka consumer options
@@ -443,7 +444,7 @@ See ruby-kafka README for more details: https://github.com/zendesk/ruby-kafka#co
 
 To avoid the problem, there are 2 approaches:
 
-- Upgrade your kafka cluster to latest version. This is better becase recent version is faster and robust.
+- Upgrade your kafka cluster to latest version. This is better because recent version is faster and robust.
 - Downgrade ruby-kafka/fluent-plugin-kafka to work with your older kafka.
 
 ## Contributing

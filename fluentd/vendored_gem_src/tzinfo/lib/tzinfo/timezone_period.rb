@@ -1,245 +1,179 @@
+# encoding: UTF-8
+# frozen_string_literal: true
+
 module TZInfo
-  # A period of time in a timezone where the same offset from UTC applies.
+  # {TimezonePeriod} represents a period of time for a time zone where the same
+  # offset from UTC applies. It provides access to the observed offset, time
+  # zone abbreviation, start time and end time.
   #
-  # All the methods that take times accept instances of Time or DateTime as well
-  # as Integer timestamps.
+  # The period of time can be unbounded at the start, end, or both the start
+  # and end.
+  #
+  # @abstract Time zone period data will returned as an instance of one of the
+  #  subclasses of {TimezonePeriod}.
   class TimezonePeriod
-    # The TimezoneTransition that defines the start of this TimezonePeriod 
-    # (may be nil if unbounded).
-    attr_reader :start_transition
-    
-    # The TimezoneTransition that defines the end of this TimezonePeriod
-    # (may be nil if unbounded).
-    attr_reader :end_transition
-    
-    # The TimezoneOffset for this period.
+    # @return [TimezoneOffset] the offset that applies in the period of time.
     attr_reader :offset
-    
-    # Initializes a new TimezonePeriod.
+
+    # Initializes a {TimezonePeriod}.
     #
-    # TimezonePeriod instances should not normally be constructed manually.
-    def initialize(start_transition, end_transition, offset = nil)
-      @start_transition = start_transition
-      @end_transition = end_transition
-      
-      if offset
-        raise ArgumentError, 'Offset specified with transitions' if @start_transition || @end_transition
-        @offset = offset
-      else
-        if @start_transition 
-          @offset = @start_transition.offset
-        elsif @end_transition
-          @offset = @end_transition.previous_offset
-        else
-          raise ArgumentError, 'No offset specified and no transitions to determine it from'
-        end
-      end
-      
-      @utc_total_offset_rational = nil      
+    # @param offset [TimezoneOffset] the offset that is observed for the period
+    #   of time.
+    # @raise [ArgumentError] if `offset` is `nil`.
+    def initialize(offset)
+      raise ArgumentError, 'offset must be specified' unless offset
+      @offset = offset
     end
-            
-    # The base offset of the timezone from UTC in seconds. This does not include
-    # any adjustment made for daylight savings time and will typically remain
-    # constant throughout the year.
+
+    # @return [TimezoneTransition] the transition that defines the start of this
+    #   {TimezonePeriod} (`nil` if the start is unbounded).
+    def start_transition
+      raise_not_implemented(:start_transition)
+    end
+
+    # @return [TimezoneTransition] the transition that defines the end of this
+    #   {TimezonePeriod} (`nil` if the end is unbounded).
+    def end_transition
+      raise_not_implemented(:end_transition)
+    end
+
+    # Returns the base offset from UTC in seconds (`observed_utc_offset -
+    # std_offset`). This does not include any adjustment made for daylight
+    # savings time and will typically remain constant throughout the year.
     #
     # To obtain the currently observed offset from UTC, including the effect of
-    # daylight savings time, use utc_total_offset instead.
+    # daylight savings time, use {observed_utc_offset} instead.
     #
-    # Note that zoneinfo files only include the value of utc_total_offset and a
-    # DST flag. When using ZoneinfoDataSource, the utc_offset will be derived
-    # from changes to the UTC total offset and the DST flag. As a consequence,
-    # utc_total_offset will always be correct, but utc_offset may be inaccurate.
+    # If you require accurate {base_utc_offset} values, you should install the
+    # tzinfo-data gem and set {DataSources::RubyDataSource} as the {DataSource}.
+    # When using {DataSources::ZoneinfoDataSource}, the value of
+    # {base_utc_offset} has to be derived from changes to the observed UTC
+    # offset and DST status since it is not included in zoneinfo files.
     #
-    # If you require utc_offset to be accurate, install the tzinfo-data gem and
-    # set RubyDataSource as the DataSource.
-    def utc_offset
-      @offset.utc_offset
+    # @return [Integer] the base offset from UTC in seconds.
+    def base_utc_offset
+      @offset.base_utc_offset
     end
-    
-    # The offset from the time zone's standard time in seconds. Zero
-    # when daylight savings time is not in effect. Non-zero (usually 3600 = 1
-    # hour) if daylight savings is being observed.
+    alias utc_offset base_utc_offset
+
+    # Returns the offset from the time zone's standard time in seconds
+    # (`observed_utc_offset - base_utc_offset`). Zero when daylight savings time
+    # is not in effect. Non-zero (usually 3600 = 1 hour) if daylight savings is
+    # being observed.
     #
-    # Note that zoneinfo files only include the value of utc_total_offset and
-    # a DST flag. When using DataSources::ZoneinfoDataSource, the std_offset
-    # will be derived from changes to the UTC total offset and the DST flag. As
-    # a consequence, utc_total_offset will always be correct, but std_offset
-    # may be inaccurate.
+    # If you require accurate {std_offset} values, you should install the
+    # tzinfo-data gem and set {DataSources::RubyDataSource} as the {DataSource}.
+    # When using {DataSources::ZoneinfoDataSource}, the value of {std_offset}
+    # has to be derived from changes to the observed UTC offset and DST status
+    # since it is not included in zoneinfo files.
     #
-    # If you require std_offset to be accurate, install the tzinfo-data gem
-    # and set RubyDataSource as the DataSource.
+    # @return [Integer] the offset from the time zone's standard time in
+    #   seconds.
     def std_offset
       @offset.std_offset
     end
-    
-    # The identifier of this period, e.g. "GMT" (Greenwich Mean Time) or "BST"
-    # (British Summer Time) for "Europe/London". The returned identifier is a 
-    # symbol.
+
+    # The abbreviation that identifies this offset. For example GMT
+    # (Greenwich Mean Time) or BST (British Summer Time) for Europe/London.
+    #
+    # @return [String] the abbreviation that identifies this offset.
     def abbreviation
       @offset.abbreviation
     end
-    alias :zone_identifier :abbreviation
-    
-    # Total offset from UTC (seconds). Equal to utc_offset + std_offset.
-    def utc_total_offset
-      @offset.utc_total_offset
+    alias abbr abbreviation
+    alias zone_identifier abbreviation
+
+    # Returns the observed offset from UTC in seconds (`base_utc_offset +
+    # std_offset`). This includes adjustments made for daylight savings time.
+    #
+    # @return [Integer] the observed offset from UTC in seconds.
+    def observed_utc_offset
+      @offset.observed_utc_offset
     end
-    
-    # Total offset from UTC (days). Result is a Rational.
-    def utc_total_offset_rational
-      # Thread-safety: It is possible that the value of 
-      # @utc_total_offset_rational may be calculated multiple times in 
-      # concurrently executing threads. It is not worth the overhead of locking
-      # to ensure that @zone_identifiers is only calculated once.
-    
-      unless @utc_total_offset_rational
-        result = OffsetRationals.rational_for_offset(utc_total_offset)
-        return result if frozen?
-        @utc_total_offset_rational = result
-      end
-      @utc_total_offset_rational
-    end
-    
-    # The start time of the period in UTC as a DateTime. May be nil if unbounded.
-    def utc_start
-      @start_transition ? @start_transition.at.to_datetime : nil
-    end
-    
-    # The start time of the period in UTC as a Time. May be nil if unbounded.
-    def utc_start_time
-      @start_transition ? @start_transition.at.to_time : nil
-    end
-    
-    # The end time of the period in UTC as a DateTime. May be nil if unbounded.
-    def utc_end
-      @end_transition ? @end_transition.at.to_datetime : nil
-    end
-    
-    # The end time of the period in UTC as a Time. May be nil if unbounded.
-    def utc_end_time
-      @end_transition ? @end_transition.at.to_time : nil
-    end
-    
-    # The start time of the period in local time as a DateTime. May be nil if 
-    # unbounded.
-    def local_start
-      @start_transition ? @start_transition.local_start_at.to_datetime : nil
-    end
-    
-    # The start time of the period in local time as a Time. May be nil if 
-    # unbounded.
-    def local_start_time
-      @start_transition ? @start_transition.local_start_at.to_time : nil
-    end
-    
-    # The end time of the period in local time as a DateTime. May be nil if 
-    # unbounded.
-    def local_end
-      @end_transition ? @end_transition.local_end_at.to_datetime : nil
-    end
-    
-    # The end time of the period in local time as a Time. May be nil if 
-    # unbounded.
-    def local_end_time
-      @end_transition ? @end_transition.local_end_at.to_time : nil
-    end
-    
-    # true if daylight savings is in effect for this period; otherwise false.
+    alias utc_total_offset observed_utc_offset
+
+    # Determines if daylight savings is in effect (i.e. if {std_offset} is
+    # non-zero).
+    #
+    # @return [Boolean] `true` if {std_offset} is non-zero, otherwise `false`.
     def dst?
       @offset.dst?
     end
-    
-    # true if this period is valid for the given UTC DateTime; otherwise false.
+
+    # Returns the UTC start time of the period or `nil` if the start of the
+    # period is unbounded.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def valid_for_utc?(utc)
-      utc_after_start?(utc) && utc_before_end?(utc) 
-    end
-    
-    # true if the given UTC DateTime is after the start of the period 
-    # (inclusive); otherwise false.
+    # The result is returned as a {Timestamp}. To obtain the start time as a
+    # `Time` or `DateTime`, call either {Timestamp#to_time to_time} or
+    # {Timestamp#to_datetime to_datetime} on the result.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def utc_after_start?(utc)
-      !@start_transition || @start_transition.at <= utc
+    # @return [Timestamp] the UTC start time of the period or `nil` if the start
+    #   of the period is unbounded.
+    def starts_at
+      timestamp(start_transition)
     end
-    
-    # true if the given UTC DateTime is before the end of the period 
-    # (exclusive); otherwise false.
+
+    # Returns the UTC end time of the period or `nil` if the end of the period
+    # is unbounded.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def utc_before_end?(utc)
-      !@end_transition || @end_transition.at > utc
-    end
-    
-    # true if this period is valid for the given local DateTime; otherwise
-    # false.
+    # The result is returned as a {Timestamp}. To obtain the end time as a
+    # `Time` or `DateTime`, call either {Timestamp#to_time to_time} or
+    # {Timestamp#to_datetime to_datetime} on the result.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def valid_for_local?(local)      
-      local_after_start?(local) && local_before_end?(local) 
+    # @return [Timestamp] the UTC end time of the period or `nil` if the end of
+    #   the period is unbounded.
+    def ends_at
+      timestamp(end_transition)
     end
-    
-    # true if the given local DateTime is after the start of the period 
-    # (inclusive); otherwise false.
+
+    # Returns the local start time of the period or `nil` if the start of the
+    # period is unbounded.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def local_after_start?(local)
-      !@start_transition || @start_transition.local_start_at <= local
-    end
-    
-    # true if the given local DateTime is before the end of the period 
-    # (exclusive); otherwise false.
+    # The result is returned as a {TimestampWithOffset}. To obtain the start
+    # time as a `Time` or `DateTime`, call either {TimestampWithOffset#to_time
+    # to_time} or {TimestampWithOffset#to_datetime to_datetime} on the result.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def local_before_end?(local)
-      !@end_transition || @end_transition.local_end_at > local
+    # @return [TimestampWithOffset] the local start time of the period or `nil`
+    #   if the start of the period is unbounded.
+    def local_starts_at
+      timestamp_with_offset(start_transition)
     end
-    
-    # Converts a UTC DateTime to local time based on the offset of this period.
+
+    # Returns the local end time of the period or `nil` if the end of the period
+    # is unbounded.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def to_local(utc)
-      @offset.to_local(utc)
-    end
-    
-    # Converts a local DateTime to UTC based on the offset of this period.
+    # The result is returned as a {TimestampWithOffset}. To obtain the end time
+    # as a `Time` or `DateTime`, call either {TimestampWithOffset#to_time
+    # to_time} or {TimestampWithOffset#to_datetime to_datetime} on the result.
     #
-    # Deprecation warning: this method will be removed in TZInfo version 2.0.0.
-    def to_utc(local)
-      @offset.to_utc(local)
+    # @return [TimestampWithOffset] the local end time of the period or `nil` if
+    #   the end of the period is unbounded.
+    def local_ends_at
+      timestamp_with_offset(end_transition)
     end
-    
-    # Returns true if this TimezonePeriod is equal to p. This compares the 
-    # start_transition, end_transition and offset using ==.
-    def ==(p)
-      p.kind_of?(TimezonePeriod) &&
-        start_transition == p.start_transition &&
-        end_transition == p.end_transition &&
-        offset == p.offset
+
+    private
+
+    # Raises a {NotImplementedError} to indicate that subclasses should override
+    # a method.
+    #
+    # @raise [NotImplementedError] always.
+    def raise_not_implemented(method_name)
+      raise NotImplementedError, "Subclasses must override #{method_name}"
     end
-    
-    # Returns true if this TimezonePeriods is equal to p. This compares the
-    # start_transition, end_transition and offset using eql?
-    def eql?(p)
-      p.kind_of?(TimezonePeriod) &&
-        start_transition.eql?(p.start_transition) &&
-        end_transition.eql?(p.end_transition) &&
-        offset.eql?(p.offset)
+
+    # @param  transition [TimezoneTransition] a transition or `nil`.
+    # @return [Timestamp] the {Timestamp} representing when a transition occurs,
+    #   or `nil` if `transition` is `nil`.
+    def timestamp(transition)
+      transition ? transition.at : nil
     end
-    
-    # Returns a hash of this TimezonePeriod.
-    def hash
-      result = @start_transition.hash ^ @end_transition.hash
-      result ^= @offset.hash unless @start_transition || @end_transition
-      result       
-    end
-    
-    # Returns internal object state as a programmer-readable string.
-    def inspect
-      result = "#<#{self.class}: #{@start_transition.inspect},#{@end_transition.inspect}"
-      result << ",#{@offset.inspect}>" unless @start_transition || @end_transition
-      result + '>'
+
+    # @param transition [TimezoneTransition] a transition or `nil`.
+    # @return [TimestampWithOffset] a {Timestamp} representing when a transition
+    #   occurs with offset set to {#offset}, or `nil` if `transition` is `nil`.
+    def timestamp_with_offset(transition)
+      transition ? TimestampWithOffset.set_timezone_offset(transition.at, offset) : nil
     end
   end
 end

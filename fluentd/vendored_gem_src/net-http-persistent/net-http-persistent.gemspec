@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--main".freeze, "README.rdoc".freeze]
   s.required_ruby_version = Gem::Requirement.new("~> 2.1".freeze)
-  s.rubygems_version = "3.0.3".freeze
+  s.rubygems_version = "3.0.8".freeze
   s.summary = "Manages persistent connections using Net::HTTP plus a speed fix for Ruby 1.8".freeze
 
   if s.respond_to? :specification_version then

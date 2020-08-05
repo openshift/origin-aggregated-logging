@@ -60,3 +60,7 @@ module Digest
 
   end
 end
+
+if RUBY_ENGINE == 'ruby'
+  begin; require 'digest/crc16_kermit/crc16_kermit_ext'; rescue LoadError; end
+end

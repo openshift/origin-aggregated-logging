@@ -2,6 +2,43 @@
 
 ### [Unreleased]
 
+### 4.1.1
+- Correct ILM explain on logstash_format case (#786)
+
+### 4.1.0
+- Implement Fallback selector and configurable selector class (#782)
+
+### 4.0.11
+- Add custom and time placeholders combination testcase for ILM (#781)
+- Really support ILM on `logstash_format` enabled environment (#779)
+
+### 4.0.10
+- filter_elasticsearch_genid: Use entire record as hash seed (#777)
+- Suppress type in meta with suppress_type_name parameter (#774)
+- filter\_elasticsearch\_genid: Add hash generation mechanism from events (#773)
+- Clean up error text (#772)
+- Use GitHub Actions badges instead of Travis' (#760)
+- Add issue auto closer workflow (#759)
+- Document required permissions (#757)
+
+### 4.0.9
+- Add possibility to configure multiple ILM policies (#753)
+- Document required permissions (#757)
+
+### 4.0.8
+- Handle compressable connection usable state (#743)
+- Use newer tls protocol versions (#739)
+- Add GitHub Actions file (#740)
+
+### 4.0.7
+- Added http_backend_excon_nonblock config in out_elasticsearch (#733)
+
+### 4.0.6
+- Add fallback mechanism for handling to detect es version (#730)
+- Remove needless section (#728)
+- Handle exception if index already exists (#727)
+- Tweak test cases (#726)
+
 ### 4.0.5
 -  add logstash_dateformat as placeholder (#718)
 - Tweak travis.yml for suppressing validator warnings and add CI for Linux Arm64 architecture and macOS 10.14 (#724)

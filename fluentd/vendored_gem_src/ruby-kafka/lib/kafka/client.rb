@@ -65,6 +65,10 @@ module Kafka
     # @param sasl_oauth_token_provider [Object, nil] OAuthBearer Token Provider instance that
     #   implements method token. See {Sasl::OAuth#initialize}
     #
+    # @param verify_hostname [Boolean, true] whether to verify that the host serving
+    #   the SSL certificate and the signing chain of the certificate have the correct domains
+    #   based on the CA certificate
+    #
     # @return [Client]
     def initialize(seed_brokers:, client_id: "ruby-kafka", logger: nil, connect_timeout: nil, socket_timeout: nil,
                    ssl_ca_cert_file_path: nil, ssl_ca_cert: nil, ssl_client_cert: nil, ssl_client_cert_key: nil,
@@ -336,6 +340,9 @@ module Kafka
     # @param fetcher_max_queue_size [Integer] max number of items in the fetch queue that
     #   are stored for further processing. Note, that each item in the queue represents a
     #   response from a single broker.
+    # @param refresh_topic_interval [Integer] interval of refreshing the topic list.
+    #   If it is 0, the topic list won't be refreshed (default)
+    #   If it is n (n > 0), the topic list will be refreshed every n seconds
     # @return [Consumer]
     def consumer(
         group_id:,
@@ -345,7 +352,8 @@ module Kafka
         offset_commit_threshold: 0,
         heartbeat_interval: 10,
         offset_retention_time: nil,
-        fetcher_max_queue_size: 100
+        fetcher_max_queue_size: 100,
+        refresh_topic_interval: 0
     )
       cluster = initialize_cluster
 
@@ -399,6 +407,7 @@ module Kafka
         fetcher: fetcher,
         session_timeout: session_timeout,
         heartbeat: heartbeat,
+        refresh_topic_interval: refresh_topic_interval
       )
     end
 
@@ -692,6 +701,14 @@ module Kafka
     # @return [Integer] the number of partitions in the topic.
     def partitions_for(topic)
       @cluster.partitions_for(topic).count
+    end
+
+    # Counts the number of replicas for a topic's partition
+    #
+    # @param topic [String]
+    # @return [Integer] the number of replica nodes for the topic's partition
+    def replica_count_for(topic)
+      @cluster.partitions_for(topic).first.replicas.count
     end
 
     # Retrieve the offset of the last message in a partition. If there are no

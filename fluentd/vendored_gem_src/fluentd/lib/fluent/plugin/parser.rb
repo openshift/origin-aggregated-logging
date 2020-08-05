@@ -35,7 +35,6 @@ module Fluent
           @flag = ServerEngine::BlockingFlag.new
           @mutex = Mutex.new
           @timeout = timeout
-          @timeout_checker = nil
         end
 
         def start
@@ -103,12 +102,6 @@ module Fluent
       PARSER_TYPES = [:text_per_line, :text, :binary]
       def parser_type
         :text_per_line
-      end
-
-      def initialize
-        super
-
-        @timeout_checker = nil
       end
 
       def configure(conf)

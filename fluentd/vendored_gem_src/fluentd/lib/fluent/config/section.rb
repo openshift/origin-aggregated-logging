@@ -58,10 +58,6 @@ module Fluent
         @params
       end
 
-      def dup
-        Section.new(@params.dup, @corresponding_config_element.dup)
-      end
-
       def +(other)
         Section.new(self.to_h.merge(other.to_h))
       end
@@ -110,7 +106,7 @@ module Fluent
     end
 
     module SectionGenerator
-      def self.generate(proxy, conf, logger, plugin_class, stack = [], strict_config_value = false)
+      def self.generate(proxy, conf, logger, plugin_class, stack = [])
         return nil if conf.nil?
 
         section_stack = ""
@@ -126,23 +122,9 @@ module Fluent
         end
 
         if proxy.argument
-          unless conf.arg.nil? || conf.arg.empty?
+          unless conf.arg.empty?
             key, block, opts = proxy.argument
-            opts = opts.merge(strict: true) if strict_config_value
-
-            if conf.arg == :default
-              unless section_params.has_key?(key)
-                logger.error "config error in:\n#{conf}" if logger
-                raise ConfigError, "'#{key}' doesn't have default value"
-              end
-            else
-              begin
-                section_params[key] = self.instance_exec(conf.arg, opts, key, &block)
-              rescue ConfigError => e
-                logger.error "config error in:\n#{conf}" if logger
-                raise e
-              end
-            end
+            section_params[key] = self.instance_exec(conf.arg, opts, name, &block)
           end
           unless section_params.has_key?(proxy.argument.first)
             logger.error "config error in:\n#{conf}" if logger # logger should exist, but somethimes it's nil (e.g, in tests)
@@ -154,36 +136,13 @@ module Fluent
         proxy.params.each_pair do |name, defval|
           varname = name.to_sym
           block, opts = defval
-          opts = opts.merge(strict: true) if strict_config_value
-
           if conf.has_key?(name.to_s) || opts[:alias] && conf.has_key?(opts[:alias].to_s)
             val = if conf.has_key?(name.to_s)
                     conf[name.to_s]
                   else
                     conf[opts[:alias].to_s]
                   end
-
-            if val == :default
-              # default value is already set if it exists
-              unless section_params.has_key?(varname)
-                logger.error "config error in:\n#{conf}" if logger
-                raise ConfigError, "'#{varname}' doesn't have default value"
-              end
-            else
-              begin
-                section_params[varname] = self.instance_exec(val, opts, name, &block)
-              rescue ConfigError => e
-                logger.error "config error in:\n#{conf}" if logger
-                raise e
-              end
-            end
-
-            if section_params[varname].nil?
-              unless proxy.defaults.has_key?(varname) and proxy.defaults[varname].nil?
-                logger.error "config error in:\n#{conf}" if logger
-                raise ConfigError, "'#{name}' parameter is required but nil is specified"
-              end
-            end
+            section_params[varname] = self.instance_exec(val, opts, name, &block)
 
             # Source of definitions of deprecated/obsoleted:
             # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Deprecated_and_obsolete_features
@@ -231,13 +190,13 @@ module Fluent
             raise ConfigError, "'<#{subproxy.name}>' sections are required" + section_stack
           end
           if subproxy.multi?
-            section_params[varname] = elements.map{ |e| generate(subproxy, e, logger, plugin_class, stack + [subproxy.name], strict_config_value) }
+            section_params[varname] = elements.map{ |e| generate(subproxy, e, logger, plugin_class, stack + [subproxy.name]) }
           else
             if elements.size > 1
               logger.error "config error in:\n#{conf}" if logger
               raise ConfigError, "'<#{subproxy.name}>' section cannot be written twice or more" + section_stack
             end
-            section_params[varname] = generate(subproxy, elements.first, logger, plugin_class, stack + [subproxy.name], strict_config_value)
+            section_params[varname] = generate(subproxy, elements.first, logger, plugin_class, stack + [subproxy.name])
           end
         end
 

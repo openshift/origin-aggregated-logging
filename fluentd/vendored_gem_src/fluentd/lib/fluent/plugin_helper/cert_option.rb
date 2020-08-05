@@ -17,16 +17,14 @@
 require 'openssl'
 require 'socket'
 
-require 'fluent/tls'
-
-# this module is only for Socket/Server/HttpServer plugin helpers
+# this module is only for Socket/Server plugin helpers
 module Fluent
   module PluginHelper
     module CertOption
       def cert_option_create_context(version, insecure, ciphers, conf)
         cert, key, extra = cert_option_server_validate!(conf)
 
-        ctx = OpenSSL::SSL::SSLContext.new
+        ctx = OpenSSL::SSL::SSLContext.new(version)
         unless insecure
           # inject OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
           # https://bugs.ruby-lang.org/issues/9424
@@ -45,7 +43,6 @@ module Fluent
         if extra && !extra.empty?
           ctx.extra_chain_cert = extra
         end
-        Fluent::TLS.set_version_to_context(ctx, version, conf.min_version, conf.max_version)
 
         ctx
       end

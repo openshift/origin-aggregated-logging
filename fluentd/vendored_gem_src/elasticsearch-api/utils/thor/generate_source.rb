@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 # encoding: UTF-8
 
@@ -34,18 +47,28 @@ module Elasticsearch
       __root = Pathname(File.expand_path('../../..', __FILE__))
 
       desc 'generate', 'Generate source code and tests from the REST API JSON specification'
-      method_option :verbose, type: :boolean, default: false, desc: 'Output more information'
-      method_option :tests,   type: :boolean, default: false, desc: 'Generate test files'
-      method_option :xpack,   type: :boolean, default: false, desc: 'Generate X-Pack'
-
+      method_option :verbose, type: :boolean, default: false,  desc: 'Output more information'
+      method_option :tests,   type: :boolean, default: false,  desc: 'Generate test files'
+      method_option :api,     type: :array,   default: %w[oss xpack], desc: 'APIs to generate (oss, x-pack)'
       def generate
         self.class.source_root File.expand_path(__dir__)
-        @xpack = options[:xpack]
+        @xpack = options[:api].include? 'xpack'
+        @oss   = options[:api].include? 'oss'
 
-        @input = FilesHelper.input_dir(@xpack)
-        @output = FilesHelper.output_dir(@xpack)
+        __generate_source(:xpack) if @xpack
+        __generate_source(:oss) if @oss
+        # -- Tree output
+        print_tree if options[:verbose]
+      end
 
-        FilesHelper.files(@xpack).each do |filepath|
+      private
+
+      def __generate_source(api)
+        @current_api = api
+        @input = FilesHelper.input_dir(api)
+        @output = FilesHelper.output_dir(api)
+
+        FilesHelper.files(api).each do |filepath|
           @path = Pathname(@input.join(filepath))
           @json = MultiJson.load(File.read(@path))
           @spec = @json.values.first
@@ -83,17 +106,12 @@ module Elasticsearch
           puts
         end
 
-        run_rubocop
-
-        # -- Tree output
-        print_tree if options[:verbose]
+        run_rubocop(api)
       end
-
-      private
 
       def __full_namespace
         names = @endpoint_name.split('.')
-        if @xpack
+        if @current_api == :xpack
           names = (names.first == 'xpack' ? names : ['xpack', names].flatten)
           # Return an array with 'ml' renamed to 'machine_learning' and 'ilm' to
           # 'index_lifecycle_management'
@@ -149,12 +167,12 @@ module Elasticsearch
         return termvectors_path if @method_name == 'termvectors'
 
         result = ''
-        anchor_string = ''
+        anchor_string = []
         @paths.sort { |a, b| b.length <=> a.length }.each_with_index do |path, i|
           var_string = __extract_path_variables(path).map { |var| "_#{var}" }.join(' && ')
-          next if anchor_string == var_string
+          next if anchor_string.include? var_string
 
-          anchor_string = var_string
+          anchor_string << var_string
           result += if i.zero?
                       "if #{var_string}\n"
                     elsif (i == @paths.size - 1) || var_string.empty?
@@ -238,11 +256,11 @@ module Elasticsearch
       end
 
       def __utils
-        @xpack ? 'Elasticsearch::API::Utils' : 'Utils'
+        (@current_api == :xpack) ? 'Elasticsearch::API::Utils' : 'Utils'
       end
 
-      def run_rubocop
-        system("rubocop --format autogenconf -x #{FilesHelper::output_dir(@xpack)}")
+      def run_rubocop(api)
+        system("rubocop --format autogenconf -x #{FilesHelper::output_dir(api)}")
       end
     end
   end

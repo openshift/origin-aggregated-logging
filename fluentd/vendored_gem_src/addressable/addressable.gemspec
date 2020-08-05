@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.licenses = ["Apache-2.0".freeze]
   s.rdoc_options = ["--main".freeze, "README.md".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 2.0".freeze)
-  s.rubygems_version = "3.0.3".freeze
+  s.rubygems_version = "3.0.8".freeze
   s.summary = "URI Implementation".freeze
 
   if s.respond_to? :specification_version then

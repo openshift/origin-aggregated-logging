@@ -1,6 +1,19 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 require 'spec_helper'
 
@@ -11,18 +24,14 @@ describe 'client#reload_secure_settings' do
         'POST',
         url,
         params,
-        nil,
-        nil
+        body,
+        {}
     ]
   end
 
-  let(:params) do
-    {}
-  end
-
-  let(:url) do
-    '_nodes/reload_secure_settings'
-  end
+  let(:params) { {} }
+  let(:url) { '_nodes/reload_secure_settings' }
+  let(:body) { nil }
 
   it 'performs the request' do
     expect(client_double.nodes.reload_secure_settings()).to eq({})
@@ -40,6 +49,7 @@ describe 'client#reload_secure_settings' do
   end
 
   context 'when more than one node id is specified as a string' do
+    let(:body){ { foo: 'bar' } }
 
     let(:url) do
       '_nodes/foo,bar/reload_secure_settings'
@@ -51,7 +61,7 @@ describe 'client#reload_secure_settings' do
   end
 
   context 'when more than one node id is specified as a list' do
-
+    let(:body){ { foo: 'bar' } }
     let(:url) do
       '_nodes/foo,bar/reload_secure_settings'
     end

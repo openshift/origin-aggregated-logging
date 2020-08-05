@@ -21,8 +21,6 @@ require 'fluent/config/error'
 require 'fluent/event'
 require 'fluent/plugin/buffer'
 require 'fluent/plugin/parser_multiline'
-require 'fluent/variable_store'
-require 'fluent/plugin/in_tail/position_file'
 
 if Fluent.windows?
   require_relative 'file_wrapper'
@@ -35,8 +33,6 @@ module Fluent::Plugin
     Fluent::Plugin.register_input('tail', self)
 
     helpers :timer, :event_loop, :parser, :compat_parameters
-
-    RESERVED_CHARS = ['/', '*', '%'].freeze
 
     class WatcherSetupError < StandardError
       def initialize(msg)
@@ -61,8 +57,6 @@ module Fluent::Plugin
 
     desc 'The paths to read. Multiple paths can be specified, separated by comma.'
     config_param :path, :string
-    desc 'path delimiter used for spliting path config'
-    config_param :path_delimiter, :string, default: ','
     desc 'The tag of the event.'
     config_param :tag, :string
     desc 'The paths to exclude the files from watcher list.'
@@ -71,8 +65,6 @@ module Fluent::Plugin
     config_param :rotate_wait, :time, default: 5
     desc 'Fluentd will record the position it last read into this file.'
     config_param :pos_file, :string, default: nil
-    desc 'The cleanup interval of pos file'
-    config_param :pos_file_compaction_interval, :integer, default: nil
     desc 'Start to read the logs from the head of file, not bottom.'
     config_param :read_from_head, :bool, default: false
     # When the program deletes log file and re-creates log file with same filename after passed refresh_interval,
@@ -104,8 +96,6 @@ module Fluent::Plugin
     config_param :skip_refresh_on_startup, :bool, default: false
     desc 'Ignore repeated permission error logs'
     config_param :ignore_repeated_permission_error, :bool, default: false
-    desc 'Format path with the specified timezone'
-    config_param :path_timezone, :string, default: nil
 
     config_section :parse, required: false, multi: true, init: true, param_name: :parser_configs do
       config_argument :usage, :string, default: 'in_tail_parser'
@@ -113,12 +103,16 @@ module Fluent::Plugin
 
     attr_reader :paths
 
+    @@pos_file_paths = {}
+
     def configure(conf)
-      @variable_store = Fluent::VariableStore.fetch_or_build(:in_tail)
       compat_parameters_convert(conf, :parser)
       parser_config = conf.elements('parse').first
       unless parser_config
         raise Fluent::ConfigError, "<parse> section is required."
+      end
+      unless parser_config["@type"]
+        raise Fluent::ConfigError, "parse/@type is required."
       end
 
       (1..Fluent::Plugin::MultilineParser::FORMAT_MAX_NUM).each do |n|
@@ -131,28 +125,18 @@ module Fluent::Plugin
         raise Fluent::ConfigError, "either of enable_watch_timer or enable_stat_watcher must be true"
       end
 
-      if RESERVED_CHARS.include?(@path_delimiter)
-        rc = RESERVED_CHARS.join(', ')
-        raise Fluent::ConfigError, "#{rc} are reserved words: #{@path_delimiter}"
-      end
-
-      @paths = @path.split(@path_delimiter).map(&:strip)
+      @paths = @path.split(',').map {|path| path.strip }
       if @paths.empty?
         raise Fluent::ConfigError, "tail: 'path' parameter is required on tail input"
-      end
-      if @path_timezone
-        Fluent::Timezone.validate!(@path_timezone)
-        @path_formatters = @paths.map{|path| [path, Fluent::Timezone.formatter(@path_timezone, path)]}.to_h
-        @exclude_path_formatters = @exclude_path.map{|path| [path, Fluent::Timezone.formatter(@path_timezone, path)]}.to_h
       end
 
       # TODO: Use plugin_root_dir and storage plugin to store positions if available
       if @pos_file
-        if @variable_store.key?(@pos_file) && !called_in_test?
-          plugin_id_using_this_path = @variable_store[@pos_file]
+        if @@pos_file_paths.has_key?(@pos_file) && !called_in_test?
+          plugin_id_using_this_path = @@pos_file_paths[@pos_file]
           raise Fluent::ConfigError, "Other 'in_tail' plugin already use same pos_file path: plugin_id = #{plugin_id_using_this_path}, pos_file path = #{@pos_file}"
         end
-        @variable_store[@pos_file] = self.plugin_id
+        @@pos_file_paths[@pos_file] = self.plugin_id
       else
         $log.warn "'pos_file PATH' parameter is not set to a 'tail' source."
         $log.warn "this parameter is highly recommended to save the position to resume tailing."
@@ -213,26 +197,11 @@ module Fluent::Plugin
         FileUtils.mkdir_p(pos_file_dir) unless Dir.exist?(pos_file_dir)
         @pf_file = File.open(@pos_file, File::RDWR|File::CREAT|File::BINARY, @file_perm)
         @pf_file.sync = true
-        @pf = PositionFile.load(@pf_file, logger: log)
-
-        if @pos_file_compaction_interval
-          timer_execute(:in_tail_refresh_compact_pos_file, @pos_file_compaction_interval) do
-            log.info('Clean up the pos file')
-            @pf.try_compact
-          end
-        end
+        @pf = PositionFile.parse(@pf_file)
       end
 
       refresh_watchers unless @skip_refresh_on_startup
       timer_execute(:in_tail_refresh_watchers, @refresh_interval, &method(:refresh_watchers))
-    end
-
-    def stop
-      if @variable_store
-        @variable_store.delete(@pos_file)
-      end
-
-      super
     end
 
     def shutdown
@@ -250,20 +219,17 @@ module Fluent::Plugin
     end
 
     def expand_paths
-      date = Fluent::EventTime.now
+      date = Time.now
       paths = []
+
       @paths.each { |path|
-        path = if @path_timezone
-                 @path_formatters[path].call(date)
-               else
-                 date.to_time.strftime(path)
-               end
+        path = date.strftime(path)
         if path.include?('*')
           paths += Dir.glob(path).select { |p|
             begin
               is_file = !File.directory?(p)
               if File.readable?(p) && is_file
-                if @limit_recently_modified && File.mtime(p) < (date.to_time - @limit_recently_modified)
+                if @limit_recently_modified && File.mtime(p) < (date - @limit_recently_modified)
                   false
                 else
                   true
@@ -287,14 +253,7 @@ module Fluent::Plugin
           paths << path
         end
       }
-      excluded = @exclude_path.map { |path|
-        path = if @path_timezone
-                 @exclude_path_formatters[path].call(date)
-               else
-                 date.to_time.strftime(path)
-               end
-        path.include?('*') ? Dir.glob(path) : path
-      }.flatten.uniq
+      excluded = @exclude_path.map { |path| path = date.strftime(path); path.include?('*') ? Dir.glob(path) : path }.flatten.uniq
       paths - excluded
     end
 
@@ -407,7 +366,7 @@ module Fluent::Plugin
       tw.close if close_io
       flush_buffer(tw)
       if tw.unwatched && @pf
-        @pf.unwatch(tw.path)
+        @pf[tw.path].update_pos(PositionFile::UNWATCHED_POSITION)
       end
     end
 
@@ -927,6 +886,140 @@ module Fluent::Plugin
         def reset_timer
           @start = Time.now
         end
+      end
+    end
+
+    class PositionFile
+      UNWATCHED_POSITION = 0xffffffffffffffff
+
+      def initialize(file, file_mutex, map, last_pos)
+        @file = file
+        @file_mutex = file_mutex
+        @map = map
+        @last_pos = last_pos
+      end
+
+      def [](path)
+        if m = @map[path]
+          return m
+        end
+
+        @file_mutex.synchronize {
+          @file.pos = @last_pos
+          @file.write "#{path}\t0000000000000000\t0000000000000000\n"
+          seek = @last_pos + path.bytesize + 1
+          @last_pos = @file.pos
+          @map[path] = FilePositionEntry.new(@file, @file_mutex, seek, 0, 0)
+        }
+      end
+
+      def self.parse(file)
+        compact(file)
+
+        file_mutex = Mutex.new
+        map = {}
+        file.pos = 0
+        file.each_line {|line|
+          m = /^([^\t]+)\t([0-9a-fA-F]+)\t([0-9a-fA-F]+)/.match(line)
+          unless m
+            $log.warn "Unparsable line in pos_file: #{line}"
+            next
+          end
+          path = m[1]
+          pos = m[2].to_i(16)
+          ino = m[3].to_i(16)
+          seek = file.pos - line.bytesize + path.bytesize + 1
+          map[path] = FilePositionEntry.new(file, file_mutex, seek, pos, ino)
+        }
+        new(file, file_mutex, map, file.pos)
+      end
+
+      # Clean up unwatched file entries
+      def self.compact(file)
+        file.pos = 0
+        existent_entries = file.each_line.map { |line|
+          m = /^([^\t]+)\t([0-9a-fA-F]+)\t([0-9a-fA-F]+)/.match(line)
+          unless m
+            $log.warn "Unparsable line in pos_file: #{line}"
+            next
+          end
+          path = m[1]
+          pos = m[2].to_i(16)
+          ino = m[3].to_i(16)
+          # 32bit inode converted to 64bit at this phase
+          pos == UNWATCHED_POSITION ? nil : ("%s\t%016x\t%016x\n" % [path, pos, ino])
+        }.compact
+
+        file.pos = 0
+        file.truncate(0)
+        file.write(existent_entries.join)
+      end
+    end
+
+    # pos               inode
+    # ffffffffffffffff\tffffffffffffffff\n
+    class FilePositionEntry
+      POS_SIZE = 16
+      INO_OFFSET = 17
+      INO_SIZE = 16
+      LN_OFFSET = 33
+      SIZE = 34
+
+      def initialize(file, file_mutex, seek, pos, inode)
+        @file = file
+        @file_mutex = file_mutex
+        @seek = seek
+        @pos = pos
+        @inode = inode
+      end
+
+      def update(ino, pos)
+        @file_mutex.synchronize {
+          @file.pos = @seek
+          @file.write "%016x\t%016x" % [pos, ino]
+        }
+        @pos = pos
+        @inode = ino
+      end
+
+      def update_pos(pos)
+        @file_mutex.synchronize {
+          @file.pos = @seek
+          @file.write "%016x" % pos
+        }
+        @pos = pos
+      end
+
+      def read_inode
+        @inode
+      end
+
+      def read_pos
+        @pos
+      end
+    end
+
+    class MemoryPositionEntry
+      def initialize
+        @pos = 0
+        @inode = 0
+      end
+
+      def update(ino, pos)
+        @inode = ino
+        @pos = pos
+      end
+
+      def update_pos(pos)
+        @pos = pos
+      end
+
+      def read_pos
+        @pos
+      end
+
+      def read_inode
+        @inode
       end
     end
   end

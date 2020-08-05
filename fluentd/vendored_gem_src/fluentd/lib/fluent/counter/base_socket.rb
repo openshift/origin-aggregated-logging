@@ -20,12 +20,14 @@ require 'fluent/msgpack_factory'
 module Fluent
   module Counter
     class BaseSocket < Coolio::TCPSocket
+      include Fluent::MessagePackFactory::Mixin
+
       def packed_write(data)
         write pack(data)
       end
 
       def on_read(data)
-        Fluent::MessagePackFactory.msgpack_unpacker.feed_each(data) do |d|
+        msgpack_unpacker.feed_each(data) do |d|
           on_message d
         end
       end
@@ -37,7 +39,7 @@ module Fluent
       private
 
       def pack(data)
-        Fluent::MessagePackFactory.msgpack_packer.pack(data)
+        msgpack_packer.pack(data)
       end
     end
   end

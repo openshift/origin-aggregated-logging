@@ -22,7 +22,6 @@ require 'fluent/clock'
 require 'serverengine/socket_manager'
 require 'fileutils'
 require 'timeout'
-require 'logger'
 
 module Fluent
   module Test
@@ -136,16 +135,16 @@ module Fluent
           # same with above
         end
 
-        def instance_shutdown(log: Logger.new($stdout))
+        def instance_shutdown
           instance_hook_before_stopped
 
           show_errors_if_exists = ->(label, block){
             begin
               block.call
             rescue => e
-              log.error "unexpected error while #{label}, #{e.class}:#{e.message}"
+              puts "unexpected error while #{label}, #{e.class}:#{e.message}"
               e.backtrace.each do |bt|
-                log.error "\t#{bt}"
+                puts "\t#{bt}"
               end
             end
           }

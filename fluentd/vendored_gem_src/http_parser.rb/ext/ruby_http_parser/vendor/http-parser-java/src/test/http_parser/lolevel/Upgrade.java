@@ -13,6 +13,7 @@ public class Upgrade {
                                 "Upgrade: WebSocket\r\n\r\n" +
                                 "third key data";
   static void test () {
+    p(Upgrade.class);
     HTTPParser parser = new HTTPParser(ParserType.HTTP_REQUEST);
     ByteBuffer buf    = buffer(upgrade);
     
