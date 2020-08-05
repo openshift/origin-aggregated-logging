@@ -159,7 +159,7 @@ wait_for_port_open() {
         ${DEBUG:+-v} -s \
         --request HEAD --head \
         --max-time $max_time \
-        -o $LOG_FILE -w '%{response_code}') || test $response_code != "200"
+        -o $LOG_FILE --stderr $LOG_FILE -w '%{response_code}') || test $response_code != "200"
     do
         sleep $RETRY_INTERVAL
         (( retry -= 1 )) || :
@@ -176,8 +176,10 @@ wait_for_port_open() {
         info Elasticsearch is ready and listening
         return 0
     fi
-    cat $LOG_FILE
-    rm -f $LOG_FILE
+    if [ -f $LOG_FILE ] ; then
+      cat $LOG_FILE
+      rm -f $LOG_FILE
+    fi
     exit 1
 }
 
