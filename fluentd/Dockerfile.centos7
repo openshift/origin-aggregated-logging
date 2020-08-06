@@ -16,6 +16,7 @@ ENV DATA_VERSION=1.6.0 \
 USER 0
 RUN yum-config-manager --enable rhel-7-server-ose-4.2-rpms && \
     yum install -y --setopt=tsflags=nodocs \
+      hostname \
       make \
       bc \
       git \
