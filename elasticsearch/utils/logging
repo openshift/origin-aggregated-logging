@@ -69,33 +69,8 @@ get_kibana_index_name() {
     echo .kibana.$(get_hash "$1")
 }
 
-#es_util --query="_cluster/state/master_node?pretty"
-# {
-#  "cluster_name" : "elasticsearch",
-#  "master_node" : "xD9yX9NTRBCqM8YA0Nym6w"
-#}
-#
-#es_util --query="_cluster/state/nodes?pretty"
-# {
-#  "cluster_name" : "elasticsearch",
-#  "nodes" : {
-#    "xD9yX9NTRBCqM8YA0Nym6w" : {
-#      "name" : "elasticsearch-cdm-h5el9dsq-1",
-#      "ephemeral_id" : "JDAmX2H9S5akj4bEcCjZ2w",
-#      "transport_address" : "10.128.2.19:9300",
-#      "attributes" : { }
-#    },
-#    "PWJlWf-PSvKMYy5J5Khacg" : {
-#      "name" : "elasticsearch-cdm-h5el9dsq-2",
-#      "ephemeral_id" : "zWCXff-eQwi2YLMpZ9qbqA",
-#      "transport_address" : "10.131.0.17:9300",
-#      "attributes" : { }
-#    }
-#  }
-#}
 get_master_node() {
-    local master=$(es_util --query="_cluster/state/master_node?pretty" | jq -r .master_node)
-    echo $(es_util --query="_cluster/state/nodes?pretty" | jq -r .nodes[\"${master}\"].name)
+    echo $(es_util --query="_cat/master?h=node")
 }
 
 check_index_exists() {
