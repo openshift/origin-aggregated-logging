@@ -43,7 +43,6 @@ ADD sgconfig/ ${HOME}/sgconfig/
 ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD init/ ${ES_HOME}/init/
-ADD kibana_ui_objects/ ${ES_HOME}/kibana_ui_objects/
 ADD probe/ ${ES_HOME}/probe/
 ADD init.sh run.sh prep-install* install.sh ${HOME}/
 COPY utils/** /usr/local/bin/

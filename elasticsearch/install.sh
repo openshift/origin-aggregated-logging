@@ -24,7 +24,6 @@ done
 if [[ "${ES_HOME}" != "/usr/share/elasticsearch" ]]; then
   ln -s ${ES_HOME}/index_templates /usr/share/elasticsearch/index_templates
   ln -s ${ES_HOME}/index_patterns /usr/share/elasticsearch/index_patterns
-  ln -s ${ES_HOME}/kibana_ui_objects /usr/share/elasticsearch/kibana_ui_objects
 fi
 
 if [ ! -d /elasticsearch ] ; then
