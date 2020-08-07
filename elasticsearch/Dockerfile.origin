@@ -32,8 +32,7 @@ RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
               hostname \
               openssl \
               zip \
-              unzip \
-              jq" && \
+              unzip" && \
      yum install -y --setopt=tsflags=nodocs ${packages} && \
      rpm -V ${packages} && \
      yum clean all
