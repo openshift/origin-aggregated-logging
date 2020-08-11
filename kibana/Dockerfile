@@ -24,7 +24,7 @@ COPY vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugin
 RUN chmod -R og+w ${HOME}/
 ADD probe/ /usr/share/kibana/probe/
 ADD kibana.yml ${KIBANA_CONF_DIR}/
-ADD run.sh utils ${HOME}/
+ADD run.sh module_list.sh utils ${HOME}/
 RUN sed -i -e 's/"node":.*/"node": "'$(${NODE_PATH}/node --version | sed 's/v//')'"/' package.json && \
     mkdir -p node && \
     ln -s ${NODE_PATH} node/bin
