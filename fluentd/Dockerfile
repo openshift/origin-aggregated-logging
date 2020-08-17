@@ -1,4 +1,4 @@
-FROM ubi7/ruby-25:latest as builder
+FROM registry.svc.ci.openshift.org/ocp/builder:ubi8.ruby.25 AS builder
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -24,8 +24,8 @@ ARG TEST_REPO
 #ADD test.repo /etc/yum.repos.d
 
 USER 0
-RUN yum-config-manager --enable rhel-7-server-ose-4.2-rpms && \
-  BUILD_PKGS="make gcc-c++ libffi-devel \
+
+RUN BUILD_PKGS="make gcc-c++ libffi-devel \
               autoconf automake libtool m4 \
               redhat-rpm-config" && \
   RUNTIME_PKGS="hostname \

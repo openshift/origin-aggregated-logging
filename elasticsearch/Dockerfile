@@ -35,7 +35,7 @@ RUN packages="java-${JAVA_VER}-openjdk-headless \
     rpm -V ${packages} && \
     yum clean all
 
-ADD extra-jvm.options install-es.sh /var/tmp
+ADD extra-jvm.options ci-env.sh install-es.sh /var/tmp
 COPY artifacts /artifacts
 RUN /var/tmp/install-es.sh
 
@@ -44,7 +44,7 @@ ADD index_templates/ ${ES_HOME}/index_templates/
 ADD index_patterns/ ${ES_HOME}/index_patterns/
 ADD init/ ${ES_HOME}/init/
 ADD probe/ ${ES_HOME}/probe/
-ADD init.sh run.sh prep-install* install.sh ${HOME}/
+ADD init.sh run.sh prep-install* ci-env.sh install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
 ARG PROMETHEUS_EXPORTER_URL=${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+source $(dirname "$0")/ci-env.sh
+
 ln -s /usr/local/bin/logging ${HOME}/logging
 
 source ${HOME}/prep-install.${RELEASE_STREAM}
