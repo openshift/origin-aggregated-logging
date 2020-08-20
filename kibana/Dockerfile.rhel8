@@ -1,4 +1,4 @@
-FROM ubi8/nodejs-10:latest
+FROM registry.svc.ci.openshift.org/ocp/builder:ubi8.nodejs.10 AS build
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 

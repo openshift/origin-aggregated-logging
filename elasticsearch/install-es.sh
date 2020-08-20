@@ -1,6 +1,9 @@
 #!/bin/bash
 
 set -euo pipefail
+set -o xtrace
+
+source $(dirname "$0")/ci-env.sh
 
 # install Elasticsearch from zip distribution file
 # put files in correct places in image

@@ -1,4 +1,4 @@
-FROM ubi7/python-36:latest
+FROM registry.svc.ci.openshift.org/ocp/builder:ubi8.python.36
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
