@@ -50,7 +50,8 @@ COPY utils/** /usr/local/bin/
 ARG PROMETHEUS_EXPORTER_URL=${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/${PROMETHEUS_EXPORTER_VER}/prometheus-exporter-${PROMETHEUS_EXPORTER_VER}.zip
 ARG OPENDISTRO_URL=${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
 
-RUN ${HOME}/install.sh && rm -rf /artifacts
+RUN ${HOME}/install.sh && rm -rf /artifacts && \
+    mv ${ES_HOME}/lib/elasticsearch-${ES_VER}.jar ${ES_HOME}/lib/elasticsearch-$(echo $ES_VER | cut -d'.' -f1-3).jar
 
 WORKDIR ${HOME}
 USER 1000
