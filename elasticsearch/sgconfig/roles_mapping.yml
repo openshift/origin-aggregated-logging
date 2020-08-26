@@ -25,6 +25,7 @@ sg_role_admin:
 sg_role_prometheus:
   backendroles:
     - 'prometheus'
+    - 'admin_reader'
 
 sg_role_jaeger:
   users:
