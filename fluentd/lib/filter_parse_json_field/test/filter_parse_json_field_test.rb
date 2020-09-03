@@ -137,5 +137,16 @@ class ParseJsonFieldFilterTest < Test::Unit::TestCase
       debugit(@driver, 'in test')
       assert_match /\[debug\]: parse_json_field could not parse field \[skip1\] as JSON: value \[\{"bogusvalue\}\]/, @logs[0]
     end
+    test 'fallback if given field is nil' do
+      # test that - skip1 is skipped because it has a nil key
+      json_string_val2 = '{"k":{"b":"c"},"l":["e","f"],"m":97,"n":{"i":"j"}}'
+      orig_a_value = 'orig a value'
+      rec = emit_with_tag('tag', {'skip1'=>nil, 'a'=>orig_a_value, 'jsonfield'=>json_string_val2},'
+        merge_json_log true
+        json_fields skip1,jsonfield
+      ')
+      assert_equal({'skip1'=>nil, 'a'=>orig_a_value, 'jsonfield'=>json_string_val2}, rec)
+      debugit(@driver, 'in test')
+    end
   end
 end
