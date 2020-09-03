@@ -60,7 +60,7 @@ module Fluent::Plugin
     def do_merge_json_log(record)
       json_fields.each do |merge_json_log_key|
         if record.has_key?(merge_json_log_key)
-          value = record[merge_json_log_key].strip
+          value = (record[merge_json_log_key] || "").strip
           if value.start_with?('{') && value.end_with?('}')
             begin
               record = JSON.parse(value).merge(record)
@@ -80,7 +80,7 @@ module Fluent::Plugin
     def do_replace_json_log(record)
       json_fields.each do |merge_json_log_key|
         if record.has_key?(merge_json_log_key)
-          value = record[merge_json_log_key].strip
+          value = (record[merge_json_log_key] || "").strip
           if value.start_with?('{') && value.end_with?('}')
             begin
               parsed_value = JSON.parse(value)
