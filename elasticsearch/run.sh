@@ -90,11 +90,8 @@ GC_LOG_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/gc.log
 
 ERR_FILE_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/error.log
 
-export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Xloggc:$GC_LOG_LOCATION -XX:ErrorFile=$ERR_FILE_LOCATION"
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Xlog:gc*,gc+age=trace,safepoint:file=${GC_LOG_LOCATION}:utctime,pid,tags:filecount=32,filesize=64m -XX:ErrorFile=$ERR_FILE_LOCATION"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
-
-# if we use java9 or later, we'll also have to configure this:
-# -:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=2,filesize=64m
 
 DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
