@@ -170,7 +170,7 @@ get_cluster_version_maj_min() {
 
 get_cluster_version_maj_min
 # what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.4}}
+MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.6}}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
@@ -208,7 +208,7 @@ construct_image_name() {
 
 update_images_in_clo_yaml() {
     local yamlfile=$1
-    local clo_img=$2
+    local clo_img=${2:-} #unused.  leaving for compatibility
     local version=${3:-latest}
     local filearg
     if [ "$yamlfile" = "-" ] ; then
@@ -226,8 +226,6 @@ update_images_in_clo_yaml() {
         -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${c_img}," \
         -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${f_img}," \
         -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${op_img}," \
-        -e "s, image:.*cluster-logging-operator.*\$, image: ${clo_img}," \
-        -e "s, containerImage:.*cluster-logging-operator.*\$, containerImage: ${clo_img}," \
         $filearg
 }
 
@@ -331,15 +329,20 @@ deploy_logging_using_olm() {
 
 deploy_logging_using_clo_make() {
     # edit the deployment manifest - use the images provided by CI or from api.ci registry
-    # make deploy-no-build
-    EO_IMAGE=${EO_IMAGE:-$( construct_image_name elasticsearch-operator latest )}
-    CLO_IMAGE=${CLO_IMAGE:-$( construct_image_name cluster-logging-operator latest )}
+    pushd $EO_DIR > /dev/null
+        make elasticsearch-catalog-deploy \
+            IMAGE_ELASTICSEARCH6=$( construct_image_name logging-elasticsearch6 $MASTER_VERSION ) \
+            IMAGE_ELASTICSEARCH_PROXY=$( construct_image_name elasticsearch-proxy $MASTER_VERSION ) \
+            IMAGE_LOGGING_KIBANA6=$( construct_image_name logging-kibana6 $MASTER_VERSION ) \
+            IMAGE_OAUTH_PROXY=$( construct_image_name oauth-proxy $MASTER_VERSION )
+        make elasticsearch-operator-install
+    popd > /dev/null
     pushd $CLO_DIR > /dev/null
-    cp manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml.orig
-    update_images_in_clo_yaml manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml $CLO_IMAGE
-    REMOTE_CLUSTER=true REMOTE_REGISTRY=true NAMESPACE=$LOGGING_NS \
-        IMAGE_OVERRIDE="$CLO_IMAGE" EO_IMAGE_OVERRIDE="$EO_IMAGE" make deploy-no-build
-    mv manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml.orig manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml
+        update_images_in_clo_yaml ./manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml 
+        make cluster-logging-catalog-deploy \
+            IMAGE_LOGGING_CURATOR5=$( construct_image_name logging-curator5 $MASTER_VERSION ) \
+            IMAGE_LOGGING_FLUENTD=$( construct_image_name logging-fluentd $MASTER_VERSION )
+        make cluster-logging-operator-install
     popd > /dev/null
 }
 
@@ -381,22 +384,9 @@ DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-600}
 
 switch_to_admin_user
 
-USE_OLM=${USE_OLM:-true}
-LOGGING_NS=${LOGGING_NS:-openshift-logging}
-if [ -z "${ESO_NS:-}" ] ; then
-    if [ $USE_OLM = true ] ; then
-        ESO_NS=openshift-operators-redhat
-        if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-            if oc get project $ESO_NS > /dev/null 2>&1 ; then
-                echo using existing project $ESO_NS
-            else
-                oc adm new-project $ESO_NS --node-selector=''
-            fi
-        fi
-    else
-        ESO_NS=$LOGGING_NS
-    fi
-fi
+LOGGING_NS=openshift-logging
+ESO_NS=openshift-operators-redhat
+
 
 TEST_OBJ_DIR=${TEST_OBJ_DIR:-openshift/ci-operator/build-image}
 ARTIFACT_DIR=${ARTIFACT_DIR:-"$( pwd )/_output"}
@@ -420,26 +410,26 @@ else
 fi
 
 if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-    CLO_DIR=${CLO_DIR:-$GOPATH/src/github.com/openshift/cluster-logging-operator}
-    if [ ! -d $CLO_DIR ] ; then
-        CLO_DIR=$ARTIFACT_DIR/clo
-        get_operator_files $CLO_DIR cluster-logging-operator ${CLO_REPO:-openshift} ${CLO_BRANCH:-master}
+    CLO_DIR=$GOPATH/src/github.com/openshift/cluster-logging-operator
+    EO_DIR=$GOPATH/src/github.com/openshift/elasticsearch-operator
+    if [ ! -d $GOPATH/src/github.com/openshift ] ; then
+        mkdir -p $GOPATH/src/github.com/openshift
     fi
+    pushd $GOPATH/src/github.com/openshift
+        if [ ! -d cluster-logging-operator ] ; then
+            git clone https://github.com/openshift/cluster-logging-operator
+        fi
+        if [ ! -d elasticsearch-operator ] ; then
+            git clone https://github.com/openshift/elasticsearch-operator
+        fi
+    popd
     # get clo version from manifests directory
     CLO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $CLO_DIR/manifests )
-    EO_DIR=${EO_DIR:-$CLO_DIR/vendor/github.com/openshift/elasticsearch-operator}
-    if [ ! -d $EO_DIR ] ; then
-        EO_DIR=$ARTIFACT_DIR/eo
-        get_operator_files $EO_DIR elasticsearch-operator ${EO_REPO:-openshift} ${EO_BRANCH:-master}
-    fi
+
     # get eo version from manifests directory
     EO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $EO_DIR/manifests )
-    if [ "${USE_OLM:-false}" = true ] ; then
-        deploy_logging_using_olm
-    else
-        ESO_NS=$LOGGING_NS
-        deploy_logging_using_clo_make
-    fi
+    deploy_logging_using_clo_make
+    
     wait_func() {
         oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
         oc -n $LOGGING_NS get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'

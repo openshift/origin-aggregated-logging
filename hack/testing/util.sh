@@ -437,10 +437,10 @@ function query_es_from_es() {
 function get_count_from_json() {
     python -c 'import json, sys
 try:
-    print json.loads(sys.stdin.read()).get("count", 0)
+    print(json.loads(sys.stdin.read()).get("count", 0))
 except:
     # error reading or input not JSON
-    print 0
+    print(0)
 '
 }
 
@@ -448,10 +448,10 @@ except:
 function get_count_from_json_from_search() {
     python -c 'import json, sys
 try:
-    print json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0)
+    print(json.loads(sys.stdin.read()).get("responses", [{}])[0].get("hits", {}).get("total", 0))
 except:
     # error reading or input not JSON
-    print 0
+    print(0)
 '
 }
 
@@ -479,7 +479,7 @@ function get_journal_pos_cursor() {
         oal_sudo cat /var/log/journal.pos
         return 0
     elif file_has_size /var/log/journal_pos.json 100 ; then
-        oal_sudo python -c 'import sys,json; print json.load(file(sys.argv[1]))["journal"]' /var/log/journal_pos.json 2> /dev/null
+        oal_sudo python -c 'import sys,json; print(json.load(file(sys.argv[1]))["journal"])' /var/log/journal_pos.json 2> /dev/null
         return 0
     else
         echo ""
