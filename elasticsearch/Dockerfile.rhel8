@@ -41,7 +41,9 @@ ADD extra-jvm.options install-es.sh ci-env.sh /var/tmp
 # Since artifacts does not exist during CI build, include README.MD
 # which will prevent the copy from raising an error.
 RUN mkdir /artifacts
-COPY README.md artifacts/* /artifacts
+# In an OSBS build, this will COPY artifacts from fetch-artifacts-koji.yaml. In a CI build, it will just
+# copy the README.MD.
+COPY artifacts/* /artifacts
 RUN /var/tmp/install-es.sh
 
 ADD sgconfig/ ${HOME}/sgconfig/
