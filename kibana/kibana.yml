@@ -24,6 +24,10 @@
 # The Kibana server's name.  This is used for display purposes.
 #server.name: "your-hostname"
 
+#Bug 1832783 - CVE-2020-10743 kibana: X-Frame-Option not set by default might lead to clickjacking
+#override www-authenticate to keep browser auth box from popping
+server.customResponseHeaders: {"x-frame-options":"deny", "www-authenticate":"proxy"}
+
 # The URLs of the Elasticsearch instances to use for all your queries.
 elasticsearch.hosts: ["https://elasticsearch.openshift-logging.svc.cluster.local:9200"]
 
