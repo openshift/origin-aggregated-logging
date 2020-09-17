@@ -80,3 +80,7 @@ for example:
 ```
 curl -s -L https://api.github.com/repos/shawn-hurley/olm-test-script/tarball/master | tar -C hack/vendor/olm-test-script --strip-components=1 -x -z -f -
 ```
+
+## Contributions
+
+To contribute to the development of origin-aggregated-logging, see [REVIEW.md](./docs/REVIEW.md)
