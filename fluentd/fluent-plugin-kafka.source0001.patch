@@ -1,0 +1,13 @@
+diff --git a/lib/fluent/plugin/kafka_plugin_util.rb b/lib/fluent/plugin/kafka_plugin_util.rb
+index e7f77398..f0979a37 100644
+--- a/lib/fluent/plugin/kafka_plugin_util.rb
++++ b/lib/fluent/plugin/kafka_plugin_util.rb
+@@ -33,7 +33,7 @@ module Fluent
+       end
+ 
+       def read_ssl_file(path)
+-        return nil if path.nil?
++        return nil if path.nil? || path.respond_to?(:strip) && path.strip.empty?
+ 
+         if path.is_a?(Array)
+           path.map { |fp| File.read(fp) }
