@@ -83,6 +83,8 @@ build_jks_truststores
 # this is because the deployment mounts the configmap at /usr/share/java/elasticsearch/config
 cp /usr/share/java/elasticsearch/config/* $ES_PATH_CONF
 
+chmod 600 ${ES_PATH_CONF}/index_settings
+
 HEAP_DUMP_LOCATION="${HEAP_DUMP_LOCATION:-/elasticsearch/persistent/hdump.prof}"
 info Setting heap dump location "$HEAP_DUMP_LOCATION"
 

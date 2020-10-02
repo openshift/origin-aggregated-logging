@@ -123,6 +123,9 @@ build_jks_truststores() {
       -noprompt                                    \
       -alias sig-ca
   fi
+
+  # set all files to 600 and dir to 700
+  chmod -R go-rwx,u+X $secret_dir
 }
 
 # Wait for Elasticsearch port to be opened. Fail on timeout or if response from Elasticsearch is unexpected.
@@ -181,14 +184,16 @@ build_jks_from_pem() {
     -destkeystore $secret_dir/$jks_name.jks \
     -deststoretype JKS                      \
     -deststorepass kspass                   \
-    -noprompt
+    -noprompt                               \
+    2>/dev/null
 
   keytool                                   \
     -changealias                            \
     -keystore $secret_dir/$jks_name.jks     \
     -storepass kspass                       \
     -alias 1                                \
-    -destalias $jks_name
+    -destalias $jks_name                    \
+    2>/dev/null
 
   keytool                                   \
     -import                                 \
@@ -196,7 +201,8 @@ build_jks_from_pem() {
     -keystore $secret_dir/$jks_name.jks     \
     -storepass kspass                       \
     -noprompt                               \
-    -alias sig-ca
+    -alias sig-ca                           \
+    2>/dev/null
 }
 
 copy_keys_to_secretdir() {
@@ -209,6 +215,5 @@ copy_keys_to_secretdir() {
     fi
 
     cp $provided_secret_dir/* $secret_dir/
-    chmod 0600 $secret_dir/*
   fi
 }
