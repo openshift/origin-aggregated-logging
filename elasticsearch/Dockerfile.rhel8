@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-base-openshift-4.6
+FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-base-openshift
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
