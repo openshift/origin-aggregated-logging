@@ -1,0 +1,23 @@
+{
+  "name": "openshift_logging",
+  "version": "0.0.1",
+  "description": "OpenShift Logging addons for Kibana",
+  "main": "index.js",
+  "kibana": {
+    "version": "6.8.1"
+  },
+  "scripts": {
+    "lint": "eslint",
+    "start": "plugin-helpers start",
+    "build": "plugin-helpers build",
+    "postinstall": "plugin-helpers postinstall"
+  },
+  "devDependencies": {
+    "@elastic/eslint-config-kibana": "0.0.2",
+    "@elastic/plugin-helpers": "^6.0.0",
+    "babel-eslint": "4.1.8",
+    "chai": "^3.5.0",
+    "eslint": "1.10.3",
+    "eslint-plugin-mocha": "1.1.0"
+  }
+}
