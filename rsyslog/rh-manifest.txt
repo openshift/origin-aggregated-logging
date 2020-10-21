@@ -1,6 +1,0 @@
-libestr 0.1.10
-libfastjson 0.99.8
-liblognorm 2.0.5
-librdkafka 0.11.4
-librelp 1.2.16
-rsyslog 8.37.0
