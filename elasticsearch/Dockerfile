@@ -23,7 +23,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     container=oci
 
-ARG OSE_ES_VER=5.6.16.1-redhat-1
+ARG OSE_ES_VER=5.6.16.2-redhat-1
 ARG OSE_ES_URL
 ARG PROMETHEUS_EXPORTER_VER=5.6.16.0-redhat-1
 ARG PROMETHEUS_EXPORTER_URL
