@@ -23,7 +23,7 @@ ENV ES_CONF=/etc/elasticsearch/ \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
 
-ARG OSE_ES_VER=5.6.16.1
+ARG OSE_ES_VER=5.6.16.2
 ARG SG_VER=5.6.16-19.3
 
 LABEL io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
