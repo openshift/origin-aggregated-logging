@@ -13,7 +13,11 @@ if [[ "$PORT_FORWARD_STDOUT" =~ ^Forwarding.*5000$ ]] ; then
     echo "Login to registry..."
     podman login --tls-verify=false -u ${user} -p $(oc whoami -t) 127.0.0.1:5000
 
+    echo "----------------------------------------------------------------------------------------------------------------"
+    echo "-                                                                                                              -"
     echo "Pushing image ${IMAGE_TAG} ..."
+    echo "-                                                                                                              -"
+    echo "----------------------------------------------------------------------------------------------------------------"
     if podman push --tls-verify=false ${IMAGE_TAG} 127.0.0.1:5000/${IMAGE_TAG}; then
         oc -n openshift get imagestreams | grep $IMAGE_TAG
     fi
