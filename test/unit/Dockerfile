@@ -3,7 +3,7 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV FLUENTD_VERSION=1.0 \
     WORKDIR=/fluentd/lib
-
+USER 0
 ENTRYPOINT /tmp/run.sh
 RUN whoami
 RUN scl enable rh-ruby25 -- gem install bundler --no-ri --no-doc
