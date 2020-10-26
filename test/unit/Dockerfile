@@ -1,5 +1,6 @@
 FROM centos/ruby-25-centos7:latest
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
+USER 0
 
 ENV FLUENTD_VERSION=1.0 \
     WORKDIR=/fluentd/lib
