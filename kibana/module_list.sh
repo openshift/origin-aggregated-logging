@@ -1,6 +1,6 @@
 #!/bin/bash
 # this can be run with podman to generate the manifest
-# podman run --volume /tmp:/tmp -it openshift/origin-logging-kibana6 -- sh module_list.sh
+# podman run --volume /tmp:/tmp -it openshift/origin-logging-kibana6 sh module_list.sh
 
 
 MODULE_FILE=${MODULE_FILE:-/tmp/rh-manifest.txt}
