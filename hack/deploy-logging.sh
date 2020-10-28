@@ -159,32 +159,15 @@ switch_to_admin_user() {
     fi
 }
 
-get_cluster_version_maj_min() {
-    local clusterver=$( oc get clusterversion -o jsonpath='{.items[0].status.desired.version}' )
-    if [[ "$clusterver" =~ ^([1-9]+)[.]([0-9]+)[.] ]] ; then
-        CLUSTER_MAJ_VER=${BASH_REMATCH[1]}
-        CLUSTER_MIN_VER=${BASH_REMATCH[2]}
-        CLUSTER_MAJ_MIN=${CLUSTER_MAJ_VER}.${CLUSTER_MIN_VER}
-    fi
-}
-
-MASTER_RELEASE_VERSION=${MASTER_RELEASE_VERSION:-4.6}
-get_cluster_version_maj_min
-# what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.6}}
+MASTER_VERSION=${MASTER_VERSION:-4.6}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 # for dev purposes, image builds will typically be pushed to this namespace
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
 
-CLO_BRANCH="release-${MASTER_VERSION}"
-EO_BRANCH="release-${MASTER_VERSION}"
-
-if [ "${MASTER_VERSION}" == "${MASTER_RELEASE_VERSION}" ]; then
-  CLO_BRANCH="master"
-  EO_BRANCH="master"
-fi
+CLO_BRANCH="${CLO_BRANCH:-master}"
+EO_BRANCH="${EO_BRANCH:-master}"
 
 construct_image_name() {
     local component="$1"
@@ -427,9 +410,15 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     pushd $GOPATH/src/github.com/openshift
         if [ ! -d cluster-logging-operator ] ; then
             git clone https://github.com/openshift/cluster-logging-operator
+            pushd cluster-logging-operator
+             git checkout ${CLO_BRANCH}
+            popd
         fi
         if [ ! -d elasticsearch-operator ] ; then
             git clone https://github.com/openshift/elasticsearch-operator
+            pushd elasticsearch-operator
+              git checkout ${EO_BRANCH}
+            popd
         fi
     popd
     # get clo version from manifests directory
