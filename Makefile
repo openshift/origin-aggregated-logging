@@ -11,7 +11,7 @@ build-images:
 .PHONY: build-images
 
 test:
-	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM) ./hack/test-e2e.sh
+	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM) MASTER_VERSION=4.6 CLO_BRANCH=release-4.6 EO_BRANCH=release-4.6 ./hack/test-e2e.sh
 .PHONY: test
 
 .PHONY: test-pre-upgrade
