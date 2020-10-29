@@ -3,48 +3,6 @@
 Following is troubleshooting information for a number of commonly identified issues with cluster logging deployments:
 
 # All Components
-## Deployment fails, RCs scaled to 0
-
-When a deployment is performed, if it does not successfully bring up an
-instance before a ten-minute timeout, it will be considered failed and
-scaled down to zero instances. `oc get pods` will show a deployer pod
-with a non-zero exit code, and no deployed pods, e.g.:
-
-    NAME                           READY     STATUS             RESTARTS   AGE
-    logging-es-2e7ut0iq-1-deploy   1/1       ExitCode:255       0          1m
-
-(In this example, the deployer pod name for an Elasticsearch deployment is shown;
-this is from ReplicationController `logging-es-2e7ut0iq-1` which is a deployment
-of DeploymentConfig `logging-es-2e7ut0iq`.)
-
-Deployment failure can happen for a number of transitory reasons, such as
-the image pull taking too long, or nodes being unresponsive. Examine the
-deployer pod logs for possible reasons; but often you can redeploy:
-
-    $ oc deploy --latest logging-es-2e7ut0iq
-
-Or you may be able to scale up the existing deployment:
-
-    $ oc scale --replicas=1 logging-es-2e7ut0iq-1
-
-If the problem persists, examine pod, events, and systemd unit
-logs to determine the source of the problem.
-
-## Image pull fails
-
-If you specify an `openshift_logging_image_prefix` that results in images being defined that don't exist,
-you will receive a corresponding error message:
-
-    NAME                     READY     STATUS                                                                                       RESTARTS   AGE
-    logging-fluentd-1ub9k    0/1       Error: image registry.access.redhat.com:5000/openshift3logging-fluentd:latest not found      0          1m
-
-In this example, for the intended image name
-`registry.access.redhat.com:5000/openshift3/logging-fluentd:latest`
-the `openshift_logging_image_prefix` needed a trailing `/`.
-
-Update the inventory file and follow the `openshift-ansible` instructions
-to re-run the `openshift_logging` role.
-
 ## Can't resolve kubernetes.default.svc.cluster.local
 
 This internal alias for the master should be resolvable by the included
@@ -83,20 +41,7 @@ $ oc describe pod $ES_POD
 Consider patching each Elasticsearch DeploymentConfig to allow more time for AWS to make the storage available:
 ```
 oc patch dc $DC -p '{"spec":{"strategy":{"recreateParams": {"timeoutSeconds":1800}}}}'
-```
-### Searchguard index remains red
-This is a known issue related to upgrade and moving to a single SG index per
-cluster instead of one per DeploymentConfig.  The explain API is used to discover the reason and removing the index to node assignment is required:
-```
-oc -c elasticsearch exec ${pod} -- es_util --query=".searchguard/_settings" -XPUT -d "{\"index.routing.allocation.include._name\": \"\"}"
-```
-### Elasticsearch pods never become ready
-This is known issue when the initialization and seeding process fails which
-can be from a red `.searchguard` index.
-```
-for p in $(oc get pods -l component=es -o jsonpath={.items[*].metadata.name}); do \
-  oc exec -c elasticsearch $ES_POD -- touch /opt/app-root/src/init_failures;  \
-done
+
 ```
 
 ## Fluentd
@@ -213,7 +158,7 @@ The experience here is that when you visit Kibana, it redirects you to
 login. Then when you login successfully, you are redirected back to Kibana,
 which immediately redirects back to login again.
 
-NOTE: The following applies to releases prior to OpenShift 4.2.
+**NOTE:** The following applies to releases prior to OpenShift 4.2.
 
 The typical reason for this is that the OAuth2 proxy in front of Kibana
 is supposed to share a secret with the master's OAuth2 server, in order
@@ -244,7 +189,7 @@ The return address for the client has to be in a whitelist for the server to
 securely redirect back after logging in; if there is a mismatch, then this
 cryptic error message is shown.
 
-NOTE: The following applies to releases prior to OpenShift 4.2.
+NOTE: The following applies to releases prior to OpenShift 3.11.
 
 As above, this may be caused by an `oauthclient` entry lingering from a
 previous deployment, in which case you can replace it:
