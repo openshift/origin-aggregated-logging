@@ -112,4 +112,4 @@ fi
 
 test::object_assert 100 subscriptions.operators.coreos.com/olm-testing${SUFFIX:-} "{.status.catalogHealth[?(@.catalogSourceRef.name=='openshift-olm-test${SUFFIX:-}')].healthy}" "true" "-n $TEST_NAMESPACE"
 # Need to change to match the name of the CSV with version.
-test::object_assert 50 clusterserviceversions.operators.coreos.com/${CURRENT_CSV} "{.status.phase}" Succeeded "-n $TEST_NAMESPACE"
+test::object_assert 50 clusterserviceversions.operators.coreos.com/${CURRENT_CSV} "{.status['phase','reason']}" "Succeeded InstallSucceeded" "-n $TEST_NAMESPACE"
