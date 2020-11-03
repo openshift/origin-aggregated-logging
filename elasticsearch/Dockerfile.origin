@@ -25,7 +25,7 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
 
 ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
 
-RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
+RUN  yum install -y --nogpgcheck \
          https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
      packages="java-${JAVA_VER}-openjdk-headless \
               python36 python3-pyyaml  \
@@ -33,7 +33,7 @@ RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
               openssl \
               zip \
               unzip" && \
-     yum install -y --setopt=tsflags=nodocs ${packages} && \
+     yum install -y ${packages} && \
      rpm -V ${packages} && \
      yum clean all
 

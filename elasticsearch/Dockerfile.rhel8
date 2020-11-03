@@ -31,7 +31,7 @@ RUN packages="java-${JAVA_VER}-openjdk-headless \
               openssl \
               zip \
               unzip" && \
-    yum install -y --setopt=tsflags=nodocs ${packages} && \
+    yum install -y ${packages} && \
     rpm -V ${packages} && \
     alternatives --set python /usr/bin/python3 && \
     yum clean all

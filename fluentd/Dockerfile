@@ -31,7 +31,7 @@ RUN BUILD_PKGS="make gcc-c++ libffi-devel \
   RUNTIME_PKGS="hostname \
                 bc \
                 iproute" && \
-  yum install -y --setopt=tsflags=nodocs $BUILD_PKGS $RUNTIME_PKGS && \
+  yum install -y $BUILD_PKGS $RUNTIME_PKGS && \
   rpm -V $BUILD_PKGS && \
   rpm -V $RUNTIME_PKGS && \
   yum clean all
