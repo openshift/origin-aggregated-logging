@@ -6,8 +6,7 @@ ELASTICSEARCH_IMAGE?="openshift/origin-logging-elasticsearch6"
 CURATOR_IMAGE?="openshift/origin-logging-curator5"
 
 # Build the Docker images for Origin Aggregated Logging
-build-images:
-	hack/build-images.sh
+build-images: build-all-images
 .PHONY: build-images
 
 test:

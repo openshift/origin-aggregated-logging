@@ -1,4 +1,4 @@
-FROM ubi7:latest
+FROM ubi8:latest
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -28,7 +28,7 @@ ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
 RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
          https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
      packages="java-${JAVA_VER}-openjdk-headless \
-              PyYAML  \
+              python36 python3-pyyaml  \
               hostname \
               openssl \
               zip \
