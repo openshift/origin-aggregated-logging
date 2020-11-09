@@ -121,13 +121,11 @@ sg_project_operations:
     '?operations?*':
       '*':
         - READ
-        - indices:admin/mappings/fields/get*
         - indices:admin/validate/query*
         - indices:admin/get*
     '*?*?*':
       '*':
         - READ
-        - indices:admin/mappings/fields/get*
         - indices:admin/validate/query*
         - indices:admin/get*
 
