@@ -1,5 +1,6 @@
 digest-crc 0.6.1 https://github.com/postmodern/digest-crc#readme
 dig_rb 1.0.1 https://github.com/jrochkind/dig_rb
+ethon 0.12.0 https://github.com/typhoeus/ethon
 ffi-compiler 1.0.1 http://wiki.github.com/ffi/ffi
 fluent-config-regexp-type 1.0.0 https://github.com/okkez/fluent-config-regexp-type
 fluentd 1.7.4 https://www.fluentd.org/
@@ -63,3 +64,4 @@ ruby-kafka 1.1.0 https://github.com/zendesk/ruby-kafka
 serverengine 2.2.1 https://github.com/fluent/serverengine
 strptime 0.2.4 https://github.com/nurse/strptime
 to_regexp 0.2.1 https://github.com/seamusabshere/to_regexp
+typhoeus 1.4.0 https://github.com/typhoeus/typhoeus
