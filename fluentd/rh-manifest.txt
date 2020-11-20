@@ -1,8 +1,14 @@
+aws-eventstream 1.1.0 https://github.com/aws/aws-sdk-ruby
+aws-partitions 1.396.0 https://github.com/aws/aws-sdk-ruby
+aws-sdk-cloudwatchlogs 1.38.0 https://github.com/aws/aws-sdk-ruby
+aws-sdk-core 3.109.3 https://github.com/aws/aws-sdk-ruby
+aws-sigv4 1.2.2 https://github.com/aws/aws-sdk-ruby
 digest-crc 0.6.1 https://github.com/postmodern/digest-crc#readme
 dig_rb 1.0.1 https://github.com/jrochkind/dig_rb
 ffi-compiler 1.0.1 http://wiki.github.com/ffi/ffi
 fluent-config-regexp-type 1.0.0 https://github.com/okkez/fluent-config-regexp-type
 fluentd 1.7.4 https://www.fluentd.org/
+fluent-plugin-cloudwatch-logs 0.7.6 https://github.com/fluent-plugins-nursery/fluent-plugin-cloudwatch-logs
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
 fluent-plugin-kafka 0.13.1 https://github.com/fluent/fluent-plugin-kafka
 fluent-plugin-multi-format-parser 1.0.0 https://github.com/repeatedly/fluent-plugin-multi-format-parser
@@ -10,6 +16,7 @@ fluent-plugin-splunk-hec 1.1.2 https://github.com/splunk/fluent-plugin-splunk-he
 http-accept 1.7.0 https://github.com/ioquatix/http-accept
 http-parser 1.2.1 https://github.com/cotag/http-parser
 jemalloc 5.2.1 https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2
+jmespath 1.4.0 http://github.com/trevorrowe/jmespath.rb
 jsonpath 1.0.5 https://github.com/joshbuddy/jsonpath
 ltsv 0.1.2 https://github.com/condor/ltsv
 rubygem-addressable 2.7.0 https://github.com/sporkmonger/addressable
