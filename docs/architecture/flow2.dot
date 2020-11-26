@@ -1,0 +1,27 @@
+digraph {
+graph [fontname="helvetica" fontsize=16  rankdir=LR]
+node [fontname="helvetica" fontsize=14 style=filled fillcolor=aliceblue]
+edge [fontname="helvetica"fontsize=12]
+
+edge [dir=both arrowtail=box style=bold]
+
+subgraph {
+  rank=same
+  crio [label="CRI-O"]
+  journald
+  files [shape=cylinder fillcolor=beige]
+}
+
+subgraph cluster_collector {
+  label="collector\nfluentd/flunentbit"
+  fb [label="file buffer" shape=cylinder]
+  mb [label="memory buffer" shape=box fillcolor=yellow]
+}
+subgraph collector { fb mb }
+
+journald -> {fb mb} [label="journald socket"]
+crio -> { fb mb } [label="socket/pipe"]
+{ crio journald } -> files
+
+{ fb mb } -> consumer [label="socket"]
+}

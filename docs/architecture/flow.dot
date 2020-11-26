@@ -1,0 +1,23 @@
+digraph {
+graph [fontname="helvetica" fontsize=16  rankdir=LR]
+node [fontname="helvetica" fontsize=14 style=filled fillcolor=aliceblue]
+edge [fontname="helvetica"fontsize=12]
+
+edge [dir=both arrowtail=box style=bold]
+
+subgraph {
+  rank=same
+  crio [label="CRI-O"]
+  journald
+  } -> files [label="write"]
+
+  files [shape=cylinder fillcolor=beige]
+
+  subgraph cluster_fluentd {
+    label="fluentd"
+    buffer [shape=cylinder fillcolor=beige]
+  }
+
+  files -> buffer [label="read" arrowtail=inv style=dashed]
+  buffer -> consumer [label=socket]
+}

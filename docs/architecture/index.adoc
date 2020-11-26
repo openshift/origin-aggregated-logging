@@ -1,0 +1,365 @@
+= Cluster Logging Architecture
+:author: Alan Conway
+:email: aconway@redhat.com
+:revdate: updated {doctime}
+:icons: font
+ifndef::env-github[]
+:toc: left
+endif::[]
+ifdef::env-github[]
+:toc: preamble
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+:idprefix:
+:idseparator: -
+:enhancement_process: https://github.com/openshift/enhancements/blob/master/guidelines/README.md
+:clo_enhancements: https://github.com/openshift/enhancements/tree/master/enhancements/cluster-logging
+:jira: https://issues.redhat.com/projects/LOG/issues/LOG-96?filter=allopenissues
+:bugzilla: https://bugzilla.redhat.com/buglist.cgi?cmdtype=runnamed&list_id=11292768&namedcmd=All%20Cluster%20Logging%20Bugs
+:clo_repo: https://github.com/openshift/cluster-logging-operator
+:elo_repo: https://github.com/openshift/elasticsearch-operator
+:oal_repo: https://github.com/openshift/origin-aggregated-logging
+:data_model: {oal_repo}/blob/master/docs/com.redhat.viaq-openshift-project.asciidoc
+:baseurl: {oal_repo}/blob/master/docs/architecture/{docname}
+:source: {baseurl}.adoc
+:pretty: https://htmlpreview.github.io/?{baseurl}.html
+
+ifdef::env-github[]
+NOTE: This is the ugly GitHub view, you may prefer link:{pretty}[this pretty HTML rendering]
+endif::[]
+
+== Introduction
+
+The goals of this page are to:
+
+* Be brief and up-to-date; stored with the code.
+* Provide overview and snapshot of current status and coming changes.
+* Provide links to navigate to other project <<resources>>
+
+IMPORTANT: This page does _not_ replace or duplicate information in link:{jira}[JIRA], link:{bugzilla}[Bugzilla], link:{clo_enhancements}[enhancement proposals], or the link:{enhancement_process}[enhancement proposal process].
+
+=== Terms and definitions
+
+This page uses the following specific terms and definitions:
+
+[horizontal]
+Log:: A stream of text containing a sequence of entries.
+Entry:: A single log entry, usually (but not always) a single line of text.
+Meta-data:: Data describing a log entry, for example timestamp, origin, schema, labels, etc.
+Record:: A key-value map containing an _entry_ and associated _meta-data_.
+Schema:: Definition of key names and value types in a record or structured entry.
+Data Model:: The link:schema][data_model] for the forwarder's own *record*.
+Consumer:: A destination for logs, such as a store or other log processor.
+Encoding:: The encoding used to send records to a consumer.
+For example a JSON object or rsyslog message.
+
+There are some important types of log:
+
+[horizontal]
+Structured Logs:: Each log entry consists of key-value pairs. Usually entries are JSON objects, but other formats are possible in future.
+Container Logs:: The `stdout` and `stderr` of containers, written to disk by CRI-O
+Node Logs:: Logs written by the nodes native log system, normally `journald` or `syslog`
+
+There are three logging _categories_:
+
+[horizontal]
+Application:: Container logs from non-infrastructure containers.
+Infrastructure:: Node logs and container logs from `kube-*` and `openshift-*` namespaces.
+Audit:: Node logs from `/var/log/audit`, security sensitive.
+
+== Architecture Summary
+
+=== Logical Components
+
+The logical _core_ components are:
+
+[horizontal]
+Collector:: Reads container log entries and meta-data from each node.
+Normalizer:: Re-formats log records suitable for forwarding.
+Forwarder:: Forwards log data to configured outputs.
+
+The core components are responsible for getting logs from containers to consumers.
+
+Some consumers are targets outside of this architecture.
+For example the forwarder can send to rsyslog servers, but configuration and operation of such servers is out of scope for this architecture.
+
+The _explore_ components are consumers that are part of this architecture.
+Logical explore components are:
+
+[horizontal]
+Store:: Store log data for analysis.
+Exploration:: UI tools (GUI and command line) to search, query and view stored logs
+
+=== Implementation Components
+
+The current version is implemented with these components:
+
+[horizontal]
+Fluentd::  acts as _collector_, _normalizer_ and _forwarder_
+Elasticsearch:: _store_
+Kibana:: _exploration_
+
+In future versions we expect to use:
+
+[horizontal]
+FluentBit:: _collector_
+FluentBit, Fluentd:: in some combination as _normalizer_ and _forwarder_
+Loki:: _store_
+Grafana, Openshift Console Plug-ins:: _exploration_
+
+=== Operators and Custom Resources
+
+.Key to diagrams
+image::legend.svg[]
+
+.Operators and Custom Resources
+image::overview.svg[]
+
+The *cluster logging operator (CLO)* implements the following custom resources:
+
+ClusterLogging (CL)::
+  Deploys the _collector_ and _forwarder_ which currently are both implemented by a _daemonset_ running _Fluentd_ on each node.
+ClusterLogForwarder (CLF)::
+  Generate Fluentd configuration to forward logs per user configuration.
+
+The *elasticsearch logging operator (ELO)* implements the following custom resources:
+
+Elasticsearch::
+  Configure and deploy an Elasticsearch instance as the default log store.
+Kibana::
+  Configure and deploy Kibana instance to search, query and view logs.
+
+=== Components on each Node
+
+.Collection and forwarding
+image::node.svg[]
+
+The _container run-time interface_ (CRI-O) on each node writes container logs to files.
+The file names include the container's UID, namespace, name and other data.
+We also collect per-node logs from the Linux _journald_.
+
+The CLO deploys a Fluentd daemon on each node which acts both as a _collector_ (reading log files) and as a _forwarder_ (sending log data to configured outputs)
+
+=== Log Formats ===
+
+Kubernetes does not enforce a uniform format for logs.
+Anything that a containerized process writes to `stdout` or `stderr` is considered a log.
+This allows existing applications to run on the cluster, but means we can't rely on a predictable log format in general.
+
+Traditional log formats write entries as ordered fields.
+The order, field separator, format and meaning of fields varies.
+
+Structured logs write log entries as JSON objects on a single line.
+However names, types, and meaning of fields in the JSON object varies between applications.
+
+The https://github.com/kubernetes/enhancements/tree/master/keps/sig-instrumentation/1602-structured-logging[Kubernetes Structured Logging proposal] will standardize the log format for _some_ k8s components, but there will still be diverse log formats from non-k8s applications running on the cluster.
+
+==== Meta data and Records
+
+The collector creates a _record_ containing the log entry and meta-data about the entry (original host, container-id, namespace, timestamp etc.)
+The record follows the link:{data_model}[logging data model]
+The forwarder can be configured to modify the record to suit the application.
+
+When a record is forwarded, it is encoded in a form expected by the consumer.
+Current encodings include JSON object and rsyslog message.
+
+CAUTION: Not all of the documented model is in active use. Review is needed.
+The `labels` field is "flattened" before forwarding to Elasticsearch.
+
+==== Multi-line Entries
+
+Log entries are usually a single line of text, but they can be split over multiple lines:
+
+CRI-O::
+CRI-O reads text from containers in chunks, not line-by-line. If a line is split between chunks, CRI-O writes each fragment as a separate line in the log file with a "partial" flag. The collector re-assembles the original lines.
+
+Stack traces::
+Programs in languages like Java, Ruby or Python often dump multi-line stack traces into the log. It is preferable to capture the entire stack trace in a single record.
+
+==  Work in progress
+
+=== In review
+
+* https://github.com/openshift/enhancements/pull/518::[Forwarding JSON Structured Logs]
+  - also includes configuration for modifying log records for any output type.
+* https://github.com/openshift/enhancements/pull/457::[Pod Label Selector]
+
+=== Flow Control
+
+**Status**: Needs write-up as link:{enhancement_process}[enhancement proposal(s)]
+
+* Epic https://issues.redhat.com/browse/LOG-884::[Implement proper flow control mechanisms to support more reliable log collection]
+* https://issues.redhat.com/browse/LOG-575:[Prototype code showing back-pressure on conmon]
+
+Goals:
+
+* Sustain a *predictable* average load without log loss.
+* Handle *temporary* load spikes predictably: drop or back-pressure.
+* Handle *long-term* overload with alerts and log loss at source.
+* Use *bounded* disk and memory resources regardless of load, no unbounded backlogs.
+
+Problems now:
+
+* Uncontrolled (file-at-a-time) log loss from slow collection + node log rotation.
+* Large back-up in file buffers under load: high latency, slow recovery.
+
+.Key to data flow diagrams.
+image::flow_legend.svg[]
+
+.Current data flow.
+image::flow.svg[]
+
+In the current data flow, the collector reads from log files.
+The writers have back-pressure from disk write speed, but they are not affected by the speed of collector reads. If the collector is slow, entire files can be rotated and missed.
+
+.Proposed data flow for end-to-end back-pressure.
+image::flow2.svg[]
+
+In the new data flow, CRI-O and journald write to the collector over pipes or sockets.
+This creates back-pressure, writes will block if the collector is slow to read.
+Log files may still be written in parallel for backwards compatibility with other cluster tools, such as `oc logs`.
+
+Propose 2 qualities of service:
+
+**Fast**:
+
+  * Priority: low latency, high throughput, no impact on application speed.
+  * May drop data (at-most-once)
+
+**Reliable**:
+
+  * Priority is avoiding data loss.
+  * May slow applications
+  * May _temporarily_ degrade to unreliable if known limits are exceeded (at-least-once with limits)
+
+Users who want reliable logging may have limits on how much applications can be slowed.
+If those limits are exceeded (buffers full, timeout exceeded) logging must degrade (gracefully, temporarily, with alerts) to an unreliable mode and drop data to avoid unbounded buffer growth. Reliable mode resumes automatically (with alert) when buffers clear.
+
+**Note**: Rate limiting is "artificial" back-pressure, imposed by timers.
+The response to _any_ back-pressure is the same: regardless if the cause is rate limits, blocking sockets, disconnected consumers, disk write speed or _any reason writing is delayed_.
+The choice of fast vs. reliable is independent from rate-limiting.
+
+Cases to consider:
+
+* Long-lasting disconnect with store.
+* Multiple forwarder consumers
+  * Degrade slow consumers, not fast consumers within limits.
+  * Allow mixed fast/reliable service for different consumers?
+
+Must consider the following configuration areas:
+
+* store (elasticsearch), handling HTTP failed responses, retries, reconnect failure.
+* fluent-forward: need to enable at-least-once for reliable mode.
+* others: reconnects, error handling. Review case by case (rsyslog etc.)
+  * some consumers can't be reliable by nature, e.g. rsyslog UDP.
+
+Throughput and latency:
+
+* evaluate throughput of each stage: node log to store/target.
+* end-to-end latency, expected/acceptable variation.
+
+Buffer sizes:
+
+* all components must maintain bounded buffers.
+* without end-to-end back-pressure we cannot guarantee no data loss.
+* we should be able to give better sizing/capacity guidelines.
+
+Configuration:
+
+* Enable back-pressure by pod label and/or namespace. Can't impose back-pressure everywhere.
+* Enable rate limiting in low-latency mode (back-pressure always limits rate)
+
+=== Error Reporting
+
+**Status**: Needs write-up as link:{enhancement_process}[enhancement proposal(s)]
+
+The logging system itself can encounter errors, for example:
+
+* Invalid log entries that cannot be forwarded.
+* Unexpected errors from logging components: fluentd, elasticsearch, other consumers.
+* Log entries not forwarded due to communication failure.
+
+There are several mechanisms available, not all errors should be reported on all channels.
+
+Resource Status:: Current error conditions should be visible in the status conditions of the relevant custom resource. Examples: fluentd is unable to connect, slow consumers are causing back-pressure and/or log loss, /var/log is full on some node(s), etc.
+
+Alerts:: Alerts must be _actionable_ by an SRE.
+Used only for severe  problems that  require a specific intervention.
+They cannot be used for high-volume events or to record activity for postmortem review.
+
+K8s Events:: Used to report important cluster events such as failure to pull images.
+They are highly visible in the openshift console.
+**TODO**: investigate best practices for use of K8S Events, likely similar to Alerts.
+
+Logs:: The logging operators and operands generate logs like any other infrastructure.
+If the logging system itself is in trouble, users need a more direct way to diagnose.
+This mechanism should also be able to function during common logging problems.
+
+Summary of proposal:
+
+* Add a 4th log category _logging_ [application, infrastructure, audit, _logging_]
+* Review operator and operand logs, select useful entries for this category.
+* Implement so this category that that can still function under common problems:
+  * store or other consumers are disconnected.
+  * consumers are causing back-pressure or log loss.
+  * /var/log full on some node.
+
+
+=== Review Data Model.
+
+Review the current link:{data_model}[data model], remove dead code, ensure all definitions
+are relevant, current and clearly documented.
+
+=== Multi-line support
+
+**Status**: Needs write-up as link:{enhancement_process}[enhancement proposal(s)]
+
+* Cover common stack trace types: Java, Ruby, Python, Go.
+* Confirm or deny need for multi-line JSON (probably not?)
+
+=== Syslog meta-data
+
+**Status**: Needs write-up as link:{enhancement_process}[enhancement proposal(s)]
+
+Optionally copy meta-data to syslog https://tools.ietf.org/html/rfc5424#section-6.3[STRUCTURED-DATA]
+
+=== Loki as store
+
+**Status**: In progress with the explore team. Need to review current state.
+
+* Bench-marking & stress testing in progress
+* Configuring Loki at scale.
+* Test with back ends s3, boltd.
+
+=== Observability/Telemetry
+
+*TODO*
+
+== Updating this page
+
+The link:{source}[asciidoc source for this document] is on GitHub.
+Create a GitHub Pull Request to request changes.
+
+NOTE: Run `make` in the `architecture` directory to update the link:{pretty}[pretty HTML version]
+
+== Resources
+
+.Planning and tracking
+* link:{enhancement_process}[The Enhancement Proposal Process] is how we document & discuss designs.
+* link:{enhancement_repo}[Cluster Logging Enhancement Proposals] for CLO and ELO.
+* https://issues.redhat.com/projects/LOG/issues/LOG-96?filter=allopenissues[JIRA project LOG] tracks feature work.
+* https://bugzilla.redhat.com/buglist.cgi?cmdtype=runnamed&list_id=11292768&namedcmd=All%20Cluster%20Logging%20Bugs[Bugzilla ] tracks bugs.
+
+.Source code
+* link:{source}[Asciidoc source for this document]
+* https://github.com/openshift/cluster-logging-operator[Cluster Logging Operator]
+* https://github.com/openshift/elasticsearch-operator[Elasticsearch Operator]
+* https://github.com/openshift/origin-aggregated-logging[Other logging dependencies (fluentd, kibana images etc.)]
+
+.Data model
+* {data_model}[Generated data model documentation]
+* https://github.com/ViaQ/elasticsearch-templates/tree/master/templates::[Formal Model] and documentation/code generators

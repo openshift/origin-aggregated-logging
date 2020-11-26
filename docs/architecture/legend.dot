@@ -1,0 +1,10 @@
+digraph {
+  graph [fontname="helvetica" fontsize=16]
+  node [fontname="helvetica" fontsize=14 style=filled]
+  edge [fontname="helvetica" fontsize=12]
+
+  Resource [shape=hexagon fillcolor=orchid]
+  Container [shape=box fillcolor=cyan]
+  Store [shape=cylinder fillcolor=beige]
+  Operator [shape=box fillcolor=none]
+}

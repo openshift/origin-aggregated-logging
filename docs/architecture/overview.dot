@@ -1,0 +1,43 @@
+// Note: prefix "cluster_" is part of the grapviz language, it indicates a boxed
+// group of nodes. All other uses of "cluster" refer to an openshift cluster.
+digraph {
+  rankdir=TD
+
+  graph [fontname="helvetica" fontsize=16]
+  node [fontname="helvetica" fontsize=14 style=filled]
+  edge [fontname="helvetica" fontsize=12]
+
+  // APIs
+  node [shape=hexagon fillcolor=orchid]
+  cl[label=ClusterLogging]
+  clf[label=ClusterLogForwarder]
+  es[label=Elasticsearch]
+  kb[label=Kibana]
+
+  // Containers
+  node [shape=box fillcolor=cyan]
+  fd[label="Fluentd\nDaemonset\n(Pod per node)"]
+
+  // Stores
+  node [shape=cylinder fillcolor=beige]
+  store[label="Log\nStore"]
+
+  { rank=max ui[shape=oval label="Exploration UI" fillcolor=aliceblue] }
+
+  // Layout
+  subgraph cluster_clo{
+    label="Cluster Logging Operator"
+    cl clf
+  }
+
+  subgraph cluster_elo {
+    label="Elasticsearch Operator"
+    es kb
+  }
+
+  clf -> fd [label=configures]
+  cl -> { es kb fd }[label=creates]
+  es->store[label="controls"]
+  kb->ui[label="provides"]
+  ui->store[label=browses]
+}

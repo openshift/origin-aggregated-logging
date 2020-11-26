@@ -1,9 +1,17 @@
 # OpenShift Logging
 
+## Developer documentation
 
-This repo primary contains only the image definitions for the components of the OpenShift Logging
-stack for releases 4.x and later. These [components images](#components), abbreviated as the "EFK"
-stack, include: Elasticsearch, Fluentd, Kibana. Please refer to the [cluster-logging-operator](https://github.com/openshift/cluster-logging-operator) and [elasticsearch-operator](https://github.com/openshift/elasticsearch-operator) for information regarding the operators which deploy these images.  
+Documentation that applies to the entire logging stack, all operators and their operands.
+
+* [Architecture overview and status](./docs/architecture/index.html)
+* [Data Model](./docs/com.redhat.viaq-openshift-project.asciidoc)
+
+## Image definitions
+
+This repo contains image definitions for the components of the OpenShift Logging stack for releases 4.x and later.
+These [components images](#components), abbreviated as the "EFK" stack, include: Elasticsearch, Fluentd, Kibana.
+Please refer to the [cluster-logging-operator](https://github.com/openshift/cluster-logging-operator) and [elasticsearch-operator](https://github.com/openshift/elasticsearch-operator) for information regarding the operators which deploy these images.
 
 The primary features this integration provides:
 * [Multitenant support](https://github.com/openshift/elasticsearch-operator/blob/master/docs/access-control.md) to isolate logs from various project namespaces

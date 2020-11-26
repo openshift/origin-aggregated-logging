@@ -1,0 +1,23 @@
+digraph {
+  graph [fontname="helvetica" fontsize=16 rankdir=LR]
+  node [fontname="helvetica" fontsize=14 style=filled shape=box fillcolor=cyan]
+  edge [fontname="helvetica"fontsize=12]
+
+  subgraph cluster_node {
+    label="Node"
+    Logs [label="Node Disk\n/var/log/..." shape=cylinder fillcolor="beige"]
+    Container[label="Container\n(CRI-O)"]
+    Container -> Logs [label="write"]
+    Journald[ fillcolor=aliceblue]
+    Journald -> Logs [label="write"]
+    Fluentd [label="Fluentd\nDaemonSet"]
+    Logs -> Fluentd [label="scrape"]
+  }
+  node [fillcolor=aliceblue]
+  extfd [label="External\nfluentd"]
+
+  Fluentd -> Elasticsearch [label="HTTP"]
+  Fluentd -> Rsyslog [label="UDP/TCP"]
+  Fluentd -> Kafka [label="TCP"]
+  Fluentd -> extfd [label="fluent\nforward"]
+}

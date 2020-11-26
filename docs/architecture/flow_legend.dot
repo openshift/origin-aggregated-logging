@@ -1,0 +1,19 @@
+digraph {
+graph [fontname="helvetica" fontsize=16  rankdir=LR]
+node [fontname="helvetica" fontsize=14 style=filled fillcolor=aliceblue]
+edge [fontname="helvetica"fontsize=12]
+
+disk [label="disk file/buffer" shape=cylinder fillcolor=beige]
+memory [label="memory buffer" shape=box fillcolor=yellow]
+
+edge [dir=both]
+
+subgraph left { node [style=invisible]; l1 l2 }
+subgraph right { node [style=invisible]; r1 r2 }
+
+l1 -> r1 [arrowtail=box style=bold label="data flow\n with backpressure"]
+l2 -> r2 [arrowtail=inv style=dashed label="data flow\nwithout backpressure"]
+edge  [style=invisible arrowtail=none arrowhead=none]
+r1 -> disk
+r2 -> memory
+}
