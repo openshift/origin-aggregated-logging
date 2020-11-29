@@ -25,6 +25,7 @@ class ParserViaqHostAuditTest < Test::Unit::TestCase
         assert_equal('296', record['audit.linux']['record_id'])
         assert_equal("2019-10-24T09:56:31.145999+00:00", record['time'])
         assert_equal(message, record['message'])
+        assert_true(time.instance_of? Fluent::EventTime)
       end
     end
     test 'AVC denial is detected' do
@@ -36,6 +37,7 @@ class ParserViaqHostAuditTest < Test::Unit::TestCase
         assert_equal('233', record['audit.linux']['record_id'])
         assert_equal("2019-10-24T09:56:31.145999+00:00", record['time'])
         assert_equal(message, record['message'])
+        assert_true(time.instance_of? Fluent::EventTime)
       end
     end
   end
