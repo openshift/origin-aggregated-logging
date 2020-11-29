@@ -15,7 +15,14 @@ module Fluent
     def parse(text)
       begin
         parsed_line = @audit_parser.parse_audit_line text
-        time = parsed_line.nil? ? Time.now.to_f : DateTime.parse(parsed_line['time']).to_time.to_f
+        
+        if parsed_line.nil?
+          t = Time.now
+          time = Fluent::EventTime.new(t.to_i, t.nsec)
+        else
+          t = DateTime.parse(parsed_line['time']).to_time
+          time = Fluent::EventTime.new(t.to_i, t.nsec)
+        end
 
         yield time, parsed_line
       rescue Fluent::ViaqHostAudit::ViaqHostAuditParserException => e
