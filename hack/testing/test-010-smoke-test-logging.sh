@@ -42,8 +42,8 @@ for pod in $(oc -n $LOGGING_NS get pods -l component=elasticsearch -o jsonpath={
 
 	log::info "Checking that Elasticsearch pod ${pod} recovered its indices after starting..."
 	try_until_text "oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_cluster/state/master_node --output /dev/null -w %{response_code}" "200" "$(( 2*$minute ))"
-	es_master_id="$(oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_cluster/state/master_node | python -c  'import json, sys; print json.load(sys.stdin)["master_node"];' )"
-	es_pod_node_id="$(oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_nodes/_local | python -c  'import json, sys; print json.load(sys.stdin)["nodes"].keys()[0];' )"
+	es_master_id="$(oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_cluster/state/master_node | python -c  'import json, sys; print(json.load(sys.stdin)["master_node"]);' )"
+	es_pod_node_id="$(oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_nodes/_local | python -c  'import json, sys; print(list(json.load(sys.stdin)["nodes"].keys())[0]);' )"
 	es_detected_master_id="$(oc -n $LOGGING_NS exec -c elasticsearch ${pod} -- es_util --query=_cat/master?h=id )"
 	if [[ "${es_master_id}" == "${es_pod_node_id}" ]]; then
 		log::info "Elasticsearch pod ${pod} is the master"
