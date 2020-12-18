@@ -55,4 +55,4 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
 
 WORKDIR ${HOME}
 USER 0
-CMD ["sh", "run.sh"]
+CMD ["scl", "enable", "rh-ruby25", "--", "sh", "run.sh"]
