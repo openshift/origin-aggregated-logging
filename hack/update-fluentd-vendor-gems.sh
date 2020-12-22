@@ -5,6 +5,7 @@
 
 set -euo pipefail
 
+BUNDLE_TASK=${BUNDLE_TASK:-install}
 basedir=$( dirname $0 )
 if [ -z "$basedir" ] ; then
     pushd .. > /dev/null
@@ -30,7 +31,7 @@ export FLUENTD_VERSION
 # update Gemfile.lock by installing Gemfile
 echo updating Gemfile.lock
 pushd $fluentddir
-  bundle update 
+  bundle $BUNDLE_TASK 
 popd
 
 if [ -n "${CLOBBER_VENDOR:-}" ] ; then

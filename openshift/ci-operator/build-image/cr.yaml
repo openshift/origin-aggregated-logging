@@ -14,10 +14,10 @@ spec:
       redundancyPolicy: "ZeroRedundancy"
       resources:
         limits:
-          memory: 3Gi
+          memory: 2Gi
         requests:
-          cpu: 500m
-          memory: 3Gi
+          cpu: 100m
+          memory: 2Gi
   visualization:
     type: "kibana"
     kibana:
