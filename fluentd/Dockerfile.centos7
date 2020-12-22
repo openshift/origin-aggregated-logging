@@ -55,4 +55,9 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
 
 WORKDIR ${HOME}
 USER 0
-CMD ["sh", "run.sh"]
+
+# TODO:
+# - Remove this line and the file after https://bugzilla.redhat.com/show_bug.cgi?id=1909993 resolved
+# - Replace CMD back to `["sh", "run.sh"]`
+COPY run45.sh ${HOME}/
+CMD ["sh", "run45.sh"]
