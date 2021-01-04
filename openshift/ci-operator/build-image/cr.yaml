@@ -7,14 +7,14 @@ spec:
   logStore:
     type: "elasticsearch"
     elasticsearch:
-      nodeCount: 3
+      nodeCount: 1
       storage:
         storageClassName: gp2
         size: 32G
       redundancyPolicy: "ZeroRedundancy"
       resources:
         limits:
-          memory: 2Gi
+          memory: 3Gi
         requests:
           cpu: 100m
           memory: 2Gi

@@ -419,12 +419,13 @@ else
 fi
 
 if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-    CLO_DIR=$GOPATH/src/github.com/openshift/cluster-logging-operator
-    EO_DIR=$GOPATH/src/github.com/openshift/elasticsearch-operator
-    if [ ! -d $GOPATH/src/github.com/openshift ] ; then
-        mkdir -p $GOPATH/src/github.com/openshift
+    SRCPATH=${SRCPATH:-/go/src/github.com/openshift}
+    CLO_DIR=${SRCPATH}/cluster-logging-operator
+    EO_DIR=$SRCPATH/elasticsearch-operator
+    if [ ! -d $SRCPATH ] ; then
+        mkdir -p $SRCPATH
     fi
-    pushd $GOPATH/src/github.com/openshift
+    pushd $SRCPATH
         if [ ! -d cluster-logging-operator ] ; then
             git clone https://github.com/openshift/cluster-logging-operator
         fi
@@ -438,15 +439,6 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     # get eo version from manifests directory
     EO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $EO_DIR/manifests )
     deploy_logging_using_clo_make
-    
-    wait_func() {
-        oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
-        oc -n $LOGGING_NS get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
-    }
-    if ! wait_for_condition wait_func $DEFAULT_TIMEOUT > ${ARTIFACT_DIR}/test_output 2>&1 ; then
-        echo ERROR: one of or both of elasticsearch-operator and cluster-logging-operator pod not running
-        logging_err_exit
-    fi
     oc -n $LOGGING_NS create -f ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml}
     wait_for_logging_is_running
 else
