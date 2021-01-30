@@ -136,6 +136,7 @@ project_user:
   readonly: true
   cluster:
     - CLUSTER_COMPOSITE_OPS_RO
+    - MONITOR
     - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
   indices:
     app:
