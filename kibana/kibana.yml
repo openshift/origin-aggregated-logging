@@ -103,7 +103,8 @@ pid.file: ${HOME}/kibana.pid
 #logging.silent: false
 
 # Set the value of this setting to true to suppress all logging output other than error messages.
-logging.quiet: true
+# if this is set to true and enabled we are unable to see warning messages such as ones indicating the migration of a kibana index failed
+#logging.quiet: true
 
 # Set the value of this setting to true to log all events, including system usage information
 # and all requests.
