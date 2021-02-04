@@ -173,7 +173,7 @@ get_cluster_version_maj_min
 # what numeric version does master correspond to?
 MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.7}}
 # what namespace to use for operator images?
-EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 # for dev purposes, image builds will typically be pushed to this namespace
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
@@ -185,7 +185,7 @@ export IMAGE_LOGGING_KIBANA6=${IMAGE_LOGGING_KIBANA6:-registry.ci.openshift.org/
 export IMAGE_LOGGING_CURATOR5=${IMAGE_LOGGING_CURATOR5:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-curator5}
 export IMAGE_LOGGING_FLUENTD=${IMAGE_LOGGING_FLUENTD:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-fluentd}
 export IMAGE_ELASTICSEARCH_PROXY=${IMAGE_ELASTICSEARCH_PROXY:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:elasticsearch-proxy}
-export IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY=${IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY:-registry.svc.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:elasticsearch-operator-registry}
+export IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY=${IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:elasticsearch-operator-registry}
 export IMAGE_CLUSTER_LOGGING_OPERATOR_REGISTRY=${IMAGE_CLUSTER_LOGGING_OPERATOR_REGISTRY:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:cluster-logging-operator-registry}
 export IMAGE_OAUTH_PROXY=${IMAGE_OAUTH_PROXY:-registry.ci.openshift.org/ocp/${MASTER_VERSION}:oauth-proxy}
 
@@ -193,7 +193,7 @@ construct_image_name() {
     local component="$1"
     local tagsuffix="${2:-latest}"
     # if running in CI environment, IMAGE_FORMAT will look like this:
-    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # IMAGE_FORMAT=registry.ci.openshift.org/ci-op-xxx/stable:${component}
     # stable is the imagestream containing the images built for this PR, or
     # otherwise the most recent image
     if [ -n "${IMAGE_FORMAT:-}" ] ; then
