@@ -106,6 +106,9 @@ pid.file: ${HOME}/kibana.pid
 # if this is set to true and enabled we are unable to see warning messages such as ones indicating the migration of a kibana index failed
 #logging.quiet: true
 
+logging.filter.x-forwarded-access-token: censor
+logging.filter.x-forwarded-email: censor
+
 # Set the value of this setting to true to log all events, including system usage information
 # and all requests.
 #logging.verbose: false
