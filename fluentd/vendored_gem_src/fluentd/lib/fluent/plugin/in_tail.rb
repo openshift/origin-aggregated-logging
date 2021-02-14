@@ -510,6 +510,13 @@ module Fluent::Plugin
         @from_encoding = from_encoding
         @encoding = encoding
         @open_on_every_update = open_on_every_update
+        @totalbytesread=0
+        @totalbytesavailable=0
+        @inodelastfsize_map={}
+        @inodereadfsize_map={}
+        @countonrotate=0
+        @maxfsize=0
+        @logloss=0
       end
 
       attr_reader :path
@@ -519,6 +526,11 @@ module Fluent::Plugin
       attr_accessor :timer_trigger
       attr_accessor :line_buffer, :line_buffer_timer_flusher
       attr_accessor :unwatched  # This is used for removing position entry from PositionFile
+      attr_accessor :totalbytesavailable  # This is used for removing position entry from PositionFile
+      attr_accessor :totalbytesread  # This is used for removing position entry from PositionFile
+      attr_accessor :maxfsize  # This is used for removing position entry from PositionFile
+      attr_accessor :countonrotate  # This is used for removing position entry from PositionFile
+      attr_accessor :logloss  # This is used for removing position entry from PositionFile
 
       def tag
         @parsed_tag ||= @path.tr('/', '.').gsub(/\.+/, '.').gsub(/^\./, '')
@@ -535,7 +547,7 @@ module Fluent::Plugin
 
       def detach
         yield self
-        @io_handler.on_notify if @io_handler
+        @io_handler.on_notify(@inodereadfsize_map) if @io_handler
       end
 
       def close
@@ -553,12 +565,28 @@ module Fluent::Plugin
           stat = nil
         end
 
-        @rotate_handler.on_notify(stat) if @rotate_handler
+        @totalbytesavailable=@rotate_handler.on_notify(stat,@inodelastfsize_map) if @rotate_handler
         @line_buffer_timer_flusher.on_notify(self) if @line_buffer_timer_flusher
-        @io_handler.on_notify if @io_handler
+        @io_handler.on_notify(@inodereadfsize_map) if @io_handler
+
+        @logloss=0
+        if @io_handler && @rotate_handler
+          @totalbytesread=0
+          @countonrotate=0
+          @inodereadfsize_map.each do |k, v|
+            @totalbytesread+=v
+            @countonrotate+=1
+          end
+
+        #@log.info "inodelastfsize_map #{@inodelastfsize_map} inodereadfsize_map #{@inodereadfsize_map}"
+        @logloss=@totalbytesavailable-@totalbytesread
+        #@log.info "totalbytesavailable #{@totalbytesavailable} totalbytesread #{@totalbytesread} logloss #{@logloss} countonrotate #{@countonrotate}"
+        end  
+
       end
 
       def on_rotate(stat)
+        @maxfsize=@pe.read_pos
         if @io_handler.nil?
           if stat
             # first time
@@ -591,6 +619,7 @@ module Fluent::Plugin
             @io_handler = IOHandler.new(self, &method(:wrap_receive_lines))
           else
             @io_handler = NullIOHandler.new
+            @totalbytesread=0
           end
         else
           watcher_needs_update = false
@@ -605,7 +634,7 @@ module Fluent::Plugin
             else # file is rotated and new file found
               watcher_needs_update = true
               # Handle the old log file before renewing TailWatcher [fluentd#1055]
-              @io_handler.on_notify
+              @io_handler.on_notify(@inodereadfsize_map)
             end
           else # file is rotated and new file not found
             # Clear RotateHandler to avoid duplicated file watch in same path.
@@ -732,21 +761,28 @@ module Fluent::Plugin
           @io = nil
           @notify_mutex = Mutex.new
           @watcher.log.info "following tail of #{@watcher.path}"
+          @totalbytesread=0
+          @statatopen=nil
         end
 
-        def on_notify
-          @notify_mutex.synchronize { handle_notify }
+        def on_notify(inodereadfsize_map)
+          @notify_mutex.synchronize { handle_notify(inodereadfsize_map) }
         end
 
-        def handle_notify
+        def handle_notify(inodereadfsize_map)
           with_io do |io|
+          stat = Fluent::FileWrapper.stat(@watcher.path)
+          @statatopen=stat
             begin
               read_more = false
 
               if !io.nil? && @lines.empty?
+                ino=@statatopen.ino
                 begin
                   while true
-                    @fifo << io.readpartial(8192, @iobuf)
+                    buf = io.readpartial(8192, @iobuf)
+                    @totalbytesread+=buf.bytesize
+                    @fifo << buf
                     @fifo.read_lines(@lines)
                     if @lines.size >= @watcher.read_lines_limit
                       # not to use too much memory in case the file is very large
@@ -756,6 +792,7 @@ module Fluent::Plugin
                   end
                 rescue EOFError
                 end
+                inodereadfsize_map[ino]=@totalbytesread
               end
 
               unless @lines.empty?
@@ -784,7 +821,7 @@ module Fluent::Plugin
         def open
           io = Fluent::FileWrapper.open(@watcher.path)
           io.seek(@watcher.pe.read_pos + @fifo.bytesize)
-          io
+          return io
         rescue RangeError
           io.close if io
           raise WatcherSetupError, "seek error with #{@watcher.path}: file position = #{@watcher.pe.read_pos.to_s(16)}, reading bytesize = #{@fifo.bytesize.to_s(16)}"
@@ -840,9 +877,10 @@ module Fluent::Plugin
           @inode = nil
           @fsize = -1  # first
           @on_rotate = on_rotate
+          @totalbytesavailable=0
         end
 
-        def on_notify(stat)
+        def on_notify(stat,inodelastfsize_map)
           if stat.nil?
             inode = nil
             fsize = 0
@@ -854,9 +892,18 @@ module Fluent::Plugin
           begin
             if @inode != inode || fsize < @fsize
               @on_rotate.call(stat)
+              inodelastfsize_map[@inode]=@fsize
+              @totalbytesavailable=@fsize
             end
             @inode = inode
             @fsize = fsize
+            inodelastfsize_map[inode]=fsize
+            @totalbytesavailable=0
+            inodelastfsize_map.each do | k , v |
+              @totalbytesavailable+=v
+            end
+
+            return @totalbytesavailable
           end
 
         rescue
