@@ -1,4 +1,4 @@
-# OpenShift Logging
+# WIP DO NOT MERGE OpenShift Logging
 
 
 This repo primary contains only the image definitions for the components of the OpenShift Logging
