@@ -2,7 +2,7 @@
 set -euo pipefail
 current_dir=$(dirname "${BASH_SOURCE[0]}" )
 source $current_dir/testing/common
-OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"stable"}
+OPERATOR_LOGGING_IMAGE_STREAM=${OPERATOR_LOGGING_IMAGE_STREAM:-"pipeline"}
 
 
 # disable pathname expansion for SUITE and EXCLUDE_SUITE
