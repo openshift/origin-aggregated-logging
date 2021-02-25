@@ -9,7 +9,7 @@ module Fluent::Plugin
 
     helpers :timer
 
-    config_param :interval, :time, default: 1
+    config_param :interval, :time, default: 5
     attr_reader :registry
 
     MONITOR_IVARS = [
@@ -38,31 +38,24 @@ module Fluent::Plugin
         @base_labels[key] = expander.expand(value)
       end
 
-      @monitor_agent = Fluent::Plugin::MonitorAgentInput.new
+      if defined?(Fluent::Plugin) && defined?(Fluent::Plugin::MonitorAgentInput)
+        # from v0.14.6
+        @monitor_agent = Fluent::Plugin::MonitorAgentInput.new
+      else
+        @monitor_agent = Fluent::MonitorAgentInput.new
+      end
     end
 
     def start
       super
 
       @metrics = {
-        position: get_gauge(
+        position: @registry.gauge(
           :fluentd_tail_file_position,
           'Current position of file.'),
-        inode: get_gauge(
+        inode: @registry.gauge(
           :fluentd_tail_file_inode,
           'Current inode of file.'),
-        maxfsize: get_gauge(
-          :maxfsize,
-          'Current max fsize of file on rotation event'),
-        countonrotate: get_gauge(
-          :countonrotate,
-          'No of rotation noticed by fluentd'),
-        totalbytesread: get_gauge(
-          :totalbytesread,
-          'totalbytes read by fluentd IOHandler'),
-        totalbytesavailable: get_gauge(
-          :totalbytesavailable,
-          'totalbytes available at each instance of rotation - to be read by fluentd IOHandler'),
       }
       timer_execute(:in_prometheus_tail_monitor, @interval, &method(:update_monitor_info))
     end
@@ -84,18 +77,9 @@ module Fluent::Plugin
           # Access to internal variable of internal class...
           # Very fragile implementation
           pe = watcher.instance_variable_get(:@pe)
-          totalbytesread = watcher.instance_variable_get(:@totalbytesread)
-          totalbytesavailable = watcher.instance_variable_get(:@totalbytesavailable)
-          maxfsize = watcher.instance_variable_get(:@maxfsize)
-          countonrotate = watcher.instance_variable_get(:@countonrotate)
           label = labels(info, watcher.path)
           @metrics[:inode].set(label, pe.read_inode)
           @metrics[:position].set(label, pe.read_pos)
-          @metrics[:maxfsize].set(label, maxfsize)
-          @metrics[:countonrotate].set(label, countonrotate)
-          @metrics[:totalbytesread].set(label, totalbytesread)
-          @metrics[:totalbytesavailable].set(label, totalbytesavailable)
-          #@log.info "IN PROMETHEUS PLUGIN pr.read_inode and pe.read_pos #{pe.read_inode} #{pe.read_pos} maxfsize #{maxfsize} countonrotate #{countonrotate} totalbytesread #{totalbytesread} totalbytesavailable #{totalbytesavailable} "
         end
       end
     end
@@ -106,14 +90,6 @@ module Fluent::Plugin
         type: plugin_info["type"],
         path: path,
       )
-    end
-
-    def get_gauge(name, docstring)
-      if @registry.exist?(name)
-        @registry.get(name)
-      else
-        @registry.gauge(name, docstring)
-      end
     end
   end
 end
