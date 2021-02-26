@@ -49,6 +49,7 @@ RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
      'elasticsearch-api:5.0.5' \
      'elasticsearch:5.0.5' \
      'prometheus-client:0.9.0' \
+     'msgpack:1.3.3' \
       fluentd:${FLUENTD_VERSION} \
      'fluent-plugin-elasticsearch:1.17.2' \
      'fluent-plugin-record-modifier:0.6.2' \
