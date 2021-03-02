@@ -39,7 +39,7 @@ module Fluent
       if remove_tag_prefix = conf['remove_tag_prefix']
         @remove_tag_prefix = Regexp.new('^' + Regexp.escape(remove_tag_prefix))
       end
-      @facilty = conf['facility']
+      @facility = conf['facility']
       @severity = conf['severity']
       @use_record = conf['use_record']
       @payload_key = conf['payload_key']
@@ -121,7 +121,7 @@ module Fluent
         end
       else
         @packet.hostname = hostname
-        @packet.facility = @facilty
+        @packet.facility = @facility
         @packet.severity = @severity
       end
       time = if record['time']
