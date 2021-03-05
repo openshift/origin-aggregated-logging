@@ -168,23 +168,26 @@ get_cluster_version_maj_min() {
     fi
 }
 
-MASTER_RELEASE_VERSION=${MASTER_RELEASE_VERSION:-4.6}
+MASTER_RELEASE_VERSION=${MASTER_RELEASE_VERSION:-4.7}
 get_cluster_version_maj_min
 # what numeric version does master correspond to?
-MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.6}}
+MASTER_VERSION=${MASTER_VERSION:-${CLUSTER_MAJ_MIN:-4.7}}
 # what namespace to use for operator images?
 EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 # for dev purposes, image builds will typically be pushed to this namespace
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
 
-CLO_BRANCH="release-${MASTER_VERSION}"
-EO_BRANCH="release-${MASTER_VERSION}"
-
-if [ "${MASTER_VERSION}" == "${MASTER_RELEASE_VERSION}" ]; then
-  CLO_BRANCH="master"
-  EO_BRANCH="master"
-fi
+LOGGING_IS=${LOGGING_IS:-logging}
+LOGGING_VERSION=${LOGGING_VERSION:-5.1}
+export IMAGE_ELASTICSEARCH6=${IMAGE_ELASTICSEARCH6:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-elasticsearch6}
+export IMAGE_LOGGING_KIBANA6=${IMAGE_LOGGING_KIBANA6:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-kibana6}
+export IMAGE_LOGGING_CURATOR5=${IMAGE_LOGGING_CURATOR5:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-curator5}
+export IMAGE_LOGGING_FLUENTD=${IMAGE_LOGGING_FLUENTD:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:logging-fluentd}
+export IMAGE_ELASTICSEARCH_PROXY=${IMAGE_ELASTICSEARCH_PROXY:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:elasticsearch-proxy}
+export IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY=${IMAGE_ELASTICSEARCH_OPERATOR_REGISTRY:-registry.svc.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:elasticsearch-operator-registry}
+export IMAGE_CLUSTER_LOGGING_OPERATOR_REGISTRY=${IMAGE_CLUSTER_LOGGING_OPERATOR_REGISTRY:-registry.ci.openshift.org/${LOGGING_IS}/${LOGGING_VERSION}:cluster-logging-operator-registry}
+export IMAGE_OAUTH_PROXY=${IMAGE_OAUTH_PROXY:-registry.ci.openshift.org/ocp/${MASTER_VERSION}:oauth-proxy}
 
 construct_image_name() {
     local component="$1"
@@ -198,7 +201,6 @@ construct_image_name() {
             local match=/stable:
             local replace="/${LOGGING_IMAGE_STREAM}:"
             IMAGE_FORMAT=${IMAGE_FORMAT/$match/$replace}
-
             if [ -n "${LOGGING_IMAGE_STREAM_NS:-}" -a "${LOGGING_IMAGE_STREAM_NS:-}" != 'ocp' ] ; then
                 local ns=$(echo ${IMAGE_FORMAT} | cut -d '/' -f 2)
                 IMAGE_FORMAT=${IMAGE_FORMAT/$ns/$LOGGING_IMAGE_STREAM_NS}
@@ -218,23 +220,19 @@ construct_image_name() {
 update_images_in_clo_yaml() {
     local yamlfile=$1
     local clo_img=${2:-} #unused.  leaving for compatibility
-    local version=${3:-latest}
+    local version=${3:-latest} #unused. leaving for compatibility
     local filearg
     if [ "$yamlfile" = "-" ] ; then
         filearg=""
     else
         filearg="-i $yamlfile"
     fi
-    local es_img=$( construct_image_name logging-elasticsearch6 $version )
-    local k_img=$( construct_image_name logging-kibana6 $version )
-    local c_img=$( construct_image_name logging-curator5 $version )
-    local f_img=$( construct_image_name logging-fluentd $version )
-    local op_img=$( construct_image_name oauth-proxy $version )
-    sed -e "/name: ELASTICSEARCH_IMAGE/,/value:/s,value:.*\$,value: ${es_img}," \
-        -e "/name: KIBANA_IMAGE/,/value:/s,value:.*\$,value: ${k_img}," \
-        -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${c_img}," \
-        -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${f_img}," \
-        -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${op_img}," \
+    sed -e "/name: ELASTICSEARCH_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_ELASTICSEARCH6}," \
+        -e "/name: KIBANA_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_KIBANA6}," \
+        -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_CURATOR5}," \
+        -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_FLUENTD}," \
+        -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_OAUTH_PROXY}," \
+        -e "/name: ELASTICSEARCH_PROXY/,/value:/s,value:.*\$,value: ${IMAGE_ELASTICSEARCH_PROXY}," \
         $filearg
 }
 
@@ -339,21 +337,15 @@ deploy_logging_using_olm() {
 deploy_logging_using_clo_make() {
     # edit the deployment manifest - use the images provided by CI or from api.ci registry
     pushd $EO_DIR > /dev/null
-        make elasticsearch-catalog-deploy \
-            IMAGE_ELASTICSEARCH6=$( construct_image_name logging-elasticsearch6 $MASTER_VERSION ) \
-            IMAGE_ELASTICSEARCH_PROXY=$( construct_image_name elasticsearch-proxy $MASTER_VERSION ) \
-            IMAGE_LOGGING_KIBANA6=$( construct_image_name logging-kibana6 $MASTER_VERSION ) \
-            IMAGE_OAUTH_PROXY=$( construct_image_name oauth-proxy $MASTER_VERSION )
+        make elasticsearch-catalog-deploy
         make elasticsearch-operator-install
     popd > /dev/null
     pushd $CLO_DIR > /dev/null
-        update_images_in_clo_yaml ./manifests/${MASTER_VERSION}/cluster-logging.*.clusterserviceversion.yaml 
-        make cluster-logging-catalog-deploy \
-            IMAGE_LOGGING_CURATOR5=$( construct_image_name logging-curator5 $MASTER_VERSION ) \
-            IMAGE_LOGGING_FLUENTD=$( construct_image_name logging-fluentd $MASTER_VERSION )
+        make cluster-logging-catalog-deploy
         make cluster-logging-operator-install
     popd > /dev/null
 }
+
 
 disable_cvo() {
     local cvopod=$( oc -n openshift-cluster-version get pods | awk '/^cluster-version-operator-.* Running / {print $1}' ) || :
@@ -432,13 +424,9 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
             git clone https://github.com/openshift/elasticsearch-operator
         fi
     popd
-    # get clo version from manifests directory
-    CLO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $CLO_DIR/manifests )
 
-    # get eo version from manifests directory
-    EO_MANIFEST_VER=$( get_latest_ver_from_manifest_dir $EO_DIR/manifests )
     deploy_logging_using_clo_make
-    
+
     wait_func() {
         oc -n $ESO_NS get pods 2> /dev/null | grep -q 'elasticsearch-operator.*Running' && \
         oc -n $LOGGING_NS get pods 2> /dev/null | grep -q 'cluster-logging-operator.*Running'
