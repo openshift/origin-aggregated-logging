@@ -1,4 +1,3 @@
-OPERATOR_LOGGING_IMAGE_STREAM?=stable
 
 FLUENTD_IMAGE?="openshift/origin-logging-fluentd"
 KIBANA_IMAGE?="openshift/origin-logging-kibana6"
@@ -10,7 +9,7 @@ build-images: build-all-images
 .PHONY: build-images
 
 test:
-	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM) MASTER_VERSION=5.0 CLO_BRANCH=release-5.0 EO_BRANCH=release-5.0 ./hack/test-e2e.sh
+	LOGGING_VERSION=5.0 ./hack/test-e2e.sh
 .PHONY: test
 
 .PHONY: test-pre-upgrade
