@@ -1,19 +1,19 @@
-FROM centos/ruby-25-centos7:latest
+FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
-USER 0
 
 ENV FLUENTD_VERSION=1.0 \
-    WORKDIR=/fluentd/lib
+    WORKDIR=/tmp/fluentd/lib
 
+USER 0
 ENTRYPOINT /tmp/run.sh
-RUN scl enable rh-ruby25 -- gem install bundler --no-ri --no-doc
+ENV GEM_HOME=/tmp/vendor
+RUN gem install rake bundler --no-ri --no-doc
 WORKDIR ${WORKDIR}
 COPY test/unit/run.sh /tmp/
 COPY fluentd/lib ${WORKDIR}
 RUN for d in $(ls $WORKDIR) ; do \
     pushd ${d} ; \
-        export GEM_HOME=vendor ; \
-        scl enable rh-ruby25 -- bundle install ; \
+        bundle install ; \
     popd ; \
     done
 RUN /tmp/run.sh
