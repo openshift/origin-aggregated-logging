@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+    viewBox="0 0 60 60"  style="enable-background:new 0 0 60 60;" xml:space="preserve">
+<style type="text/css">
+	.fill-blue{fill:#0079A5;}
+    .stroke-3px{fill:none;stroke:#0079A5;stroke-width:3;stroke-miterlimit:10;}
+    .stroke-4px{fill:none;stroke:#0079A5;stroke-width:4;stroke-miterlimit:10;}
+</style>
+    <g id="audit_logs" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path class="stroke-4px" d="M53,44 L53,16.948441 C53,16.132441 52.685,15.3451285 52.1192857,14.7522535 L40.5458541,2.9945 C39.9383541,2.3601875 39.6460204,2 38.7653061,2 L11.2142857,2 C9.44,2 8,3.428 8,5.1875 L8,49.8125 C8,51.572 9.44,53 11.2142857,53 L44,53" id="Path" stroke="#0079A5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path class="fill-blue" d="M53,18 L38.6,18 C37.7168,18 37,17.2384 37,16.3 L37,1" id="Fill-3" fill="#0079A5"></path>
+        <path class="stroke-3px" d="M55.5,56 L45.7712528,46.122063 C47.1424895,44.8441804 48,43.0222314 48,41 C48,37.1340068 44.8659932,34 41,34 C37.1340068,34 34,37.1340068 34,41 C34,44.3337113 36.3304174,47.1231244 39.4510514,47.8280386" id="Path" stroke="#0079A5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+        <line class="stroke-4px" x1="16" y1="11" x2="31" y2="11" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+        <line class="stroke-4px" x1="16" y1="18" x2="31" y2="18" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+        <line class="stroke-4px" x1="16" y1="24.5" x2="45" y2="24.5" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+        <line class="stroke-4px" x1="16" y1="31" x2="33" y2="31" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+        <line class="stroke-4px" x1="16" y1="37.5" x2="27" y2="37.5" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+        <line class="stroke-4px" x1="16" y1="44" x2="27" y2="44" id="Line" stroke="#0079A5" stroke-width="4" stroke-linecap="round"></line>
+    </g>
+</svg>

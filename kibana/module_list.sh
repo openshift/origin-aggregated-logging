@@ -1,13 +1,13 @@
 #!/bin/bash
 # this can be run with podman to generate the manifest
-# podman run --volume /tmp:/tmp -it openshift/origin-logging-kibana6 sh module_list.sh
+# podman run --volume /tmp:/tmp -it openshift/origin-logging-kibana6 bash -c 'dnf install -y python36 && ./module_list.sh'
 
 
 MODULE_FILE=${MODULE_FILE:-/tmp/rh-manifest.txt}
 WORKING_FILE="$(mktemp /tmp/moduleXXXXXXXX)"
 
 function npm_version() {
-    npm ls --json 2>/dev/null | python -c 'import sys,json; data = json.load(sys.stdin); print("{0} == {1}".format(data["name"], data["version"]))'
+    npm ls --json 2>/dev/null | python3 -c 'import sys,json; data = json.load(sys.stdin); print("{0} == {1}".format(data["name"], data["version"]))'
 }
 
 echo -- building "$MODULE_FILE"

@@ -3,8 +3,8 @@ export NVM_DIR="$HOME/.nvm"
 
 unset NPM_CONFIG_PREFIX
 
-cd vendored_tar_src/security-kibana-plugin-0.10.0.4/
-./build.sh 6.8.1 0.10.0.4 install
+cd vendored_tar_src/security-kibana-plugin-0.10.1.1/
+./build.sh 6.8.6 0.10.1.1 install
 
 export NPM_CONFIG_PREFIX=/opt/app-root/src/.npm-global
 #mv $HOME/plugins/security-kibana-plugin-0.10.0.4/build/kibana/opendistro_security_kibana_plugin-0.10.0.4/ $HOME/plugins/opendistro_security_kibana_plugin-0.10.0.4/
