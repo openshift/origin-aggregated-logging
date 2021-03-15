@@ -1,3 +1,4 @@
 [submodule "eventrouter"]
 	path = eventrouter
-	url = https://github.com/openshift/eventrouter
+	url = https://github.com/vparfonov/eventrouter
+	branch = fixGoAway
