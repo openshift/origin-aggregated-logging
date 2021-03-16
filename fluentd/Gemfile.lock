@@ -15,6 +15,7 @@ GEM
       jmespath (~> 1.0)
     aws-sigv4 (1.2.2)
       aws-eventstream (~> 1, >= 1.0.2)
+    bigdecimal (3.0.0)
     concurrent-ruby (1.1.6)
     connection_pool (2.2.3)
     cool.io (1.6.0)
@@ -126,6 +127,7 @@ GEM
     net-http-persistent (3.1.0)
       connection_pool (~> 2.2)
     netrc (0.11.0)
+    oj (3.11.3)
     prometheus-client (0.9.0)
       quantile (~> 0.2.1)
     public_suffix (4.0.5)
@@ -163,6 +165,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bigdecimal
   elasticsearch
   elasticsearch-api
   elasticsearch-transport
@@ -180,6 +183,7 @@ DEPENDENCIES
   fluent-plugin-splunk-hec
   fluent-plugin-systemd
   fluentd (= 1.7.4)!
+  oj
   rake
   typhoeus
   uuidtools (= 2.1.5)
