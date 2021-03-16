@@ -16,6 +16,8 @@ gem 'fluent-plugin-remote-syslog'
 gem 'fluent-plugin-prometheus'
 gem 'fluent-plugin-splunk-hec'
 gem 'typhoeus'
+gem 'oj'
+gem 'bigdecimal'
 
 #Below gem(and two of its dependencies) are moved to O_A_L/fluentd/lib, but its dependencies still exist in O_A_L/fluentd/vendored_gem_src/
 #gem 'fluent-plugin-remote_syslog', '1.0.0'
