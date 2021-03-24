@@ -9,7 +9,8 @@ source $(dirname "$0")/ci-env.sh
 # put files in correct places in image
 # fix up directory permissions and ownership
 cd /var/tmp
-curl -v -s -o es.zip ${MAVEN_REPO_URL}org/elasticsearch/distribution/zip/elasticsearch-oss/${ES_VER}/elasticsearch-oss-${ES_VER}.zip
+ES_ARCHIVE_URL=${ES_ARCHIVE_URL:-${MAVEN_REPO_URL}org/elasticsearch/distribution/zip/elasticsearch-oss/${ES_VER}/elasticsearch-oss-${ES_VER}.zip}
+curl -L -v -s -o es.zip ${ES_ARCHIVE_URL}
 unzip es.zip
 pushd elasticsearch-${ES_VER}
 mkdir -p ${ES_HOME}/bin
