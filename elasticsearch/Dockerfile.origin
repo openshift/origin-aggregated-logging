@@ -22,10 +22,8 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     RECOVER_AFTER_TIME=5m \
     DHE_TMP_KEY_SIZE=2048 \
     RELEASE_STREAM=origin
-
 ARG MAVEN_REPO_URL=https://repo1.maven.org/maven2/
-
-RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
+RUN  yum install -y --nogpgcheck \
          https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
      packages="java-${JAVA_VER}-openjdk-headless \
               PyYAML  \
@@ -38,7 +36,9 @@ RUN  yum install -y --setopt=tsflags=nodocs --nogpgcheck \
      yum clean all
 
 ADD extra-jvm.options ci-env.sh install-es.sh /var/tmp
+ENV ES_ARCHIVE_URL=https://github.com/openshift/origin-aggregated-logging/releases/download/elasticsearch-oss-6.8.1.redhat-00006/elasticsearch-oss-6.8.1.redhat-00006.zip
 
+RUN if [ ! -f "/usr/bin/python" ]; then ln -s /usr/bin/python3 /usr/bin/python ; fi
 RUN /var/tmp/install-es.sh
 
 ADD sgconfig/ ${HOME}/sgconfig/
@@ -50,7 +50,7 @@ ADD init.sh run.sh prep-install* ci-env.sh install.sh ${HOME}/
 COPY utils/** /usr/local/bin/
 
 ARG PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/6.8.1.0/prometheus-exporter-6.8.1.0.zip
-ARG OPENDISTRO_URL=https://github.com/jcantrill/security/releases/download/v0.10.1.0/opendistro_security-0.10.1.0.zip
+ARG OPENDISTRO_URL=https://github.com/openshift/origin-aggregated-logging/releases/download/opendistro_security-0.10.0.4-redhat-00001/opendistro_security-0.10.0.4-redhat-00001.zip
 
 RUN ${HOME}/install.sh
 
