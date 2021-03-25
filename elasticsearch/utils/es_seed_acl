@@ -24,11 +24,11 @@ function sgadmin {
     -i $( get_security_conf_index ) \
     -h ${ES_CLUSTER_HOST} \
     -p ${ES_CLUSTER_PORT} \
-    -ks ${ES_PATH_CONF}/secret/admin.jks \
-    -kst JKS \
+    -ks ${ES_PATH_CONF}/secret/admin.p12 \
+    -kst PKCS12 \
     -kspass kspass \
-    -ts ${ES_PATH_CONF}/secret/truststore \
-    -tst JKS \
+    -ts ${ES_PATH_CONF}/secret/truststore.p12 \
+    -tst PKCS12 \
     -tspass tspass \
     -nhnv \
     -arc \
