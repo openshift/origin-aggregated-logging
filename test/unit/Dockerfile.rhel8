@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/ocp/builder:ubi8.ruby.25
+FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV FLUENTD_VERSION=1.0 \
