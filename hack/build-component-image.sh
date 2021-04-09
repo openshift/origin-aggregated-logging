@@ -15,4 +15,9 @@ dockerfile="Dockerfile${docker_suffix}"
 
 dfpath=${dir}/${dockerfile}
 
-podman build -f $dfpath -t "$fullimagename" $dir
+buildargs=""
+if [ "$dir" = "elasticsearch" ] ; then
+  buildargs="--build-arg OPENSHIFT_CI=true"
+fi
+
+podman build $buildargs -f $dfpath -t "$fullimagename" $dir
