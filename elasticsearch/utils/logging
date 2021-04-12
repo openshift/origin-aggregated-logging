@@ -85,45 +85,6 @@ build_p12_truststores() {
 
   copy_keys_to_secretdir
   
-  info "Building required jks files and truststore"
-
-  # check for lack of admin.jks
-  if [[ ! -e $secret_dir/admin.jks ]]; then
-    build_jks_from_pem "admin" "admin-key" "admin-cert" "admin-ca"
-  fi
-
-  # check for elasticsearch.key and elasticsearch.crt
-  if [[ -e $secret_dir/elasticsearch.key && -e $secret_dir/elasticsearch.crt && ! -e $secret_dir/searchguard.key ]]; then
-    build_jks_from_pem "elasticsearch" "elasticsearch.key" "elasticsearch.crt" "admin-ca"
-    mv $secret_dir/elasticsearch.jks $secret_dir/searchguard.key
-  fi
-
-  # check for logging-es.key and logging-es.crt
-  if [[ -e $secret_dir/logging-es.key && -e $secret_dir/logging-es.crt && ! -e $secret_dir/key ]]; then
-    build_jks_from_pem "logging-es" "logging-es.key" "logging-es.crt" "admin-ca"
-    mv $secret_dir/logging-es.jks $secret_dir/key
-  fi
-
-  if [[ ! -e $secret_dir/truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/truststore             \
-      -storepass tspass                            \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-
-  if [[ ! -e $secret_dir/searchguard.truststore ]]; then
-    keytool                                        \
-      -import                                      \
-      -file $secret_dir/admin-ca                   \
-      -keystore $secret_dir/searchguard.truststore \
-      -storepass tspass                            \
-      -noprompt                                    \
-      -alias sig-ca
-  fi
-
   info "Building required p12 files and truststore"
 
   # check for lack of admin.p12
@@ -151,17 +112,27 @@ build_p12_truststores() {
     build_p12_truststore "searchguard-truststore" "admin-ca"
   fi
   
-  info "JKS files will be removed soon and replaced with p12 certs..."
-  
-  #rm $secret_dir/*.jks
-  
-  #if [[ -e $secret_dir/truststore ]]; then
-  #  rm $secret_dir/truststore
-  #fi
+  info "Removing unnecessary JKS files" 
 
-  #if [[ -e $secret_dir/searchguard.truststore ]]; then
-  #  rm $secret_dir/searchguard.truststore
-  #fi
+  if [[ -e $secret_dir/admin.jks ]]; then
+    rm $secret_dir/admin.jks
+  fi
+
+  if [[ -e $secret_dir/searchguard.key ]]; then
+    rm $secret_dir/searchguard.key
+  fi
+
+  if [[ -e $secret_dir/key ]]; then
+    rm  $secret_dir/key
+  fi 
+
+  if [[ -e $secret_dir/truststore ]]; then
+    rm $secret_dir/truststore
+  fi
+
+  if [[ -e $secret_dir/searchguard.truststore ]]; then
+    rm $secret_dir/searchguard.truststore
+  fi
 
   # set all files to 600 and dir to 700
   chmod -R go-rwx,u+X $secret_dir
@@ -238,50 +209,6 @@ build_p12_from_pem() {
     -import                                 \
     -file $secret_dir/$ca_name              \
     -keystore $secret_dir/$p12_name.p12     \
-    -storepass kspass                       \
-    -noprompt                               \
-    -alias sig-ca                           \
-    2>/dev/null
-}
-
-build_jks_from_pem() {
-
-  jks_name=$1
-  key_name=$2
-  cert_name=$3
-  ca_name=$4
-
-  openssl                                   \
-    pkcs12                                  \
-    -export                                 \
-    -in $secret_dir/$cert_name              \
-    -inkey $secret_dir/$key_name            \
-    -out $secret_dir/$jks_name.p12          \
-    -passout pass:kspass
-
-  keytool                                   \
-    -importkeystore                         \
-    -srckeystore $secret_dir/$jks_name.p12  \
-    -srcstoretype PKCS12                    \
-    -srcstorepass kspass                    \
-    -destkeystore $secret_dir/$jks_name.jks \
-    -deststoretype JKS                      \
-    -deststorepass kspass                   \
-    -noprompt                               \
-    2>/dev/null
-
-  keytool                                   \
-    -changealias                            \
-    -keystore $secret_dir/$jks_name.jks     \
-    -storepass kspass                       \
-    -alias 1                                \
-    -destalias $jks_name                    \
-    2>/dev/null
-
-  keytool                                   \
-    -import                                 \
-    -file $secret_dir/$ca_name              \
-    -keystore $secret_dir/$jks_name.jks     \
     -storepass kspass                       \
     -noprompt                               \
     -alias sig-ca                           \
