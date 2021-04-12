@@ -80,11 +80,11 @@ check_index_exists() {
   [[ $response_code -eq 200 ]] || exit 1
 }
 
-# Pull in the certs provided in our secret and generate our necessary jks and truststore files
-build_jks_truststores() {
+# Pull in the certs provided in our secret and generate our necessary p12 and truststore files
+build_p12_truststores() {
 
   copy_keys_to_secretdir
-
+  
   info "Building required jks files and truststore"
 
   # check for lack of admin.jks
@@ -124,6 +124,45 @@ build_jks_truststores() {
       -alias sig-ca
   fi
 
+  info "Building required p12 files and truststore"
+
+  # check for lack of admin.p12
+  if [[ ! -e $secret_dir/admin.p12 ]]; then
+    build_p12_from_pem "admin" "admin-key" "admin-cert" "admin-ca"
+  fi
+
+  # check for elasticsearch.key and elasticsearch.crt
+  if [[ -e $secret_dir/elasticsearch.key && -e $secret_dir/elasticsearch.crt && ! -e $secret_dir/searchguard-key.p12 ]]; then
+    build_p12_from_pem "elasticsearch" "elasticsearch.key" "elasticsearch.crt" "admin-ca"
+    mv $secret_dir/elasticsearch.p12 $secret_dir/searchguard-key.p12
+  fi
+
+  # check for logging-es.key and logging-es.crt
+  if [[ -e $secret_dir/logging-es.key && -e $secret_dir/logging-es.crt && ! -e $secret_dir/key.p12 ]]; then
+    build_p12_from_pem "logging-es" "logging-es.key" "logging-es.crt" "admin-ca"
+    mv $secret_dir/logging-es.p12 $secret_dir/key.p12
+  fi
+
+  if [[ ! -e $secret_dir/truststore.p12 ]]; then
+    build_p12_truststore "truststore" "admin-ca"
+  fi
+
+  if [[ ! -e $secret_dir/searchguard-truststore.p12 ]]; then
+    build_p12_truststore "searchguard-truststore" "admin-ca"
+  fi
+  
+  info "JKS files will be removed soon and replaced with p12 certs..."
+  
+  #rm $secret_dir/*.jks
+  
+  #if [[ -e $secret_dir/truststore ]]; then
+  #  rm $secret_dir/truststore
+  #fi
+
+  #if [[ -e $secret_dir/searchguard.truststore ]]; then
+  #  rm $secret_dir/searchguard.truststore
+  #fi
+
   # set all files to 600 and dir to 700
   chmod -R go-rwx,u+X $secret_dir
 }
@@ -159,6 +198,50 @@ wait_for_port_open() {
       rm -f $LOG_FILE
     fi
     exit 1
+}
+
+build_p12_from_pem() {
+
+  p12_name=$1
+  key_name=$2
+  cert_name=$3
+  ca_name=$4
+
+  openssl                                   \
+    pkcs12                                  \
+    -export                                 \
+    -in $secret_dir/$cert_name              \
+    -inkey $secret_dir/$key_name            \
+    -out $secret_dir/$p12_name.p12          \
+    -passout pass:kspass
+
+  keytool                                   \
+    -importkeystore                         \
+    -srckeystore $secret_dir/$p12_name.p12  \
+    -srcstoretype PKCS12                    \
+    -srcstorepass kspass                    \
+    -destkeystore $secret_dir/$p12_name.p12 \
+    -deststoretype PKCS12                   \
+    -deststorepass kspass                   \
+    -noprompt                               \
+    2>/dev/null
+
+  keytool                                   \
+    -changealias                            \
+    -keystore $secret_dir/$p12_name.p12     \
+    -storepass kspass                       \
+    -alias 1                                \
+    -destalias $p12_name                    \
+    2>/dev/null
+
+  keytool                                   \
+    -import                                 \
+    -file $secret_dir/$ca_name              \
+    -keystore $secret_dir/$p12_name.p12     \
+    -storepass kspass                       \
+    -noprompt                               \
+    -alias sig-ca                           \
+    2>/dev/null
 }
 
 build_jks_from_pem() {
@@ -203,6 +286,20 @@ build_jks_from_pem() {
     -noprompt                               \
     -alias sig-ca                           \
     2>/dev/null
+}
+
+build_p12_truststore() {
+  
+  trust_name=$1
+  ca_name=$2
+
+  keytool                                  \
+     -import                               \
+     -file $secret_dir/$ca_name            \
+     -keystore $secret_dir/$trust_name.p12 \
+     -storepass tspass                     \
+     -noprompt                             \
+     -alias sig-ca
 }
 
 copy_keys_to_secretdir() {
