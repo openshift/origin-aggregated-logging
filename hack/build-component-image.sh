@@ -28,4 +28,9 @@ echo "-                                                                         
 echo "Building image $dir - this may take a few minutes until you see any output..."
 echo "-                                                                                                              -"
 echo "----------------------------------------------------------------------------------------------------------------"
-podman build -f $dfpath -t "$fullimagename" $dir
+buildargs=""
+if [ "$dir" = "elasticsearch" ] ; then
+  buildargs="--build-arg OPENSHIFT_CI=true"
+fi
+
+podman build $buildargs -f $dfpath -t "$fullimagename" $dir
