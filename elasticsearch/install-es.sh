@@ -9,8 +9,10 @@ source $(dirname "$0")/ci-env.sh
 # put files in correct places in image
 # fix up directory permissions and ownership
 cd /var/tmp
-curl -v -s -o es.zip ${MAVEN_REPO_URL}org/elasticsearch/distribution/zip/elasticsearch-oss/${ES_VER}/elasticsearch-oss-${ES_VER}.zip
+ES_ARCHIVE_URL=${ES_ARCHIVE_URL:-${MAVEN_REPO_URL}org/elasticsearch/distribution/zip/elasticsearch-oss/${ES_VER}/elasticsearch-oss-${ES_VER}.zip}
+curl -L -v -s -o es.zip ${ES_ARCHIVE_URL}
 unzip es.zip
+mv elasticsearch-$(echo $ES_VER | cut -d'.' -f1-3) elasticsearch-${ES_VER}
 pushd elasticsearch-${ES_VER}
 mkdir -p ${ES_HOME}/bin
 install -p -m 755 bin/elasticsearch bin/elasticsearch-cli bin/elasticsearch-keystore \
@@ -43,4 +45,4 @@ chmod u+rwx,g+rwx ${ES_HOME}/logs
 mkdir -p /var/run/elasticsearch
 chmod u+rwx,g+rwx /var/run/elasticsearch
 mkdir /elasticsearch && chmod og+w /elasticsearch
-rm -rf elasticsearch-${ES_VER} es.zip extra-jvm.options
+rm -rf elasticsearch-$(echo $ES_VER | cut -d'.' -f1-3) es.zip extra-jvm.options

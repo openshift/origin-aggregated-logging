@@ -304,17 +304,12 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
       mountarg=""
     fi
 
-    suffix=""
-    if [ "$img" = "logging-elasticsearch6" ] ; then
-        suffix=".origin"
-    fi
-
     echo "----------------------------------------------------------------------------------------------------------------"
     echo "-                                                                                                              -"
     echo "Building image $img - this may take a few minutes until you see any output..."
     echo "-                                                                                                              -"
     echo "----------------------------------------------------------------------------------------------------------------"
-    $IMAGE_BUILDER build $IMAGE_BUILDER_OPTS $mountarg -f $dfpath$suffix -t "$fullimagename" $dir
+    $(pwd)/hack/build-component-image.sh $dir $fullimagename
     dir=""
     img=""
   done
