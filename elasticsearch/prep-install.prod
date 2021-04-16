@@ -1,7 +1,0 @@
-
-source $(dirname "$0")/ci-env.sh
-
-es_plugins=(
-    ${MAVEN_REPO_URL}com/amazon/opendistroforelasticsearch/opendistro_security/${OPENDISTRO_VER}/opendistro_security-${OPENDISTRO_VER}.zip
-    ${MAVEN_REPO_URL}org/elasticsearch/plugin/prometheus/prometheus-exporter/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
-)
