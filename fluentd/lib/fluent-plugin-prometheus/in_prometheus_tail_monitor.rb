@@ -53,8 +53,8 @@ module Fluent::Plugin
           :fluentd_tail_file_inode,
           'Current inode of file.'),
         total_bytes_collected: get_counter(
-          :fluentd_input_status_bytes_collected_total,
-          'total_bytes collected by fluentd.'),
+          :log_collected_bytes_total,
+          'logs total bytes collected by fluentd.'),
       }
       timer_execute(:in_prometheus_tail_monitor, @interval, &method(:update_monitor_info))
     end
