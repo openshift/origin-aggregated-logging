@@ -1,3 +1,0 @@
-[submodule "eventrouter"]
-	path = eventrouter
-	url = https://github.com/openshift/eventrouter
