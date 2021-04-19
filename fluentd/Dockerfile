@@ -1,44 +1,24 @@
-FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25 AS builder
+FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
-ARG DATA_VERSION_VALUE=1.6.0
-ARG FLUENTD_VERSION_VALUE=1.7.4
-ARG HOME_VALUE=/opt/app-root/src
-ARG PATH_VALUE=/opt/app-root/src/bin:/opt/app-root/bin
-ARG LOGGING_FILE_PATH_VALUE=/var/log/fluentd/fluentd.log
-ARG LOGGING_FILE_AGE_VALUE=10
-ARG LOGGING_FILE_SIZE_VALUE=1024000
-ARG CONTAINER_VALUE=oci
+ENV DATA_VERSION=1.6.0 \
+    FLUENTD_VERSION=1.7.4 \
+    HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH \
+    LOGGING_FILE_PATH=/var/log/fluentd/fluentd.log \
+    LOGGING_FILE_AGE=10 \
+    LOGGING_FILE_SIZE=1024000 \
+    container=oci
 
-ENV DATA_VERSION=$DATA_VERSION_VALUE \
-    FLUENTD_VERSION=$FLUENTD_VERSION_VALUE \
-    HOME=$HOME_VALUE \
-    PATH=$PATH_VALUE:$PATH \
-    LOGGING_FILE_PATH=$LOGGING_FILE_PATH_VALUE \
-    LOGGING_FILE_AGE=$LOGGING_FILE_AGE_VALUE \
-    LOGGING_FILE_SIZE=$LOGGING_FILE_SIZE_VALUE \
-    container=$CONTAINER_VALUE
-
-ARG TEST_REPO
-#ADD test.repo /etc/yum.repos.d
+ARG BUILD_PKGS="make gcc-c++ libffi-devel autoconf automake libtool m4 redhat-rpm-config"
+ARG RUNTIME_PKGS="hostname bc iproute"
 
 USER 0
 
-RUN BUILD_PKGS="make gcc-c++ libffi-devel \
-              autoconf automake libtool m4 \
-              redhat-rpm-config" && \
-  RUNTIME_PKGS="hostname \
-                bc \
-                iproute" && \
-  yum install -y $BUILD_PKGS $RUNTIME_PKGS && \
-  rpm -V $BUILD_PKGS && \
-  rpm -V $RUNTIME_PKGS && \
-  yum clean all
-
-# uncomment if you want to try out test rpm builds
-#ADD *.rpm /tmp/
-#RUN yum -y install /tmp/*.rpm
+RUN yum install -y $BUILD_PKGS $RUNTIME_PKGS && \
+    rpm -V $BUILD_PKGS $RUNTIME_PKGS && \
+    yum clean all
 
 ADD jemalloc/ ${HOME}/jemalloc/
 RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
@@ -56,10 +36,7 @@ ADD install-gems.sh *.patch.sh *.patch ${HOME}/vendored_gem_src/
 
 RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
 
-RUN BUILD_PKGS="make gcc-c++ libffi-devel \
-                autoconf automake libtool m4 \
-                redhat-rpm-config" && \
-    yum remove -y $BUILD_PKGS
+RUN yum remove -y $BUILD_PKGS
 
 RUN mkdir -p /etc/fluent/plugin
 ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
@@ -71,7 +48,8 @@ ADD lib/fluent-plugin-viaq_data_model/lib/fluent/plugin/*.rb /etc/fluent/plugin/
 COPY utils/ /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/configs.d/user && \
-    chmod 777 /etc/fluent/configs.d/user
+    chmod 777 /etc/fluent/configs.d/user && \
+	ln -s /etc/fluent/configs.d/user/fluent.conf /etc/fluent/fluent.conf
 
 WORKDIR ${HOME}
 CMD ["sh", "run.sh"]
