@@ -52,3 +52,7 @@ deploy-curator-image: build-curator-image
 
 deploy-all-images: deploy-fluentd-image deploy-kibana-image deploy-elasticsearch-image deploy-curator-image
 .PHONY: deploy-all-images
+
+lint:
+	@hack/run-linter
+.PHONY: lint
