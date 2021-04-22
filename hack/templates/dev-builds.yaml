@@ -42,13 +42,6 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      build: logging-eventrouter
-    name: logging-eventrouter
-  spec: {}
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
       build: logging-ci-test-runner
     name: logging-ci-test-runner
   spec: {}
@@ -147,33 +140,6 @@ objects:
     strategy:
       dockerStrategy:
         dockerfilePath: Dockerfile.centos7
-      type: Docker
-    triggers:
-    - type: ConfigChange
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    labels:
-      build: logging-eventrouter
-    name: logging-eventrouter
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: logging-eventrouter:latest
-    resources: {}
-    source:
-      git:
-        uri: ${LOGGING_FORK_URL}
-        ref: ${LOGGING_FORK_BRANCH}
-      contextDir: eventrouter
-      type: Git
-    strategy:
-      dockerStrategy:
-        dockerfilePath: Dockerfile.centos7
-        from:
-          kind: DockerImage
-          name: openshift/origin-release:golang-1.10
       type: Docker
     triggers:
     - type: ConfigChange

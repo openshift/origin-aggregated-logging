@@ -37,7 +37,6 @@ images=(
   ${PREFIX}logging-fluentd
   ${PREFIX}logging-elasticsearch6
   ${PREFIX}logging-kibana6
-  ${PREFIX}logging-eventrouter
 )
 
 PUSH_OPTS=""
