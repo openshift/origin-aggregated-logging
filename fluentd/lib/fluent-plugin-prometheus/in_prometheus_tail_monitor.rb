@@ -91,10 +91,21 @@ module Fluent::Plugin
     end
 
     def labels(plugin_info, path)
+      #taking out dirname and .log from the full pathname e.g. /var/log/containers/xxx.log --> xxx
+      tmp = path[20..-5]
+      @log.info "tmp #{tmp}"
+      parsedpath = tmp.split("_")
+      podname = parsedpath[0]
+      namespace = parsedpath[1]
+      containername = parsedpath[2]
+
       @base_labels.merge(
         plugin_id: plugin_info["plugin_id"],
         type: plugin_info["type"],
         path: path,
+        namespace: namespace,
+        podname: podname,
+        containername: containername,
       )
     end
 
