@@ -11,22 +11,11 @@ images into a public registry like `quay.io`).
 
 ## Deploying to OpenShift
 
-See the [cluster-logging-operator](https://github.com/openshift/cluster-logging-operator/blob/master/docs/HACKING.md) hacking document for deploying OpenShift Logging using the operator make targets.  
+See the [cluster-logging-operator](https://github.com/openshift/cluster-logging-operator/blob/master/docs/HACKING.md) hacking document for deploying OpenShift Logging using the operator make targets.
 
 ## Updating Sources for Fluentd
 
-Use the script `hack/update-fluentd-vendor-gems.sh` to update the vendored source
-code for Fluentd.  It is highly recommended to use something like [rvm](https://rvm.io) in order to isolate specific gem versions being used by Fluentd. 
-
-**Note:** Be sure to add `fluentd/rh-manifest.txt`
-or add it to the commit if it was updated.
-
-### Add a new dependency or update a dependency version
-1. Use a ruby version: `rvm use $RUBY-VERSION`
-1. Create a gemset: `rvm gemset create $GEMSETNAME`
-1. Use gemset: `rvm gemset use $GEMSETNAME`
-1. Edit: `./fluentd/Gemfile`
-1. Vendor dependencies: `./hack/update-fluentd-vendor-gems.sh`
+	See [fluentd/README.md](fluentd/README.md)
 
 ### Updating all the dependencies
 
@@ -39,5 +28,4 @@ Set the clobber env var: `CLOBBER_VENDOR=true ./hack/update-fluentd-vendor-gems.
 
  Edit the file `fluentd/source.jemalloc` to also update the
 vendored jemalloc source.  You will have to use `git add` or `git rm` or otherwise
-fix any conflicts, then commit and submit a PR.  
-
+fix any conflicts, then commit and submit a PR.

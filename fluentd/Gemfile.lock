@@ -55,16 +55,18 @@ GEM
       elasticsearch
       excon
       fluentd (>= 0.14.22)
+    fluent-plugin-grafana-loki (1.2.7)
+      fluentd (>= 0.14.10, < 2)
     fluent-plugin-kafka (0.13.1)
       fluentd (>= 0.14.10, < 2)
       ltsv
       ruby-kafka (>= 0.7.8, < 2)
-    fluent-plugin-label-router (0.2.4)
-      fluentd (>= 0.14.10, < 2)
     fluent-plugin-kubernetes_metadata_filter (2.5.2)
       fluentd (>= 0.14.0, < 1.12)
       kubeclient (< 5)
       lru_redux
+    fluent-plugin-label-router (0.2.4)
+      fluentd (>= 0.14.10, < 2)
     fluent-plugin-multi-format-parser (1.0.0)
       fluentd (>= 0.14.0, < 2)
     fluent-plugin-prometheus (1.7.3)
@@ -175,6 +177,7 @@ DEPENDENCIES
   fluent-plugin-cloudwatch-logs
   fluent-plugin-concat
   fluent-plugin-elasticsearch
+  fluent-plugin-grafana-loki
   fluent-plugin-kafka
   fluent-plugin-kubernetes_metadata_filter
   fluent-plugin-label-router
