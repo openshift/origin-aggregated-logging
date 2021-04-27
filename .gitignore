@@ -5,6 +5,9 @@ _output/
 # vscode files
 .vscode/
 
+# idea
+.idea/
+
 # python byte code
 *.pyc
 .venv
