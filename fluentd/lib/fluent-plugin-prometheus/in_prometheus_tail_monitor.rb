@@ -20,7 +20,10 @@ module Fluent::Plugin
       super
       @registry = ::Prometheus::Client.registry
       @prev_total_bytes_collected={}
+      # As per k8 regex for container logfile symlink ref :  https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L56
+      @tag_to_kubernetes_filename_regexp_compiled = Regexp.new('var.log.containers.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$')
     end
+
 
     def multi_workers_ready?
       true
@@ -92,21 +95,33 @@ module Fluent::Plugin
 
     def labels(plugin_info, path)
       #taking out dirname and .log from the full pathname e.g. /var/log/containers/xxx.log --> xxx
-      tmp = path[20..-5]
-      @log.info "tmp #{tmp}"
-      parsedpath = tmp.split("_")
-      podname = parsedpath[0]
-      namespace = parsedpath[1]
-      containername = parsedpath[2]
+      #k8 regexp for parsing container generated logfile pathname into namespace, podname, containername
+      path_match_data = path.match(@tag_to_kubernetes_filename_regexp_compiled)
 
-      @base_labels.merge(
+      if path_match_data
+        podname = path_match_data['pod_name'], 
+        namespace = path_match_data['namespace'], 
+        containername = path_match_data['container_name'],
+        dockerid = path_match_data['docker_id']
+      
+        @log.info "path #{path}, namespace #{namespace}, podname #{podname[0]},containername #{containername}"
+
+        @base_labels.merge(
         plugin_id: plugin_info["plugin_id"],
         type: plugin_info["type"],
         path: path,
         namespace: namespace,
-        podname: podname,
+        podname: podname[0],
         containername: containername,
       )
+      else 
+        @base_labels.merge(
+        plugin_id: plugin_info["plugin_id"],
+        type: plugin_info["type"],
+        path: path,
+        )
+      end
+
     end
 
     def get_gauge(name, docstring)
