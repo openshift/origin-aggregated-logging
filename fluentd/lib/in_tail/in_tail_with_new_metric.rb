@@ -21,7 +21,7 @@ require 'fluent/config/error'
 require 'fluent/event'
 require 'fluent/plugin/buffer'
 require 'fluent/plugin/parser_multiline'
-require 'fluent/plugin/write_watcher'
+require 'fluent/plugin/fluentd_new_metric_exporter'
 
 if Fluent.windows?
   require_relative 'file_wrapper'
