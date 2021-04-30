@@ -71,6 +71,7 @@ RUN bash -c '. /source.jemalloc; echo jemalloc $JEMALLOC_VER >> /contents'
 
 COPY  ${upstream_code}/vendored_gem_src/ ${HOME}/vendored_gem_src/
 COPY  ${upstream_code}/lib/fluent-plugin-remote_syslog/ ${HOME}/vendored_gem_src/fluent-plugin-remote_syslog/
+COPY  ${upstream_code}/lib/fluent-plugin-collected/ ${HOME}/vendored_gem_src/fluent-plugin-collected/
 COPY  ${upstream_code}/lib/remote_syslog_sender/ ${HOME}/vendored_gem_src/remote_syslog_sender/
 COPY  ${upstream_code}/lib/syslog_protocol/ ${HOME}/vendored_gem_src/syslog_protocol/
 COPY  ${upstream_code}/install-gems.sh ${HOME}/vendored_gem_src/
