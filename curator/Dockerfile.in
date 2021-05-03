@@ -1,7 +1,20 @@
-### This is a generated file from Dockerfile.in ###
+## EXCLUDE BEGIN ##
+#@follow_tag(ubi8:8-released)
+FROM ubi8:8.2-347 AS builder
+
+ARG upstream_code
+ENV upstream_code=upstream_code
+ARG upstream_tarball=${upstream_code}.tar.gz
+
+COPY ${CI_ARCHIVE_ORIGIN_AGGREGATED_LOGGING} ${upstream_tarball}
+RUN mkdir -p ${upstream_code} \
+    && tar -xzf ${upstream_tarball} \
+        --strip-components 1 \
+        -C ${upstream_code}
+## EXCLUDE END ##
 
 #@follow_tag(openshift-ose-base:ubi8.python.36)
-FROM registry.ci.openshift.org/ocp/builder:ubi8.python.36
+FROM openshift-ose-base:v4.0-202009120102.31989
 
 ENV BUILD_VERSION=${CI_CONTAINER_VERSION:-}
 ENV OS_GIT_MAJOR=${CI_X_VERSION:-}
@@ -44,7 +57,7 @@ ENV HOME=/opt/app-root/src \
 ENV upstream_code=${upstream_code:-"."}
 
 USER 0
-COPY  ${upstream_code}/ ${HOME}
+COPY --from=builder ${upstream_code}/ ${HOME}
 
 RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     touch ${CURATOR_CONF_LOCATION} && \

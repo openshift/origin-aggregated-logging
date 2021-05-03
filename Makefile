@@ -56,3 +56,9 @@ deploy-all-images: deploy-fluentd-image deploy-kibana-image deploy-elasticsearch
 lint:
 	@hack/run-linter
 .PHONY: lint
+
+gen-dockerfiles:
+	@for d in "curator" "elasticsearch" "fluentd" "kibana"; do  \
+		./hack/generate-dockerfile-from-midstream "$$d/Dockerfile.in" > "$$d/Dockerfile" ; \
+	done
+.PHONY: gen-dockerfiles
