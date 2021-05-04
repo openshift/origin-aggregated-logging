@@ -515,6 +515,10 @@ module Fluent
     end
 
     def filter(tag, time, record)
+      if ENV['VIAQ_DATA_MODEL_EXIT_IMMEDIATELY']
+        return record
+      end
+
       if ENV['CDM_DEBUG']
         unless tag == ENV['CDM_DEBUG_IGNORE_TAG']
           log.error("input #{time} #{tag} #{record}")
@@ -522,11 +526,24 @@ module Fluent
       end
 
       check_for_match_and_format(tag, time, record)
+      if ENV['VIAQ_DATA_MODEL_EXIT_AFTER_CHECK_FOR_MATCH_AND_FORMAT']
+        return record
+      end
+
       add_pipeline_metadata(tag, time, record)
+      if ENV['VIAQ_DATA_MODEL_EXIT_AFTER_ADD_PIPELINE_METADATA']
+        return record
+      end
       handle_undefined_fields(tag, time, record)
+      if ENV['VIAQ_DATA_MODEL_EXIT_AFTER_HANDLE_UNDEFINED_FIELDS']
+        return record
+      end
       # remove the field from record if it is not in the list of fields to keep and
       # it is empty
       record.delete_if{|k,v| !@keep_empty_fields_hash.key?(k) && (v.nil? || isempty(delempty(v)) || isempty(v))}
+      if ENV['VIAQ_DATA_MODEL_EXIT_AFTER_RECORD_DELETE_IF']
+        return record
+      end
       # probably shouldn't remove everything . . .
       log.warn("Empty record! tag [#{tag}] time [#{time}]") if record.empty?
       # rename the time field
@@ -543,6 +560,9 @@ module Fluent
         unless tag == ENV['CDM_DEBUG_IGNORE_TAG']
           log.error("not adding elasticsearch index name or prefix")
         end
+      end
+      if ENV['VIAQ_DATA_MODEL_EXIT_AFTER_ADD_ELASTICSEARCH_INDEX_NAME']
+        return record
       end
       if ENV['CDM_DEBUG']
         unless tag == ENV['CDM_DEBUG_IGNORE_TAG']
