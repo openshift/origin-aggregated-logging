@@ -19,7 +19,7 @@ fi
 fluentddir=$basedir/fluentd
 
 if [ -z "${FLUENTD_VERSION:-}" ] ; then
-    FLUENTD_VERSION=$( awk -F'[     =]+' '$2 == "FLUENTD_VERSION_VALUE" {print $3; exit}' $fluentddir/Dockerfile)
+    FLUENTD_VERSION=$( awk -F'[     =]+' '$2 == "FLUENTD_VERSION" {print $3; exit}' $fluentddir/Dockerfile)
 fi
 if [ -z "${FLUENTD_VERSION:-}" ] ; then
     echo ERROR: Could not determine FLUENTD_VERSION
