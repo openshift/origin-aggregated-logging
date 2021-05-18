@@ -37,7 +37,7 @@ Set the clobber env var: `CLOBBER_VENDOR=true ./hack/update-fluentd-vendor-gems.
 
 ### Updating jemalloc
 
- Edit the file `fluentd/source.jemalloc` to also update the
+Edit the file `fluentd/source.jemalloc` to also update the
 vendored jemalloc source.  You will have to use `git add` or `git rm` or otherwise
 fix any conflicts, then commit and submit a PR.  
 
