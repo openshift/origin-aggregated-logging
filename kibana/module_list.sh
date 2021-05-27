@@ -7,12 +7,13 @@ MODULE_FILE=${MODULE_FILE:-/tmp/rh-manifest.txt}
 WORKING_FILE="$(mktemp /tmp/moduleXXXXXXXX)"
 
 function npm_version() {
-    npm ls --json 2>/dev/null | python -c 'import sys,json; data = json.load(sys.stdin); print("{0} == {1}".format(data["name"], data["version"]))'
+    # quick and dirty fix to specify python3 here -- FIXME: fix the docker build so we can just use "python"
+    npm ls --json 2>/dev/null | python3 -c 'import sys,json; data = json.load(sys.stdin); print("{0} == {1}".format(data["name"], data["version"]))'
 }
 
 echo -- building "$MODULE_FILE"
 
-for dir in $(ls -d node_modules/*/node_modules/* plugins/*/node_modules/*); do
+for dir in $(ls -d node_modules/* node_modules/*/node_modules/* plugins/*/node_modules/*); do
   if [ -f ${dir}/package.json ]; then
     pushd ${dir} > /dev/null
     npm_version >> $WORKING_FILE
