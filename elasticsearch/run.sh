@@ -99,6 +99,8 @@ export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY
 
 #LOG-334
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Des.cgroups.hierarchy.override=/"
+
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Dlog4j2.configurationFile=/usr/share/java/elasticsearch/config/log4j2.properties"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
 if [ ! -d /elasticsearch/persistent/${CLUSTER_NAME}/logs ] ; then
