@@ -23,6 +23,7 @@ done
 #fix location from config
 if [[ "${ES_HOME}" != "/usr/share/elasticsearch" ]]; then
   ln -s ${ES_HOME}/index_templates /usr/share/elasticsearch/index_templates
+  ln -s ${ES_HOME}/ingest_pipelines /usr/share/elasticsearch/ingest_pipelines
   ln -s ${ES_HOME}/index_patterns /usr/share/elasticsearch/index_patterns
 fi
 

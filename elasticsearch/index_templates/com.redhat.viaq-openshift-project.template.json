@@ -972,6 +972,7 @@
   },
   "order": 10,
   "settings": {
-    "index.refresh_interval": "5s"
+    "index.refresh_interval": "5s",
+    "index.default_pipeline": "openshift_schema.json"
   }
 }
