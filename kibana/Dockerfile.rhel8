@@ -21,6 +21,7 @@ USER 0
 COPY vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
 COPY vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugins/opendistro_security_kibana_plugin-0.10.0.4/
 COPY vendored_tar_src/handlebars/ ${HOME}/node_modules/handlebars/
+COPY vendored_tar_src/minimist/ ${HOME}/node_modules/minimist/
 COPY lib/openshift_logging_plugin/ ${HOME}/plugins/openshift_logging_plugin/
 
 RUN chmod -R og+w ${HOME}/
