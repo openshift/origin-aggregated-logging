@@ -12,7 +12,7 @@ build-images: build-all-images
 .PHONY: build-images
 
 test:
-	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM) ./hack/test-e2e.sh
+	OPERATOR_LOGGING_IMAGE_STREAM=$(OPERATOR_LOGGING_IMAGE_STREAM)  ./hack/test-e2e.sh
 .PHONY: test
 
 .PHONY: test-pre-upgrade
