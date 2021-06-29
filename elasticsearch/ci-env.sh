@@ -4,7 +4,8 @@ set -o xtrace
 
 PROMETHEUS_EXPORTER_URL=${PROMETHEUS_EXPORTER_URL:-$MAVEN_REPO_URL/org/elasticsearch/plugin/prometheus/prometheus-exporter/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip}
 OPENDISTRO_URL=${OPENDISTRO_URL:-$MAVEN_REPO_URL/com/amazon/opendistroforelasticsearch/opendistro_security/$OPENDISTRO_VER/opendistro_security-$OPENDISTRO_VER.zip}
-INGEST_PLUGIN_URL=${INGEST_PLUGIN_URL:-https://github.com/ViaQ/elasticsearch-openshift-ingest-plugin/releases/download/$INGEST_PLUGIN_VER/openshift-ingest-plugin-$INGEST_PLUGIN_VER.zip}
+INGEST_PLUGIN_URL=${INGEST_PLUGIN_URL:-$MAVEN_REPO_URL/org/elasticsearch/ingest/openshift/$INGEST_PLUGIN_VER/openshift-ingest-plugin-$INGEST_PLUGIN_VER.zip}
+#INGEST_PLUGIN_URL=${INGEST_PLUGIN_URL:-https://github.com/ViaQ/elasticsearch-openshift-ingest-plugin/releases/download/$INGEST_PLUGIN_VER/openshift-ingest-plugin-$INGEST_PLUGIN_VER.zip}
 
 if [[ "${OPENSHIFT_CI:-}" == "true" ]]; then
     # This flag is set during CI runs. If no ARG was passed in,
