@@ -44,6 +44,7 @@ USER 0
 
 ARG ES_ARCHIVE_URL
 ARG PROMETHEUS_EXPORTER_URL
+ARG INGEST_PLUGIN_URL
 ARG OPENDISTRO_URL
 ARG OPENSHIFT_CI
 
@@ -57,6 +58,7 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     JAVA_HOME=/usr/lib/jvm/jre \
     NODE_QUORUM=1 \
     PROMETHEUS_EXPORTER_VER=6.8.1.0-redhat-00001 \
+    INGEST_PLUGIN_VER=6.8.1.0-redhat-00002 \
     OPENDISTRO_VER=0.10.0.4-redhat-00001 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
@@ -96,6 +98,7 @@ RUN /var/tmp/install-es.sh
 
 COPY --from=builder ${upstream_code}/sgconfig/ ${HOME}/sgconfig/
 COPY --from=builder ${upstream_code}/index_templates/ ${ES_HOME}/index_templates/
+COPY --from=builder ${upstream_code}/ingest_pipelines/ ${ES_HOME}/ingest_pipelines/
 COPY --from=builder ${upstream_code}/index_patterns/ ${ES_HOME}/index_patterns/
 COPY --from=builder ${upstream_code}/init/ ${ES_HOME}/init/
 COPY --from=builder ${upstream_code}/probe/ ${ES_HOME}/probe/
