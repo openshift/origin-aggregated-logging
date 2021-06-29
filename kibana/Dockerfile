@@ -46,6 +46,8 @@ COPY  ${upstream_code}/vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
 COPY  ${upstream_code}/vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugins/opendistro_security_kibana_plugin-0.10.0.4/
 COPY  ${upstream_code}/vendored_tar_src/handlebars/ ${HOME}/node_modules/handlebars/
 COPY  ${upstream_code}/vendored_tar_src/minimist/ ${HOME}/node_modules/minimist/
+COPY  ${upstream_code}/vendored_tar_src/lodash/ ${HOME}/node_modules/lodash/
+COPY  ${upstream_code}/vendored_tar_src/elastic-lodash/ ${HOME}/node_modules/@elastic/lodash/
 
 RUN chmod -R og+w ${HOME}/
 COPY  ${upstream_code}/probe/ /usr/share/kibana/probe/

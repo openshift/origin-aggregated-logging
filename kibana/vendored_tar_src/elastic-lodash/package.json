@@ -1,0 +1,79 @@
+{
+  "_from": "github:elastic/lodash",
+  "_id": "@elastic/lodash@3.10.1-kibana4",
+  "_inBundle": false,
+  "_integrity": "",
+  "_location": "/@elastic/lodash",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "git",
+    "raw": "elastic/lodash",
+    "rawSpec": "elastic/lodash",
+    "saveSpec": "github:elastic/lodash",
+    "fetchSpec": null,
+    "gitCommittish": null
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "github:elastic/lodash#4a9428321ad88f2e0162b9a49bbb262650559a0b",
+  "_spec": "elastic/lodash",
+  "_where": "/opt/app-root/src",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/elastic/lodash/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Benjamin Tan",
+      "email": "demoneaux@gmail.com",
+      "url": "https://d10.github.io/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine@iceddev.com",
+      "url": "http://www.iceddev.com/"
+    },
+    {
+      "name": "Kit Cambridge",
+      "email": "github@kitcambridge.be",
+      "url": "http://kitcambridge.be/"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "deprecated": false,
+  "description": "The modern build of lodash modular utilities.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "modules",
+    "stdlib",
+    "util"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "@elastic/lodash",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elastic/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "3.10.1-kibana4"
+}
