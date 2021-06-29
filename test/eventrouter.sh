@@ -5,7 +5,7 @@
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 
-EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 MASTER_VERSION=${MASTER_VERSION:-4.3}
 get_eventrouter_image() {

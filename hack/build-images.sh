@@ -25,19 +25,19 @@ function image_is_ubi() {
   if [ -f $1 ] ; then
     # if $1 is a file, assume a Dockerfile with a FROM - otherwise,
     # it is an image name
-    grep -q "^FROM registry.svc.ci.openshift.org/ocp/[1-9].[0-9][0-9]*" $1
+    grep -q "^FROM registry.ci.openshift.org/ocp/[1-9].[0-9][0-9]*" $1
   else
-    echo "$1" | grep -q "registry.svc.ci.openshift.org/ocp/[1-9].[0-9][0-9]*"
+    echo "$1" | grep -q "registry.ci.openshift.org/ocp/[1-9].[0-9][0-9]*"
   fi
 }
 
 function image_needs_private_repo() {
   # dockerfile is arg $1
   image_is_ubi $1 || \
-    grep -q "^FROM registry.svc.ci.openshift.org/openshift/origin-v4.[0-9][0-9]*:base" $1
+    grep -q "^FROM registry.ci.openshift.org/openshift/origin-v4.[0-9][0-9]*:base" $1
 }
 
-CI_REGISTRY=${CI_REGISTRY:-registry.svc.ci.openshift.org}
+CI_REGISTRY=${CI_REGISTRY:-registry.ci.openshift.org}
 CI_CLUSTER_NAME=${CI_CLUSTER_NAME:-api-ci-openshift-org:443}
 CUSTOM_IMAGE_TAG=${CUSTOM_IMAGE_TAG:-latest}
 
