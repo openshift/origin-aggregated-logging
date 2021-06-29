@@ -9,7 +9,7 @@ build-images: build-all-images
 .PHONY: build-images
 
 test:
-	LOGGING_VERSION=tech-preview ./hack/test-e2e.sh
+	CLO_BRANCH=tech-preview EO_BRANCH=tech-preview LOGGING_VERSION=tech-preview ./hack/test-e2e.sh
 .PHONY: test
 
 .PHONY: test-pre-upgrade

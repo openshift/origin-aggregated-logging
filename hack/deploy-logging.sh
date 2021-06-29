@@ -410,6 +410,8 @@ else
     expectedes=$( oc get clusterlogging instance -o jsonpath='{.spec.logStore.elasticsearch.nodeCount}' )
 fi
 
+CLO_BRANCH="${CLO_BRANCH:-master}"
+EO_BRANCH="${EO_BRANCH:-master}"
 if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     CLO_DIR=$GOPATH/src/github.com/openshift/cluster-logging-operator
     EO_DIR=$GOPATH/src/github.com/openshift/elasticsearch-operator
@@ -419,9 +421,15 @@ if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
     pushd $GOPATH/src/github.com/openshift
         if [ ! -d cluster-logging-operator ] ; then
             git clone https://github.com/openshift/cluster-logging-operator
+            pushd cluster-logging-operator
+              git checkout ${CLO_BRANCH}
+            popd
         fi
         if [ ! -d elasticsearch-operator ] ; then
             git clone https://github.com/openshift/elasticsearch-operator
+            pushd elasticsearch-operator
+              git checkout ${EO_BRANCH}
+            popd
         fi
     popd
 
