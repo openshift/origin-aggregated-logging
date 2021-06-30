@@ -4,7 +4,7 @@
 /cc <!-- MANDATORY: Assign one reviewer from top-level OWNERS file -->
 /assign <!-- MANDATORY: Assign ne approver from top-level OWNERS file -->
 
-/cherry-pick <!-- OPTIONAL: Declare release name for the next release branch to get this PR cherry-picked by the bot -->
+/cherrypick <!-- OPTIONAL: Declare release name for the next release branch to get this PR cherry-picked by the bot -->
 
 ### Links
 <!-- Provide links to depending PRs, Bugzilla or JIRA issue addressed or enhancement proposal that gets implemented by this PR -->
