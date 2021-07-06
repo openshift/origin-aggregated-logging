@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'resolv'
+
 module Excon
   class Socket
     include Utils
@@ -60,18 +62,8 @@ module Excon
     def readline
       return legacy_readline if RUBY_VERSION.to_f <= 1.8_7
       buffer = String.new
-      begin
-        buffer << @socket.read_nonblock(1) while buffer[-1] != "\n"
-        buffer
-      rescue *READ_RETRY_EXCEPTION_CLASSES
-        select_with_timeout(@socket, :read) && retry
-      rescue OpenSSL::SSL::SSLError => error
-        if error.message == 'read would block'
-          select_with_timeout(@socket, :read) && retry
-        else
-          raise(error)
-        end
-      end
+      buffer << (read_nonblock(1) || raise(EOFError)) while buffer[-1] != "\n"
+      buffer
     end
 
     def legacy_readline
@@ -105,20 +97,17 @@ module Excon
     def connect
       @socket = nil
       exception = nil
+      hostname = @data[:hostname]
+      port = @port
+      family = @data[:family]
 
       if @data[:proxy]
-        family = @data[:proxy][:family] || ::Socket::Constants::AF_UNSPEC
-        args = [@data[:proxy][:hostname], @data[:proxy][:port], family, ::Socket::Constants::SOCK_STREAM]
-      else
-        family = @data[:family] || ::Socket::Constants::AF_UNSPEC
-        args = [@data[:hostname], @port, family, ::Socket::Constants::SOCK_STREAM]
+        hostname = @data[:proxy][:hostname]
+        port = @data[:proxy][:port]
+        family = @data[:proxy][:family]
       end
-      if RUBY_VERSION >= '1.9.2' && defined?(RUBY_ENGINE) && RUBY_ENGINE == 'ruby'
-        args << nil << nil << false # no reverse lookup
-      end
-      addrinfo = ::Socket.getaddrinfo(*args)
 
-      addrinfo.each do |_, port, _, ip, a_family, s_type|
+      Resolv.each_address(hostname) do |ip|
         # already succeeded on previous addrinfo
         if @socket
           break
@@ -130,8 +119,8 @@ module Excon
         # nonblocking connect
         begin
           sockaddr = ::Socket.sockaddr_in(port, ip)
-
-          socket = ::Socket.new(a_family, s_type, 0)
+          addrinfo = Addrinfo.getaddrinfo(ip, port, family, :STREAM).first
+          socket = ::Socket.new(addrinfo.pfamily, addrinfo.socktype, addrinfo.protocol)
 
           if @data[:reuseaddr]
             socket.setsockopt(::Socket::Constants::SOL_SOCKET, ::Socket::Constants::SO_REUSEADDR, true)
@@ -160,6 +149,8 @@ module Excon
           socket.close rescue nil if socket
         end
       end
+
+      exception ||= Resolv::ResolvError.new("no address for #{hostname}")
 
       # this will be our last encountered exception
       fail exception unless @socket
