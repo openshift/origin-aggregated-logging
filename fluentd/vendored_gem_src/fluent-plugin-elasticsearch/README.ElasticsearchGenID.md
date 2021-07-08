@@ -17,7 +17,7 @@
 In your Fluentd configuration, use `@type elasticsearch_genid`. Additional configuration is optional, default values would look like this:
 
 ```
-<source>
+<filter>
   @type elasticsearch_genid
   hash_id_key _hash
   include_tag_in_seed false
@@ -26,8 +26,8 @@ In your Fluentd configuration, use `@type elasticsearch_genid`. Additional confi
   use_entire_record false
   record_keys []
   separator _
-  hash_type md5
-</match>
+  hash_type sha1
+</filter>
 ```
 
 ## Configuration
@@ -95,7 +95,7 @@ You can specify separator charactor to creating seed for hash generation.
 hash_type sha1
 ```
 
-You can specify hash algorithm.
+You can specify hash algorithm. Support algorithms `md5`, `sha1`, `sha256`, `sha512`. Default: `sha1`
 
 ## Advanced Usage
 
