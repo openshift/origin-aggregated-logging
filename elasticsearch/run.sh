@@ -92,7 +92,7 @@ GC_LOG_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/gc.log
 
 ERR_FILE_LOCATION=/elasticsearch/persistent/${CLUSTER_NAME}/logs/error.log
 
-export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Xlog:gc*,gc+age=trace,safepoint:file=${GC_LOG_LOCATION}:utctime,pid,tags:filecount=32,filesize=64m -XX:ErrorFile=$ERR_FILE_LOCATION"
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Xlog:gc*,gc+age=trace,safepoint:file=${GC_LOG_LOCATION}:utctime,pid,tags:filecount=8,filesize=64m -XX:ErrorFile=$ERR_FILE_LOCATION"
 
 DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
 export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -Djdk.tls.ephemeralDHKeySize=$DHE_TMP_KEY_SIZE"
