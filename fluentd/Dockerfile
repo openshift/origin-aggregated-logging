@@ -71,7 +71,6 @@ RUN bash -c '. /source.jemalloc; echo jemalloc $JEMALLOC_VER >> /contents'
 
 COPY  ${upstream_code}/vendored_gem_src/ ${HOME}/vendored_gem_src/
 COPY  ${upstream_code}/lib/fluent-plugin-remote_syslog/ ${HOME}/vendored_gem_src/fluent-plugin-remote_syslog/
-COPY  ${upstream_code}/lib/fluent-plugin-collected/ ${HOME}/vendored_gem_src/fluent-plugin-collected/
 COPY  ${upstream_code}/lib/remote_syslog_sender/ ${HOME}/vendored_gem_src/remote_syslog_sender/
 COPY  ${upstream_code}/lib/syslog_protocol/ ${HOME}/vendored_gem_src/syslog_protocol/
 COPY  ${upstream_code}/install-gems.sh ${HOME}/vendored_gem_src/
@@ -99,6 +98,7 @@ COPY  ${upstream_code}/wait_for_es_version.sh ${HOME}/
 COPY  ${upstream_code}/lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/parser_viaq_host_audit/lib/*.rb /etc/fluent/plugin/
+COPY  ${upstream_code}/lib/parser_viaq_ovn_audit/lib/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/fluent-plugin-viaq_data_model/lib/fluent/plugin/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/utils/ /usr/local/bin/
 

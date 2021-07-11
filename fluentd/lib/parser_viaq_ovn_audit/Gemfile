@@ -1,0 +1,7 @@
+source 'https://rubygems.org'
+
+gem 'codeclimate-test-reporter', :group => :test, :require => nil
+
+gemspec
+
+gem "webrick", "~> 1.7"
