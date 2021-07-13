@@ -2,21 +2,25 @@
 require 'date'
 require 'excon'
 require 'elasticsearch'
+require 'set'
 begin
   require 'elasticsearch/xpack'
 rescue LoadError
 end
 require 'json'
 require 'uri'
+require 'base64'
 begin
   require 'strptime'
 rescue LoadError
 end
+require 'resolv'
 
 require 'fluent/plugin/output'
 require 'fluent/event'
 require 'fluent/error'
 require 'fluent/time'
+require 'fluent/unique_id'
 require 'fluent/log-ext'
 require 'zlib'
 require_relative 'elasticsearch_constants'
@@ -57,6 +61,7 @@ module Fluent::Plugin
     attr_reader :template_names
     attr_reader :ssl_version_options
     attr_reader :compressable_connection
+    attr_reader :api_key_header
 
     helpers :event_emitter, :compat_parameters, :record_accessor, :timer
 
@@ -74,6 +79,8 @@ module Fluent::Plugin
     config_param :port, :integer, :default => 9200
     config_param :user, :string, :default => nil
     config_param :password, :string, :default => nil, :secret => true
+    config_param :cloud_id, :string, :default => nil
+    config_param :cloud_auth, :string, :default => nil
     config_param :path, :string, :default => nil
     config_param :scheme, :enum, :list => [:https, :http], :default => :http
     config_param :hosts, :string, :default => nil
@@ -155,6 +162,7 @@ EOC
     config_param :default_elasticsearch_version, :integer, :default => DEFAULT_ELASTICSEARCH_VERSION
     config_param :log_es_400_reason, :bool, :default => false
     config_param :custom_headers, :hash, :default => {}
+    config_param :api_key, :string, :default => nil, :secret => true
     config_param :suppress_doc_wrap, :bool, :default => false
     config_param :ignore_exceptions, :array, :default => [], value_type: :string, :desc => "Ignorable exception list"
     config_param :exception_backup, :bool, :default => true, :desc => "Chunk backup flag when ignore exception occured"
@@ -166,6 +174,14 @@ EOC
     config_param :ilm_policies, :hash, :default => {}
     config_param :ilm_policy_overwrite, :bool, :default => false
     config_param :truncate_caches_interval, :time, :default => nil
+    config_param :use_legacy_template, :bool, :default => true
+    config_param :catch_transport_exception_on_retry, :bool, :default => true
+    config_param :target_index_affinity, :bool, :default => false
+
+    config_section :metadata, param_name: :metainfo, multi: false do
+      config_param :include_chunk_id, :bool, :default => false
+      config_param :chunk_id_key, :string, :default => "chunk_id".freeze
+    end
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
@@ -212,6 +228,8 @@ EOC
         @remove_keys_on_update = @remove_keys_on_update.split ','
       end
 
+      @api_key_header = setup_api_key
+
       raise Fluent::ConfigError, "'max_retry_putting_template' must be greater than or equal to zero." if @max_retry_putting_template < 0
       raise Fluent::ConfigError, "'max_retry_get_es_version' must be greater than or equal to zero." if @max_retry_get_es_version < 0
 
@@ -247,8 +265,11 @@ EOC
             template_installation_actual(@deflector_alias ? @deflector_alias : @index_name, @template_name, @customize_template, @application_name, @index_name, @ilm_policy_id)
           end
           verify_ilm_working if @enable_ilm
-        elsif @templates
-          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
+        end
+        if @templates
+          retry_operate(@max_retry_putting_template,
+                        @fail_on_putting_template_retry_exceed,
+                        @catch_transport_exception_on_retry) do
             templates_hash_install(@templates, @template_overwrite)
           end
         end
@@ -278,7 +299,13 @@ EOC
         @dump_proc = Yajl.method(:dump)
       end
 
+      raise Fluent::ConfigError, "`cloud_auth` must be present if `cloud_id` is present" if @cloud_id && @cloud_auth.nil?
       raise Fluent::ConfigError, "`password` must be present if `user` is present" if @user && @password.nil?
+
+      if @cloud_auth
+        @user = @cloud_auth.split(':', -1)[0]
+        @password = @cloud_auth.split(':', -1)[1]
+      end
 
       if @user && m = @user.match(/%{(?<user>.*)}/)
         @user = URI.encode_www_form_component(m["user"])
@@ -325,7 +352,7 @@ EOC
           @type_name = '_doc'.freeze
         end
         if @last_seen_major_version >= 8 && @type_name != DEFAULT_TYPE_NAME_ES_7x
-          log.info "Detected ES 8.x or above: This parameter has no effect."
+          log.debug "Detected ES 8.x or above: This parameter has no effect."
           @type_name = nil
         end
       end
@@ -397,6 +424,12 @@ EOC
       end
     end
 
+    def setup_api_key
+      return {} unless @api_key
+
+      { "Authorization" => "ApiKey " + Base64.strict_encode64(@api_key) }
+    end
+
     def dry_run?
       if Fluent::Engine.respond_to?(:dry_run_mode)
         Fluent::Engine.dry_run_mode
@@ -451,7 +484,9 @@ EOC
 
     def handle_last_seen_es_major_version
       if @verify_es_version_at_startup && !dry_run?
-        retry_operate(@max_retry_get_es_version, @fail_on_detecting_es_version_retry_exceed) do
+        retry_operate(@max_retry_get_es_version,
+                      @fail_on_detecting_es_version_retry_exceed,
+                      @catch_transport_exception_on_retry) do
           detect_es_major_version
         end
       else
@@ -461,7 +496,15 @@ EOC
 
     def detect_es_major_version
       @_es_info ||= client.info
-      @_es_info["version"]["number"].to_i
+      begin
+        unless version = @_es_info.dig("version", "number")
+          version = @default_elasticsearch_version
+        end
+      rescue NoMethodError => e
+        log.warn "#{@_es_info} can not dig version information. Assuming Elasticsearch #{@default_elasticsearch_version}", error: e
+        version = @default_elasticsearch_version
+      end
+      version.to_i
     end
 
     def client_library_version
@@ -533,7 +576,17 @@ EOC
       return Time.at(event_time).to_datetime
     end
 
+    def cloud_client
+      Elasticsearch::Client.new(
+        cloud_id: @cloud_id,
+        user: @user,
+        password: @password
+      )
+    end
+
     def client(host = nil, compress_connection = false)
+      return cloud_client if @cloud_id
+
       # check here to see if we already have a client connection for the given host
       connection_options = get_connection_options(host)
 
@@ -554,7 +607,10 @@ EOC
                        else
                          {}
                        end
-        headers = { 'Content-Type' => @content_type.to_s }.merge(@custom_headers).merge(gzip_headers)
+        headers = { 'Content-Type' => @content_type.to_s }
+                    .merge(@custom_headers)
+                    .merge(@api_key_header)
+                    .merge(gzip_headers)
         ssl_options = { verify: @ssl_verify, ca_file: @ca_file}.merge(@ssl_version_options)
 
         transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new(connection_options.merge(
@@ -615,7 +671,11 @@ EOC
           end
         end.compact
       else
-        [{host: @host, port: @port, scheme: @scheme.to_s}]
+        if Resolv::IPv6::Regex.match(@host)
+          [{host: "[#{@host}]", scheme: @scheme.to_s, port: @port}]
+        else
+          [{host: @host, port: @port, scheme: @scheme.to_s}]
+        end
       end.each do |host|
         host.merge!(user: @user, password: @password) if !host[:user] && @user
         host.merge!(path: @path) if !host[:path] && @path
@@ -752,6 +812,15 @@ EOC
       true
     end
 
+    def inject_chunk_id_to_record_if_needed(record, chunk_id)
+      if @metainfo&.include_chunk_id
+        record[@metainfo.chunk_id_key] = chunk_id
+        record
+      else
+        record
+      end
+    end
+
     def write(chunk)
       bulk_message_count = Hash.new { |h,k| h[k] = 0 }
       bulk_message = Hash.new { |h,k| h[k] = '' }
@@ -759,6 +828,7 @@ EOC
       meta = {}
 
       tag = chunk.metadata.tag
+      chunk_id = dump_unique_id_hex(chunk.unique_id)
       extracted_values = expand_placeholders(chunk)
       host = if @hosts
                extract_placeholders(@hosts, chunk)
@@ -766,10 +836,14 @@ EOC
                extract_placeholders(@host, chunk)
              end
 
+      affinity_target_indices = get_affinity_target_indices(chunk)
       chunk.msgpack_each do |time, record|
         next unless record.is_a? Hash
+
+        record = inject_chunk_id_to_record_if_needed(record, chunk_id)
+
         begin
-          meta, header, record = process_message(tag, meta, header, time, record, extracted_values)
+          meta, header, record = process_message(tag, meta, header, time, record, affinity_target_indices, extracted_values)
           info = if @include_index_in_url
                    RequestInfo.new(host, meta.delete("_index".freeze), meta["_index".freeze], meta.delete("_alias".freeze))
                  else
@@ -806,6 +880,42 @@ EOC
       end
     end
 
+    def target_index_affinity_enabled?()
+      @target_index_affinity && @logstash_format && @id_key && (@write_operation == UPDATE_OP || @write_operation == UPSERT_OP)
+    end
+
+    def get_affinity_target_indices(chunk)
+      indices = Hash.new
+      if target_index_affinity_enabled?()
+        id_key_accessor = record_accessor_create(@id_key)
+        ids = Set.new
+        chunk.msgpack_each do |time, record|
+          next unless record.is_a? Hash
+          begin
+            ids << id_key_accessor.call(record)
+          end
+        end
+        log.debug("Find affinity target_indices by quering on ES (write_operation #{@write_operation}) for ids: #{ids.to_a}")
+        options = {
+          :index => "#{logstash_prefix}#{@logstash_prefix_separator}*",
+        }
+        query = {
+          'query' => { 'ids' => { 'values' => ids.to_a } },
+          '_source' => false,
+          'sort' => [
+            {"_index" => {"order" => "desc"}}
+         ]
+        }
+        result = client.search(options.merge(:body => Yajl.dump(query)))
+        # There should be just one hit per _id, but in case there still is multiple, just the oldest index is stored to map
+        result['hits']['hits'].each do |hit|
+          indices[hit["_id"]] = hit["_index"]
+          log.debug("target_index for id: #{hit["_id"]} from es: #{hit["_index"]}")
+        end
+      end
+      indices
+    end
+
     def split_request?(bulk_message, info)
       # For safety.
     end
@@ -818,7 +928,7 @@ EOC
       false
     end
 
-    def process_message(tag, meta, header, time, record, extracted_values)
+    def process_message(tag, meta, header, time, record, affinity_target_indices, extracted_values)
       logstash_prefix, logstash_dateformat, index_name, type_name, _template_name, _customize_template, _deflector_alias, application_name, pipeline, _ilm_policy_id = extracted_values
 
       if @flatten_hashes
@@ -859,6 +969,15 @@ EOC
         record[@tag_key] = tag
       end
 
+      # If affinity target indices map has value for this particular id, use it as target_index
+      if !affinity_target_indices.empty?
+        id_accessor = record_accessor_create(@id_key)
+        id_value = id_accessor.call(record)
+        if affinity_target_indices.key?(id_value)
+          target_index = affinity_target_indices[id_value]
+        end
+      end
+
       target_type_parent, target_type_child_key = @target_type_key ? get_parent_of(record, @target_type_key) : nil
       if target_type_parent && target_type_parent[target_type_child_key]
         target_type = target_type_parent.delete(target_type_child_key)
@@ -869,7 +988,7 @@ EOC
           log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
         elsif @last_seen_major_version >=8
-          log.warn "Detected ES 8.x or above: document type will not be used."
+          log.debug "Detected ES 8.x or above: document type will not be used."
           target_type = nil
         end
       else
@@ -879,7 +998,7 @@ EOC
           log.warn "Detected ES 7.x: `_doc` will be used as the document `_type`."
           target_type = '_doc'.freeze
         elsif @last_seen_major_version >= 8
-          log.warn "Detected ES 8.x or above: document type will not be used."
+          log.debug "Detected ES 8.x or above: document type will not be used."
           target_type = nil
         else
           target_type = type_name
@@ -944,22 +1063,26 @@ EOC
 
     def template_installation_actual(deflector_alias, template_name, customize_template, application_name, target_index, ilm_policy_id, host=nil)
       if template_name && @template_file
-        if !@logstash_format && @alias_indexes.include?(deflector_alias)
-          log.debug("Index alias #{deflector_alias} already exists (cached)")
-        elsif !@logstash_format && @template_names.include?(template_name)
-          log.debug("Template name #{template_name} already exists (cached)")
+        if !@logstash_format && (deflector_alias.nil? || (@alias_indexes.include? deflector_alias)) && (@template_names.include? template_name)
+          if deflector_alias
+            log.debug("Index alias #{deflector_alias} and template #{template_name} already exist (cached)")
+          else
+            log.debug("Template #{template_name} already exists (cached)")
+          end
         else
-          retry_operate(@max_retry_putting_template, @fail_on_putting_template_retry_exceed) do
+          retry_operate(@max_retry_putting_template,
+                        @fail_on_putting_template_retry_exceed,
+                        @catch_transport_exception_on_retry) do
             if customize_template
-              template_custom_install(template_name, @template_file, @template_overwrite, customize_template, @enable_ilm, deflector_alias, ilm_policy_id, host, target_index)
+              template_custom_install(template_name, @template_file, @template_overwrite, customize_template, @enable_ilm, deflector_alias, ilm_policy_id, host, target_index, @index_separator)
             else
-              template_install(template_name, @template_file, @template_overwrite, @enable_ilm, deflector_alias, ilm_policy_id, host, target_index)
+              template_install(template_name, @template_file, @template_overwrite, @enable_ilm, deflector_alias, ilm_policy_id, host, target_index, @index_separator)
             end
             ilm_policy = @ilm_policies[ilm_policy_id] || {}
             create_rollover_alias(target_index, @rollover_index, deflector_alias, application_name, @index_date_pattern, @index_separator, @enable_ilm, ilm_policy_id, ilm_policy, @ilm_policy_overwrite, host)
           end
           @alias_indexes << deflector_alias unless deflector_alias.nil?
-          @template_names << template_name unless template_name.nil?
+          @template_names << template_name
         end
       end
     end
