@@ -21,7 +21,7 @@ GEM
       multi_json
     ethon (0.12.0)
       ffi (>= 1.3.0)
-    excon (0.75.0)
+    excon (0.83.0)
     faraday (1.0.1)
       multipart-post (>= 1.2, < 3)
     ffi (1.11.3)
@@ -35,12 +35,12 @@ GEM
       uuidtools (>= 2.1.5)
     fluent-plugin-concat (2.4.0)
       fluentd (>= 0.14.0, < 2)
-    fluent-plugin-elasticsearch (4.1.1)
+    fluent-plugin-elasticsearch (5.0.5)
       elasticsearch
       excon
       fluentd (>= 0.14.22)
     fluent-plugin-kafka (0.13.1)
-      fluentd (>= 0.10.58, < 2)
+      fluentd (>= 0.14.10, < 2)
       ltsv
       ruby-kafka (>= 0.7.8, < 2)
     fluent-plugin-kubernetes_metadata_filter (2.5.2)
