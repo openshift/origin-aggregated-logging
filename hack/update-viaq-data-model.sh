@@ -22,7 +22,7 @@ RELEASE_URL=${RELEASE_URL:-https://api.github.com/repos/ViaQ/elasticsearch-templ
 asset_urls=$( curl -s $RELEASE_URL | \
                   python -c 'import sys,json
 for asset in json.load(sys.stdin)["assets"]:
-  print asset["name"], asset["browser_download_url"]
+  print(asset["name"], asset["browser_download_url"])
 ' )
 
 set -- $asset_urls

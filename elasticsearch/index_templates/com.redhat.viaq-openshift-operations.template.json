@@ -362,6 +362,12 @@
                 }
               }
             },
+            "flat_labels": {
+              "doc_values": true,
+              "index": true,
+              "norms": true,
+              "type": "keyword"
+            },
             "host": {
               "doc_values": true,
               "index": true,
@@ -640,36 +646,6 @@
               "doc_values": false,
               "index": true,
               "type": "text"
-            }
-          }
-        },
-        "rsyslog": {
-          "properties": {
-            "appname": {
-              "doc_values": true,
-              "index": true,
-              "type": "keyword"
-            },
-            "facility": {
-              "doc_values": true,
-              "index": true,
-              "type": "keyword"
-            },
-            "msgid": {
-              "doc_values": true,
-              "index": true,
-              "type": "long"
-            },
-            "protocol-version": {
-              "doc_values": true,
-              "index": true,
-              "type": "keyword"
-            },
-            "structured-data": {
-              "doc_values": true,
-              "index": true,
-              "norms": false,
-              "type": "keyword"
             }
           }
         },
@@ -971,9 +947,5 @@
       }
     }
   },
-  "order": 10,
-  "settings": {
-    "index.refresh_interval": "5s",
-    "index.default_pipeline": "openshift_schema.json"
-  }
+  "order": 10
 }

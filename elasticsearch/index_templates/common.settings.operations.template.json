@@ -2,6 +2,7 @@
   "order": 5,
   "settings": {
     "index.refresh_interval": "5s",
+    "index.default_pipeline": "openshift_schema.json",
     "index.number_of_replicas": $REPLICA_SHARDS,
     "index.number_of_shards": $PRIMARY_SHARDS,
     "index.translog.flush_threshold_size": "256mb",
