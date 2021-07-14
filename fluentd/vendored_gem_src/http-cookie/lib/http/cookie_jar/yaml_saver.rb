@@ -21,7 +21,7 @@ class HTTP::CookieJar::YAMLSaver < HTTP::CookieJar::AbstractSaver
 
   def load(io, jar)
     begin
-      data = YAML.load(io)
+      data = load_yaml(io)
     rescue ArgumentError => e
       case e.message
       when %r{\Aundefined class/module Mechanize::}
@@ -31,7 +31,7 @@ class HTTP::CookieJar::YAMLSaver < HTTP::CookieJar::AbstractSaver
           yaml = io.read
           # a gross hack
           yaml.gsub!(%r{^(    [^ ].*:) !ruby/object:Mechanize::Cookie$}, "\\1")
-          data = YAML.load(yaml)
+          data = load_yaml(yaml)
         rescue Errno::ESPIPE
           @logger.warn "could not rewind the stream for conversion" if @logger
         rescue ArgumentError
@@ -72,5 +72,15 @@ class HTTP::CookieJar::YAMLSaver < HTTP::CookieJar::AbstractSaver
 
   def default_options
     {}
+  end
+
+  if YAML.name == 'Psych' && Psych::VERSION >= '3.1'
+    def load_yaml(yaml)
+      YAML.safe_load(yaml, :permitted_classes => %w[Time HTTP::Cookie Mechanize::Cookie DomainName], :aliases => true)
+    end
+  else
+    def load_yaml(yaml)
+      YAML.load(yaml)
+    end
   end
 end

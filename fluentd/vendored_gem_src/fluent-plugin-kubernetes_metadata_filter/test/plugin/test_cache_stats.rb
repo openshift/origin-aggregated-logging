@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -17,20 +19,15 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'fluent/plugin/kubernetes_metadata_stats'
-require 'webmock/test_unit'
-WebMock.disable_net_connect!
 
 class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
-  
-    test 'watch stats' do
-      require 'lru_redux'
-      stats = KubernetesMetadata::Stats.new
-      stats.bump(:missed)
-      stats.bump(:deleted)
-      stats.bump(:deleted)
+  test 'watch stats' do
+    require 'lru_redux'
+    stats = KubernetesMetadata::Stats.new
+    stats.bump(:missed)
+    stats.bump(:deleted)
+    stats.bump(:deleted)
 
-      assert_equal("stats - deleted: 2, missed: 1", stats.to_s)
-    end
-    
+    assert_equal('stats - deleted: 2, missed: 1', stats.to_s)
+  end
 end

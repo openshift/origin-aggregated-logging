@@ -1,3 +1,10 @@
+## Unreleased
+
+- Support Mozilla's cookie storage format up to version 7.
+
+- Fix the time representation with creationTime and lastAccessed in
+  MozillaStore. (#8)
+
 ## 1.0.3 (2016-09-30)
 
 - Treat comma as normal character in HTTP::Cookie.cookie_value_to_hash

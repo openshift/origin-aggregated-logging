@@ -4,6 +4,25 @@ Notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 Kubeclient release versioning follows [SemVer](https://semver.org/).
 
+## 4.9.2 — 2021-05-30
+
+### Added
+- Ruby 3.0 compatibility (#500, #505).
+
+### Removed
+- Reduce .gem size by dropping test/ directory, it's useless at run time (#502).
+
+## 4.9.1 — 2020-08-31
+### Fixed
+- Now should work with apiserver deployed not at root of domain but a sub-path,
+  which is standard with Rancher.
+  Notably, `create_...` methods were sending bad apiVersion and getting 400 error.
+  (#457, hopefully fixes #318, #418 and https://gitlab.com/gitlab-org/gitlab/-/issues/22043)
+
+## 4.9.0 - 2020-08-03
+### Added
+- Support for `user: exec` credential plugins using TLS client auth (#453)
+
 ## 4.8.0 — 2020-07-03
 
 ### Added
