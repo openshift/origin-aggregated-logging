@@ -17,6 +17,54 @@
 
 source "logging"
 
+info Deleting deprecated index templates
+shopt -s failglob
+shopt -s extglob
+
+# Get list of index templates ES image is providing.
+get_templates_from_es_image() {
+    for template_file in ${ES_HOME}/index_templates/*.json
+    do
+        template=`basename $template_file`
+        EsImageTemplateArray+=($template)
+    done
+}
+
+# Get list of index templates present in running ES cluster.
+get_templates_from_es_cluster() {
+    # Get index templates names from running ES cluster ending with .json only.
+    templates=$(es_util --query="_cat/templates/*.json?h=name")
+    # Filter out index templates names that follow these pattern.
+    pattern="!(com.redhat.*.template.json|common.settings.*.template.json)"
+    for template in $templates
+    do
+    case "$template" in
+        $pattern) EsClusterTemplateArray+=($template) ;;
+    esac
+    done
+}
+
+# To collect index templates ES image is providing.
+declare -a EsImageTemplateArray
+# To collect index templates present in running ES cluster.
+declare -a EsClusterTemplateArray
+get_templates_from_es_image
+get_templates_from_es_cluster
+
+for template in "${EsClusterTemplateArray[@]}"
+do
+# Check if template in running cluster is not present in our ES image.
+# If true then delete that template as it is deprecated.
+if [[ ! " ${EsImageTemplateArray[@]} " =~ " $template " ]]; then
+    info "Deprecated index template '$template' found in the cluster, deleting it"
+    es_util --query=_template/$template \
+        ${DEBUG:+-v} -s -X DELETE
+fi
+done
+shopt -u failglob
+shopt -u extglob
+info Finished deleting deprecated index templates
+
 info Adding index templates
 shopt -s failglob
 for template_file in ${ES_HOME}/index_templates/*.json

@@ -15,7 +15,6 @@ Not all of these fields are present in every record.
 The fields are grouped in the following categories:
 
 * <<exported-fields-Default>>
-* <<exported-fields-rsyslog>>
 * <<exported-fields-systemd>>
 * <<exported-fields-kubernetes>>
 * <<exported-fields-docker>>
@@ -45,7 +44,7 @@ Read more about Elasticsearch index types deprecation:
 
 type: date
 
-example: 2015-01-24 14:06:05.071000
+example: 2015-01-24 14:06:05.071000+00:00
 
 format: yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime
 
@@ -216,50 +215,6 @@ https://github.com/openshift/enhancements/blob/master/enhancements/cluster-loggi
 For Elasticsearch 5.x and earlier an index name in which this message will be stored within the Elasticsearch.
 The value of this field is generated based on the source of the message. Example of the value
 is 'project.my-cool-project-in-lab04.748e92c2-70d7-11e9-b387-000d3af2d83b.2019.05.09'.
-
-
-
-'''
-[[exported-fields-rsyslog]]
-=== [big]*rsyslog Fields*
-
-RFC5424 based metadata.
-
-
-
-==== rsyslog.facility
-
-type: keyword
-
-rsyslog's facility. see syslog specification for more information
-
-
-==== rsyslog.protocol-version
-
-type: keyword
-
-rsyslog protocol version
-
-
-==== rsyslog.structured-data
-
-type: keyword
-
-syslog's structured-data. see syslog specification for more information
-
-
-==== rsyslog.msgid
-
-type: long
-
-syslog's msgid field
-
-
-==== rsyslog.appname
-
-type: keyword
-
-syslog's APP-NAME. If APP-NAME is same as programname, we only fill top-level field 'service'. If APP-NAME is not equal to programname, this field will hold APP-NAME. See syslog specification for more information
 
 
 
@@ -840,7 +795,7 @@ Component which reported this event
 
 type: date
 
-example: 2017-08-07 10:11:57
+example: 2017-08-07 10:11:57+00:00
 
 format: yyyy-MM-dd HH:mm:ss,SSSZ||yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ||yyyy-MM-dd'T'HH:mm:ssZ||dateOptionalTime
 
@@ -863,6 +818,15 @@ type: keyword
 example: Normal
 
 Type of this event (Normal, Warning), new types could be added in the future
+
+
+==== kubernetes.flat_labels
+
+type: keyword
+
+example: ['app=openshift-kube-scheduler', 'revision=8', 'scheduler=true']
+
+Flattened Labels attached to the OpenShift object. Each label name is a subfield of labels field. It also contains custom labels added in CRDs. It will be an array.
 
 
 
