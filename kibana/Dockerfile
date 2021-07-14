@@ -1,7 +1,7 @@
 ### This is a generated file from Dockerfile.in ###
 
 #@follow_tag(openshift-ose-base:ubi8.nodejs.10)
-FROM registry.ci.openshift.org/ocp/builder:ubi8.nodejs.10
+FROM registry.ci.openshift.org/ocp/builder:ubi8.nodejs.14
 
 ENV BUILD_VERSION=${CI_CONTAINER_VERSION:-}
 ENV OS_GIT_MAJOR=${CI_X_VERSION:-}
