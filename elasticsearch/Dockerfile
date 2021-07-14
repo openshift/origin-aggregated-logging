@@ -38,7 +38,7 @@ ARG OPENSHIFT_CI
 
 ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
-    ES_VER=6.8.1.redhat-00006 \
+    ES_VER=6.8.1.redhat-00007 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=11 \
@@ -46,7 +46,7 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     NODE_QUORUM=1 \
     PROMETHEUS_EXPORTER_VER=6.8.1.0-redhat-00001 \
     INGEST_PLUGIN_VER=6.8.1.0-redhat-00003 \
-    OPENDISTRO_VER=0.10.0.4-redhat-00001 \
+    OPENDISTRO_VER=0.10.1.2-redhat-00006 \
     PLUGIN_LOGLEVEL=INFO \
     RECOVER_AFTER_NODES=1 \
     RECOVER_EXPECTED_NODES=1 \
