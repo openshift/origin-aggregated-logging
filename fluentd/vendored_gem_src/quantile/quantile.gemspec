@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.files = ["LICENSE".freeze, "README.md".freeze, "lib/quantile.rb".freeze, "lib/quantile/estimator.rb".freeze, "lib/quantile/quantile.rb".freeze, "lib/quantile/version.rb".freeze]
   s.homepage = "http://github.com/matttproud/ruby_quantile_estimation".freeze
   s.licenses = ["Apache 2.0".freeze]
-  s.rubygems_version = "3.0.8".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "Streaming Quantile Estimation".freeze
 end
 

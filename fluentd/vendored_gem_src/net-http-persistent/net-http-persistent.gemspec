@@ -18,27 +18,20 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--main".freeze, "README.rdoc".freeze]
   s.required_ruby_version = Gem::Requirement.new("~> 2.1".freeze)
-  s.rubygems_version = "3.0.8".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "Manages persistent connections using Net::HTTP plus a speed fix for Ruby 1.8".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<connection_pool>.freeze, ["~> 2.2"])
-      s.add_development_dependency(%q<minitest>.freeze, ["~> 5.11"])
-      s.add_development_dependency(%q<hoe-bundler>.freeze, ["~> 1.5"])
-      s.add_development_dependency(%q<hoe-travis>.freeze, ["~> 1.4", ">= 1.4.1"])
-      s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
-      s.add_development_dependency(%q<hoe>.freeze, ["~> 3.17"])
-    else
-      s.add_dependency(%q<connection_pool>.freeze, ["~> 2.2"])
-      s.add_dependency(%q<minitest>.freeze, ["~> 5.11"])
-      s.add_dependency(%q<hoe-bundler>.freeze, ["~> 1.5"])
-      s.add_dependency(%q<hoe-travis>.freeze, ["~> 1.4", ">= 1.4.1"])
-      s.add_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
-      s.add_dependency(%q<hoe>.freeze, ["~> 3.17"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_runtime_dependency(%q<connection_pool>.freeze, ["~> 2.2"])
+    s.add_development_dependency(%q<minitest>.freeze, ["~> 5.11"])
+    s.add_development_dependency(%q<hoe-bundler>.freeze, ["~> 1.5"])
+    s.add_development_dependency(%q<hoe-travis>.freeze, ["~> 1.4", ">= 1.4.1"])
+    s.add_development_dependency(%q<rdoc>.freeze, [">= 4.0", "< 7"])
+    s.add_development_dependency(%q<hoe>.freeze, ["~> 3.17"])
   else
     s.add_dependency(%q<connection_pool>.freeze, ["~> 2.2"])
     s.add_dependency(%q<minitest>.freeze, ["~> 5.11"])

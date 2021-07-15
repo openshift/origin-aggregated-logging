@@ -5,12 +5,12 @@ module Excon
         module Exec
           def start(app_str = app)
             line = ''
-            open_process(app)
+            open_process(app_str)
             until line =~ /\Aready\Z/
               line = error.gets
               fatal_time = elapsed_time > timeout
               if fatal_time
-                msg = "executable #{app} has taken too long to start"
+                msg = "executable #{app_str} has taken too long to start"
                 raise msg
               end
             end
