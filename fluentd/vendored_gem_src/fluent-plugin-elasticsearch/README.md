@@ -19,6 +19,8 @@ Current maintainers: @cosmo0920
 * [Configuration](#configuration)
   + [host](#host)
   + [port](#port)
+  + [cloud_id](#cloud_id)
+  + [cloud_auth](#cloud_auth)
   + [emit_error_for_missing_id](#emit_error_for_missing_id)
   + [hosts](#hosts)
   + [user, password, path, scheme, ssl_verify](#user-password-path-scheme-ssl_verify)
@@ -36,6 +38,7 @@ Current maintainers: @cosmo0920
   + [suppress_type_name](#suppress_type_name)
   + [target_index_key](#target_index_key)
   + [target_type_key](#target_type_key)
+  + [target_index_affinity](#target_index_affinity)
   + [template_name](#template_name)
   + [template_file](#template_file)
   + [template_overwrite](#template_overwrite)
@@ -85,6 +88,7 @@ Current maintainers: @cosmo0920
   + [verify_es version at startup](#verify_es_version_at_startup)
   + [default_elasticsearch_version](#default_elasticsearch_version)
   + [custom_headers](#custom_headers)
+  + [api_key](#api_key)
   + [Not seeing a config you need?](#not-seeing-a-config-you-need)
   + [Dynamic configuration](#dynamic-configuration)
   + [Placeholders](#placeholders)
@@ -100,31 +104,27 @@ Current maintainers: @cosmo0920
   + [ilm_policies](#ilm_policies)
   + [ilm_policy_overwrite](#ilm_policy_overwrite)
   + [truncate_caches_interval](#truncate_caches_interval)
+  + [use_legacy_template](#use_legacy_template)
+  + [metadata section](#metadata-section)
+    + [include_chunk_id](#include_chunk_id)
+    + [chunk_id_key](#chunk_id_key)
 * [Configuration - Elasticsearch Input](#configuration---elasticsearch-input)
 * [Configuration - Elasticsearch Filter GenID](#configuration---elasticsearch-filter-genid)
+* [Configuration - Elasticsearch Output Data Stream](#configuration---elasticsearch-output-data-stream)
 * [Elasticsearch permissions](#elasticsearch-permissions)
 * [Troubleshooting](#troubleshooting)
-  + [Cannot send events to elasticsearch](#cannot-send-events-to-elasticsearch)
-  + [Cannot see detailed failure log](#cannot-see-detailed-failure-log)
-  + [Cannot connect TLS enabled reverse Proxy](#cannot-connect-tls-enabled-reverse-proxy)
-  + [Declined logs are resubmitted forever, why?](#declined-logs-are-resubmitted-forever-why)
-  + [Suggested to install typhoeus gem, why?](#suggested-to-install-typhoeus-gem-why)
-  + [Stopped to send events on k8s, why?](#stopped-to-send-events-on-k8s-why)
-  + [Random 400 - Rejected by Elasticsearch is occured, why?](#random-400---rejected-by-elasticsearch-is-occured-why)
-  + [Fluentd seems to hang if it unable to connect Elasticsearch, why?](#fluentd-seems-to-hang-if-it-unable-to-connect-elasticsearch-why)
-  + [Enable Index Lifecycle Management](#enable-index-lifecycle-management)
-  + [How to specify index codec](#how-to-specify-index-codec)
-  + [Cannot push logs to Elasticsearch with connect_write timeout reached, why?](#cannot-push-logs-to-elasticsearch-with-connect_write-timeout-reached-why)
 * [Contact](#contact)
 * [Contributing](#contributing)
 * [Running tests](#running-tests)
 
 ## Requirements
 
-| fluent-plugin-elasticsearch  | fluentd | ruby |
-|-------------------|---------|------|
-| >= 2.0.0 | >= v0.14.20 | >= 2.1 |
-|  < 2.0.0 | >= v0.12.0 | >= 1.9 |
+| fluent-plugin-elasticsearch  | fluentd     | ruby   |
+|:----------------------------:|:-----------:|:------:|
+| >= 4.0.1                     | >= v0.14.22 | >= 2.3 |
+| >= 3.2.4 && < 4.0.1          | >= v0.14.22 | >= 2.1 |
+| >= 2.0.0 && < 3.2.3          | >= v0.14.20 | >= 2.1 |
+|  < 2.0.0                     | >= v0.12.0  | >= 1.9 |
 
 NOTE: For v0.12 version, you should use 1.x.y version. Please send patch into v0.12 branch if you encountered 1.x version's bug.
 
@@ -172,6 +172,24 @@ You can specify Elasticsearch host by this parameter.
 
 **Note:** Since v3.3.2, `host` parameter supports builtin placeholders. If you want to send events dynamically into different hosts at runtime with `elasticsearch_dynamic` output plugin, please consider to switch to use plain `elasticsearch` output plugin. In more detail for builtin placeholders, please refer to [Placeholders](#placeholders) section.
 
+To use IPv6 address on `host` parameter, you can use the following styles:
+
+#### string style
+
+To use string style, you must quote IPv6 address due to prevent to be interpreted as JSON:
+
+```
+host "[2404:7a80:d440:3000:192a:a292:bd7f:ca10]"
+```
+
+#### raw style
+
+You can also specify raw IPv6 address. This will be handled as `[specified IPv6 address]`:
+
+```
+host 2404:7a80:d440:3000:192a:a292:bd7f:ca10
+```
+
 ### port
 
 ```
@@ -179,6 +197,26 @@ port 9201 # defaults to 9200
 ```
 
 You can specify Elasticsearch port by this parameter.
+
+### cloud_id
+
+```
+cloud_id test-dep:ZXVyb3BlLXdlc3QxLmdjcC5jbG91ZC5lcy5pbyRiYZTA1Ng== 
+```
+
+You can specify Elasticsearch cloud_id by this parameter.
+
+If you specify `cloud_id` option then `cloud_auth` option is required.
+If you specify `cloud_id` option, `host`, `port`, `user` and `password` options are ignored.
+
+### cloud_auth
+
+```
+cloud_auth 'elastic:slkjdaooewkd87iqQ2O8EQYV'
+```
+
+You can specify Elasticsearch cloud_auth by this parameter.
+
 
 ### emit_error_for_missing_id
 
@@ -217,6 +255,16 @@ hosts host1:port1,host2:port2,host3 # port3 is 9200
 **Note:** If you will use scheme https, do not include "https://" in your hosts ie. host "https://domain", this will cause ES cluster to be unreachable and you will receive an error "Can not reach Elasticsearch cluster"
 
 **Note:** Up until v2.8.5, it was allowed to embed the username/password in the URL. However, this syntax is deprecated as of v2.8.6 because it was found to cause serious connection problems (See #394). Please migrate your settings to use the `user` and `password` field (described below) instead.
+
+#### IPv6 addresses
+
+When you want to specify IPv6 addresses, you must specify schema together:
+
+```
+hosts http://[2404:7a80:d440:3000:de:7311:6329:2e6c]:port1,http://[2404:7a80:d440:3000:de:7311:6329:1e6c]:port2,http://[2404:7a80:d440:3000:de:6311:6329:2e6c]:port3
+```
+
+If you don't specify hosts with schema together, Elasticsearch plugin complains Invalid URI for them.
 
 ### user, password, path, scheme, ssl_verify
 
@@ -407,6 +455,75 @@ and this record will be written to the specified index (`logstash-2014.12.19`) r
 
 Similar to `target_index_key` config, find the type name to write to in the record under this key (or nested record). If key not found in record - fallback to `type_name` (default "fluentd").
 
+### target_index_affinity
+
+Enable plugin to dynamically select logstash time based target index in update/upsert operations based on already indexed data rather than current time of indexing.
+
+```
+target_index_affinity true # defaults to false
+```
+
+By default plugin writes data of logstash format index based on current time. For example daily based index after mignight data is written to newly created index. This is normally ok when data is coming from single source and not updated after indexing.
+
+But if you have a use case where data is also updated after indexing and `id_key` is used to identify the document uniquely for updating. Logstash format is wanted to be used for easy data managing and retention. Updates are done right after indexing to complete the data (all data not available from single source) and no updates are done anymore later point on time. In this case problem happends at index rotation time where write to 2 indexes with same id_key value may happen.
+
+This setting will search existing data by using elastic search's [id query](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html) using `id_key` value (with logstash_prefix and logstash_prefix_separator index pattarn e.g. `logstash-*`). The index of found data is used for update/upsert. When no data is found, data is written to current logstash index as normally.
+
+This setting requires following other settings:
+```
+logstash_format true
+id_key myId  # Some field on your data to identify the data uniquely
+write_operation upsert  # upsert or update
+```
+
+Suppose you have the following situation where you have 2 different match to consume data from 2 different Kafka topics independently but close in time with each other (order not known).
+
+```
+  <match data1>
+    @type elasticsearch
+    ...
+    id_key myId
+    write_operation upsert
+    logstash_format true
+    logstash_dateformat %Y.%m.%d
+    logstash_prefix myindexprefix
+    target_index_affinity true
+    ...
+
+  <match data2>
+    @type elasticsearch
+    ...
+    id_key myId
+    write_operation upsert
+    logstash_format true
+    logstash_dateformat %Y.%m.%d
+    logstash_prefix myindexprefix
+    target_index_affinity true
+    ...
+```
+
+If your first (data1) input is:
+```
+{
+  "myId": "myuniqueId1",
+  "datafield1": "some value",
+}
+```
+
+and your second (data2) input is:
+```
+{
+  "myId": "myuniqueId1",
+  "datafield99": "some important data from other source tightly related to id myuniqueId1 and wanted to be in same document.",
+}
+```
+
+Date today is 10.05.2021 so data is written to index `myindexprefix-2021.05.10` when both data1 and data2 is consumed during today.
+But when we are close to index rotation and data1 is consumed and indexed at `2021-05-10T23:59:55.59707672Z` and data2
+is consumed a bit later at `2021-05-11T00:00:58.222079Z` i.e. logstash index has been rotated and normally data2 would have been written
+to index `myindexprefix-2021.05.11`. But with target_index_affinity setting as value true, data2 is now written to index `myindexprefix-2021.05.10`
+into same document with data1 as wanted and duplicated document is avoided.
+
 ### template_name
 
 The name of the template to define. If a template by the name given is already present, it will be left unchanged, unless [template_overwrite](#template_overwrite) is set, in which case the template will be updated.
@@ -429,7 +546,7 @@ Specify index templates in form of hash. Can contain multiple templates.
 templates { "template_name_1": "path_to_template_1_file", "template_name_2": "path_to_template_2_file"}
 ```
 
-If `template_file` and `template_name` are set, then this parameter will be ignored.
+**Note:** Before ES plugin v4.1.2, if `template_file` and `template_name` are set, then this parameter will be ignored. In 4.1.3 or later, `template_file` and `template_name` can work with `templates`.
 
 ### customize_template
 
@@ -494,7 +611,7 @@ Specify the application name for the rollover index to be created.
 application_name default # defaults to "default"
 ```
 
-If [enable_ilm](#enable_ilm is set, then this parameter will be in effect otherwise ignored.
+If [enable_ilm](#enable_ilm) is set, then this parameter will be in effect otherwise ignored.
 
 ### template_overwrite
 
@@ -917,7 +1034,7 @@ Starting with version 0.8.0, this gem uses excon, which supports proxy with envi
 
 ### Buffer options
 
-`fluentd-plugin-elasticsearch` extends [Fluentd's builtin Output plugin](https://docs.fluentd.org/v0.14/articles/output-plugin-overview) and use `compat_parameters` plugin helper. It adds the following options:
+`fluentd-plugin-elasticsearch` extends [Fluentd's builtin Output plugin](https://docs.fluentd.org/output#overview) and use `compat_parameters` plugin helper. It adds the following options:
 
 ```
 buffer_type memory
@@ -1104,6 +1221,14 @@ This parameter adds additional headers to request. The default value is `{}`.
 custom_headers {"token":"secret"}
 ```
 
+### api_key
+
+This parameter adds authentication header. The default value is `nil`.
+
+```
+api_key "ElasticsearchAPIKEY"
+```
+
 ### Not seeing a config you need?
 
 We try to keep the scope of this plugin small and not add too many configuration options. If you think an option would be useful to others, feel free to open an issue or contribute a Pull Request.
@@ -1127,6 +1252,8 @@ And yet another option is described in Dynamic Configuration section.
 **Note**: If you use or evaluate Fluentd v0.14, you can use builtin placeholders. In more detail, please refer to [Placeholders](#placeholders) section.
 
 ### Dynamic configuration
+
+**NOTE**: *`out_elasticsearch_dynamic` will be planned to be marked as deprecated.* Please don't use the new Fluentd configuration. This plugin is maintained for backward compatibility.
 
 If you want configurations to depend on information in messages, you can use `elasticsearch_dynamic`. This is an experimental variation of the Elasticsearch plugin allows configuration values to be specified in ways such as the below:
 
@@ -1240,7 +1367,7 @@ Default value is `true`.
 
 Configure `bulk_message` request splitting threshold size.
 
-Default value is `20MB`. (20 * 1024 * 1024)
+Default value is `-1`(unlimited).
 
 If you specify this size as negative number, `bulk_message` request splitting feature will be disabled.
 
@@ -1292,6 +1419,63 @@ If it is set, timer for clearing `alias_indexes` and `template_names` caches wil
 
 Default value is `nil`.
 
+## use_legacy_template
+
+Use legacy template or not.
+
+For Elasticsearch 7.8 or later, users can specify this parameter as `false` if their [template_file](#template_file) contains a composable index template.
+
+For Elasticsearch 7.7 or older, users should specify this parameter as `true`.
+
+Composable template documentation is [Put Index Template API | Elasticsearch Reference](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-templates.html) and legacy template documentation is [Index Templates | Elasticsearch Reference](https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates-v1.html).
+
+Please confirm that whether the using Elasticsearch cluster(s) support the composable template feature or not when turn on the brand new feature with this parameter.
+
+## <metadata\> section
+
+Users can specify whether including `chunk_id` information into records or not:
+
+```aconf
+<match your.awesome.routing.tag>
+  @type elasticsearch
+  # Other configurations.
+  <metadata>
+    include_chunk_id true
+    # chunk_id_key chunk_id # Default value is "chunk_id".
+  </metadata>
+</match>
+```
+
+### include_chunk_id
+
+Whether including `chunk_id` for not. Default value is `false`.
+
+```aconf
+<match your.awesome.routing.tag>
+  @type elasticsearch
+  # Other configurations.
+  <metadata>
+    include_chunk_id true
+  </metadata>
+</match>
+```
+
+
+### chunk_id_key
+
+Specify `chunk_id_key` to store `chunk_id` information into records. Default value is `chunk_id`.
+
+```aconf
+<match your.awesome.routing.tag>
+  @type elasticsearch
+  # Other configurations.
+  <metadata>
+    include_chunk_id
+    chunk_id_key chunk_hex
+  </metadata>
+</match>
+```
+
 ## Configuration - Elasticsearch Input
 
 See [Elasticsearch Input plugin document](README.ElasticsearchInput.md)
@@ -1326,581 +1510,32 @@ features in the plugin configuration
 The list of privileges along with their description can be found in
 [security privileges](https://www.elastic.co/guide/en/elasticsearch/reference/current/security-privileges.html).
 
+## Configuration - Elasticsearch Output Data Stream
+
+Since Elasticsearch 7.9, Data Streams was introduced.
+
+You can enable this feature by specifying `@type elasticsearch_data_stream`.
+
+```
+@type elasticsearch_data_stream
+data_stream_name test
+```
+
+When `@type elasticsearch_data_stream` is used, ILM default policy is set to the specified data stream.
+Then, the matching index template is also created automatically.
+
+### data_stream_name
+
+You can specify Elasticsearch data stream name by this parameter.
+This parameter is mandatory for `elasticsearch_data_stream`.
+
+There are some limitations about naming rule.
+
+In more detail, please refer to the [Path parameters](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-create-data-stream.html#indices-create-data-stream-api-path-params).
+
 ## Troubleshooting
 
-### Cannot send events to Elasticsearch
-
-A common cause of failure is that you are trying to connect to an Elasticsearch instance with an incompatible version.
-
-For example, td-agent currently bundles the 6.x series of the [elasticsearch-ruby](https://github.com/elastic/elasticsearch-ruby) library. This means that your Elasticsearch server also needs to be 6.x. You can check the actual version of the client library installed on your system by executing the following command.
-
-```
-# For td-agent users
-$ /usr/sbin/td-agent-gem list elasticsearch
-# For standalone Fluentd users
-$ fluent-gem list elasticsearch
-```
-Or, fluent-plugin-elasticsearch v2.11.7 or later, users can inspect version incompatibility with the `validate_client_version` option:
-
-```
-validate_client_version true
-```
-
-If you get the following error message, please consider to install compatible elasticsearch client gems:
-
-```
-Detected ES 5 but you use ES client 6.1.0.
-Please consider to use 5.x series ES client.
-```
-
-For further details of the version compatibility issue, please read [the official manual](https://github.com/elastic/elasticsearch-ruby#compatibility).
-
-### Cannot see detailed failure log
-
-A common cause of failure is that you are trying to connect to an Elasticsearch instance with an incompatible ssl protocol version.
-
-For example, `out_elasticsearch` set up ssl_version to TLSv1 due to historical reason.
-Modern Elasticsearch ecosystem requests to communicate with TLS v1.2 or later.
-But, in this case, `out_elasticsearch` conceals transporter part failure log by default.
-If you want to acquire transporter log, please consider to set the following configuration:
-
-```
-with_transporter_log true
-@log_level debug
-```
-
-Then, the following log is shown in Fluentd log:
-
-```
-2018-10-24 10:00:00 +0900 [error]: #0 [Faraday::ConnectionFailed] SSL_connect returned=1 errno=0 state=SSLv2/v3 read server hello A: unknown protocol (OpenSSL::SSL::SSLError) {:host=>"elasticsearch-host", :port=>80, :scheme=>"https", :user=>"elastic", :password=>"changeme", :protocol=>"https"}
-```
-
-This indicates that inappropriate TLS protocol version is used.
-If you want to use TLS v1.2, please use `ssl_version` parameter like as:
-
-```
-ssl_version TLSv1_2
-```
-
-or, in v4.0.2 or later with Ruby 2.5 or later combination, the following congiuration is also valid:
-
-```
-ssl_max_version TLSv1_2
-ssl_min_version TLSv1_2
-```
-
-### Cannot connect TLS enabled reverse Proxy
-
-A common cause of failure is that you are trying to connect to an Elasticsearch instance behind nginx reverse proxy which uses an incompatible ssl protocol version.
-
-For example, `out_elasticsearch` set up ssl_version to TLSv1 due to historical reason.
-Nowadays, nginx reverse proxy uses TLS v1.2 or later for security reason.
-But, in this case, `out_elasticsearch` conceals transporter part failure log by default.
-
-If you set up nginx reverse proxy with TLS v1.2:
-
-```
-server {
-    listen <your IP address>:9400;
-    server_name <ES-Host>;
-    ssl on;
-    ssl_certificate /etc/ssl/certs/server-bundle.pem;
-    ssl_certificate_key /etc/ssl/private/server-key.pem;
-    ssl_client_certificate /etc/ssl/certs/ca.pem;
-    ssl_verify_client   on;
-    ssl_verify_depth    2;
-
-    # Reference : https://cipherli.st/
-    ssl_protocols TLSv1.2;
-    ssl_prefer_server_ciphers on;
-    ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH";
-    ssl_ecdh_curve secp384r1; # Requires nginx >= 1.1.0
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_tickets off; # Requires nginx >= 1.5.9
-    ssl_stapling on; # Requires nginx >= 1.3.7
-    ssl_stapling_verify on; # Requires nginx => 1.3.7
-    resolver 127.0.0.1 valid=300s;
-    resolver_timeout 5s;
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-
-    client_max_body_size 64M;
-    keepalive_timeout 5;
-
-    location / {
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_pass http://localhost:9200;
-    }
-}
-```
-
-Then, nginx reverse proxy starts with TLSv1.2.
-
-Fluentd suddenly dies with the following log:
-```
-Oct 31 9:44:45 <ES-Host> fluentd[6442]: log writing failed. execution expired
-Oct 31 9:44:45 <ES-Host> fluentd[6442]: /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/ssl_socket.rb:10:in `initialize': stack level too deep (SystemStackError)
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/connection.rb:429:in `new'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/connection.rb:429:in `socket'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/connection.rb:111:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/middlewares/mock.rb:48:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/middlewares/instrumentor.rb:26:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/middlewares/base.rb:16:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/middlewares/base.rb:16:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/excon-0.62.0/lib/excon/middlewares/base.rb:16:in `request_call'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:          ... 9266 levels...
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/td-agent/embedded/lib/ruby/site_ruby/2.4.0/rubygems/core_ext/kernel_require.rb:55:in `require'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/lib/ruby/gems/2.4.0/gems/fluentd-1.2.5/bin/fluentd:8:in `<top (required)>'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/bin/fluentd:22:in `load'
-Oct 31 9:44:45 <ES-Host> fluentd[6442]:         from /opt/fluentd/embedded/bin/fluentd:22:in `<main>'
-Oct 31 9:44:45 <ES-Host> systemd[1]: fluentd.service: Control process exited, code=exited status=1
-```
-
-If you want to acquire transporter log, please consider to set the following configuration:
-
-```
-with_transporter_log true
-@log_level debug
-```
-
-Then, the following log is shown in Fluentd log:
-
-```
-2018-10-31 10:00:57 +0900 [warn]: #7 [Faraday::ConnectionFailed] Attempt 2 connecting to {:host=>"<ES-Host>", :port=>9400, :scheme=>"https", :protocol=>"https"}
-2018-10-31 10:00:57 +0900 [error]: #7 [Faraday::ConnectionFailed] Connection reset by peer - SSL_connect (Errno::ECONNRESET) {:host=>"<ES-Host>", :port=>9400, :scheme=>"https", :protocol=>"https"}
-```
-
-The above logs indicates that using incompatible SSL/TLS version between fluent-plugin-elasticsearch and nginx, which is reverse proxy, is root cause of this issue.
-
-If you want to use TLS v1.2, please use `ssl_version` parameter like as:
-
-```
-ssl_version TLSv1_2
-```
-
-or, in v4.0.2 or later with Ruby 2.5 or later combination, the following congiuration is also valid:
-
-```
-ssl_max_version TLSv1_2
-ssl_min_version TLSv1_2
-```
-
-### Declined logs are resubmitted forever, why?
-
-Sometimes users write Fluentd configuration like this:
-
-```aconf
-<match **>
-  @type elasticsearch
-  host localhost
-  port 9200
-  type_name fluentd
-  logstash_format true
-  time_key @timestamp
-  include_timestamp true
-  reconnect_on_error true
-  reload_on_failure true
-  reload_connections false
-  request_timeout 120s
-</match>
-```
-
-The above configuration does not use [`@label` feature](https://docs.fluentd.org/v1.0/articles/config-file#(5)-group-filter-and-output:-the-%E2%80%9Clabel%E2%80%9D-directive) and use glob(**) pattern.
-It is usually problematic configuration.
-
-In error scenario, error events will be emitted with `@ERROR` label, and `fluent.*` tag.
-The black hole glob pattern resubmits a problematic event into pushing Elasticsearch pipeline.
-
-This situation causes flood of declined log:
-
-```log
-2018-11-13 11:16:27 +0000 [warn]: #0 dump an error event: error_class=Fluent::Plugin::ElasticsearchErrorHandler::ElasticsearchError error="400 - Rejected by Elasticsearch" location=nil tag="app.fluentcat" time=2018-11-13 11:16:17.492985640 +0000 record={"message"=>"\xFF\xAD"}
-2018-11-13 11:16:38 +0000 [warn]: #0 dump an error event: error_class=Fluent::Plugin::ElasticsearchErrorHandler::ElasticsearchError error="400 - Rejected by Elasticsearch" location=nil tag="fluent.warn" time=2018-11-13 11:16:27.978851140 +0000 record={"error"=>"#<Fluent::Plugin::ElasticsearchErrorHandler::ElasticsearchError: 400 - Rejected by Elasticsearch>", "location"=>nil, "tag"=>"app.fluentcat", "time"=>2018-11-13 11:16:17.492985640 +0000, "record"=>{"message"=>"\xFF\xAD"}, "message"=>"dump an error event: error_class=Fluent::Plugin::ElasticsearchErrorHandler::ElasticsearchError error=\"400 - Rejected by Elasticsearch\" location=nil tag=\"app.fluentcat\" time=2018-11-13 11:16:17.492985640 +0000 record={\"message\"=>\"\\xFF\\xAD\"}"}
-```
-
-Then, user should use more concrete tag route or use `@label`.
-The following sections show two examples how to solve flood of declined log.
-One is using concrete tag routing, the other is using label routing.
-
-#### Using concrete tag routing
-
-The following configuration uses concrete tag route:
-
-```aconf
-<match out.elasticsearch.**>
-  @type elasticsearch
-  host localhost
-  port 9200
-  type_name fluentd
-  logstash_format true
-  time_key @timestamp
-  include_timestamp true
-  reconnect_on_error true
-  reload_on_failure true
-  reload_connections false
-  request_timeout 120s
-</match>
-```
-
-#### Using label feature
-
-The following configuration uses label:
-
-```aconf
-<source>
-  @type forward
-  @label @ES
-</source>
-<label @ES>
-  <match out.elasticsearch.**>
-    @type elasticsearch
-    host localhost
-    port 9200
-    type_name fluentd
-    logstash_format true
-    time_key @timestamp
-    include_timestamp true
-    reconnect_on_error true
-    reload_on_failure true
-    reload_connections false
-    request_timeout 120s
-  </match>
-</label>
-<label @ERROR>
-  <match **>
-    @type stdout
-  </match>
-</label>
-```
-
-### Suggested to install typhoeus gem, why?
-
-fluent-plugin-elasticsearch doesn't depend on typhoeus gem by default.
-If you want to use typhoeus backend, you must install typhoeus gem by your own.
-
-If you use vanilla Fluentd, you can install it by:
-
-```
-gem install typhoeus
-```
-
-But, you use td-agent instead of vanilla Fluentd, you have to use `td-agent-gem`:
-
-```
-td-agent-gem install typhoeus
-```
-
-In more detail, please refer to [the official plugin management document](https://docs.fluentd.org/v1.0/articles/plugin-management).
-
-### Stopped to send events on k8s, why?
-
-fluent-plugin-elasticsearch reloads connection after 10000 requests. (Not correspond to events counts because ES plugin uses bulk API.)
-
-This functionality which is originated from elasticsearch-ruby gem is enabled by default.
-
-Sometimes this reloading functionality bothers users to send events with ES plugin.
-
-On k8s platform, users sometimes shall specify the following settings:
-
-```aconf
-reload_connections false
-reconnect_on_error true
-reload_on_failure true
-```
-
-If you use [fluentd-kubernetes-daemonset](https://github.com/fluent/fluentd-kubernetes-daemonset), you can specify them with environment variables:
-
-* `FLUENT_ELASTICSEARCH_RELOAD_CONNECTIONS` as `false`
-* `FLUENT_ELASTICSEARCH_RECONNECT_ON_ERROR` as `true`
-* `FLUENT_ELASTICSEARCH_RELOAD_ON_FAILURE` as `true`
-
-This issue had been reported at [#525](https://github.com/uken/fluent-plugin-elasticsearch/issues/525).
-
-### Random 400 - Rejected by Elasticsearch is occured, why?
-
-Index templates installed Elasticsearch sometimes generates 400 - Rejected by Elasticsearch errors.
-For example, kubernetes audit log has structure:
-
-```json
-"responseObject":{
-   "kind":"SubjectAccessReview",
-   "apiVersion":"authorization.k8s.io/v1beta1",
-   "metadata":{
-      "creationTimestamp":null
-   },
-   "spec":{
-      "nonResourceAttributes":{
-         "path":"/",
-         "verb":"get"
-      },
-      "user":"system:anonymous",
-      "group":[
-         "system:unauthenticated"
-      ]
-   },
-   "status":{
-      "allowed":true,
-      "reason":"RBAC: allowed by ClusterRoleBinding \"cluster-system-anonymous\" of ClusterRole \"cluster-admin\" to User \"system:anonymous\""
-   }
-},
-```
-
-The last element `status` sometimes becomes `"status":"Success"`.
-This element type glich causes status 400 error.
-
-There are some solutions for fixing this:
-
-#### Solution 1
-
-For a key which causes element type glich case.
-
-Using dymanic mapping with the following template:
-
-```json
-{
-  "template": "YOURINDEXNAME-*",
-  "mappings": {
-    "fluentd": {
-      "dynamic_templates": [
-        {
-          "default_no_index": {
-            "path_match": "^.*$",
-            "path_unmatch": "^(@timestamp|auditID|level|stage|requestURI|sourceIPs|metadata|objectRef|user|verb)(\\..+)?$",
-            "match_pattern": "regex",
-            "mapping": {
-              "index": false,
-              "enabled": false
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
-Note that `YOURINDEXNAME` should be replaced with your using index prefix.
-
-#### Solution 2
-
-For unstable `responseObject` and `requestObject` key existence case.
-
-```aconf
-<filter YOURROUTETAG>
-  @id kube_api_audit_normalize
-  @type record_transformer
-  auto_typecast false
-  enable_ruby true
-  <record>
-    host "#{ENV['K8S_NODE_NAME']}"
-    responseObject ${record["responseObject"].nil? ? "none": record["responseObject"].to_json}
-    requestObject ${record["requestObject"].nil? ? "none": record["requestObject"].to_json}
-    origin kubernetes-api-audit
-  </record>
-</filter>
-```
-
-Normalize `responseObject` and `requestObject` key with record_transformer and other similiar plugins is needed.
-
-### Fluentd seems to hang if it unable to connect Elasticsearch, why?
-
-On `#configure` phase, ES plugin should wait until ES instance communication is succeeded.
-And ES plugin blocks to launch Fluentd by default.
-Because Fluentd requests to set up configuration correctly on `#configure` phase.
-
-After `#configure` phase, it runs very fast and send events heavily in some heavily using case.
-
-In this scenario, we need to set up configuration correctly until `#configure` phase.
-So, we provide default parameter is too conservative to use advanced users.
-
-To remove too pessimistic behavior, you can use the following configuration:
-
-```aconf
-<match **>
-  @type elasticsearch
-  # Some advanced users know their using ES version.
-  # We can disable startup ES version checking.
-  verify_es_version_at_startup false
-  # If you know that your using ES major version is 7, you can set as 7 here.
-  default_elasticsearch_version 7
-  # If using very stable ES cluster, you can reduce retry operation counts. (minmum is 1)
-  max_retry_get_es_version 1
-  # If using very stable ES cluster, you can reduce retry operation counts. (minmum is 1)
-  max_retry_putting_template 1
-  # ... and some ES plugin configuration
-</match>
-```
-
-### Enable Index Lifecycle Management
-
-Index lifecycle management is template based index management feature.
-
-Main ILM feature parameters are:
-
-* `index_name` (when logstash_format as false)
-* `logstash_prefix` (when logstash_format as true)
-* `enable_ilm`
-* `ilm_policy_id`
-* `ilm_policy`
-
-* Advanced usage parameters
-  * `application_name`
-  * `index_separator`
-
-They are not all mandatory parameters but they are used for ILM feature in effect.
-
-ILM target index alias is created with `index_name` or an index which is calculated from `logstash_prefix`.
-
-From Elasticsearch plugin v4.0.0, ILM target index will be calculated from `index_name` (normal mode) or `logstash_prefix` (using with `logstash_format`as true).
-
-**NOTE:** Before Elasticsearch plugin v4.1.0, using `deflector_alias` parameter when ILM is enabled is permitted and handled, but, in the later releases such that 4.1.1 or later, it cannot use with when ILM is enabled.
-
-And also, ILM feature users should specify their Elasticsearch template for ILM enabled indices.
-Because ILM settings are injected into their Elasticsearch templates.
-
-`application_name` and `index_separator` also affect alias index names.
-
-But this parameter is prepared for advanced usage.
-
-It usually should be used with default value which is `default`.
-
-Then, ILM parameters are used in alias index like as:
-
-##### Simple `index_name` case:
-
-`<index_name><index_separator><application_name>-000001`.
-
-##### `logstash_format` as `true` case:
-
-`<logstash_prefix><logstash_prefix_separator><application_name><logstash_prefix_separator><logstash_dateformat>-000001`.
-
-#### Example ILM settings
-
-```aconf
-index_name fluentd-${tag}
-application_name ${tag}
-index_date_pattern "now/d"
-enable_ilm true
-# Policy configurations
-ilm_policy_id fluentd-policy
-# ilm_policy {} # Use default policy
-template_name your-fluentd-template
-template_file /path/to/fluentd-template.json
-# customize_template {"<<index_prefix>>": "fluentd"}
-```
-
-Note: This plugin only creates rollover-enabled indices, which are aliases pointing to them and index templates, and creates an ILM policy if enabled.
-
-#### Create ILM indices in each day
-
-If you want to create new index in each day, you should use `logstash_format` style configuration:
-
-```aconf
-logstash_prefix fluentd
-application_name default
-index_date_pattern "now/d"
-enable_ilm true
-# Policy configurations
-ilm_policy_id fluentd-policy
-# ilm_policy {} # Use default policy
-template_name your-fluentd-template
-template_file /path/to/fluentd-template.json
-```
-
-#### Fixed ILM indices
-
-Also, users can use fixed ILM indices configuration.
-If `index_date_pattern` is set as `""`(empty string), Elasticsearch plugin won't attach date pattern in ILM indices:
-
-```aconf
-index_name fluentd
-application_name default
-index_date_pattern ""
-enable_ilm true
-# Policy configurations
-ilm_policy_id fluentd-policy
-# ilm_policy {} # Use default policy
-template_name your-fluentd-template
-template_file /path/to/fluentd-template.json
-```
-
-### How to specify index codec
-
-Elasticsearch can handle compression methods for stored data such as LZ4 and best_compression.
-fluent-plugin-elasticsearch doesn't provide API which specifies compression method.
-
-Users can specify stored data compression method with template:
-
-Create `compression.json` as follows:
-
-```json
-{
-  "order": 100,
-  "index_patterns": [
-    "YOUR-INDEX-PATTERN"
-  ],
-  "settings": {
-    "index": {
-      "codec": "best_compression"
-    }
-  }
-}
-```
-
-Then, specify the above template in your configuration:
-
-```aconf
-template_name best_compression_tmpl
-template_file compression.json
-```
-
-Elasticsearch will store data with `best_compression`:
-
-```
-% curl -XGET 'http://localhost:9200/logstash-2019.12.06/_settings?pretty'
-```
-
-```json
-{
-  "logstash-2019.12.06" : {
-    "settings" : {
-      "index" : {
-        "codec" : "best_compression",
-        "number_of_shards" : "1",
-        "provided_name" : "logstash-2019.12.06",
-        "creation_date" : "1575622843800",
-        "number_of_replicas" : "1",
-        "uuid" : "THE_AWESOMEUUID",
-        "version" : {
-          "created" : "7040100"
-        }
-      }
-    }
-  }
-}
-```
-
-### Cannot push logs to Elasticsearch with connect_write timeout reached, why?
-
-It seems that Elasticsearch cluster is exhausted.
-
-Usually, Fluentd complains like the following log:
-
-```log
-2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=27.283766102716327 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
-2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=26.161768959928304 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
-2019-12-29 00:23:33 +0000 [warn]: buffer flush took longer time than slow_flush_log_threshold: elapsed_time=28.713624476008117 slow_flush_log_threshold=15.0 plugin_id="object:aaaffaaaaaff"
-2019-12-29 01:39:18 +0000 [warn]: Could not push logs to Elasticsearch, resetting connection and trying again. connect_write timeout reached
-2019-12-29 01:39:18 +0000 [warn]: Could not push logs to Elasticsearch, resetting connection and trying again. connect_write timeout reached
-```
-
-This warnings is usually caused by exhaused Elasticsearch cluster due to resource shortage.
-
-If CPU usage is spiked and Elasticsearch cluster is eating up CPU resource, this issue is caused by CPU resource shortage.
-
-Check your Elasticsearch cluster health status and resource usage.
+See [Troubleshooting document](README.Troubleshooting.md)
 
 ## Contact
 
@@ -1924,4 +1559,7 @@ Install dev dependencies:
 $ gem install bundler
 $ bundle install
 $ bundle exec rake test
+# To just run the test you are working on:
+$ bundle exec rake test TEST=test/plugin/test_out_elasticsearch.rb TESTOPTS='--verbose --name=test_custom_template_with_rollover_index_create_and_custom_ilm'
+
 ```

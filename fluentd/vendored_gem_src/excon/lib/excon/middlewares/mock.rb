@@ -25,7 +25,7 @@ module Excon
             raise Excon::Errors::InvalidStub.new("Request body should be a string or an IO object. #{datum[:body].class} provided")
           end
 
-          if stub = Excon.stub_for(datum)
+          if (stub = Excon.stub_for(datum))
             datum[:remote_ip] ||= '127.0.0.1'
             datum[:response] = {
               :body       => '',
@@ -41,7 +41,7 @@ module Excon
               stub.last
             end
 
-            datum[:response].merge!(stub_datum.reject {|key,value| key == :headers})
+            datum[:response].merge!(stub_datum.reject {|key,_| key == :headers})
             if stub_datum.has_key?(:headers)
               datum[:response][:headers].merge!(stub_datum[:headers])
             end
