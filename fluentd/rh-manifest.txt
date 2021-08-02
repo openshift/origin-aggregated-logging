@@ -21,7 +21,7 @@ jemalloc 5.2.1 https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jema
 jmespath 1.4.0 http://github.com/trevorrowe/jmespath.rb
 jsonpath 1.0.5 https://github.com/joshbuddy/jsonpath
 ltsv 0.1.2 https://github.com/condor/ltsv
-rubygem-addressable 2.7.0 https://github.com/sporkmonger/addressable
+rubygem-addressable 2.8.0 https://github.com/sporkmonger/addressable
 rubygem-bigdecimal 3.0.0 https://github.com/ruby/bigdecimal
 rubygem-concurrent-ruby 1.1.6 http://www.concurrent-ruby.com
 rubygem-connection_pool 2.2.3 https://github.com/mperham/connection_pool
@@ -57,7 +57,7 @@ rubygem-net-http-persistent 3.1.0 http://docs.seattlerb.org/net-http-persistent
 rubygem-netrc 0.11.0 https://github.com/geemus/netrc
 rubygem-oj 3.11.3 http://www.ohler.com/oj
 rubygem-prometheus-client 0.9.0 https://github.com/prometheus/client_ruby
-rubygem-public_suffix 4.0.5 https://simonecarletti.com/code/publicsuffix-ruby
+rubygem-public_suffix 4.0.6 https://simonecarletti.com/code/publicsuffix-ruby
 rubygem-quantile 0.2.1 http://github.com/matttproud/ruby_quantile_estimation
 rubygem-rake 13.0.1 https://github.com/ruby/rake
 rubygem-recursive-open-struct 1.1.2 https://github.com/aetherknight/recursive-open-struct

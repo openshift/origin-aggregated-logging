@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.files = ["lib/aws-eventstream.rb".freeze, "lib/aws-eventstream/decoder.rb".freeze, "lib/aws-eventstream/encoder.rb".freeze, "lib/aws-eventstream/errors.rb".freeze, "lib/aws-eventstream/header_value.rb".freeze, "lib/aws-eventstream/message.rb".freeze, "lib/aws-eventstream/types.rb".freeze]
   s.homepage = "https://github.com/aws/aws-sdk-ruby".freeze
   s.licenses = ["Apache-2.0".freeze]
-  s.rubygems_version = "3.1.4".freeze
+  s.rubygems_version = "3.0.9".freeze
   s.summary = "AWS Event Stream Library".freeze
 end
 
