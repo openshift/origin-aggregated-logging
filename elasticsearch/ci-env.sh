@@ -19,6 +19,9 @@ if [[ "${OPENSHIFT_CI:-}" == "true" ]]; then
     # export INGEST_PLUGIN_URL=https://github.com/lukas-vlcek/elasticsearch-openshift-ingest-plugin/releases/download/v$INGEST_PLUGIN_VER/openshift-ingest-plugin-$INGEST_PLUGIN_VER.zip
 
     PROMETHEUS_EXPORTER_VER=$(echo $PROMETHEUS_EXPORTER_VER | cut -d'-' -f1)
-    export PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+    # Specific releases of this plugin were not (unfortunately) pushed to upstream but are released in different repo.
+    # Versions with non-upstream releases: [6.8.1.1]
+    export PROMETHEUS_EXPORTER_URL=https://github.com/lukas-vlcek/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+    # export PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
 fi
 es_plugins=($OPENDISTRO_URL $PROMETHEUS_EXPORTER_URL $INGEST_PLUGIN_URL)
