@@ -79,7 +79,7 @@ module Excon
 
       setup_proxy
 
-      if  ENV.has_key?('EXCON_STANDARD_INSTRUMENTOR')
+      if ENV.has_key?('EXCON_STANDARD_INSTRUMENTOR')
         @data[:instrumentor] = Excon::StandardInstrumentor
       end
 
@@ -115,7 +115,7 @@ module Excon
           # we already have data from a middleware, so bail
           return datum
         else
-          socket.data = datum
+          socket(datum).data = datum
           # start with "METHOD /path"
           request = datum[:method].to_s.upcase + ' '
           if datum[:proxy] && datum[:scheme] != HTTPS
@@ -144,35 +144,25 @@ module Excon
           end
 
           # add headers to request
-          datum[:headers].each do |key, values|
-            if key.to_s.match(/[\r\n]/)
-              raise Excon::Errors::InvalidHeaderKey.new(key.to_s.inspect + ' contains forbidden "\r" or "\n"')
-            end
-            [values].flatten.each do |value|
-              if value.to_s.match(/[\r\n]/)
-                raise Excon::Errors::InvalidHeaderValue.new(value.to_s.inspect + ' contains forbidden "\r" or "\n"')
-              end
-              request << key.to_s << ': ' << value.to_s << CR_NL
-            end
-          end
+          request << Utils.headers_hash_to_s(datum[:headers])
 
           # add additional "\r\n" to indicate end of headers
           request << CR_NL
 
           if datum.has_key?(:request_block)
-            socket.write(request) # write out request + headers
+            socket(datum).write(request) # write out request + headers
             while true # write out body with chunked encoding
               chunk = datum[:request_block].call
               chunk = binary_encode(chunk)
               if chunk.length > 0
-                socket.write(chunk.length.to_s(16) << CR_NL << chunk << CR_NL)
+                socket(datum).write(chunk.length.to_s(16) << CR_NL << chunk << CR_NL)
               else
-                socket.write(String.new("0#{CR_NL}#{CR_NL}"))
+                socket(datum).write(String.new("0#{CR_NL}#{CR_NL}"))
                 break
               end
             end
           elsif body.nil?
-            socket.write(request) # write out request + headers
+            socket(datum).write(request) # write out request + headers
           else # write out body
             if body.respond_to?(:binmode) && !body.is_a?(StringIO)
               body.binmode
@@ -186,13 +176,13 @@ module Excon
             chunk = body.read([datum[:chunk_size] - request.length, 0].max)
             if chunk
               chunk = binary_encode(chunk)
-              socket.write(request << chunk)
+              socket(datum).write(request << chunk)
             else
-              socket.write(request) # write out request + headers
+              socket(datum).write(request) # write out request + headers
             end
 
-            while chunk = body.read(datum[:chunk_size])
-              socket.write(chunk)
+            while (chunk = body.read(datum[:chunk_size]))
+              socket(datum).write(chunk)
             end
           end
         end
@@ -252,6 +242,12 @@ module Excon
         datum[:headers]['Host']   ||= datum[:host] + port_string(datum)
       end
 
+      # RFC 7230, section 5.4, states that the Host header SHOULD be the first one # to be present.
+      # Some web servers will reject the request if it comes too late, so let's hoist it to the top.
+      if (host = datum[:headers].delete('Host'))
+        datum[:headers] = { 'Host' => host }.merge(datum[:headers])
+      end
+
       # if path is empty or doesn't start with '/', insert one
       unless datum[:path][0, 1] == '/'
         datum[:path] = datum[:path].dup.insert(0, '/')
@@ -282,7 +278,7 @@ module Excon
         @persistent_socket_reusable = true
 
         if datum[:persistent]
-          if key = datum[:response][:headers].keys.detect {|k| k.casecmp('Connection') == 0 }
+          if (key = datum[:response][:headers].keys.detect {|k| k.casecmp('Connection') == 0 })
             if datum[:response][:headers][key].casecmp('close') == 0
               reset
             end
@@ -322,7 +318,7 @@ module Excon
       end
 
       if @data[:persistent]
-        if key = responses.last[:headers].keys.detect {|k| k.casecmp('Connection') == 0 }
+        if (key = responses.last[:headers].keys.detect {|k| k.casecmp('Connection') == 0 })
           if responses.last[:headers][key].casecmp('close') == 0
             reset
           end
@@ -350,7 +346,7 @@ module Excon
     end
 
     def reset
-      if old_socket = sockets.delete(@socket_key)
+      if (old_socket = sockets.delete(@socket_key))
         old_socket.close rescue nil
       end
       @persistent_socket_reusable = true
@@ -457,26 +453,27 @@ module Excon
       end
     end
 
-    def socket
-      unix_proxy = @data[:proxy] ? @data[:proxy][:scheme] == UNIX : false
-      sockets[@socket_key] ||= if @data[:scheme] == UNIX || unix_proxy
-        Excon::UnixSocket.new(@data)
-      elsif @data[:ssl_uri_schemes].include?(@data[:scheme])
-        Excon::SSLSocket.new(@data)
+    def socket(datum = @data)
+      unix_proxy = datum[:proxy] ? datum[:proxy][:scheme] == UNIX : false
+      sockets[@socket_key] ||= if datum[:scheme] == UNIX || unix_proxy
+        Excon::UnixSocket.new(datum)
+      elsif datum[:ssl_uri_schemes].include?(datum[:scheme])
+        Excon::SSLSocket.new(datum)
       else
-        Excon::Socket.new(@data)
+        Excon::Socket.new(datum)
       end
     end
 
     def sockets
       @_excon_sockets ||= {}
+      @_excon_sockets.compare_by_identity
 
       if @data[:thread_safe_sockets]
         # In a multi-threaded world, if the same connection is used by multiple
         # threads at the same time to connect to the same destination, they may
         # stomp on each other's sockets.  This ensures every thread gets their
         # own socket cache, within the context of a single connection.
-        @_excon_sockets[Thread.current.object_id] ||= {}
+        @_excon_sockets[Thread.current] ||= {}
       else
         @_excon_sockets
       end
@@ -565,6 +562,9 @@ module Excon
         end
         if uri.user
           @data[:proxy][:user] = uri.user
+        end
+        if @data[:ssl_proxy_headers] && !@data[:ssl_uri_schemes].include?(@data[:scheme])
+          raise ArgumentError, "The `:ssl_proxy_headers` parameter should only be used with HTTPS requests."
         end
         if @data[:proxy][:scheme] == UNIX
           if @data[:proxy][:host]

@@ -12,6 +12,11 @@ module Excon
       # create ssl context
       ssl_context = OpenSSL::SSL::SSLContext.new
 
+      # set the security level before setting other parameters affected by it
+      if @data[:ssl_security_level]
+        ssl_context.security_level = @data[:ssl_security_level]
+      end
+
       # disable less secure options, when supported
       ssl_context_options = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:options]
       if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
@@ -39,13 +44,13 @@ module Excon
         # turn verification on
         ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
-        if ca_file = @data[:ssl_ca_file] || ENV['SSL_CERT_FILE']
+        if (ca_file = @data[:ssl_ca_file] || ENV['SSL_CERT_FILE'])
           ssl_context.ca_file = ca_file
         end
-        if ca_path = @data[:ssl_ca_path] || ENV['SSL_CERT_DIR']
+        if (ca_path = @data[:ssl_ca_path] || ENV['SSL_CERT_DIR'])
           ssl_context.ca_path = ca_path
         end
-        if cert_store = @data[:ssl_cert_store]
+        if (cert_store = @data[:ssl_cert_store])
           ssl_context.cert_store = cert_store
         end
 
@@ -65,13 +70,16 @@ module Excon
           end
         end
 
-        if verify_callback = @data[:ssl_verify_callback]
+        if (verify_callback = @data[:ssl_verify_callback])
           ssl_context.verify_callback = verify_callback
         end
       else
         # turn verification off
         ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
       end
+
+      # Verify certificate hostname if supported (ruby >= 2.4.0)
+      ssl_context.verify_hostname = @data[:ssl_verify_hostname] if ssl_context.respond_to?(:verify_hostname=)
 
       if client_cert_data && client_key_data
         ssl_context.cert = OpenSSL::X509::Certificate.new client_cert_data
@@ -100,6 +108,10 @@ module Excon
         end
 
         request += "Proxy-Connection: Keep-Alive#{Excon::CR_NL}"
+
+        if @data[:ssl_proxy_headers]
+          request << Utils.headers_hash_to_s(@data[:ssl_proxy_headers])
+        end
 
         request += Excon::CR_NL
 
@@ -142,18 +154,16 @@ module Excon
       if @data[:ssl_verify_peer]
         @socket.post_connection_check(@data[:ssl_verify_peer_host] || @data[:host])
       end
-
-      @socket
     end
 
     private
 
     def client_cert_data
-      @client_cert_data ||= if ccd = @data[:client_cert_data]
+      @client_cert_data ||= if (ccd = @data[:client_cert_data])
                               ccd
-                            elsif path = @data[:client_cert]
+                            elsif (path = @data[:client_cert])
                               File.read path
-                            elsif path = @data[:certificate_path]
+                            elsif (path = @data[:certificate_path])
                               warn ":certificate_path is no longer supported and will be deprecated. Please use :client_cert or :client_cert_data"
                               File.read path
                             end
@@ -166,11 +176,11 @@ module Excon
     end
 
     def client_key_data
-      @client_key_data ||= if ckd = @data[:client_key_data]
+      @client_key_data ||= if (ckd = @data[:client_key_data])
                              ckd
-                           elsif path = @data[:client_key]
+                           elsif (path = @data[:client_key])
                              File.read path
-                           elsif path = @data[:private_key_path]
+                           elsif (path = @data[:private_key_path])
                              warn ":private_key_path is no longer supported and will be deprecated. Please use :client_key or :client_key_data"
                              File.read path
                            end

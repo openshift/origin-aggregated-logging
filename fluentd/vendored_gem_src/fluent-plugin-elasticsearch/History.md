@@ -2,6 +2,77 @@
 
 ### [Unreleased]
 
+### 5.0.5
+- Drop json_parse_exception messages for bulk failures (#900)
+- GitHub Actions: Drop Ruby 2.5 due to EOL (#894)
+
+### 5.0.4
+- test: out_elasticsearch: Remove a needless headers from affinity stub (#888)
+- Target Index Affinity (#883)
+
+### 5.0.3
+- Fix use_legacy_template documentation (#880)
+- Add FAQ for dynamic index/template (#878)
+- Handle IPv6 address string on host and hosts parameters (#877)
+
+### 5.0.2
+- GitHub Actions: Tweak Ruby versions on test (#875)
+- test: datastreams: Set nonexistent datastream as default (#874)
+- Fix overwriting of index template and index lifecycle policy on existing data streams (#872)
+
+### 5.0.1
+- Use elasticsearch/api instead of elasticsearch/xpack (#870)
+
+### 5.0.0
+- Support #retry_operate on data stream (#863)
+- Support placeholder in @data\_stream\_name for @type elasticsearch\_data\_stream (#862)
+- Extract troubleshooting section (#861)
+- Fix unmatched `<source>` close tag (#860)
+- Initial support for Elasticsearch Data Stream (#859)
+
+### 4.3.3
+- Handle invalid Elasticsearch::Client#info response (#855)
+
+### 4.3.2
+- Use log.debug to dump ES 8.x _type information (#852)
+
+### 4.3.1
+- Unsplit huge records by default (#851)
+
+### 4.3.0
+- Add cloud_id & cloud_auth settings (#850)
+- Fix failing tests on es6 client (#848)
+- feat: retry on transport errors (#846)
+- fix typo (#838)
+- Remove unnecessary nil check (#826)
+
+### 4.2.2
+- Remove unnecessary nil check (#826)
+- Fix ILM rollover index template pattern to apply index_separator (#825)
+- Fix ILM rollover alias creation when a placeholder is used in index_name (#823)
+- Add a note about the pitfalls of per-date indexes used with ILM (#822)
+
+### 4.2.1
+- Update a broken link (#821)
+- Include chunk_id in records (#820)
+- Fix a failing testcase (#818)
+
+### 4.2.0
+- ci: Add Ruby 2.7 jobs (#812)
+- Support Elasticsearch new style template (#810)
+
+### 4.1.4
+- ElasticsearchGenID update docs for hash_type (#809)
+- Handle api key header (#808)
+- index_template: Handle error object entirely on index creation failure (#807)
+
+### 4.1.3
+- Load multiple templates even if template_name and template_file given (#799)
+- Handle elasticsearch-ruby 7.9.0 using HTTP method changes (#795)
+
+### 4.1.2
+- Use Hash#dig instead of Hash#[] on retrieving version information from Elasticsearch info API (#793)
+
 ### 4.1.1
 - Correct ILM explain on logstash_format case (#786)
 

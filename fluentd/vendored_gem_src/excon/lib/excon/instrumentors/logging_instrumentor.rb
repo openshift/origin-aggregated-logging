@@ -3,7 +3,7 @@ require 'logger'
 module Excon
   class LoggingInstrumentor
 
-    def self.instrument(name, params = {}, &block)
+    def self.instrument(name, params = {})
       params = params.dup
 
       logger = params[:logger] || Logger.new($stderr)
@@ -40,7 +40,7 @@ module Excon
         end
       end
 
-      logger.log(Logger::INFO, info) if info
+      logger.info(info) if info
 
       yield if block_given?
     end
