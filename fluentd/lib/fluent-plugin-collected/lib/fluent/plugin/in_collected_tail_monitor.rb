@@ -114,15 +114,15 @@ module Fluent::Plugin
         namespace = path_match_data['namespace'],
         containername = path_match_data['container_name'],
         dockerid = path_match_data['docker_id']
-
-        @log.debug "path #{path}, namespace #{namespace}, podname #{podname},containername #{containername}"
+        
+        @log.debug "path #{path}, namespace #{namespace}, podname #{podname[0]},containername #{containername}"
 
         @base_labels.merge(
         plugin_id: plugin_info["plugin_id"],
         type: plugin_info["type"],
         path: path,
         namespace: namespace,
-        podname: podname,
+        podname: podname[0],
         containername: containername,
       )
       else
@@ -130,6 +130,9 @@ module Fluent::Plugin
         plugin_id: plugin_info["plugin_id"],
         type: plugin_info["type"],
         path: path,
+        namespace: "notfound",
+        podname: "notfound",
+        containername: "notfound",
         )
       end
     end
