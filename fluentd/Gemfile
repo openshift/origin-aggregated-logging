@@ -19,6 +19,7 @@ gem 'fluent-plugin-label-router'
 gem 'typhoeus'
 gem 'oj'
 gem 'bigdecimal'
+gem 'addressable', '2.8.0'
 
 #Below gem(and two of its dependencies) are moved to O_A_L/fluentd/lib, but its dependencies still exist in O_A_L/fluentd/vendored_gem_src/
 #gem 'fluent-plugin-remote_syslog', '1.0.0'
