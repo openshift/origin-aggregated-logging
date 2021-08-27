@@ -156,14 +156,14 @@ function test_user_has_proper_access() {
         exit 1
     fi
 
-    # verify normal user has no access to .operations
-    os::log::info See if user $user is denied /.operations.*
+    # verify normal user has no access to infra
+    os::log::info See if user $user is denied /infra*
     get_test_user_token $user $pw false
-    nrecs=$( curl_es_pod_from_kibana_with_token $kpod $eshost "/.operations.*/_count" $test_token -XPOST | \
+    nrecs=$( curl_es_pod_from_kibana_with_token $kpod $eshost "/infra*/_count" $test_token -XPOST | \
                  get_count_from_json )
     if ! os::cmd::expect_success "test $nrecs = 0" ; then
-        os::log::error $LOG_NORMAL_USER has improper access to .operations.* indices
-        curl_es_pod_from_kibana_with_token $kpod $eshost "/.operations.*/_count" $test_token -XPOST | python -mjson.tool
+        os::log::error $LOG_NORMAL_USER has improper access to infra* indices
+        curl_es_pod_from_kibana_with_token $kpod $eshost "/infra*/_count" $test_token -XPOST | python -mjson.tool
         exit 1
     fi
 }
