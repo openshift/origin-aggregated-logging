@@ -232,7 +232,7 @@ EOF
 function get_test_user_token() {
     local current_project; current_project="$( oc project -q )"
     create_users ${1:-${LOG_ADMIN_USER:-admin}} ${2:-${LOG_ADMIN_PW:-admin}} ${3:-true}
-    oc login --username=${1:-${LOG_ADMIN_USER:-admin}} --password=${2:-${LOG_ADMIN_PW:-admin}} > /dev/null
+    oc login --username="${1:-${LOG_ADMIN_USER:-admin}}" --password="${2:-${LOG_ADMIN_PW:-admin}}" > /dev/null
     test_token="$(oc whoami -t)"
     test_name="$(oc whoami)"
     test_ip="127.0.0.1"
