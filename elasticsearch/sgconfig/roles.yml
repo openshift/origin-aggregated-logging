@@ -129,7 +129,7 @@ sg_project_operations:
         - indices:admin/validate/query*
         - indices:admin/get*
 
-# To support multi-tenancy. User's access to indices is restricted to indices belonging to the user's projects, enforced by DLS.    
+# To support multi-tenancy. User's access to indices is restricted to indices belonging to the user's projects, enforced by DLS.
 project_user:
   readonly: true
   cluster:
@@ -154,8 +154,7 @@ admin_user:
   indices:
     '*':
       '*':
-        - READ
-        - INDICES_MONITOR
+        - INDICES_ALL
     '?kibana_*':
       '*':
         - CRUD
