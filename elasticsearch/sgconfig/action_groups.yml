@@ -41,6 +41,7 @@ READ:
   - "indices:data/read*"
   - "indices:admin/mappings/fields/get*"
   - "indices:admin/mappings/get"
+  - "indices:data/read/search"
 
 DELETE:
   - "indices:data/write/delete*"
@@ -96,6 +97,7 @@ INDEX_PROJECT:
 
 METRICS:
   - CLUSTER_MONITOR
+  - SEARCH
 USER_ALL_INDEX_OPS:
   - "indices:data/read/field_caps"
 USER_CLUSTER_OPERATIONS:
@@ -124,6 +126,7 @@ CLUSTER_COMPOSITE_OPS_RO:
   - "indices:data/read/coordinate-msearch*"
   - "indices:data/read/field_caps"
   - "indices:data/read/mget"
+  - "indices:data/read/search"
   - "indices:data/read/msearch"
   - "indices:data/read/mtv"
   - "indices:data/read/scroll*"
