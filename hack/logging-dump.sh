@@ -263,14 +263,17 @@ get_elasticsearch_status() {
   fi
   local cluster_folder=$es_folder/cluster-$comp
   mkdir $cluster_folder
-  curl_es='curl -s --max-time 5 --key /etc/elasticsearch/secret/admin-key --cert /etc/elasticsearch/secret/admin-cert --cacert /etc/elasticsearch/secret/admin-ca https://localhost:9200'
+  curl_es='curl -s --max-time 20 --key /etc/elasticsearch/secret/admin-key --cert /etc/elasticsearch/secret/admin-cert --cacert /etc/elasticsearch/secret/admin-ca https://localhost:9200'
   local cat_items=(health nodes aliases thread_pool)
   for cat_item in ${cat_items[@]}
   do
-    oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
+    oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/${cat_item}.cat
   done
-  oc exec -c elasticsearch $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices
+  oc exec -c elasticsearch $pod -- $curl_es/_nodes/hot_threads &> $cluster_folder/hot_threads.txt
+  oc exec -c elasticsearch $pod -- $curl_es/_cat/indices?v\&bytes=m &> $cluster_folder/indices.cat
+  oc exec -c elasticsearch $pod -- $curl_es/_cat/indices?h=i,creation.date,creation.date.string,store.size,pri.store.size > $cluster_folder/indices_size.cat
   oc exec -c elasticsearch $pod -- $curl_es/_search?sort=@timestamp:desc\&pretty > $cluster_folder/latest_documents.json
+  oc exec -c elasticsearch $pod -- $curl_es/_nodes/?pretty > $cluster_folder/nodes_state.json
   oc exec -c elasticsearch $pod -- $curl_es/_nodes/stats?pretty > $cluster_folder/nodes_stats.json
   local health=$(oc exec -c elasticsearch $pod -- $curl_es/_cat/health?h=status)
   if [ -z "$health" ]
@@ -282,9 +285,9 @@ get_elasticsearch_status() {
     cat_items=(recovery shards pending_tasks)
     for cat_item in ${cat_items[@]}
     do
-      oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/$cat_item
+      oc exec -c elasticsearch $pod -- $curl_es/_cat/$cat_item?v &> $cluster_folder/${cat_item}.cat
     done
-    oc exec -c elasticsearch $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards
+    oc exec -c elasticsearch $pod -- $curl_es/_cat/shards?h=index,shard,prirep,state,unassigned.reason,unassigned.description | grep UNASSIGNED &> $cluster_folder/unassigned_shards.cat
   fi
 }
 

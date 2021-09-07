@@ -47,29 +47,35 @@ Examples:
     │   └── <logging-kibana-ops-pod>-kibana-proxy
     ├── es
     │   ├── cluster-es
-    |   │   ├── aliases
-    |   │   ├── health
-    |   │   ├── indices
+    |   │   ├── aliases.cat
+    |   │   ├── health.cat
+    |   │   ├── hot_threads.txt
+    |   │   ├── indices.cat
+    |   │   ├── indices_size.cat
     |   │   ├── latest_documents.json
-    |   │   ├── nodes
-    |   │   ├── nodes_stats
-    |   │   ├── thread_pool    
-    |   │   ├── pending_tasks
-    |   │   ├── recovery
-    |   │   ├── shards
-    |   │   └── unassigned_shards
+    |   │   ├── nodes.cat
+    |   │   ├── nodes_state.json
+    |   │   ├── nodes_stats.json
+    |   │   ├── thread_pool.cat    
+    |   │   ├── pending_tasks.cat      (iff cluster health not green)
+    |   │   ├── recovery.cat           (iff cluster health not green)
+    |   │   ├── shards.cat             (iff cluster health not green)
+    |   │   └── unassigned_shards.cat  (iff cluster health not green)
     │   ├── cluster-es-ops
-    |   │   ├── aliases
-    |   │   ├── health
-    |   │   ├── indices
+    |   │   ├── aliases.cat
+    |   │   ├── health.cat
+    |   │   ├── hot_threads.txt
+    |   │   ├── indices.cat
+    |   │   ├── indices_size.cat
     |   │   ├── latest_documents.json
-    |   │   ├── nodes
-    |   │   ├── nodes_stats
-    |   │   ├── thread_pool
-    |   │   ├── pending_tasks
-    |   │   ├── recovery
-    |   │   ├── shards
-    |   │   └── unassigned_shards
+    |   │   ├── nodes.cat
+    |   │   ├── nodes_state.json
+    |   │   ├── nodes_stats.json
+    |   │   ├── thread_pool.cat
+    |   │   ├── pending_tasks.cat      (iff cluster health not green)
+    |   │   ├── recovery.cat           (iff cluster health not green)
+    |   │   ├── shards.cat             (iff cluster health not green)
+    |   │   └── unassigned_shards.cat  (iff cluster health not green)
     │   ├── logs
     │   │   ├── <logging-es-pod-1>/logging-es_deprecation.log.xz
     │   │   ├── <logging-es-pod-1>/logging-es_indexing_slowlog.log.xz
