@@ -3,10 +3,7 @@
 #@follow_tag(openshift-ose-base:ubi8.nodejs.10)
 FROM registry.ci.openshift.org/ocp/builder:ubi8.nodejs.10
 
-ENV BUILD_VERSION=${CI_CONTAINER_VERSION:-}
-ENV OS_GIT_MAJOR=${CI_X_VERSION:-}
-ENV OS_GIT_MINOR=${CI_Y_VERSION:-}
-ENV OS_GIT_PATCH=${CI_Z_VERSION:-}
+ENV BUILD_VERSION=6.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
 
@@ -36,7 +33,7 @@ LABEL \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
         io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
         io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
-        version=${CI_CONTAINER_VERSION}
+        version=v6.8.1
 ARG LOCAL_REPO
 
 USER 0

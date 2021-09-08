@@ -3,10 +3,7 @@
 #@follow_tag(openshift-ose-base:ubi8.ruby.25)
 FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25
 
-ENV BUILD_VERSION=${CI_CONTAINER_VERSION:-}
-ENV OS_GIT_MAJOR=${CI_X_VERSION:-}
-ENV OS_GIT_MINOR=${CI_Y_VERSION:-}
-ENV OS_GIT_PATCH=${CI_Z_VERSION:-}
+ENV BUILD_VERSION=1.7.4
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
 
@@ -22,7 +19,7 @@ LABEL \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
         io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
         io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        version=${CI_CONTAINER_VERSION}
+        version=v1.7.4
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
