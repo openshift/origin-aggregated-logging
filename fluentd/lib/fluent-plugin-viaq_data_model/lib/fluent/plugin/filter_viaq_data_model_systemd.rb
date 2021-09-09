@@ -96,7 +96,7 @@ module ViaqDataModelFilterSystemd
     unless systemd_k.empty?
       (record['systemd'] ||= {})['k'] = systemd_k
     end
-    record['level'] = normalize_level(record['level'], nil, record['PRIORITY'])
+    normalize_level!(record, record['PRIORITY'])
     JOURNAL_TIME_FIELDS.each do |field|
       if (val = record[field])
         vali = val.to_i

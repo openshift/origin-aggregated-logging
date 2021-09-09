@@ -52,6 +52,22 @@ class ViaqDataModelFilterTest < Test::Unit::TestCase
       assert_equal('time', d.instance.src_time_name)
       assert_equal('@timestamp', d.instance.dest_time_name)
     end
+    test 'check levels' do 
+      d = create_driver('
+        <level>
+          name warn
+          match "Warning"
+        </level>
+        <level>
+          name info
+          match "Info"
+        </level>
+      ')
+      assert_equal(
+        /^.*(?<l0_warn>Warning)|(?<l1_info>Info).*$/,
+        d.instance.level_matcher
+      )
+    end
     test 'check various settings' do
       d = create_driver('
         default_keep_fields a,b,c
