@@ -51,6 +51,8 @@ GEM
       fluentd (>= 0.14.15)
     fluent-plugin-concat (2.4.0)
       fluentd (>= 0.14.0, < 2)
+    fluent-plugin-detect-exceptions (0.0.14)
+      fluentd (>= 0.10)
     fluent-plugin-elasticsearch (5.0.5)
       elasticsearch
       excon
@@ -176,6 +178,7 @@ DEPENDENCIES
   ffi (= 1.11.3)
   fluent-plugin-cloudwatch-logs
   fluent-plugin-concat
+  fluent-plugin-detect-exceptions (= 0.0.14)
   fluent-plugin-elasticsearch
   fluent-plugin-grafana-loki
   fluent-plugin-kafka

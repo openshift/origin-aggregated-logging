@@ -14,17 +14,15 @@ Gem::Specification.new do |s|
   s.files = ["LICENSE.md".freeze, "Readme.md".freeze, "changelog.txt".freeze, "data/default_only.netrc".freeze, "data/login.netrc".freeze, "data/newlineless.netrc".freeze, "data/password.netrc".freeze, "data/permissive.netrc".freeze, "data/sample.netrc".freeze, "data/sample_multi.netrc".freeze, "data/sample_multi_with_default.netrc".freeze, "data/sample_with_default.netrc".freeze, "lib/netrc.rb".freeze, "test/test_lex.rb".freeze, "test/test_netrc.rb".freeze, "test/test_parse.rb".freeze]
   s.homepage = "https://github.com/geemus/netrc".freeze
   s.licenses = ["MIT".freeze]
-  s.rubygems_version = "3.0.9".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "Library to read and write netrc files.".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_development_dependency(%q<minitest>.freeze, [">= 0"])
-    else
-      s.add_dependency(%q<minitest>.freeze, [">= 0"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_development_dependency(%q<minitest>.freeze, [">= 0"])
   else
     s.add_dependency(%q<minitest>.freeze, [">= 0"])
   end
