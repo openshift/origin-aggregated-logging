@@ -100,6 +100,7 @@ COPY  ${upstream_code}/lib/filter_parse_json_field/lib/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/filter_elasticsearch_genid_ext/lib/filter_elasticsearch_genid_ext.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/parser_viaq_host_audit/lib/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/lib/fluent-plugin-viaq_data_model/lib/fluent/plugin/*.rb /etc/fluent/plugin/
+COPY  ${upstream_code}/lib/formatter-single-json-value/lib/*.rb /etc/fluent/plugin/
 COPY  ${upstream_code}/utils/ /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/configs.d/user && \    
