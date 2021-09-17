@@ -51,9 +51,21 @@ if [[ "$CONTAINER_MEM_LIMIT" =~ $regex ]]; then
         warn "Downgrading the CONTAINER_MEM_LIMIT to $(($num / BYTES_PER_MEG))m because ${CONTAINER_MEM_LIMIT} will result in a larger heap then recommended."
     fi
 
+
+    #check cgroup version
+    info "Inspecting cgroup version..."
+    if [ -r "/sys/fs/cgroup/cgroup.controllers" ]; then
+        #cgroup v2
+        info "Detected cgroup v2"
+        mem_file="/sys/fs/cgroup/memory.max"
+    else
+        #cgroup v1
+        info "Detected cgroup v1"
+        mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
+    fi
+
     #determine max allowable memory
     info "Inspecting the maximum RAM available..."
-    mem_file="/sys/fs/cgroup/memory/memory.limit_in_bytes"
     if [ -r "${mem_file}" ]; then
         max_mem="$(cat ${mem_file})"
         if [ ${max_mem} -lt ${num} ]; then
