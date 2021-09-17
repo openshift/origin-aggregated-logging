@@ -20,20 +20,6 @@ ENV BUILD_VERSION=5.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
 
-LABEL \
-        License="GPLv2+" \
-        io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
-        io.k8s.display-name="Curator 5" \
-        io.openshift.tags="logging,elk,elasticsearch,curator" \
-        vendor="Red Hat" \
-        name="openshift/ose-logging-curator5" \
-        com.redhat.component="logging-curator5-container" \
-        io.openshift.maintainer.product="OpenShift Container Platform" \
-        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
-        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        version=v5.8.1
-
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ENV HOME=/opt/app-root/src \
@@ -70,3 +56,17 @@ RUN pip install $(ls . | grep -v curator) -q --no-index --find-links . && \
 WORKDIR ${HOME}
 USER 1001
 CMD ["sh", "run.sh"]
+
+LABEL \
+        License="GPLv2+" \
+        io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
+        io.k8s.display-name="Curator 5" \
+        io.openshift.tags="logging,elk,elasticsearch,curator" \
+        vendor="Red Hat" \
+        name="openshift-logging/logging-curator5-rhel8" \
+        com.redhat.component="logging-curator5-container" \
+        io.openshift.maintainer.product="OpenShift Container Platform" \
+        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
+        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
+        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
+        version=v5.8.1

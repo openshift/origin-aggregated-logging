@@ -21,19 +21,6 @@ ENV ELASTICSEARCH_URL=https://elasticsearch.openshift-logging.svc.cluster.local:
     NODE_ENV=production \
     NODE_PATH=/usr/bin
 
-LABEL \
-        License="GPLv2+" \
-        io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
-        io.k8s.display-name="Kibana" \
-        io.openshift.tags="logging,elk,kibana" \
-        vendor="Red Hat" \
-        name="openshift/ose-logging-kibana6" \
-        com.redhat.component="logging-kibana6-container" \
-        io.openshift.maintainer.product="OpenShift Container Platform" \
-        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
-        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
-        version=v6.8.1
 ARG LOCAL_REPO
 
 USER 0
@@ -57,4 +44,18 @@ RUN bin/kibana --optimize
 
 WORKDIR ${HOME}
 CMD ["./run.sh"]
+
+LABEL \
+        License="GPLv2+" \
+        io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
+        io.k8s.display-name="Kibana" \
+        io.openshift.tags="logging,elk,kibana" \
+        vendor="Red Hat" \
+        name="openshift-logging/kibana6-rhel8" \
+        com.redhat.component="logging-kibana6-container" \
+        io.openshift.maintainer.product="OpenShift Container Platform" \
+        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
+        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
+        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
+        version=v6.8.1
 

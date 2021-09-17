@@ -7,20 +7,6 @@ ENV BUILD_VERSION=1.7.4
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
 
-LABEL \
-        License="GPLv2+" \
-        io.k8s.description="Fluentd container for collecting of container logs" \
-        io.k8s.display-name="Fluentd" \
-        io.openshift.tags="logging,elk,fluentd" \
-        vendor="Red Hat" \
-        name="openshift/ose-logging-fluentd" \
-        com.redhat.component="logging-fluentd-container" \
-        io.openshift.maintainer.product="OpenShift Container Platform" \
-        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
-        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        version=v1.7.4
-
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ARG DATA_VERSION_VALUE=1.6.0
@@ -105,4 +91,18 @@ RUN mkdir -p /etc/fluent/configs.d/user && \
 
 WORKDIR ${HOME}
 CMD ["sh", "run.sh"]
+
+LABEL \
+        License="GPLv2+" \
+        io.k8s.description="Fluentd container for collecting of container logs" \
+        io.k8s.display-name="Fluentd" \
+        io.openshift.tags="logging,elk,fluentd" \
+        vendor="Red Hat" \
+        name="openshift-logging/fluentd-rhel8" \
+        com.redhat.component="logging-fluentd-container" \
+        io.openshift.maintainer.product="OpenShift Container Platform" \
+        io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
+        io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
+        io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
+        version=v1.7.4
 
