@@ -45,7 +45,7 @@ USER 1001
 CMD ["sh", "run.sh"]
 
 LABEL \
-        License="GPLv2+" \
+        License="Apache-2.0" \
         io.k8s.description="Curator elasticsearch container for elasticsearch deletion/archival" \
         io.k8s.display-name="Curator 5" \
         io.openshift.tags="logging,elk,elasticsearch,curator" \

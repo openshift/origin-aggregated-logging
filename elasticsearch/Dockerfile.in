@@ -100,7 +100,7 @@ USER 1000
 CMD ["sh", "/opt/app-root/src/run.sh"]
 
 LABEL \
-        License="GPLv2+" \
+        License="Apache-2.0" \
         io.k8s.description="Elasticsearch container for EFK aggregated logging storage" \
         io.k8s.display-name="Elasticsearch 6" \
         io.openshift.tags="logging,elk,elasticsearch" \

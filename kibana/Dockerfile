@@ -46,7 +46,7 @@ WORKDIR ${HOME}
 CMD ["./run.sh"]
 
 LABEL \
-        License="GPLv2+" \
+        License="Apache-2.0" \
         io.k8s.description="Kibana container for querying Elasticsearch for aggregated logs" \
         io.k8s.display-name="Kibana" \
         io.openshift.tags="logging,elk,kibana" \
