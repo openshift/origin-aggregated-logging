@@ -94,7 +94,7 @@ WORKDIR ${HOME}
 CMD ["sh", "run.sh"]
 
 LABEL \
-        License="GPLv2+" \
+        License="Apache-2.0" \
         io.k8s.description="Fluentd container for collecting of container logs" \
         io.k8s.display-name="Fluentd" \
         io.openshift.tags="logging,elk,fluentd" \
