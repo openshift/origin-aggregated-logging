@@ -1,7 +1,8 @@
 ### This is a generated file from Dockerfile.in ###
 
-#@follow_tag(openshift-ose-base:ubi8.python.36)
+#@follow_tag(registry.redhat.io/ubi8/python-36:latest)
 FROM registry.ci.openshift.org/ocp/builder:ubi8.python.36
+
 
 ENV BUILD_VERSION=5.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
