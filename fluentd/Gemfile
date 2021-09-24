@@ -25,5 +25,5 @@ gem 'bigdecimal'
 #gem 'fluent-plugin-remote_syslog', '1.0.0'
 
 gem 'ffi', '1.11.3'
-gem 'uuidtools', '2.1.5'
+gem 'uuidtools'
 gem 'rake'

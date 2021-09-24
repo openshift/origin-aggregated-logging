@@ -222,7 +222,7 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.8)
-    uuidtools (2.1.5)
+    uuidtools (2.2.0)
     validate_email (0.1.6)
       activemodel (>= 3.0)
       mail (>= 2.2.5)
@@ -263,7 +263,7 @@ DEPENDENCIES
   oj
   rake
   typhoeus
-  uuidtools (= 2.1.5)
+  uuidtools
 
 BUNDLED WITH
    1.17.3

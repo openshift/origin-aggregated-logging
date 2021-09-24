@@ -91,7 +91,7 @@ rubygem-tzinfo 2.0.4 https://tzinfo.github.io
 rubygem-tzinfo-data 1.2021.1 https://tzinfo.github.io
 rubygem-unf 0.1.4 https://github.com/knu/ruby-unf
 rubygem-unf_ext 0.0.8 https://github.com/knu/ruby-unf_ext
-rubygem-uuidtools 2.1.5 https://github.com/sporkmonger/uuidtools
+rubygem-uuidtools 2.2.0 https://github.com/sporkmonger/uuidtools
 rubygem-webrick 1.7.0 https://github.com/ruby/webrick
 rubygem-yajl-ruby 1.4.1 http://github.com/brianmario/yajl-ruby
 rubygem-zeitwerk 2.4.2 https://github.com/fxn/zeitwerk

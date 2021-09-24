@@ -94,7 +94,7 @@ describe UUIDTools::UUID, "when parsing" do
   it "should produce a sane hash value for a UUID" do
     uuid = UUIDTools::UUID.new(0, 0, 0, 0, 0, [0, 0, 0, 0, 0, 0])
     expect(uuid.to_i).to eql(0)
-    expect(uuid.hash).to be_kind_of(Fixnum)
+    expect(uuid.hash).to be_kind_of(Integer)
   end
 
   it "should produce the correct URI for a UUID" do
@@ -124,5 +124,24 @@ describe UUIDTools::UUID, "when parsing" do
     )).to be_nil_uuid
     uuid = UUIDTools::UUID.timestamp_create
     expect(UUIDTools::UUID.parse_hexdigest(uuid.hexdigest)).to eql(uuid)
+  end
+
+  it "should correctly parse raw bytes" do
+    # NOTE: Short Input
+    expect(UUIDTools::UUID.new(0, 0, 0, 0, 0, [0, 0, 0, 0, 0, 0])).to eql(
+      UUIDTools::UUID.parse_raw(""))
+
+    # NOTE: Nil Input
+    expect(UUIDTools::UUID.parse_raw(
+      "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    )).to be_nil_uuid
+
+    # NOTE: Realistic Input
+    uuid = UUIDTools::UUID.timestamp_create
+    expect(UUIDTools::UUID.parse_raw(uuid.raw)).to eql(uuid)
+
+    # NOTE: Long input
+    raw192bit = "\1\2\3\4\5\6\7\8" + uuid.raw
+    expect(UUIDTools::UUID.parse_raw(raw192bit)).to eql(uuid)
   end
 end
