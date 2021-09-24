@@ -255,12 +255,12 @@ update_images_in_clo_yaml() {
 }
 
 wait_for_logging_is_running() {
-    # we expect a fluentd running on each node
+    # we expect a collector running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
     echo INFO: Expecting $expectedcollectors collector to start
     # we expect $nodeCount elasticsearch pods
     es_ready="false"
-    fluent_ready="false"
+    collector_ready="false"
     kibana_ready="false"
     wait_func() {
         result=0
@@ -286,14 +286,14 @@ wait_for_logging_is_running() {
                 export kibana_ready="true"
             fi
         fi
-        local actualcollectors=$( oc -n ${LOGGING_NS} get pods -l component=fluentd 2> /dev/null | grep -c "fluentd.*Running" )
+        local actualcollectors=$( oc -n ${LOGGING_NS} get pods -l 'component in (collector,fluentd)' 2> /dev/null | grep -c ".*Running" )
         if [ $expectedcollectors -ne ${actualcollectors:-0} ] ; then
-            echo WARN: ${actualcollectors:-0} of $expectedcollectors fluentd Running
+            echo WARN: ${actualcollectors:-0} of $expectedcollectors collectors Running
             result=1
         else
-            if [ "$fluent_ready" != "true" ] ; then
+            if [ "$collector_ready" != "true" ] ; then
                 echo INFO: Collectors are Running
-                export fluent_ready="true"
+                export collector_ready="true"
             fi
         fi
         # if we got here, everything is as it should be
@@ -525,8 +525,10 @@ if [ -n "${LOGGING_IMAGE_PULL_POLICY:-}" ] ; then
         if ! oc get deploy/kibana > /dev/null 2>&1 ; then
             return 1
         fi
-        if ! oc get ds/fluentd > /dev/null 2>&1 ; then
+        if ! oc get ds/collector > /dev/null 2>&1 ; then
+          if ! oc get ds/fluentd > /dev/null 2>&1 ; then
             return 1
+          fi
         fi
         if ! oc get cronjob/curator > /dev/null 2>&1 ; then
             return 1
