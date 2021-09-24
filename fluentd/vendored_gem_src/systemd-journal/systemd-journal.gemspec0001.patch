@@ -1,0 +1,20 @@
+diff --git a/fluentd/.Gemfile.swp b/fluentd/.Gemfile.swp
+deleted file mode 100644
+index 508b85c15..000000000
+Binary files a/fluentd/.Gemfile.swp and /dev/null differ
+diff --git a/fluentd/vendored_gem_src/systemd-journal/systemd-journal.gemspec b/fluentd/vendored_gem_src/systemd-journal/systemd-journal.gemspec
+index 0c5cb761f..dab2624d6 100644
+--- a/fluentd/vendored_gem_src/systemd-journal/systemd-journal.gemspec
++++ b/fluentd/vendored_gem_src/systemd-journal/systemd-journal.gemspec
+@@ -15,11 +15,6 @@ Gem::Specification.new do |gem|
+ 
+   gem.cert_chain    = Dir['certs/john@throttle.io.pem']
+ 
+-  if $PROGRAM_NAME.end_with?('gem')
+-    gem.signing_key = ENV['GEM_SIGNING_KEY']
+-    raise ArgumentError, 'Please set GEM_SIGNING_KEY' if gem.signing_key.nil?
+-  end
+-
+   gem.files         = `git ls-files`.split($/)
+   gem.executables   = gem.files.grep(%r{^bin/}).map { |f| File.basename(f) }
+   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
