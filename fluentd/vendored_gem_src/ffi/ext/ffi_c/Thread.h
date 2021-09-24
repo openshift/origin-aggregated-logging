@@ -30,12 +30,7 @@
 #ifndef RBFFI_THREAD_H
 #define	RBFFI_THREAD_H
 
-#ifndef _MSC_VER
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdbool.h>
 #include <ruby.h>
 #include "extconf.h"
 
@@ -66,9 +61,6 @@ typedef struct rbffi_frame {
     struct thread_data* td;
 #endif
     struct rbffi_frame* prev;
-#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
-    bool has_gvl;
-#endif
     VALUE exc;
 } rbffi_frame_t;
 

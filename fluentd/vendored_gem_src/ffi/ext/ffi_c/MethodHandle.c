@@ -34,13 +34,8 @@
 # include <sys/mman.h>
 #endif
 #include <stdio.h>
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdint.h"
-# include "win32/stdbool.h"
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #ifndef _WIN32
 # include <unistd.h>
 #endif
@@ -67,9 +62,6 @@
 
 #ifndef roundup
 #  define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-#endif
-#ifdef _WIN32
-  typedef char* caddr_t;
 #endif
 
 #ifdef USE_RAW
@@ -120,23 +112,19 @@ rbffi_MethodHandle_Free(MethodHandle* handle)
 {
     if (handle != NULL) {
         rbffi_Closure_Free(handle->closure);
+        xfree(handle);
     }
 }
 
-void*
-rbffi_MethodHandle_CodeAddress(MethodHandle* handle)
+rbffi_function_anyargs rbffi_MethodHandle_CodeAddress(MethodHandle* handle)
 {
-    return handle->closure->code;
+    return (rbffi_function_anyargs) handle->closure->code;
 }
 
 #ifndef CUSTOM_TRAMPOLINE
 static void attached_method_invoke(ffi_cif* cif, void* retval, METHOD_PARAMS parameters, void* user_data);
 
-static ffi_type* methodHandleParamTypes[] = {
-    &ffi_type_sint,
-    &ffi_type_pointer,
-    &ffi_type_ulong,
-};
+static ffi_type* methodHandleParamTypes[3];
 
 static ffi_cif mh_cif;
 
@@ -148,10 +136,10 @@ prep_trampoline(void* ctx, void* code, Closure* closure, char* errmsg, size_t er
 #if defined(USE_RAW)
     ffiStatus = ffi_prep_raw_closure(code, &mh_cif, attached_method_invoke, closure);
 #else
-    ffiStatus = ffi_prep_closure(code, &mh_cif, attached_method_invoke, closure);
+    ffiStatus = ffi_prep_closure_loc(closure->pcl, &mh_cif, attached_method_invoke, closure, code);
 #endif
     if (ffiStatus != FFI_OK) {
-        snprintf(errmsg, errmsgsize, "ffi_prep_closure failed.  status=%#x", ffiStatus);
+        snprintf(errmsg, errmsgsize, "ffi_prep_closure_loc failed.  status=%#x", ffiStatus);
         return false;
     }
 
@@ -237,7 +225,7 @@ custom_trampoline(int argc, VALUE* argv, VALUE self, Closure* handle)
 
 #elif defined(__i386__) && 0
 
-static VALUE custom_trampoline(caddr_t args, Closure*);
+static VALUE custom_trampoline(void *args, Closure*);
 #define TRAMPOLINE_CTX_MAGIC (0xfee1dead)
 #define TRAMPOLINE_FUN_MAGIC (0xbeefcafe)
 
@@ -269,7 +257,7 @@ __asm__(
 );
 
 static VALUE
-custom_trampoline(caddr_t args, Closure* handle)
+custom_trampoline(void *args, Closure* handle)
 {
     FunctionType* fnInfo = (FunctionType *) handle->info;
     return (*fnInfo->invoke)(*(int *) args, *(VALUE **) (args + 4), handle->function, fnInfo);
@@ -286,10 +274,10 @@ static long trampoline_ctx_offset, trampoline_func_offset;
 static long
 trampoline_offset(int off, const long value)
 {
-    caddr_t ptr;
-    for (ptr = (caddr_t) &ffi_trampoline + off; ptr < (caddr_t) &ffi_trampoline_end; ++ptr) {
+    char *ptr;
+    for (ptr = (char *) &ffi_trampoline + off; ptr < (char *) &ffi_trampoline_end; ++ptr) {
         if (*(long *) ptr == value) {
-            return ptr - (caddr_t) &ffi_trampoline;
+            return ptr - (char *) &ffi_trampoline;
         }
     }
 
@@ -315,12 +303,10 @@ trampoline_offsets(long* ctxOffset, long* fnOffset)
 static bool
 prep_trampoline(void* ctx, void* code, Closure* closure, char* errmsg, size_t errmsgsize)
 {
-    caddr_t ptr = (caddr_t) code;
-
-    memcpy(ptr, &ffi_trampoline, trampoline_size());
+    memcpy(code, (void*) &ffi_trampoline, trampoline_size());
     /* Patch the context and function addresses into the stub code */
-    *(intptr_t *)(ptr + trampoline_ctx_offset) = (intptr_t) closure;
-    *(intptr_t *)(ptr + trampoline_func_offset) = (intptr_t) custom_trampoline;
+    *(intptr_t *)((char*)code + trampoline_ctx_offset) = (intptr_t) closure;
+    *(intptr_t *)((char*)code + trampoline_func_offset) = (intptr_t) custom_trampoline;
 
     return true;
 }
@@ -328,7 +314,7 @@ prep_trampoline(void* ctx, void* code, Closure* closure, char* errmsg, size_t er
 static long
 trampoline_size(void)
 {
-    return (caddr_t) &ffi_trampoline_end - (caddr_t) &ffi_trampoline;
+    return (char *) &ffi_trampoline_end - (char *) &ffi_trampoline;
 }
 
 #endif /* CUSTOM_TRAMPOLINE */
@@ -348,6 +334,10 @@ rbffi_MethodHandle_Init(VALUE module)
         rb_raise(rb_eFatal, "Could not locate offsets in trampoline code");
     }
 #else
+    methodHandleParamTypes[0] = &ffi_type_sint;
+    methodHandleParamTypes[1] = &ffi_type_pointer;
+    methodHandleParamTypes[2] = &ffi_type_ulong;
+
     ffiStatus = ffi_prep_cif(&mh_cif, FFI_DEFAULT_ABI, 3, &ffi_type_ulong,
             methodHandleParamTypes);
     if (ffiStatus != FFI_OK) {

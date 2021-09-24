@@ -34,13 +34,8 @@
 #endif
 #include <sys/types.h>
 #include <stdio.h>
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <ruby.h>
 #include <ruby/thread.h>
@@ -315,7 +310,6 @@ rbffi_SetupCallParams(int argc, VALUE* argv, int paramCount, Type** paramTypes,
 
 
             case NATIVE_FUNCTION:
-            case NATIVE_CALLBACK:
                 if (callbackProc != Qnil) {
                     param->ptr = callback_param(callbackProc, callbackParameters[cbidx++]);
                 } else {
@@ -339,13 +333,7 @@ static void *
 call_blocking_function(void* data)
 {
     rbffi_blocking_call_t* b = (rbffi_blocking_call_t *) data;
-#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
-    b->frame->has_gvl = false;
-#endif
     ffi_call(&b->cif, FFI_FN(b->function), b->retval, b->ffiValues);
-#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
-    b->frame->has_gvl = true;
-#endif
 
     return NULL;
 }
@@ -353,7 +341,7 @@ call_blocking_function(void* data)
 VALUE
 rbffi_do_blocking_call(VALUE data)
 {
-    rb_thread_call_without_gvl(call_blocking_function, (void*)data, (void *) -1, NULL);
+    rb_thread_call_without_gvl(call_blocking_function, (void*)data, (rb_unblock_function_t *) -1, NULL);
 
     return Qnil;
 }

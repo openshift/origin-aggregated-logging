@@ -31,12 +31,9 @@
 #include <sys/types.h>
 #ifndef _MSC_VER
 # include <sys/param.h>
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
 #endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <ruby.h>
 #include "rbffi.h"
 #include "compat.h"
@@ -90,7 +87,7 @@ struct_allocate(VALUE klass)
 {
     Struct* s;
     VALUE obj = Data_Make_Struct(klass, Struct, struct_mark, struct_free, s);
-    
+
     s->rbPointer = Qnil;
     s->rbLayout = Qnil;
 
@@ -112,7 +109,7 @@ struct_initialize(int argc, VALUE* argv, VALUE self)
     int nargs;
 
     Data_Get_Struct(self, Struct, s);
-    
+
     nargs = rb_scan_args(argc, argv, "01*", &rbPointer, &rest);
 
     /* Call up into ruby code to adjust the layout */
@@ -127,7 +124,7 @@ struct_initialize(int argc, VALUE* argv, VALUE self)
     }
 
     Data_Get_Struct(s->rbLayout, StructLayout, s->layout);
-    
+
     if (rbPointer != Qnil) {
         s->pointer = MEMORY(rbPointer);
         s->rbPointer = rbPointer;
@@ -148,16 +145,16 @@ struct_initialize_copy(VALUE self, VALUE other)
 {
     Struct* src;
     Struct* dst;
-    
+
     Data_Get_Struct(self, Struct, dst);
     Data_Get_Struct(other, Struct, src);
     if (dst == src) {
         return self;
     }
-    
+
     dst->rbLayout = src->rbLayout;
     dst->layout = src->layout;
-    
+
     /*
      * A new MemoryPointer instance is allocated here instead of just calling
      * #dup on rbPointer, since the Pointer may not know its length, or may
@@ -176,7 +173,7 @@ struct_initialize_copy(VALUE self, VALUE other)
         dst->rbReferences = ALLOC_N(VALUE, dst->layout->referenceFieldCount);
         memcpy(dst->rbReferences, src->rbReferences, dst->layout->referenceFieldCount * sizeof(VALUE));
     }
-        
+
     return self;
 }
 
@@ -279,24 +276,25 @@ store_reference_value(StructField* f, Struct* s, VALUE value)
 }
 
 
-static VALUE
+static StructField *
 struct_field(Struct* s, VALUE fieldName)
 {
     StructLayout* layout = s->layout;
-    VALUE rbField;
+    struct field_cache_entry *p_ce = FIELD_CACHE_LOOKUP(layout, fieldName);
 
-    if (likely(SYMBOL_P(fieldName) && st_lookup(layout->fieldSymbolTable, fieldName, (st_data_t *) &rbField))) {
-        return rbField;
+    /* Do a hash lookup only if cache entry is empty or fieldName is unexpected? */
+    if (unlikely(!SYMBOL_P(fieldName) || !p_ce->fieldName || p_ce->fieldName != fieldName)) {
+        VALUE rbField = rb_hash_aref(layout->rbFieldMap, fieldName);
+        if (unlikely(NIL_P(rbField))) {
+            VALUE str = rb_funcall2(fieldName, id_to_s, 0, NULL);
+            rb_raise(rb_eArgError, "No such field '%s'", StringValueCStr(str));
+        }
+        /* Write the retrieved coder to the cache */
+        p_ce->fieldName = fieldName;
+        p_ce->field = (StructField *) DATA_PTR(rbField);
     }
 
-    // TODO does this ever return anything?
-    rbField = rb_hash_aref(layout->rbFieldMap, fieldName);
-    if (rbField == Qnil) {
-        VALUE str = rb_funcall2(fieldName, id_to_s, 0, NULL);
-        rb_raise(rb_eArgError, "No such field '%s'", StringValuePtr(str));
-    }
-
-    return rbField;
+    return p_ce->field;
 }
 
 /*
@@ -308,22 +306,19 @@ static VALUE
 struct_aref(VALUE self, VALUE fieldName)
 {
     Struct* s;
-    VALUE rbField;
     StructField* f;
 
     s = struct_validate(self);
 
-    rbField = struct_field(s, fieldName);
-    f = (StructField *) DATA_PTR(rbField);
-
+    f = struct_field(s, fieldName);
     if (f->get != NULL) {
         return (*f->get)(f, s);
-    
+
     } else if (f->memoryOp != NULL) {
         return (*f->memoryOp->get)(s->pointer, f->offset);
 
     } else {
-    
+        VALUE rbField = rb_hash_aref(s->layout->rbFieldMap, fieldName);
         /* call up to the ruby code to fetch the value */
         return rb_funcall2(rbField, id_get, 1, &s->rbPointer);
     }
@@ -340,22 +335,20 @@ static VALUE
 struct_aset(VALUE self, VALUE fieldName, VALUE value)
 {
     Struct* s;
-    VALUE rbField;
     StructField* f;
-
 
     s = struct_validate(self);
 
-    rbField = struct_field(s, fieldName);
-    f = (StructField *) DATA_PTR(rbField);
+    f = struct_field(s, fieldName);
     if (f->put != NULL) {
         (*f->put)(f, s, value);
 
     } else if (f->memoryOp != NULL) {
 
         (*f->memoryOp->put)(s->pointer, f->offset, value);
-    
+
     } else {
+        VALUE rbField = rb_hash_aref(s->layout->rbFieldMap, fieldName);
         /* call up to the ruby code to set the value */
         VALUE argv[2];
         argv[0] = s->rbPointer;
@@ -366,7 +359,7 @@ struct_aset(VALUE self, VALUE fieldName, VALUE value)
     if (f->referenceRequired) {
         store_reference_value(f, s, value);
     }
-    
+
     return value;
 }
 
@@ -389,7 +382,7 @@ struct_set_pointer(VALUE self, VALUE pointer)
         return Qnil;
     }
 
-    
+
     Data_Get_Struct(self, Struct, s);
     Data_Get_Struct(pointer, AbstractMemory, memory);
     layout = struct_layout(self);
@@ -398,7 +391,7 @@ struct_set_pointer(VALUE self, VALUE pointer)
         rb_raise(rb_eArgError, "memory of %ld bytes too small for struct %s (expected at least %ld)",
                 memory->size, rb_obj_classname(self), (long) layout->base.ffiType->size);
     }
-    
+
     s->pointer = MEMORY(pointer);
     s->rbPointer = pointer;
     rb_ivar_set(self, id_pointer_ivar, pointer);
@@ -491,7 +484,7 @@ struct_order(int argc, VALUE* argv, VALUE self)
         VALUE retval = rb_obj_dup(self);
         VALUE rbPointer = rb_funcall2(s->rbPointer, rb_intern("order"), argc, argv);
         struct_set_pointer(retval, rbPointer);
-        
+
         return retval;
     }
 }
@@ -527,7 +520,7 @@ static VALUE
 inline_array_initialize(VALUE self, VALUE rbMemory, VALUE rbField)
 {
     InlineArray* array;
-    
+
     Data_Get_Struct(self, InlineArray, array);
     array->rbMemory = rbMemory;
     array->rbField = rbField;
@@ -536,12 +529,12 @@ inline_array_initialize(VALUE self, VALUE rbMemory, VALUE rbField)
     Data_Get_Struct(rbField, StructField, array->field);
     Data_Get_Struct(array->field->rbType, ArrayType, array->arrayType);
     Data_Get_Struct(array->arrayType->rbComponentType, Type, array->componentType);
-    
+
     array->op = get_memory_op(array->componentType);
     if (array->op == NULL && array->componentType->nativeType == NATIVE_MAPPED) {
         array->op = get_memory_op(((MappedType *) array->componentType)->type);
     }
-    
+
     array->length = array->arrayType->length;
 
     return self;
@@ -585,15 +578,15 @@ inline_array_aref(VALUE self, VALUE rbIndex)
     Data_Get_Struct(self, InlineArray, array);
 
     if (array->op != NULL) {
-        VALUE rbNativeValue = array->op->get(array->memory, 
+        VALUE rbNativeValue = array->op->get(array->memory,
                 inline_array_offset(array, NUM2INT(rbIndex)));
         if (unlikely(array->componentType->nativeType == NATIVE_MAPPED)) {
-            return rb_funcall(((MappedType *) array->componentType)->rbConverter, 
+            return rb_funcall(((MappedType *) array->componentType)->rbConverter,
                     rb_intern("from_native"), 2, rbNativeValue, Qnil);
         } else {
-            return rbNativeValue; 
+            return rbNativeValue;
         }
-        
+
     } else if (array->componentType->nativeType == NATIVE_STRUCT) {
         VALUE rbOffset = INT2NUM(inline_array_offset(array, NUM2INT(rbIndex)));
         VALUE rbLength = INT2NUM(array->componentType->ffiType->size);
@@ -622,12 +615,12 @@ inline_array_aset(VALUE self, VALUE rbIndex, VALUE rbValue)
 
     if (array->op != NULL) {
         if (unlikely(array->componentType->nativeType == NATIVE_MAPPED)) {
-            rbValue = rb_funcall(((MappedType *) array->componentType)->rbConverter, 
+            rbValue = rb_funcall(((MappedType *) array->componentType)->rbConverter,
                     rb_intern("to_native"), 2, rbValue, Qnil);
         }
         array->op->put(array->memory, inline_array_offset(array, NUM2INT(rbIndex)),
             rbValue);
-        
+
     } else if (array->componentType->nativeType == NATIVE_STRUCT) {
         int offset = inline_array_offset(array, NUM2INT(rbIndex));
         Struct* s;
@@ -665,11 +658,11 @@ static VALUE
 inline_array_each(VALUE self)
 {
     InlineArray* array;
-    
+
     int i;
 
     Data_Get_Struct(self, InlineArray, array);
-    
+
     for (i = 0; i < array->length; ++i) {
         rb_yield(inline_array_aref(self, INT2FIX(i)));
     }
@@ -692,7 +685,7 @@ inline_array_to_a(VALUE self)
     Data_Get_Struct(self, InlineArray, array);
     obj = rb_ary_new2(array->length);
 
-    
+
     for (i = 0; i < array->length; ++i) {
         rb_ary_push(obj, inline_array_aref(self, INT2FIX(i)));
     }
@@ -713,7 +706,7 @@ inline_array_to_s(VALUE self)
     VALUE argv[2];
 
     Data_Get_Struct(self, InlineArray, array);
- 
+
     if (array->componentType->nativeType != NATIVE_INT8 && array->componentType->nativeType != NATIVE_UINT8) {
         VALUE dummy = Qnil;
         return rb_call_super(0, &dummy);
@@ -734,7 +727,7 @@ static VALUE
 inline_array_to_ptr(VALUE self)
 {
     InlineArray* array;
-    
+
     Data_Get_Struct(self, InlineArray, array);
 
     return rb_funcall(array->rbMemory, rb_intern("slice"), 2,
@@ -778,7 +771,7 @@ rbffi_Struct_Init(VALUE moduleFFI)
     /*
      * Document-class: FFI::StructLayout::CharArray < FFI::Struct::InlineArray
      */
-    rbffi_StructLayoutCharArrayClass = rb_define_class_under(rbffi_StructLayoutClass, "CharArray", 
+    rbffi_StructLayoutCharArrayClass = rb_define_class_under(rbffi_StructLayoutClass, "CharArray",
                                                              rbffi_StructInlineArrayClass);
     rb_global_variable(&rbffi_StructLayoutCharArrayClass);
 
@@ -787,7 +780,7 @@ rbffi_Struct_Init(VALUE moduleFFI)
     rb_define_method(StructClass, "initialize", struct_initialize, -1);
     rb_define_method(StructClass, "initialize_copy", struct_initialize_copy, 1);
     rb_define_method(StructClass, "order", struct_order, -1);
-    
+
     rb_define_alias(rb_singleton_class(StructClass), "alloc_in", "new");
     rb_define_alias(rb_singleton_class(StructClass), "alloc_out", "new");
     rb_define_alias(rb_singleton_class(StructClass), "alloc_inout", "new");

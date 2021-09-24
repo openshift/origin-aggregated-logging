@@ -1,4 +1,4 @@
-# Ruby-FFI https://github.com/ffi/ffi/wiki [![Build Status](https://travis-ci.org/ffi/ffi.svg?branch=master)](https://travis-ci.org/ffi/ffi) [![Build status Windows](https://ci.appveyor.com/api/projects/status/r8wxn1sd4s794gg1/branch/master?svg=true)](https://ci.appveyor.com/project/larskanis/ffi-aofqa/branch/master)
+# Ruby-FFI https://github.com/ffi/ffi/wiki [![Build Status](https://travis-ci.com/ffi/ffi.svg?branch=master)](https://travis-ci.com/ffi/ffi) [![Build status Windows](https://ci.appveyor.com/api/projects/status/r8wxn1sd4s794gg1/branch/master?svg=true)](https://ci.appveyor.com/project/larskanis/ffi-aofqa/branch/master)
 
 ## Description
 
@@ -38,9 +38,18 @@ For less minimalistic and more examples you may look at:
 
 ## Requirements
 
-When installing the gem on CRuby (MRI) or Rubinius, you will need:
+When installing the gem on CRuby (MRI), you will need:
 * A C compiler (e.g., Xcode on macOS, `gcc` or `clang` on everything else)
+Optionally (speeds up installation):
 * The `libffi` library and development headers - this is commonly in the `libffi-dev` or `libffi-devel` packages
+
+The ffi gem comes with a builtin libffi version, which is used, when the system libffi library is not available or too old.
+Use of the system libffi can be enforced by:
+```
+gem install ffi -- --enable-system-libffi        # to install the gem manually
+bundle config build.ffi --enable-system-libffi   # for bundle install
+```
+or prevented by `--disable-system-libffi`.
 
 On Linux systems running with [PaX](https://en.wikipedia.org/wiki/PaX) (Gentoo, Alpine, etc.), FFI may trigger `mprotect` errors. You may need to disable [mprotect](https://en.wikibooks.org/wiki/Grsecurity/Appendix/Grsecurity_and_PaX_Configuration_Options#Restrict_mprotect.28.29) for ruby (`paxctl -m [/path/to/ruby]`) for the time being until a solution is found.
 
@@ -53,13 +62,25 @@ On JRuby and TruffleRuby, there are no requirements to install the FFI gem, and 
 From rubygems:
 
     [sudo] gem install ffi
+    
+From a Gemfile using git or GitHub
+
+    gem 'ffi', github: 'ffi/ffi', submodules: true
 
 or from the git repository on github:
 
     git clone git://github.com/ffi/ffi.git
-    git submodule update --init --recursive
     cd ffi
+    git submodule update --init --recursive
+    bundle install
     rake install
+
+### Install options:
+
+* `--enable-system-libffi` : Force usage of system libffi
+* `--disable-system-libffi` : Force usage of builtin libffi
+* `--enable-libffi-alloc` : Force closure allocation by libffi
+* `--disable-libffi-alloc` : Force closure allocation by builtin method
 
 ## License
 

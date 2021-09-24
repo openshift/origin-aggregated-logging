@@ -33,13 +33,8 @@
 #include <sys/types.h>
 
 #include <stdio.h>
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <ruby.h>
 
 #include <ffi.h>
@@ -173,7 +168,8 @@ variadic_invoke(VALUE self, VALUE parameterTypes, VALUE parameterValues)
     ffi_type* ffiReturnType;
     Type** paramTypes;
     VALUE* argv;
-    int paramCount = 0, fixedCount = 0, i;
+    VALUE* callbackParameters;
+    int paramCount = 0, fixedCount = 0, callbackCount = 0, i;
     ffi_status ffiStatus;
     rbffi_frame_t frame = { 0 };
 
@@ -187,6 +183,7 @@ variadic_invoke(VALUE self, VALUE parameterTypes, VALUE parameterValues)
     params = ALLOCA_N(FFIStorage, paramCount);
     ffiValues = ALLOCA_N(void*, paramCount);
     argv = ALLOCA_N(VALUE, paramCount);
+    callbackParameters = ALLOCA_N(VALUE, paramCount);
     retval = alloca(MAX(invoker->returnType->ffiType->size, FFI_SIZEOF_ARG));
 
     for (i = 0; i < paramCount; ++i) {
@@ -214,6 +211,14 @@ variadic_invoke(VALUE self, VALUE parameterTypes, VALUE parameterValues)
             case NATIVE_FLOAT32:
                 rbType = rb_const_get(rbffi_TypeClass, rb_intern("DOUBLE"));
                 Data_Get_Struct(rbType, Type, paramTypes[i]);
+                break;
+
+            case NATIVE_FUNCTION:
+                if (!rb_obj_is_kind_of(rbType, rbffi_FunctionTypeClass)) {
+                    VALUE typeName = rb_funcall2(rbType, rb_intern("inspect"), 0, NULL);
+                    rb_raise(rb_eTypeError, "Incorrect parameter type (%s)", RSTRING_PTR(typeName));
+                }
+                callbackParameters[callbackCount++] = rbType;
                 break;
 
             default:
@@ -253,7 +258,7 @@ variadic_invoke(VALUE self, VALUE parameterTypes, VALUE parameterValues)
     }
 
     rbffi_SetupCallParams(paramCount, argv, -1, paramTypes, params,
-        ffiValues, NULL, 0, invoker->rbEnums);
+        ffiValues, callbackParameters, callbackCount, invoker->rbEnums);
 
     rbffi_frame_push(&frame);
 

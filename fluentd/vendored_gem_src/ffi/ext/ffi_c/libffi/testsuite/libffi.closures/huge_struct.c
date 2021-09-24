@@ -7,7 +7,9 @@
 
 /* { dg-do run { xfail strongarm*-*-* xscale*-*-* } } */
 /* { dg-options -mlong-double-128 { target powerpc64*-*-linux* } } */
-/* { dg-options -Wformat=0 { target moxie*-*-elf } } */
+/* { dg-options -Wformat=0 { target moxie*-*-elf or1k-*-* } } */
+
+#include <inttypes.h>
 
 #include "ffitest.h"
 

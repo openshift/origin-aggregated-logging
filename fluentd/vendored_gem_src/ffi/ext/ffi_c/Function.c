@@ -37,15 +37,8 @@
 #endif
 
 #include <stdio.h>
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# if !defined(INT8_MIN)
-#  include "win32/stdint.h"
-# endif
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <ruby.h>
 #include <ruby/thread.h>
 
@@ -99,26 +92,8 @@ static VALUE async_cb_event(void *);
 static VALUE async_cb_call(void *);
 #endif
 
-#ifdef HAVE_RUBY_THREAD_HAS_GVL_P
 extern int ruby_thread_has_gvl_p(void);
-#define rbffi_thread_has_gvl_p(frame) ruby_thread_has_gvl_p()
-#else
-static int rbffi_thread_has_gvl_p(rbffi_frame_t *frame)
-{
-    return frame != NULL && frame->has_gvl;
-}
-#endif
-
-#ifdef HAVE_RUBY_NATIVE_THREAD_P
 extern int ruby_native_thread_p(void);
-#define rbffi_native_thread_p(frame) ruby_native_thread_p()
-#else
-static int rbffi_native_thread_p(rbffi_frame_t *frame)
-{
-    return frame != NULL;
-}
-#endif
-
 
 VALUE rbffi_FunctionClass = Qnil;
 
@@ -274,11 +249,11 @@ VALUE
 rbffi_Function_ForProc(VALUE rbFunctionInfo, VALUE proc)
 {
     VALUE callback, cbref, cbTable;
-    Function* fp;
 
     cbref = RTEST(rb_ivar_defined(proc, id_cb_ref)) ? rb_ivar_get(proc, id_cb_ref) : Qnil;
     /* If the first callback reference has the same function function signature, use it */
     if (cbref != Qnil && CLASS_OF(cbref) == rbffi_FunctionClass) {
+        Function* fp;
         Data_Get_Struct(cbref, Function, fp);
         if (fp->rbFunctionInfo == rbFunctionInfo) {
             return cbref;
@@ -297,13 +272,26 @@ rbffi_Function_ForProc(VALUE rbFunctionInfo, VALUE proc)
         rb_ivar_set(proc, id_cb_ref, callback);
     } else {
         /* The proc instance has been used as more than one type of callback, store extras in a hash */
-        cbTable = rb_hash_new();
-        rb_ivar_set(proc, id_cbtable, cbTable);
+        if(cbTable == Qnil) {
+          cbTable = rb_hash_new();
+          rb_ivar_set(proc, id_cbtable, cbTable);
+        }
         rb_hash_aset(cbTable, rbFunctionInfo, callback);
     }
 
     return callback;
 }
+
+#if !defined(_WIN32) && defined(DEFER_ASYNC_CALLBACK)
+static void
+after_fork_callback(void)
+{
+    /* Ensure that a new dispatcher thread is started in a forked process */
+    async_cb_thread = Qnil;
+    pthread_mutex_init(&async_cb_mutex, NULL);
+    pthread_cond_init(&async_cb_cond, NULL);
+}
+#endif
 
 static VALUE
 function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
@@ -332,7 +320,16 @@ function_init(VALUE self, VALUE rbFunctionInfo, VALUE rbProc)
 
 #if defined(DEFER_ASYNC_CALLBACK)
         if (async_cb_thread == Qnil) {
+
+#if !defined(_WIN32)
+            if( pthread_atfork(NULL, NULL, after_fork_callback) ){
+                rb_warn("FFI: unable to register fork callback");
+            }
+#endif
+
             async_cb_thread = rb_thread_create(async_cb_event, NULL);
+            /* Name thread, for better debugging */
+            rb_funcall(async_cb_thread, rb_intern("name="), 1, rb_str_new2("FFI Callback Dispatcher"));
         }
 #endif
 
@@ -476,8 +473,8 @@ callback_invoke(ffi_cif* cif, void* retval, void** parameters, void* user_data)
 
     if (cb.frame != NULL) cb.frame->exc = Qnil;
 
-    if (rbffi_native_thread_p(cb.frame)) {
-      if(rbffi_thread_has_gvl_p(cb.frame)) {
+    if (ruby_native_thread_p()) {
+      if(ruby_thread_has_gvl_p()) {
         callback_with_gvl(&cb);
       } else {
         rb_thread_call_with_gvl(callback_with_gvl, &cb);
@@ -548,7 +545,9 @@ async_cb_event(void* unused)
         rb_thread_call_without_gvl(async_cb_wait, &w, async_cb_stop, &w);
         if (w.cb != NULL) {
             /* Start up a new ruby thread to run the ruby callback */
-            rb_thread_create(async_cb_call, w.cb);
+            VALUE new_thread = rb_thread_create(async_cb_call, w.cb);
+            /* Name thread, for better debugging */
+            rb_funcall(new_thread, rb_intern("name="), 1, rb_str_new2("FFI Callback Runner"));
         }
     }
 
@@ -721,7 +720,7 @@ invoke_callback(VALUE data)
                 param = rb_float_new(*(double *) parameters[i]);
                 break;
             case NATIVE_LONGDOUBLE:
-	      param = rbffi_longdouble_new(*(long double *) parameters[i]);
+                param = rbffi_longdouble_new(*(long double *) parameters[i]);
                 break;
             case NATIVE_STRING:
                 param = (*(void **) parameters[i] != NULL) ? rb_str_new2(*(char **) parameters[i]) : Qnil;
@@ -734,7 +733,6 @@ invoke_callback(VALUE data)
                 break;
 
             case NATIVE_FUNCTION:
-            case NATIVE_CALLBACK:
             case NATIVE_STRUCT:
                 param = rbffi_NativeValue_ToRuby(paramType, rbParamType, parameters[i]);
                 break;
@@ -793,6 +791,9 @@ invoke_callback(VALUE data)
         case NATIVE_FLOAT64:
             *((double *) retval) = NUM2DBL(rbReturnValue);
             break;
+        case NATIVE_LONGDOUBLE:
+            *((long double *) retval) = rbffi_num2longdouble(rbReturnValue);
+            break;
         case NATIVE_POINTER:
             if (TYPE(rbReturnValue) == T_DATA && rb_obj_is_kind_of(rbReturnValue, rbffi_PointerClass)) {
                 *((void **) retval) = ((AbstractMemory *) DATA_PTR(rbReturnValue))->address;
@@ -807,7 +808,6 @@ invoke_callback(VALUE data)
             break;
 
         case NATIVE_FUNCTION:
-        case NATIVE_CALLBACK:
             if (TYPE(rbReturnValue) == T_DATA && rb_obj_is_kind_of(rbReturnValue, rbffi_PointerClass)) {
 
                 *((void **) retval) = ((AbstractMemory *) DATA_PTR(rbReturnValue))->address;
@@ -864,9 +864,9 @@ callback_prep(void* ctx, void* code, Closure* closure, char* errmsg, size_t errm
     FunctionType* fnInfo = (FunctionType *) ctx;
     ffi_status ffiStatus;
 
-    ffiStatus = ffi_prep_closure(code, &fnInfo->ffi_cif, callback_invoke, closure);
+    ffiStatus = ffi_prep_closure_loc(closure->pcl, &fnInfo->ffi_cif, callback_invoke, closure, code);
     if (ffiStatus != FFI_OK) {
-        snprintf(errmsg, errmsgsize, "ffi_prep_closure failed.  status=%#x", ffiStatus);
+        snprintf(errmsg, errmsgsize, "ffi_prep_closure_loc failed.  status=%#x", ffiStatus);
         return false;
     }
 

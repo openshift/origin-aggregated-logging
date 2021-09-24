@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-if !defined?(RUBY_ENGINE) || RUBY_ENGINE == 'ruby' || RUBY_ENGINE == 'rbx'
+if RUBY_ENGINE == 'ruby' || RUBY_ENGINE == 'rbx'
   require 'mkmf'
   require 'rbconfig'
 
@@ -8,14 +8,22 @@ if !defined?(RUBY_ENGINE) || RUBY_ENGINE == 'ruby' || RUBY_ENGINE == 'rbx'
     # We need pkg_config or ffi.h
     libffi_ok = pkg_config("libffi") ||
         have_header("ffi.h") ||
-        find_header("ffi.h", "/usr/local/include", "/usr/include/ffi")
+        find_header("ffi.h", "/usr/local/include", "/usr/include/ffi",
+                    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/ffi",
+                    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/ffi") ||
+        (find_header("ffi.h", `xcrun --sdk macosx --show-sdk-path`.strip + "/usr/include/ffi") rescue false)
 
-    # Ensure we can link to ffi_call
-    libffi_ok &&= have_library("ffi", "ffi_call", [ "ffi.h" ]) ||
-                  have_library("libffi", "ffi_call", [ "ffi.h" ])
+    # Ensure we can link to ffi_prep_closure_loc
+    libffi_ok &&= have_library("ffi", "ffi_prep_closure_loc", [ "ffi.h" ]) ||
+                  have_library("libffi", "ffi_prep_closure_loc", [ "ffi.h" ]) ||
+                  have_library("libffi-8", "ffi_prep_closure_loc", [ "ffi.h" ])
 
-    # And we need a libffi version recent enough to provide ffi_closure_alloc
-    libffi_ok &&= have_func("ffi_closure_alloc")
+    if RbConfig::CONFIG['host_os'] =~ /mswin/
+      have_library('libffi_convenience')
+      have_library('shlwapi')
+    end
+
+    libffi_ok
   end
 
   dir_config("ffi_c")
@@ -36,41 +44,45 @@ if !defined?(RUBY_ENGINE) || RUBY_ENGINE == 'ruby' || RUBY_ENGINE == 'rbx'
     abort "system libffi is not usable" unless system_libffi_usable?
   end
 
-  have_header('shlwapi.h')
-  have_func('rb_thread_call_without_gvl') || abort("Ruby C-API function `rb_thread_call_without_gvl` is missing")
-  have_func('ruby_native_thread_p')
-  if RUBY_VERSION >= "2.3.0"
-    # On OSX and Linux ruby_thread_has_gvl_p() is detected but fails at runtime for ruby < 2.3.0
-    have_func('ruby_thread_has_gvl_p')
-  end
-
   if system_libffi
     have_func('ffi_prep_cif_var')
     $defs << "-DHAVE_RAW_API" if have_func("ffi_raw_call") && have_func("ffi_prep_raw_closure")
   else
     $defs << "-DHAVE_FFI_PREP_CIF_VAR"
     $defs << "-DUSE_INTERNAL_LIBFFI"
+
+    # Ensure libffi symbols aren't exported when using static libffi.
+    # This is to avoid interference with other gems like fiddle.
+    # See https://github.com/ffi/ffi/issues/835
+    append_ldflags "-Wl,--exclude-libs,ALL"
+  end
+
+  # Some linux archs need explicit linking to pthread, see https://github.com/ffi/ffi/issues/893
+  append_ldflags "-pthread"
+
+  ffi_alloc_default = RbConfig::CONFIG['host_os'] =~ /darwin/i && RbConfig::CONFIG['host'] =~ /arm|aarch64/i
+  if enable_config('libffi-alloc', ffi_alloc_default)
+    $defs << "-DUSE_FFI_ALLOC"
   end
 
   $defs << "-DHAVE_EXTCONF_H" if $defs.empty? # needed so create_header works
-  $defs << "-DRUBY_1_9" if RUBY_VERSION >= "1.9.0"
-  $defs << "-DFFI_BUILDING" if RbConfig::CONFIG['host_os'] =~ /mswin/ # for compatibility with newer libffi
 
   create_header
-
-  $LOCAL_LIBS << " ./libffi/.libs/libffi_convenience.lib" if !system_libffi && RbConfig::CONFIG['host_os'] =~ /mswin/
-
   create_makefile("ffi_c")
+
   unless system_libffi
     File.open("Makefile", "a") do |mf|
       mf.puts "LIBFFI_HOST=--host=#{RbConfig::CONFIG['host_alias']}" if RbConfig::CONFIG.has_key?("host_alias")
-      if RbConfig::CONFIG['host_os'].downcase =~ /darwin/
+      if RbConfig::CONFIG['host_os'] =~ /darwin/i
+        if RbConfig::CONFIG['host'] =~ /arm|aarch64/i
+          mf.puts "LIBFFI_HOST=--host=aarch64-apple-#{RbConfig::CONFIG['host_os']}"
+        end
         mf.puts "include ${srcdir}/libffi.darwin.mk"
-      elsif RbConfig::CONFIG['host_os'].downcase =~ /bsd/
+      elsif RbConfig::CONFIG['host_os'] =~ /bsd/i
         mf.puts '.include "${srcdir}/libffi.bsd.mk"'
-      elsif RbConfig::CONFIG['host_os'].downcase =~ /mswin64/
+      elsif RbConfig::CONFIG['host_os'] =~ /mswin64/i
         mf.puts '!include $(srcdir)/libffi.vc64.mk'
-      elsif RbConfig::CONFIG['host_os'].downcase =~ /mswin32/
+      elsif RbConfig::CONFIG['host_os'] =~ /mswin32/i
         mf.puts '!include $(srcdir)/libffi.vc.mk'
       else
         mf.puts "include ${srcdir}/libffi.mk"

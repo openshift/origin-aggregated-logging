@@ -2,7 +2,7 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ(2.68)
 
-AC_INIT([libffi], [3.3-rc2], [http://github.com/libffi/libffi/issues])
+AC_INIT([libffi], [3.3], [http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
 AC_CANONICAL_SYSTEM
@@ -62,6 +62,9 @@ set CXX_FOR_TARGET "$CXX"
 EOF
 
 AM_MAINTAINER_MODE
+
+AC_CHECK_HEADERS(sys/memfd.h)
+AC_CHECK_FUNCS([memfd_create])
 
 AC_CHECK_HEADERS(sys/mman.h)
 AC_CHECK_FUNCS([mmap mkostemp])
@@ -176,6 +179,28 @@ case "$TARGET" in
     ;;
 esac
 
+AC_CACHE_CHECK([whether compiler supports pointer authentication],
+   libffi_cv_as_ptrauth, [
+   libffi_cv_as_ptrauth=unknown
+   AC_TRY_COMPILE(,[
+#ifdef __clang__
+# if __has_feature(ptrauth_calls)
+#  define HAVE_PTRAUTH 1
+# endif
+#endif
+
+#ifndef HAVE_PTRAUTH
+# error Pointer authentication not supported
+#endif
+		   ],
+		   [libffi_cv_as_ptrauth=yes],
+		   [libffi_cv_as_ptrauth=no])
+])
+if test "x$libffi_cv_as_ptrauth" = xyes; then
+    AC_DEFINE(HAVE_PTRAUTH, 1,
+	      [Define if your compiler supports pointer authentication.])
+fi
+
 # On PaX enable kernels that have MPROTECT enable we can't use PROT_EXEC.
 AC_ARG_ENABLE(pax_emutramp,
   [  --enable-pax_emutramp       enable pax emulated trampolines, for we can't use PROT_EXEC],
@@ -238,19 +263,15 @@ EOF
 fi
 
 if test "x$GCC" = "xyes"; then
+  AX_CHECK_COMPILE_FLAG(-fno-lto, libffi_cv_no_lto=-fno-lto)
+
   AC_CACHE_CHECK([whether .eh_frame section should be read-only],
       libffi_cv_ro_eh_frame, [
-  	libffi_cv_ro_eh_frame=no
+  	libffi_cv_ro_eh_frame=yes
   	echo 'extern void foo (void); void bar (void) { foo (); foo (); }' > conftest.c
-  	if $CC $CFLAGS -c -fpic -fexceptions -o conftest.o conftest.c > /dev/null 2>&1; then
-	    objdump -h conftest.o > conftest.dump 2>&1
-	    libffi_eh_frame_line=`grep -n eh_frame conftest.dump | cut -d: -f 1`
-	    if test "x$libffi_eh_frame_line" != "x"; then
-	        libffi_test_line=`expr $libffi_eh_frame_line + 1`p
-	        sed -n $libffi_test_line conftest.dump > conftest.line
-	        if grep READONLY conftest.line > /dev/null; then
-	            libffi_cv_ro_eh_frame=yes
-	        fi
+  	if $CC $CFLAGS -c -fpic -fexceptions $libffi_cv_no_lto -o conftest.o conftest.c > /dev/null 2>&1; then
+	    if readelf -WS conftest.o | grep -q -n 'eh_frame .* WA'; then
+	        libffi_cv_ro_eh_frame=no
 	    fi
   	fi
   	rm -f conftest.*

@@ -24,6 +24,6 @@ gem 'bigdecimal'
 #Below gem(and two of its dependencies) are moved to O_A_L/fluentd/lib, but its dependencies still exist in O_A_L/fluentd/vendored_gem_src/
 #gem 'fluent-plugin-remote_syslog', '1.0.0'
 
-gem 'ffi', '1.11.3'
+gem 'ffi'
 gem 'uuidtools'
 gem 'rake'

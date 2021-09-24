@@ -28,12 +28,7 @@
  */
 
 #include <stddef.h>
-#ifndef _MSC_VER
 #include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
 
 #if defined(__CYGWIN__) || !defined(_WIN32)
 # include <pthread.h>
@@ -74,9 +69,6 @@ void
 rbffi_frame_push(rbffi_frame_t* frame)
 {
     memset(frame, 0, sizeof(*frame));
-#ifndef HAVE_RUBY_THREAD_HAS_GVL_P
-    frame->has_gvl = true;
-#endif
     frame->exc = Qnil;
 
 #ifdef _WIN32
