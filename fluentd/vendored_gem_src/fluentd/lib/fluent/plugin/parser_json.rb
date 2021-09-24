@@ -15,8 +15,8 @@
 #
 
 require 'fluent/plugin/parser'
-require 'fluent/env'
 require 'fluent/time'
+require 'fluent/oj_options'
 
 require 'yajl'
 require 'json'
@@ -50,8 +50,7 @@ module Fluent
       def configure_json_parser(name)
         case name
         when :oj
-          require 'oj'
-          Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
+          raise LoadError unless Fluent::OjOptions.available?
           [Oj.method(:load), Oj::ParseError]
         when :json then [JSON.method(:load), JSON::ParserError]
         when :yajl then [Yajl.method(:load), Yajl::ParseError]
@@ -71,8 +70,11 @@ module Fluent
       end
 
       def parse(text)
-        r = @load_proc.call(text)
-        time, record = convert_values(parse_time(r), r)
+        record = @load_proc.call(text)
+        time = parse_time(record)
+        if @execute_convert_values
+          time, record = convert_values(time, record)
+        end
         yield time, record
       rescue @error_class, EncodingError # EncodingError is for oj 3.x or later
         yield nil, nil

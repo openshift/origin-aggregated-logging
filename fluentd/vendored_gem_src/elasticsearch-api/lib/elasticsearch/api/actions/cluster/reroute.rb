@@ -24,15 +24,13 @@ module Elasticsearch
         # @option arguments [Boolean] :dry_run Simulate the operation only and return the resulting state
         # @option arguments [Boolean] :explain Return an explanation of why the commands can or cannot be executed
         # @option arguments [Boolean] :retry_failed Retries allocation of shards that are blocked due to too many subsequent allocation failures
-        # @option arguments [List] :metric Limit the information returned to the specified metrics. Defaults to all but metadata
-        #   (options: _all,blocks,metadata,nodes,routing_table,master_node,version)
-
+        # @option arguments [List] :metric Limit the information returned to the specified metrics. Defaults to all but metadata (options: _all, blocks, metadata, nodes, routing_table, master_node, version)
         # @option arguments [Time] :master_timeout Explicit operation timeout for connection to master node
         # @option arguments [Time] :timeout Explicit operation timeout
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body The definition of `commands` to perform (`move`, `cancel`, `allocate`)
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cluster-reroute.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cluster-reroute.html
         #
         def reroute(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -58,7 +56,7 @@ module Elasticsearch
           :master_timeout,
           :timeout
         ].freeze)
-end
       end
+    end
   end
 end

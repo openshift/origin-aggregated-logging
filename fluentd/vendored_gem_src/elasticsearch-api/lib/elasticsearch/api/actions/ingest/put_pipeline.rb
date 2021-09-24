@@ -27,7 +27,7 @@ module Elasticsearch
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body The ingest definition (*Required*)
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/put-pipeline-api.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/put-pipeline-api.html
         #
         def put_pipeline(arguments = {})
           raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -54,7 +54,7 @@ module Elasticsearch
           :master_timeout,
           :timeout
         ].freeze)
-end
       end
+    end
   end
 end

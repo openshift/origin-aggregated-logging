@@ -1,3 +1,6 @@
+if defined?(Encoding)
+  Encoding.default_external = "UTF-8"
+end
 require "spec_helper"
 require "json"
 
@@ -17,24 +20,24 @@ describe HTTP::Parser do
   end
 
   it "should have initial state" do
-    @parser.headers.should be_nil
+    expect(@parser.headers).to be_nil
 
-    @parser.http_version.should be_nil
-    @parser.http_method.should be_nil
-    @parser.status_code.should be_nil
+    expect(@parser.http_version).to be_nil
+    expect(@parser.http_method).to be_nil
+    expect(@parser.status_code).to be_nil
 
-    @parser.request_url.should be_nil
+    expect(@parser.request_url).to be_nil
 
-    @parser.header_value_type.should == :mixed
+    expect(@parser.header_value_type).to eq(:mixed)
   end
 
   it "should allow us to set the header value type" do
     [:mixed, :arrays, :strings].each do |type|
       @parser.header_value_type = type
-      @parser.header_value_type.should == type
+      expect(@parser.header_value_type).to eq(type)
 
       parser_tmp = HTTP::Parser.new(nil, type)
-      parser_tmp.header_value_type.should == type
+      expect(parser_tmp.header_value_type).to eq(type)
     end
   end
 
@@ -43,16 +46,16 @@ describe HTTP::Parser do
       HTTP::Parser.default_header_value_type = type
 
       parser = HTTP::Parser.new
-      parser.header_value_type.should == type
+      expect(parser.header_value_type).to eq(type)
     end
   end
 
   it "should throw an Argument Error if header value type is invalid" do
-    proc{ @parser.header_value_type = 'bob' }.should raise_error(ArgumentError)
+    expect{ @parser.header_value_type = 'bob' }.to raise_error(ArgumentError)
   end
 
   it "should throw an Argument Error if default header value type is invalid" do
-    proc{ HTTP::Parser.default_header_value_type = 'bob' }.should raise_error(ArgumentError)
+    expect{ HTTP::Parser.default_header_value_type = 'bob' }.to raise_error(ArgumentError)
   end
 
   it "should implement basic api" do
@@ -65,29 +68,29 @@ describe HTTP::Parser do
       "\r\n" +
       "World"
 
-    @started.should be_true
-    @done.should be_true
+    expect(@started).to be true
+    expect(@done).to be true
 
-    @parser.http_major.should == 1
-    @parser.http_minor.should == 1
-    @parser.http_version.should == [1,1]
-    @parser.http_method.should == 'GET'
-    @parser.status_code.should be_nil
+    expect(@parser.http_major).to eq(1)
+    expect(@parser.http_minor).to eq(1)
+    expect(@parser.http_version).to eq([1,1])
+    expect(@parser.http_method).to eq('GET')
+    expect(@parser.status_code).to be_nil
 
-    @parser.request_url.should == '/test?ok=1'
+    expect(@parser.request_url).to eq('/test?ok=1')
 
-    @parser.headers.should == @headers
-    @parser.headers['User-Agent'].should == 'curl/7.18.0'
-    @parser.headers['Host'].should == '0.0.0.0:5000'
+    expect(@parser.headers).to eq(@headers)
+    expect(@parser.headers['User-Agent']).to eq('curl/7.18.0')
+    expect(@parser.headers['Host']).to eq('0.0.0.0:5000')
 
-    @body.should == "World"
+    expect(@body).to eq("World")
   end
 
   it "should raise errors on invalid data" do
-    proc{ @parser << "BLAH" }.should raise_error(HTTP::Parser::Error)
+    expect{ @parser << "BLAH" }.to raise_error(HTTP::Parser::Error)
   end
 
-  it "should abort parser via callback" do
+  it "should abort parser via header complete callback with a body" do
     @parser.on_headers_complete = proc { |e| @headers = e; :stop }
 
     data =
@@ -98,33 +101,90 @@ describe HTTP::Parser do
 
     bytes = @parser << data
 
-    bytes.should == 37
-    data[bytes..-1].should == 'World'
+    expect(bytes).to eq(37)
+    expect(data[bytes..-1]).to eq('World')
 
-    @headers.should == {'Content-Length' => '5'}
-    @body.should be_empty
-    @done.should be_false
+    expect(@headers).to eq({'Content-Length' => '5'})
+    expect(@body).to be_empty
+    expect(@done).to be false
+  end
+
+  it "should abort parser via header complete callback without a body" do
+    @parser.on_headers_complete = proc { |e| @headers = e; :stop }
+
+    data =
+      "GET / HTTP/1.0\r\n" +
+      "Content-Length: 0\r\n" +
+      "\r\n"
+
+    bytes = @parser << data
+
+    expect(bytes).to eq(37)
+    expect(data[bytes..-1]).to eq('')
+
+    expect(@headers).to eq({'Content-Length' => '0'})
+    expect(@body).to be_empty
+    expect(@done).to be false
+  end
+
+  it "should abort parser via message complete callback with a body" do
+    @parser.on_message_complete = proc { :stop }
+
+    data =
+      "CONNECT www.example.com:443 HTTP/1.0\r\n" +
+      "Connection: keep-alive\r\n" +
+      "\r\n" +
+      "World"
+
+    bytes = @parser << data
+
+    expect(bytes).to eq(64)
+    expect(data[bytes..-1]).to eq('World')
+
+    expect(@headers).to eq({'Connection' => 'keep-alive'})
+    expect(@parser.upgrade_data).to eq('World')
+    expect(@body).to be_empty
+    expect(@done).to be false
+  end
+
+  it "should abort parser via message complete callback without a body" do
+    @parser.on_message_complete = proc { :stop }
+
+    data =
+      "CONNECT www.example.com:443 HTTP/1.0\r\n" +
+      "Connection: keep-alive\r\n" +
+      "\r\n"
+
+    bytes = @parser << data
+
+    expect(bytes).to eq(64)
+    expect(data[bytes..-1]).to eq('')
+
+    expect(@headers).to eq({'Connection' => 'keep-alive'})
+    expect(@parser.upgrade_data).to eq('')
+    expect(@body).to be_empty
+    expect(@done).to be false
   end
 
   it "should reset to initial state" do
     @parser << "GET / HTTP/1.0\r\n\r\n"
 
-    @parser.http_method.should == 'GET'
-    @parser.http_version.should == [1,0]
+    expect(@parser.http_method).to eq('GET')
+    expect(@parser.http_version).to eq([1,0])
 
-    @parser.request_url.should == '/'
+    expect(@parser.request_url).to eq('/')
 
-    @parser.reset!.should be_true
+    expect(@parser.reset!).to be true
 
-    @parser.http_version.should be_nil
-    @parser.http_method.should be_nil
-    @parser.status_code.should be_nil
+    expect(@parser.http_version).to be_nil
+    expect(@parser.http_method).to be_nil
+    expect(@parser.status_code).to be_nil
 
-    @parser.request_url.should be_nil
+    expect(@parser.request_url).to be_nil
   end
 
   it "should optionally reset parser state on no-body responses" do
-   @parser.reset!.should be_true
+   expect(@parser.reset!).to be true
 
    @head, @complete = 0, 0
    @parser.on_headers_complete = proc {|h| @head += 1; :reset }
@@ -134,21 +194,21 @@ describe HTTP::Parser do
    head_response = "HTTP/1.1 200 OK\r\nContent-Length:10\r\n\r\n"
 
    @parser << head_response
-   @head.should == 1
-   @complete.should == 1
+   expect(@head).to eq(1)
+   expect(@complete).to eq(1)
 
    @parser << head_response
-   @head.should == 2
-   @complete.should == 2
+   expect(@head).to eq(2)
+   expect(@complete).to eq(2)
   end
 
   it "should retain callbacks after reset" do
-    @parser.reset!.should be_true
+    expect(@parser.reset!).to be true
 
     @parser << "GET / HTTP/1.0\r\n\r\n"
-    @started.should be_true
-    @headers.should == {}
-    @done.should be_true
+    expect(@started).to be true
+    expect(@headers).to eq({})
+    expect(@done).to be true
   end
 
   it "should parse headers incrementally" do
@@ -162,10 +222,10 @@ describe HTTP::Parser do
       @parser << chunk
     end
 
-    @parser.headers.should == {
+    expect(@parser.headers).to eq({
       'Header1' => 'value 1',
       'Header2' => 'value 2'
-    }
+    })
   end
 
   it "should handle multiple headers using strings" do
@@ -177,7 +237,7 @@ describe HTTP::Parser do
       "Set-Cookie: NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly\r\n" +
       "\r\n"
 
-    @parser.headers["Set-Cookie"].should == "PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com, NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly"
+    expect(@parser.headers["Set-Cookie"]).to eq("PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com, NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly")
   end
 
   it "should handle multiple headers using strings" do
@@ -189,10 +249,10 @@ describe HTTP::Parser do
       "Set-Cookie: NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly\r\n" +
       "\r\n"
 
-    @parser.headers["Set-Cookie"].should == [
+    expect(@parser.headers["Set-Cookie"]).to eq([
         "PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com",
         "NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly"
-    ]
+    ])
   end
 
   it "should handle multiple headers using mixed" do
@@ -204,10 +264,10 @@ describe HTTP::Parser do
       "Set-Cookie: NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly\r\n" +
       "\r\n"
 
-    @parser.headers["Set-Cookie"].should == [
+    expect(@parser.headers["Set-Cookie"]).to eq([
         "PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com",
         "NID=46jSHxPM; path=/; domain=.bob.com; HttpOnly"
-    ]
+    ])
   end
 
   it "should handle a single cookie using mixed" do
@@ -218,23 +278,23 @@ describe HTTP::Parser do
       "Set-Cookie: PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com\r\n" +
       "\r\n"
 
-    @parser.headers["Set-Cookie"].should == "PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com"
+    expect(@parser.headers["Set-Cookie"]).to eq("PREF=ID=a7d2c98; expires=Fri, 05-Apr-2013 05:00:45 GMT; path=/; domain=.bob.com")
   end
 
   it "should support alternative api" do
     callbacks = double('callbacks')
-    callbacks.stub(:on_message_begin){ @started = true }
-    callbacks.stub(:on_headers_complete){ |e| @headers = e }
-    callbacks.stub(:on_body){ |chunk| @body << chunk }
-    callbacks.stub(:on_message_complete){ @done = true }
+    allow(callbacks).to receive(:on_message_begin){ @started = true }
+    allow(callbacks).to receive(:on_headers_complete){ |e| @headers = e }
+    allow(callbacks).to receive(:on_body){ |chunk| @body << chunk }
+    allow(callbacks).to receive(:on_message_complete){ @done = true }
 
     @parser = HTTP::Parser.new(callbacks)
     @parser << "GET / HTTP/1.0\r\n\r\n"
 
-    @started.should be_true
-    @headers.should == {}
-    @body.should == ''
-    @done.should be_true
+    expect(@started).to be true
+    expect(@headers).to eq({})
+    expect(@body).to eq('')
+    expect(@done).to be true
   end
 
   it "should ignore extra content beyond specified length" do
@@ -245,8 +305,8 @@ describe HTTP::Parser do
       "hello" +
       "  \n"
 
-    @body.should == 'hello'
-    @done.should be_true
+    expect(@body).to eq('hello')
+    expect(@done).to be true
   end
 
   it 'sets upgrade_data if available' do
@@ -256,8 +316,8 @@ describe HTTP::Parser do
       "Upgrade: WebSocket\r\n\r\n" +
       "third key data"
 
-    @parser.upgrade?.should be_true
-    @parser.upgrade_data.should == 'third key data'
+    expect(@parser.upgrade?).to be true
+    expect(@parser.upgrade_data).to eq('third key data')
   end
 
   it 'sets upgrade_data to blank if un-available' do
@@ -266,8 +326,8 @@ describe HTTP::Parser do
       "Connection: Upgrade\r\n" +
       "Upgrade: WebSocket\r\n\r\n"
 
-    @parser.upgrade?.should be_true
-    @parser.upgrade_data.should == ''
+    expect(@parser.upgrade?).to be true
+    expect(@parser.upgrade_data).to eq('')
   end
 
   it 'should stop parsing headers when instructed' do
@@ -281,13 +341,13 @@ describe HTTP::Parser do
 
     @parser.on_headers_complete = proc { |e| :stop }
     offset = (@parser << request)
-    @parser.upgrade?.should be_true
-    @parser.upgrade_data.should == ''
-    offset.should == request.length
+    expect(@parser.upgrade?).to be true
+    expect(@parser.upgrade_data).to eq('')
+    expect(offset).to eq(request.length)
   end
 
   it "should execute on_body on requests with no content-length" do
-   @parser.reset!.should be_true
+   expect(@parser.reset!).to be true
 
    @head, @complete, @body = 0, 0, 0
    @parser.on_headers_complete = proc {|h| @head += 1 }
@@ -298,9 +358,9 @@ describe HTTP::Parser do
 
    @parser << head_response
    @parser << ''
-   @head.should == 1
-   @complete.should == 1
-   @body.should == 1
+   expect(@head).to eq(1)
+   expect(@complete).to eq(1)
+   expect(@body).to eq(1)
   end
 
 
@@ -312,38 +372,29 @@ describe HTTP::Parser do
       it "should parse #{type}: #{test['name']}" do
         @parser << test['raw']
 
-        @parser.http_method.should == test['method']
-        @parser.keep_alive?.should == test['should_keep_alive']
+        expect(@parser.http_method).to eq(test['method'])
+        expect(@parser.keep_alive?).to eq(test['should_keep_alive'])
 
         if test.has_key?('upgrade') and test['upgrade'] != 0
-          @parser.upgrade?.should be_true
-          @parser.upgrade_data.should == test['upgrade']
+          expect(@parser.upgrade?).to be true
+          expect(@parser.upgrade_data).to eq(test['upgrade'])
         end
 
-        fields = %w[
-          http_major
-          http_minor
-        ]
+        expect(@parser.send("http_major")).to eq(test["http_major"])
+        expect(@parser.send("http_minor")).to eq(test["http_minor"])
 
         if test['type'] == 'HTTP_REQUEST'
-          fields += %w[
-            request_url
-          ]
+          expect(@parser.send("request_url")).to eq(test["request_url"].force_encoding(Encoding::BINARY))
         else
-          fields += %w[
-            status_code
-          ]
+          expect(@parser.send("status_code")).to eq(test["status_code"])
+          expect(@parser.send("status")).to eq(test["status"].force_encoding(Encoding::BINARY))
         end
 
-        fields.each do |field|
-          @parser.send(field).should == test[field]
-        end
+        expect(@headers.size).to eq(test['num_headers'])
+        expect(@headers).to eq(test['headers'])
 
-        @headers.size.should == test['num_headers']
-        @headers.should == test['headers']
-
-        @body.should == test['body']
-        @body.size.should == test['body_size'] if test['body_size']
+        expect(@body).to eq(test['body'])
+        expect(@body.size).to eq(test['body_size']) if test['body_size']
       end
     end
   end

@@ -76,7 +76,7 @@ class LabelRouterOutputTest < Test::Unit::TestCase
       d = Fluent::Test::Driver::BaseOwner.new(Fluent::Plugin::LabelRouterOutput)
       d.configure(routing_conf)
 
-      r1 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[0].matches, d.instance.routes[0].tag,nil)
+      r1 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[0], nil,nil)
       # Selector matched: GO
       assert_equal(true, r1.match?(labels: { 'app' => 'app1' }, namespace: ''))
       # Exclude match: NO GO
@@ -84,7 +84,7 @@ class LabelRouterOutputTest < Test::Unit::TestCase
       # Nothing matched: NO GO
       assert_equal(false, r1.match?(labels: { 'app3' => 'app2' }, namespace: ''))
 
-      r2 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[1].matches, d.instance.routes[1].tag,nil)
+      r2 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[1], nil,nil)
       # Match selector and namespace: GO
       assert_equal(true, r2.match?(labels: { 'app' => 'app1' }, namespace: 'test'))
       # Exclude via namespace
@@ -92,12 +92,12 @@ class LabelRouterOutputTest < Test::Unit::TestCase
       # Nothing matched: NO GO
       assert_equal(false, r2.match?(labels: { 'app3' => 'app' }, namespace: 'system'))
 
-      r3 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[2].matches, d.instance.routes[2].tag,nil)
+      r3 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[2], nil,nil)
       assert_equal(true, r3.match?(labels: { 'app' => 'nginx' }, namespace: 'dev'))
       assert_equal(true, r3.match?(labels: { 'app' => 'nginx' }, namespace: 'sandbox'))
       assert_equal(false, r3.match?(labels: { 'app' => 'nginx2' }, namespace: 'sandbox'))
 
-      r4 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[3].matches, d.instance.routes[3].tag,nil)
+      r4 = Fluent::Plugin::LabelRouterOutput::Route.new(d.instance.routes[3], nil,nil)
       # Matching container name
       assert_equal(true, r4.match?(labels: { 'app' => 'nginx' }, namespace: 'dev', container: 'mycontainer'))
       # Missing container name is equal to wrong container
@@ -208,4 +208,35 @@ default_tag "new_tag"
       assert_equal ["new_app_tag", event_time, {"kubernetes" => {"labels" => {"app" => "app2"} } }], events[1]
     end
   end
+
+    sub_test_case 'test_metrics' do
+      test 'normal' do
+        CONFIG4 = %[
+  @id xxx
+  metrics true
+  <route>
+    metrics_labels {"id": "test"}
+    tag new_app_tag
+    <match>
+      labels
+      namespaces
+    </match>
+  </route>
+  ]
+        event_time = event_time("2019-07-17 11:11:11 UTC")
+        d = create_driver(CONFIG4)
+        d.run(default_tag: 'test') do
+          d.feed(event_time, {"kubernetes" => {"labels" => {"app" => "app1"} } } )
+        end
+        d.run(default_tag: 'test2') do
+          d.feed(event_time, {"kubernetes" => {"labels" => {"app" => "app2"} } } )
+        end
+        events = d.events
+
+        assert_equal(2, events.size)
+        assert_equal ["new_app_tag", event_time, {"kubernetes" => {"labels" => {"app" => "app1"} } }], events[0]
+        assert_equal ["new_app_tag", event_time, {"kubernetes" => {"labels" => {"app" => "app2"} } }], events[1]
+      end
+    end
+
 end

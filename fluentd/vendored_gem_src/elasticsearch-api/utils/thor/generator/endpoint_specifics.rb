@@ -78,7 +78,7 @@ module Elasticsearch
       def module_name_helper(name)
         return name.upcase if %w[sql ssl].include? name
 
-        name.split("_").map(&:capitalize).join
+        name.split('_').map(&:capitalize).join
       end
 
       def termvectors_path
@@ -136,11 +136,11 @@ module Elasticsearch
               end.
               map { |item| Elasticsearch::API.serializer.dump(item) }
             payload << "" unless payload.empty?
-            payload = payload.join("\n")
+            payload = payload.join("\\n")
           when body.is_a?(Array)
             payload = body.map { |d| d.is_a?(String) ? d : Elasticsearch::API.serializer.dump(d) }
             payload << "" unless payload.empty?
-            payload = payload.join("\n")
+            payload = payload.join("\\n")
           else
             payload = body
           end
@@ -167,6 +167,17 @@ module Elasticsearch
           else
             payload = body
           end
+        SRC
+      end
+
+      def find_structure_body_helper
+        bulk_body_helper
+      end
+
+      def bulk_doc_helper(info)
+        <<~SRC
+          # @option arguments [String|Array] :body #{info}. Array of Strings, Header/Data pairs,
+          # or the conveniency "combined" format can be passed, refer to Elasticsearch::API::Utils.__bulkify documentation.
         SRC
       end
     end

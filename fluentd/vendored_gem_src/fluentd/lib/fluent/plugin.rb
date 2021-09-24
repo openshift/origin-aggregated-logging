@@ -35,8 +35,10 @@ module Fluent
     PARSER_REGISTRY    = Registry.new(:parser,    'fluent/plugin/parser_',     dir_search_prefix: 'parser_')
     FORMATTER_REGISTRY = Registry.new(:formatter, 'fluent/plugin/formatter_',  dir_search_prefix: 'formatter_')
     STORAGE_REGISTRY   = Registry.new(:storage,   'fluent/plugin/storage_',    dir_search_prefix: 'storage_')
+    SD_REGISTRY        = Registry.new(:sd,        'fluent/plugin/sd_',         dir_search_prefix: 'sd_')
+    METRICS_REGISTRY   = Registry.new(:metrics,   'fluent/plugin/metrics_',    dir_search_prefix: 'metrics_')
 
-    REGISTRIES = [INPUT_REGISTRY, OUTPUT_REGISTRY, FILTER_REGISTRY, BUFFER_REGISTRY, PARSER_REGISTRY, FORMATTER_REGISTRY, STORAGE_REGISTRY]
+    REGISTRIES = [INPUT_REGISTRY, OUTPUT_REGISTRY, FILTER_REGISTRY, BUFFER_REGISTRY, PARSER_REGISTRY, FORMATTER_REGISTRY, STORAGE_REGISTRY, SD_REGISTRY, METRICS_REGISTRY]
 
     def self.register_input(type, klass)
       register_impl('input', INPUT_REGISTRY, type, klass)
@@ -52,6 +54,14 @@ module Fluent
 
     def self.register_buffer(type, klass)
       register_impl('buffer', BUFFER_REGISTRY, type, klass)
+    end
+
+    def self.register_sd(type, klass)
+      register_impl('sd', SD_REGISTRY, type, klass)
+    end
+
+    def self.register_metrics(type, klass)
+      register_impl('metrics', METRICS_REGISTRY, type, klass)
     end
 
     def self.register_parser(type, klass_or_proc)
@@ -110,6 +120,19 @@ module Fluent
 
     def self.new_buffer(type, parent: nil)
       new_impl('buffer', BUFFER_REGISTRY, type, parent)
+    end
+
+    def self.new_sd(type, parent: nil)
+      new_impl('sd', SD_REGISTRY, type, parent)
+    end
+
+    def self.new_metrics(type, parent: nil)
+      new_impl('metrics', METRICS_REGISTRY, type, parent)
+    end
+
+    class << self
+      # This should be defined for fluent-plugin-config-formatter type arguments.
+      alias_method :new_service_discovery, :new_sd
     end
 
     def self.new_parser(type, parent: nil)

@@ -6,6 +6,7 @@ require "active_support/time_with_zone"
 require "active_support/core_ext/time/zones"
 require "active_support/core_ext/date_and_time/calculations"
 require "active_support/core_ext/date/calculations"
+require "active_support/core_ext/module/remove_method"
 
 class Time
   include DateAndTime::Calculations
@@ -47,12 +48,15 @@ class Time
       # Time.at can be called with a time or numerical value
       time_or_number = args.first
 
-      if time_or_number.is_a?(ActiveSupport::TimeWithZone) || time_or_number.is_a?(DateTime)
+      if time_or_number.is_a?(ActiveSupport::TimeWithZone)
+        at_without_coercion(time_or_number.to_r).getlocal
+      elsif time_or_number.is_a?(DateTime)
         at_without_coercion(time_or_number.to_f).getlocal
       else
         at_without_coercion(time_or_number)
       end
     end
+    ruby2_keywords(:at_with_coercion) if respond_to?(:ruby2_keywords, true)
     alias_method :at_without_coercion, :at
     alias_method :at, :at_with_coercion
 
@@ -103,6 +107,21 @@ class Time
   #   Time.new(2012, 8, 29, 0, 0, 0.5).sec_fraction # => (1/2)
   def sec_fraction
     subsec
+  end
+
+  unless Time.method_defined?(:floor)
+    def floor(precision = 0)
+      change(nsec: 0) + subsec.floor(precision)
+    end
+  end
+
+  # Restricted Ruby version due to a bug in `Time#ceil`
+  # See https://bugs.ruby-lang.org/issues/17025 for more details
+  if RUBY_VERSION <= "2.8"
+    remove_possible_method :ceil
+    def ceil(precision = 0)
+      change(nsec: 0) + subsec.ceil(precision)
+    end
   end
 
   # Returns a new Time where one or more of the elements have been changed according
@@ -170,8 +189,7 @@ class Time
       options[:hours] = options.fetch(:hours, 0) + 24 * partial_days
     end
 
-    d = to_date.advance(options)
-    d = d.gregorian if d.julian?
+    d = to_date.gregorian.advance(options)
     time_advanced_by_date = change(year: d.year, month: d.month, day: d.day)
     seconds_to_advance = \
       options.fetch(:seconds, 0) +
@@ -312,4 +330,34 @@ class Time
   end
   alias_method :eql_without_coercion, :eql?
   alias_method :eql?, :eql_with_coercion
+
+  # Returns a new time the specified number of days ago.
+  def prev_day(days = 1)
+    advance(days: -days)
+  end
+
+  # Returns a new time the specified number of days in the future.
+  def next_day(days = 1)
+    advance(days: days)
+  end
+
+  # Returns a new time the specified number of months ago.
+  def prev_month(months = 1)
+    advance(months: -months)
+  end
+
+  # Returns a new time the specified number of months in the future.
+  def next_month(months = 1)
+    advance(months: months)
+  end
+
+  # Returns a new time the specified number of years ago.
+  def prev_year(years = 1)
+    advance(years: -years)
+  end
+
+  # Returns a new time the specified number of years in the future.
+  def next_year(years = 1)
+    advance(years: years)
+  end
 end

@@ -21,7 +21,7 @@ module Elasticsearch
       # Allows to get multiple documents in one request.
       #
       # @option arguments [String] :index The name of the index
-      # @option arguments [String] :type The type of the document   *Deprecated*
+      # @option arguments [String] :type The type of the document *Deprecated*
       # @option arguments [List] :stored_fields A comma-separated list of stored fields to return in the response
       # @option arguments [String] :preference Specify the node or shard the operation should be performed on (default: random)
       # @option arguments [Boolean] :realtime Specify whether to perform the operation in realtime or search mode
@@ -38,7 +38,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/docs-multi-get.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/docs-multi-get.html
       #
       def mget(arguments = {})
         raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -51,14 +51,14 @@ module Elasticsearch
 
         _type = arguments.delete(:type)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = Elasticsearch::API::HTTP_POST
         path   = if _index && _type
                    "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/_mget"
                  elsif _index
                    "#{Utils.__listify(_index)}/_mget"
                  else
                    "_mget"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
@@ -79,5 +79,5 @@ module Elasticsearch
         :_source_includes
       ].freeze)
     end
-    end
+  end
 end

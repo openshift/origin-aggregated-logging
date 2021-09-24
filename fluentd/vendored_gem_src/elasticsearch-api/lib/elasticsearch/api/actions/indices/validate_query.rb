@@ -22,19 +22,15 @@ module Elasticsearch
         # Allows a user to validate a potentially expensive query without executing it.
         #
         # @option arguments [List] :index A comma-separated list of index names to restrict the operation; use `_all` or empty string to perform the operation on all indices
-        # @option arguments [List] :type A comma-separated list of document types to restrict the operation; leave empty to perform the operation on all types   *Deprecated*
+        # @option arguments [List] :type A comma-separated list of document types to restrict the operation; leave empty to perform the operation on all types *Deprecated*
         # @option arguments [Boolean] :explain Return detailed information about the error
         # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
         # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,hidden,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
         # @option arguments [String] :q Query in the Lucene query string syntax
         # @option arguments [String] :analyzer The analyzer to use for the query string
         # @option arguments [Boolean] :analyze_wildcard Specify whether wildcard and prefix queries should be analyzed (default: false)
-        # @option arguments [String] :default_operator The default operator for query string query (AND or OR)
-        #   (options: AND,OR)
-
+        # @option arguments [String] :default_operator The default operator for query string query (AND or OR) (options: AND, OR)
         # @option arguments [String] :df The field to use as default where no field prefix is given in the query string
         # @option arguments [Boolean] :lenient Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
         # @option arguments [Boolean] :rewrite Provide a more detailed explanation showing the actual Lucene query that will be executed.
@@ -47,7 +43,7 @@ module Elasticsearch
         # Deprecated since version 7.0.0
         #
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/search-validate.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/search-validate.html
         #
         def validate_query(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -58,14 +54,19 @@ module Elasticsearch
 
           _type = arguments.delete(:type)
 
-          method = Elasticsearch::API::HTTP_GET
+          method = if arguments[:body]
+                     Elasticsearch::API::HTTP_POST
+                   else
+                     Elasticsearch::API::HTTP_GET
+                   end
+
           path   = if _index && _type
                      "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/_validate/query"
                    elsif _index
                      "#{Utils.__listify(_index)}/_validate/query"
                    else
                      "_validate/query"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = arguments[:body]
@@ -89,7 +90,7 @@ module Elasticsearch
           :rewrite,
           :all_shards
         ].freeze)
-end
       end
+    end
   end
 end

@@ -25,15 +25,11 @@ module Elasticsearch
       # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
       # @option arguments [Boolean] :ignore_throttled Whether specified concrete, expanded or aliased indices should be ignored when throttled
       # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-      # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-      #   (options: open,closed,hidden,none,all)
-
+      # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
       # @option arguments [String] :preference Specify the node or shard the operation should be performed on (default: random)
       # @option arguments [List] :routing A comma-separated list of specific routing values
       # @option arguments [Time] :scroll Specify how long a consistent view of the index should be maintained for scrolled search
-      # @option arguments [String] :search_type Search operation type
-      #   (options: query_then_fetch,query_and_fetch,dfs_query_then_fetch,dfs_query_and_fetch)
-
+      # @option arguments [String] :search_type Search operation type (options: query_then_fetch, dfs_query_then_fetch)
       # @option arguments [Boolean] :explain Specify whether to return detailed information about score computation as part of a hit
       # @option arguments [Boolean] :profile Specify whether to profile the query execution
       # @option arguments [Boolean] :typed_keys Specify whether aggregation and suggester names should be prefixed by their respective types in the response
@@ -47,7 +43,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/search-template.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/search-template.html
       #
       def search_template(arguments = {})
         raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -60,14 +56,14 @@ module Elasticsearch
 
         _type = arguments.delete(:type)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = Elasticsearch::API::HTTP_POST
         path   = if _index && _type
                    "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/_search/template"
                  elsif _index
                    "#{Utils.__listify(_index)}/_search/template"
                  else
                    "_search/template"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
@@ -93,5 +89,5 @@ module Elasticsearch
         :ccs_minimize_roundtrips
       ].freeze)
     end
-    end
+  end
 end

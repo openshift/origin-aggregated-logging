@@ -16,6 +16,7 @@
 typedef struct ParserWrapper {
   ryah_http_parser parser;
 
+  VALUE status;
   VALUE request_url;
 
   VALUE headers;
@@ -45,6 +46,7 @@ void ParserWrapper_init(ParserWrapper *wrapper) {
   wrapper->parser.http_major = 0;
   wrapper->parser.http_minor = 0;
 
+  wrapper->status = Qnil;
   wrapper->request_url = Qnil;
 
   wrapper->upgrade_data = Qnil;
@@ -59,6 +61,7 @@ void ParserWrapper_init(ParserWrapper *wrapper) {
 void ParserWrapper_mark(void *data) {
   if(data) {
     ParserWrapper *wrapper = (ParserWrapper *) data;
+    rb_gc_mark_maybe(wrapper->status);
     rb_gc_mark_maybe(wrapper->request_url);
     rb_gc_mark_maybe(wrapper->upgrade_data);
     rb_gc_mark_maybe(wrapper->headers);
@@ -101,6 +104,7 @@ static VALUE Smixed;
 int on_message_begin(ryah_http_parser *parser) {
   GET_WRAPPER(wrapper, parser);
 
+  wrapper->status = rb_str_new2("");
   wrapper->request_url = rb_str_new2("");
   wrapper->headers = rb_hash_new();
   wrapper->upgrade_data = rb_str_new2("");
@@ -121,9 +125,28 @@ int on_message_begin(ryah_http_parser *parser) {
   }
 }
 
+int on_status(ryah_http_parser *parser, const char *at, size_t length) {
+  GET_WRAPPER(wrapper, parser);
+
+  if (at && length) {
+    if (wrapper->status == Qnil) {
+      wrapper->status = rb_str_new(at, length);
+    } else {
+      rb_str_cat(wrapper->status, at, length);
+    }
+  }
+  return 0;
+}
+
 int on_url(ryah_http_parser *parser, const char *at, size_t length) {
   GET_WRAPPER(wrapper, parser);
-  rb_str_cat(wrapper->request_url, at, length);
+  if (at && length) {
+    if (wrapper->request_url == Qnil) {
+      wrapper->request_url = rb_str_new(at, length);
+    } else {
+      rb_str_cat(wrapper->request_url, at, length);
+    }
+  }
   return 0;
 }
 
@@ -136,7 +159,6 @@ int on_header_field(ryah_http_parser *parser, const char *at, size_t length) {
   } else {
     rb_str_cat(wrapper->curr_field_name, at, length);
   }
-
   return 0;
 }
 
@@ -248,6 +270,7 @@ int on_message_complete(ryah_http_parser *parser) {
 
 static ryah_http_parser_settings settings = {
   .on_message_begin = on_message_begin,
+  .on_status = on_status,
   .on_url = on_url,
   .on_header_field = on_header_field,
   .on_header_value = on_header_value,
@@ -320,11 +343,12 @@ VALUE Parser_execute(VALUE self, VALUE data) {
   size_t nparsed = ryah_http_parser_execute(&wrapper->parser, &settings, ptr, len);
 
   if (wrapper->parser.upgrade) {
-    if (RTEST(wrapper->stopped))
+    if (RTEST(wrapper->stopped) && !RTEST(wrapper->completed))
       nparsed += 1;
 
-    rb_str_cat(wrapper->upgrade_data, ptr + nparsed, len - nparsed);
-
+    if (nparsed < len)
+      rb_str_cat(wrapper->upgrade_data, ptr + nparsed, len - nparsed);
+    
   } else if (nparsed != (size_t)len) {
     if (!RTEST(wrapper->stopped) && !RTEST(wrapper->completed))
       rb_raise(eParserError, "Could not parse data entirely (%zu != %zu)", nparsed, len);
@@ -438,6 +462,7 @@ VALUE Parser_status_code(VALUE self) {
     return wrapper->name;                    \
   }
 
+DEFINE_GETTER(status);
 DEFINE_GETTER(request_url);
 DEFINE_GETTER(headers);
 DEFINE_GETTER(upgrade_data);
@@ -505,6 +530,7 @@ void Init_ruby_http_parser() {
   rb_define_method(cParser, "http_method", Parser_http_method, 0);
   rb_define_method(cParser, "status_code", Parser_status_code, 0);
 
+  rb_define_method(cParser, "status", Parser_status, 0);
   rb_define_method(cParser, "request_url", Parser_request_url, 0);
   rb_define_method(cParser, "headers", Parser_headers, 0);
   rb_define_method(cParser, "upgrade_data", Parser_upgrade_data, 0);

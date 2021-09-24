@@ -1,3 +1,21 @@
+=== 5.14.4 / 2021-02-23
+
+* 1 bug fix:
+
+  * Fixed deprecation warning using stub with methods using keyword arguments. (Nakilon)
+
+=== 5.14.3 / 2021-01-05
+
+* 1 bug fix:
+
+  * Bumped require_ruby_version to < 4 (trunk = 3.1).
+
+=== 5.14.2 / 2020-08-31
+
+* 1 bug fix:
+
+  * Bumped ruby version to include 3.0 (trunk).
+
 === 5.14.1 / 2020-05-15
 
 * 3 minor enhancements:
@@ -205,7 +223,7 @@
 * 2 bug fixes:
 
   * Re-release to refresh gem certificate signing. ugh.
-  * Fixed hoe/minitest to not augment load path if we're actually testing minitest.  
+  * Fixed hoe/minitest to not augment load path if we're actually testing minitest.
 
 === 5.9.0 / 2016-05-16
 
@@ -229,7 +247,7 @@
 * 2 bug fixes:
 
   * Re-release to refresh gem certificate signing. ugh.
-  * Fixed hoe/minitest to not augment load path if we're actually testing minitest.  
+  * Fixed hoe/minitest to not augment load path if we're actually testing minitest.
 
 === 5.8.4 / 2016-01-21
 
@@ -1389,4 +1407,3 @@ back.
 * 1 major enhancement
 
   * Birthday!
-

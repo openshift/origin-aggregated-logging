@@ -14,8 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if ENV['COVERAGE'] && ENV['CI'].nil?
+  require 'simplecov'
+  SimpleCov.start { add_filter %r{^/test|spec/} }
+end
 
-require 'elasticsearch'
 require 'elasticsearch-transport'
 require 'logger'
 require 'ansi/code'
@@ -32,10 +35,12 @@ end
 # The hosts to use for creating a elasticsearch client.
 #
 # @since 7.0.0
-ELASTICSEARCH_HOSTS = if hosts = ENV['TEST_ES_SERVER'] || ENV['ELASTICSEARCH_HOSTS']
+ELASTICSEARCH_HOSTS = if (hosts = ENV['TEST_ES_SERVER'] || ENV['ELASTICSEARCH_HOSTS'])
                         hosts.split(',').map do |host|
                           /(http\:\/\/)?(\S+)/.match(host)[2]
                         end
+                      else
+                        ['localhost:9200']
                       end.freeze
 
 TEST_HOST, TEST_PORT = ELASTICSEARCH_HOSTS.first.split(':') if ELASTICSEARCH_HOSTS
@@ -55,7 +60,8 @@ end
 #
 # @since 7.0.0
 def node_names
-  $node_names ||= default_client.nodes.stats['nodes'].collect do |name, stats|
+  node_stats = default_client.perform_request('GET', '_nodes/stats').body
+  $node_names ||= node_stats['nodes'].collect do |name, stats|
     stats['name']
   end
 end
@@ -70,9 +76,7 @@ def default_client
 end
 
 module Config
-
   def self.included(context)
-
     # Get the hosts to use to connect an elasticsearch client.
     #
     # @since 7.0.0

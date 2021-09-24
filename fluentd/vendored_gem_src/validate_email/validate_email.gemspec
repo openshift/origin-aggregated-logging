@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = ["README.markdown".freeze]
   s.files = ["README.markdown".freeze, "init.rb".freeze, "install.rb".freeze, "lib/locale/en.yml".freeze, "lib/validate_email.rb".freeze]
   s.homepage = "http://github.com/perfectline/validates_email/tree/master".freeze
-  s.rubygems_version = "3.0.8".freeze
+  s.rubygems_version = "3.0.9".freeze
   s.summary = "Library for validating email addresses in Rails 3 models.".freeze
 
   if s.respond_to? :specification_version then

@@ -1,52 +1,13 @@
 #!/usr/bin/env ruby
 
-$: << File.dirname(__FILE__)
-$oj_dir = File.dirname(File.expand_path(File.dirname(__FILE__)))
-%w(lib ext).each do |dir|
-  $: << File.join($oj_dir, dir)
-end
-
-require 'json'
-
-t = [Time.now.utc]
-
-puts "t.to_json - #{t.to_json}"
-
-puts "--- active support"
-
-require 'active_support'
-require "active_support/json"
-
-ActiveSupport::JSON::Encoding.use_standard_json_time_format = false
-
-puts "t.as_json - #{t.as_json}"
-puts "t.to_json - #{t.to_json}"
-
 require 'oj'
 
-t = [Time.now.utc]
+Oj::default_options = {cache_str: 0, cache_keys: true, mode: :strict}
 
-puts "-----------------------"
+puts "Ruby version: #{RUBY_VERSION}"
+puts "Oj version: #{Oj::VERSION}"
 
-#puts "t.as_json - #{t.as_json}"
-puts "t.to_json - #{t.to_json}"
+puts "cache_keys: #{Oj::default_options[:cache_keys]}"
+puts "cache_str: #{Oj::default_options[:cache_str]}"
 
-#Oj.mimic_JSON
-
-#puts "Oj - t.as_json - #{t.as_json}"
-
-puts "--- active support"
-
-require 'active_support'
-require "active_support/json"
-
-ActiveSupport::JSON::Encoding.use_standard_json_time_format = false
-
-puts "t.as_json - #{t.as_json}"
-puts "t.to_json - #{t.to_json}"
-
-puts "--- optimize"
-Oj.optimize_rails
-
-puts "t.as_json - #{t.as_json}"
-puts "t.to_json - #{t.to_json}"
+Oj.load('{"":""}').each_pair {|k,v| puts "k.frozen?: #{k.frozen?}\nv.frozen?: #{v.frozen?}"}

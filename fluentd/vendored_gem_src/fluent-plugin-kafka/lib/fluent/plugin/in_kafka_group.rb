@@ -18,6 +18,8 @@ class Fluent::KafkaGroupInput < Fluent::Input
                :desc => "Supported format: (json|text|ltsv|msgpack)"
   config_param :message_key, :string, :default => 'message',
                :desc => "For 'text' format only."
+  config_param :add_headers, :bool, :default => false,
+               :desc => "Add kafka's message headers to event record"
   config_param :add_prefix, :string, :default => nil,
                :desc => "Tag prefix (Optional)"
   config_param :add_suffix, :string, :default => nil,
@@ -34,6 +36,10 @@ class Fluent::KafkaGroupInput < Fluent::Input
   config_param :get_kafka_client_log, :bool, :default => false
   config_param :time_format, :string, :default => nil,
                :desc => "Time format to be used to parse 'time' field."
+  config_param :tag_source, :enum, :list => [:topic, :record], :default => :topic,
+               :desc => "Source for the fluentd event tag"
+  config_param :record_tag_key, :string, :default => 'tag',
+               :desc => "Tag field when tag_source is 'record'"
   config_param :kafka_message_key, :string, :default => nil,
                :desc => "Set kafka's message key to this field"
   config_param :connect_timeout, :integer, :default => nil,
@@ -115,7 +121,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
       @max_wait_time = conf['max_wait_ms'].to_i / 1000
     end
 
-    @parser_proc = setup_parser
+    @parser_proc = setup_parser(conf)
 
     @consumer_opts = {:group_id => @consumer_group}
     @consumer_opts[:session_timeout] = @session_timeout if @session_timeout
@@ -136,9 +142,13 @@ class Fluent::KafkaGroupInput < Fluent::Input
         @time_parser = Fluent::TextParser::TimeParser.new(@time_format)
       end
     end
+
+    if @time_source == :record && defined?(Fluent::NumericTimeParser)
+      @float_numeric_parse = Fluent::NumericTimeParser.new(:float)
+    end
   end
 
-  def setup_parser
+  def setup_parser(conf)
     case @format
     when 'json'
       begin
@@ -157,6 +167,14 @@ class Fluent::KafkaGroupInput < Fluent::Input
       Proc.new { |msg| MessagePack.unpack(msg.value) }
     when 'text'
       Proc.new { |msg| {@message_key => msg.value} }
+    else
+      @custom_parser = Fluent::Plugin.new_parser(conf['format'])
+      @custom_parser.configure(conf)
+      Proc.new { |msg|
+        @custom_parser.parse(msg.value) {|_time, record|
+          record
+        }
+      }
     end
   end
 
@@ -165,17 +183,17 @@ class Fluent::KafkaGroupInput < Fluent::Input
 
     logger = @get_kafka_client_log ? log : nil
     if @scram_mechanism != nil && @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_scram_username: @username, sasl_scram_password: @password,
                          sasl_scram_mechanism: @scram_mechanism, sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
     elsif @username != nil && @password != nil
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_plain_username: @username, sasl_plain_password: @password,
                          sasl_over_ssl: @sasl_over_ssl, ssl_verify_hostname: @ssl_verify_hostname)
     else
-      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert: read_ssl_file(@ssl_ca_cert),
+      @kafka = Kafka.new(seed_brokers: @brokers, client_id: @client_id, logger: logger, connect_timeout: @connect_timeout, socket_timeout: @socket_timeout, ssl_ca_cert_file_path: @ssl_ca_cert,
                          ssl_client_cert: read_ssl_file(@ssl_client_cert), ssl_client_cert_key: read_ssl_file(@ssl_client_cert_key),
                          ssl_ca_certs_from_system: @ssl_ca_certs_from_system, sasl_gssapi_principal: @principal, sasl_gssapi_keytab: @keytab,
                          ssl_verify_hostname: @ssl_verify_hostname)
@@ -199,7 +217,7 @@ class Fluent::KafkaGroupInput < Fluent::Input
   end
 
   def setup_consumer
-    consumer = @kafka.consumer(@consumer_opts)
+    consumer = @kafka.consumer(**@consumer_opts)
     @topics.each { |topic|
       if m = /^\/(.+)\/$/.match(topic)
         topic_or_regex = Regexp.new(m[1])
@@ -234,44 +252,104 @@ class Fluent::KafkaGroupInput < Fluent::Input
     end
   end
 
+  def process_batch_with_record_tag(batch)
+    es = {} 
+    batch.messages.each { |msg|
+      begin
+        record = @parser_proc.call(msg)
+        tag = record[@record_tag_key]
+        tag = @add_prefix + "." + tag if @add_prefix
+        tag = tag + "." + @add_suffix if @add_suffix
+        es[tag] ||= Fluent::MultiEventStream.new
+        case @time_source
+        when :kafka
+          record_time = Fluent::EventTime.from_time(msg.create_time)
+        when :now
+          record_time = Fluent::Engine.now
+        when :record
+          if @time_format
+            record_time = @time_parser.parse(record[@record_time_key].to_s)
+          else
+            record_time = record[@record_time_key]
+          end
+        else
+          log.fatal "BUG: invalid time_source: #{@time_source}"
+        end
+        if @kafka_message_key
+          record[@kafka_message_key] = msg.key
+        end
+        if @add_headers
+          msg.headers.each_pair { |k, v|
+            record[k] = v
+          }
+        end
+        es[tag].add(record_time, record)
+      rescue => e
+        log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+        log.debug_backtrace
+      end
+    }
+
+    unless es.empty?
+      es.each { |tag,es|
+        emit_events(tag, es)
+      }
+    end
+  end
+
+  def process_batch(batch)
+    es = Fluent::MultiEventStream.new
+    tag = batch.topic
+    tag = @add_prefix + "." + tag if @add_prefix
+    tag = tag + "." + @add_suffix if @add_suffix
+
+    batch.messages.each { |msg|
+      begin
+        record = @parser_proc.call(msg)
+        case @time_source
+        when :kafka
+          record_time = Fluent::EventTime.from_time(msg.create_time)
+        when :now
+          record_time = Fluent::Engine.now
+        when :record
+          record_time = record[@record_time_key]
+
+          if @time_format
+            record_time = @time_parser.parse(record_time.to_s)
+          elsif record_time.is_a?(Float) && @float_numeric_parse
+            record_time = @float_numeric_parse.parse(record_time)
+          end
+        else
+          log.fatal "BUG: invalid time_source: #{@time_source}"
+        end
+        if @kafka_message_key
+          record[@kafka_message_key] = msg.key
+        end
+        if @add_headers
+          msg.headers.each_pair { |k, v|
+            record[k] = v
+          }
+        end
+        es.add(record_time, record)
+      rescue => e
+        log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
+        log.debug_backtrace
+      end
+    }
+
+    unless es.empty?
+      emit_events(tag, es)
+    end
+  end
+
   def run
     while @consumer
       begin
-        @consumer.each_batch(@fetch_opts) { |batch|
-          es = Fluent::MultiEventStream.new
-          tag = batch.topic
-          tag = @add_prefix + "." + tag if @add_prefix
-          tag = tag + "." + @add_suffix if @add_suffix
-
-          batch.messages.each { |msg|
-            begin
-              record = @parser_proc.call(msg)
-              case @time_source
-              when :kafka
-                record_time = Fluent::EventTime.from_time(msg.create_time)
-              when :now
-                record_time = Fluent::Engine.now
-              when :record
-                if @time_format
-                  record_time = @time_parser.parse(record[@record_time_key].to_s)
-                else
-                  record_time = record[@record_time_key]
-                end
-              else
-                log.fatal "BUG: invalid time_source: #{@time_source}"
-              end
-              if @kafka_message_key
-                record[@kafka_message_key] = msg.key
-              end
-              es.add(record_time, record)
-            rescue => e
-              log.warn "parser error in #{batch.topic}/#{batch.partition}", :error => e.to_s, :value => msg.value, :offset => msg.offset
-              log.debug_backtrace
-            end
-          }
-
-          unless es.empty?
-            emit_events(tag, es)
+        @consumer.each_batch(**@fetch_opts) { |batch|
+          if @tag_source == :record
+            process_batch_with_record_tag(batch)
+          else
+            process_batch(batch) 
           end
         }
       rescue ForShutdown

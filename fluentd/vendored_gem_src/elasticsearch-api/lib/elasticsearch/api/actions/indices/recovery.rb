@@ -26,7 +26,7 @@ module Elasticsearch
         # @option arguments [Boolean] :active_only Display only those recoveries that are currently on-going
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-recovery.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-recovery.html
         #
         def recovery(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -40,7 +40,7 @@ module Elasticsearch
                      "#{Utils.__listify(_index)}/_recovery"
                    else
                      "_recovery"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -54,7 +54,7 @@ module Elasticsearch
           :detailed,
           :active_only
         ].freeze)
-end
       end
+    end
   end
 end

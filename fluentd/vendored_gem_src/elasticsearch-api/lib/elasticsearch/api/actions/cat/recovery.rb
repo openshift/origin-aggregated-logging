@@ -24,21 +24,16 @@ module Elasticsearch
         # @option arguments [List] :index Comma-separated list or wildcard expression of index names to limit the returned information
         # @option arguments [String] :format a short version of the Accept header, e.g. json, yaml
         # @option arguments [Boolean] :active_only If `true`, the response only includes ongoing shard recoveries
-        # @option arguments [String] :bytes The unit in which to display byte values
-        #   (options: b,k,kb,m,mb,g,gb,t,tb,p,pb)
-
+        # @option arguments [String] :bytes The unit in which to display byte values (options: b, k, kb, m, mb, g, gb, t, tb, p, pb)
         # @option arguments [Boolean] :detailed If `true`, the response includes detailed information about shard recoveries
         # @option arguments [List] :h Comma-separated list of column names to display
         # @option arguments [Boolean] :help Return help information
-        # @option arguments [List] :index Comma-separated list or wildcard expression of index names to limit the returned information
         # @option arguments [List] :s Comma-separated list of column names or column aliases to sort by
-        # @option arguments [String] :time The unit in which to display time values
-        #   (options: d,h,m,s,ms,micros,nanos)
-
+        # @option arguments [String] :time The unit in which to display time values (options: d, h, m, s, ms, micros, nanos)
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-recovery.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-recovery.html
         #
         def recovery(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -52,7 +47,7 @@ module Elasticsearch
                      "_cat/recovery/#{Utils.__listify(_index)}"
                    else
                      "_cat/recovery"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
           params[:h] = Utils.__listify(params[:h]) if params[:h]
 
@@ -75,7 +70,7 @@ module Elasticsearch
           :time,
           :v
         ].freeze)
-end
       end
+    end
   end
 end

@@ -1,5 +1,31 @@
 ## Current
 
+## Release v1.1.9 (5 Jun 2021)
+
+concurrent-ruby:
+
+* (#866) Child promise state not set to :pending immediately after #execute when parent has completed 
+* (#905, #872) Fix RubyNonConcurrentPriorityQueue#delete method
+* (2df0337d) Make sure locks are not shared on shared when objects are dup/cloned
+* (#900, #906, #796, #847, #911) Fix Concurrent::Set tread-safety issues on CRuby
+* (#907) Add new ConcurrentMap backend for TruffleRuby
+
+## Release v1.1.8 (20 January 2021)
+
+concurrent-ruby:
+
+* (#885) Fix race condition in TVar for stale reads 
+* (#884) RubyThreadLocalVar: Do not iterate over hash which might conflict with new pair addition
+
+## Release v1.1.7 (6 August 2020)
+
+concurrent-ruby:
+
+* (#879) Consider falsy value on `Concurrent::Map#compute_if_absent` for fast non-blocking path
+* (#876) Reset Async queue on forking, makes Async fork-safe
+* (#856) Avoid running problematic code in RubyThreadLocalVar on MRI that occasionally results in segfault
+* (#853) Introduce ThreadPoolExecutor without a Queue
+
 ## Release v1.1.6, edge v0.6.0 (10 Feb 2020)
 
 concurrent-ruby:

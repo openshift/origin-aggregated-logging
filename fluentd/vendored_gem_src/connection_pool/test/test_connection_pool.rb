@@ -8,8 +8,14 @@ class TestConnectionPool < Minitest::Test
       @x = 0
     end
 
-    def do_something
-      @x += 1
+    def do_something(*_args, increment: 1)
+      @x += increment
+      sleep SLEEP_TIME
+      @x
+    end
+
+    def do_something_with_positional_hash(options)
+      @x += options[:increment] || 1
       sleep SLEEP_TIME
       @x
     end
@@ -115,6 +121,12 @@ class TestConnectionPool < Minitest::Test
     end
 
     assert Thread.new { pool.checkout }.join
+  end
+
+  def test_then
+    pool = ConnectionPool.new { Object.new }
+
+    assert_equal pool.method(:then), pool.method(:with)
   end
 
   def test_with_timeout
@@ -326,6 +338,8 @@ class TestConnectionPool < Minitest::Test
     assert_equal 2, pool.do_something
     assert_equal 5, pool.do_something_with_block { 3 }
     assert_equal 6, pool.with { |net| net.fast }
+    assert_equal 8, pool.do_something(increment: 2)
+    assert_equal 10, pool.do_something_with_positional_hash({ increment: 2, symbol_key: 3, "string_key" => 4 })
   end
 
   def test_passthru_respond_to

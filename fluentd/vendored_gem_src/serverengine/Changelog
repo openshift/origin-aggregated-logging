@@ -1,3 +1,15 @@
+2021-05-24 version 2.2.4:
+
+* Ensure to get correct Win32 socket error on Ruby 3.0
+
+2021-02-17 version 2.2.3:
+
+* Change SocketManager's port assignment strategy on Windows
+
+2020-11-02 version 2.2.2:
+
+* Fix incomplete Windows support in spawn based multi worker
+
 2020-01-24 version 2.2.1:
 
 * Fix IPv6 dual-stack mode issue for UDP

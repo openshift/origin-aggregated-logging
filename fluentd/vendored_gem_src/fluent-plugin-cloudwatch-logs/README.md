@@ -8,15 +8,24 @@
 
 |fluent-plugin-cloudwatch-logs|     fluentd      |  ruby  |
 |-----------------------------|------------------|--------|
-|     >= 0.5.0                | >= 0.14.15       | >= 2.1 |
+|     >= 0.8.0                | >= 1.8.0         | >= 2.4 |
+|     >= 0.5.0 && < 0.8.0     | >= 0.14.15       | >= 2.1 |
 |     <= 0.4.5                | ~> 0.12.0 *      | >= 1.9 |
 
 * May not support all future fluentd features
 
 ## Installation
 
+### For Fluentd
+
 ```sh
 gem install fluent-plugin-cloudwatch-logs
+```
+
+### For td-agent
+
+```sh
+td-agent-gem install fluent-plugin-cloudwatch-logs
 ```
 
 ## Preparation
@@ -42,12 +51,52 @@ Create IAM user with a policy like the following:
 }
 ```
 
+More restricted IAM policy for `out_cloudwatch_logs` is:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:PutLogEvents",
+                "logs:CreateLogGroup",
+                "logs:PutRetentionPolicy",
+                "logs:CreateLogStream",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+Also, more restricted IAM policy for `in_cloudwatch_logs` is:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:GetLogEvents",
+                "logs:DescribeLogStreams"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
 ## Authentication
 
 There are several methods to provide authentication credentials.  Be aware that there are various tradeoffs for these methods,
 although most of these tradeoffs are highly dependent on the specific environment.
 
-### Environment 
+### Environment
 
 Set region and credentials via the environment:
 
@@ -57,11 +106,11 @@ export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
 export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
 ```
 
-Note: For this to work persistently the enviornment will need to be set in the startup scripts or docker variables.
+Note: For this to work persistently the environment will need to be set in the startup scripts or docker variables.
 
 ### AWS Configuration
 
-The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the 
+The plugin will look for the `$HOME/.aws/config` and `$HOME/.aws/credentials` for configuration information.  To setup, as the
 fluentd user, run:
 
 ```sh
@@ -70,7 +119,7 @@ aws configure
 
 ### Configuration Parameters
 
-The authentication information can also be set 
+The authentication information can also be set
 
 ## Example
 
@@ -119,6 +168,14 @@ Fetch sample log from CloudWatch Logs:
   #endpoint http://localhost:5000/
   #json_handler json
   #log_rejected_request true
+  #<web_identity_credentials>
+  #  role_arn          "#{ENV['AWS_ROLE_ARN']}"
+  #  role_session_name ROLE_SESSION_NAME
+  #  web_identity_token_file "#{ENV['AWS_WEB_IDENTITY_TOKEN_FILE']}"
+  #</web_identity_credentials>
+  #<format>
+  #  @type ltsv
+  #</format>
 </match>
 ```
 
@@ -127,6 +184,7 @@ Fetch sample log from CloudWatch Logs:
 * `aws_sec_key`: AWS Secret Access Key.  See [Authentication](#authentication) for more information.
 * `concurrency`: use to set the number of threads pushing data to CloudWatch. (default: 1)
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
 * `http_proxy`: use to set an optional HTTP proxy
 * `include_time_key`: include time key as part of the log entry (defaults to UTC)
 * `json_handler`: name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
@@ -148,11 +206,20 @@ Fetch sample log from CloudWatch Logs:
 * `remove_log_group_aws_tags_key`: remove field specified by `log_group_aws_tags_key`
 * `remove_log_group_name_key`: remove field specified by `log_group_name_key`
 * `remove_log_stream_name_key`: remove field specified by `log_stream_name_key`
-* `remove_retention_in_days`: remove field specified by `retention_in_days`
+* `remove_retention_in_days_key`: remove field specified by `retention_in_days_key`
 * `retention_in_days`: use to set the expiry time for log group when created with `auto_create_stream`. (default to no expiry)
 * `retention_in_days_key`: use specified field of records as retention period
 * `use_tag_as_group`: to use tag as a group name
 * `use_tag_as_stream`: to use tag as a stream name
+* `<web_identity_credentials>`: For EKS authentication.
+  * `role_arn`: The Amazon Resource Name (ARN) of the role to assume. This parameter is required when using `<web_identity_credentials>`.
+  * `role_session_name`: An identifier for the assumed role session.  This parameter is required when using `<web_identity_credentials>`.
+  * `web_identity_token_file`: The absolute path to the file on disk containing the OIDC token. This parameter is required when using `<web_identity_credentials>`.
+  * `policy`: An IAM policy in JSON format. (default `nil`)
+  * `duration_seconds`: The duration, in seconds, of the role session. The value can range from
+900 seconds (15 minutes) to 43200 seconds (12 hours). By default, the value
+is set to 3600 seconds (1 hour). (default `nil`)
+* `<format>`: For specifying records format. See [formatter overview](https://docs.fluentd.org/formatter) and [formatter section overview](https://docs.fluentd.org/configuration/format-section) on the official documentation.
 
 **NOTE:** `retention_in_days` requests additional IAM permission `logs:PutRetentionPolicy` for log_group.
 Please refer to [the PutRetentionPolicy column in documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/permissions-reference-cwl.html) for details.
@@ -164,11 +231,30 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
   @type cloudwatch_logs
   tag cloudwatch.in
   log_group_name group
+  #add_log_group_name true
+  #log_group_name_key group_name_key
+  #use_log_group_name_prefix true
   log_stream_name stream
   #use_log_stream_name_prefix true
   state_file /var/lib/fluent/group_stream.in.state
   #endpoint http://localhost:5000/
   #json_handler json
+  # start_time "2020-03-01 00:00:00Z"
+  # end_time "2020-04-30 15:00:00Z"
+  # time_range_format "%Y-%m-%d %H:%M:%S%z"
+  # Users can use `format` or `<parse>` directive to parse non-JSON CloudwatchLogs' log
+  # format none # or csv, tsv, regexp etc.
+  #<parse>
+  # @type none # or csv, tsv, regexp etc.
+  #</parse>
+  #<storage>
+  # @type local # or redis, memcached, etc.
+  #</storage>
+  #<web_identity_credentials>
+  #  role_arn          "#{ENV['AWS_ROLE_ARN']}"
+  #  role_session_name ROLE_SESSION_NAME
+  #  web_identity_token_file "#{ENV['AWS_WEB_IDENTITY_TOKEN_FILE']}"
+  #</web_identity_credentials>
 </source>
 ```
 
@@ -178,17 +264,37 @@ Please refer to [the PutRetentionPolicy column in documentation](https://docs.aw
 * `aws_sts_session_name`: the session name to use with sts authentication (default: `fluentd`)
 * `aws_use_sts`: use [AssumeRoleCredentials](http://docs.aws.amazon.com/sdkforruby/api/Aws/AssumeRoleCredentials.html) to authenticate, rather than the [default credential hierarchy](http://docs.aws.amazon.com/sdkforruby/api/Aws/CloudWatchLogs/Client.html#initialize-instance_method). See 'Cross-Account Operation' below for more detail.
 * `endpoint`: use this parameter to connect to the local API endpoint (for testing)
+* `ssl_verify_peer`: when `true` (default), SSL peer certificates are verified when establishing a connection. Setting to `false` can be useful for testing.
 * `fetch_interval`: time period in seconds between checking CloudWatch for new logs. (default: 60)
 * `http_proxy`: use to set an optional HTTP proxy
 * `json_handler`:  name of the library to be used to handle JSON data. For now, supported libraries are `json` (default) and `yajl`.
 * `log_group_name`: name of log group to fetch logs
+* `add_log_group_name`: add record into the name of log group (default `false`)
+* `log_group_name_key`: specify the key where adding record into the name of log group (default `'log_group'`)
+* `use_log_group_name_prefix`: to use `log_group_name` as log group name prefix (default `false`)
 * `log_stream_name`: name of log stream to fetch logs
 * `region`: AWS Region.  See [Authentication](#authentication) for more information.
-* `state_file`: file to store current state (e.g. next\_forward\_token)
+* `throttling_retry_seconds`: time period in seconds to retry a request when aws CloudWatch rate limit exceeds (default: nil)
+* `include_metadata`: include metadata such as `log_group_name` and `log_stream_name`. (default: false)
+* `state_file`: file to store current state (e.g. next\_forward\_token). This parameter is deprecated. Use `<storage>` instead.
 * `tag`: fluentd tag
 * `use_log_stream_name_prefix`: to use `log_stream_name` as log stream name prefix (default false)
 * `use_todays_log_stream`: use todays and yesterdays date as log stream name prefix (formatted YYYY/MM/DD). (default: `false`)
 * `use_aws_timestamp`: get timestamp from Cloudwatch event for non json logs, otherwise fluentd will parse the log to get the timestamp (default `false`)
+* `start_time`: specify starting time range for obtaining logs. (default: `nil`)
+* `end_time`: specify ending time range for obtaining logs. (default: `nil`)
+* `time_range_format`: specify time format for time range. (default: `%Y-%m-%d %H:%M:%S`)
+* `format`: specify CloudWatchLogs' log format. (default `nil`)
+* `<parse>`: specify parser plugin configuration. see also: https://docs.fluentd.org/v/1.0/parser#how-to-use
+* `<storage>`: specify storage plugin configuration. see also: https://docs.fluentd.org/v/1.0/storage#how-to-use
+* `<web_identity_credentials>`: For EKS authentication.
+  * `role_arn`: The Amazon Resource Name (ARN) of the role to assume. This parameter is required when using `<web_identity_credentials>`.
+  * `role_session_name`: An identifier for the assumed role session.  This parameter is required when using `<web_identity_credentials>`.
+  * `web_identity_token_file`: The absolute path to the file on disk containing the OIDC token. This parameter is required when using `<web_identity_credentials>`.
+  * `policy`: An IAM policy in JSON format. (default `nil`)
+  * `duration_seconds`: The duration, in seconds, of the role session. The value can range from
+900 seconds (15 minutes) to 43200 seconds (12 hours). By default, the value
+is set to 3600 seconds (1 hour). (default `nil`)
 
 ## Test
 
@@ -348,10 +454,8 @@ In more detail, please refer to [the officilal document for built-in placeholder
 
 * out_cloudwatch_logs
   * if the data is too big for API, split into multiple requests
-  * format
   * check data size
 * in_cloudwatch_logs
-  * format
   * fallback to start_time because next_token expires after 24 hours
 
 ## Contributing

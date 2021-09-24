@@ -4,6 +4,7 @@ have_header("ruby/st.h")
 have_header("st.h")
 have_func("rb_str_replace", ["ruby.h"])
 have_func("rb_intern_str", ["ruby.h"])
+have_func("rb_enc_interned_str", "ruby.h")
 have_func("rb_sym2str", ["ruby.h"])
 have_func("rb_str_intern", ["ruby.h"])
 have_func("rb_block_lambda", ["ruby.h"])
@@ -23,6 +24,44 @@ if defined?(RUBY_ENGINE) && RUBY_ENGINE == 'rbx'
   $CFLAGS << %[ -DRSTRING_NOT_MODIFIED]
   # Rubinius C extensions don't grab GVL while rmem is not thread safe
   $CFLAGS << %[ -DDISABLE_RMEM]
+end
+
+# checking if Hash#[]= (rb_hash_aset) dedupes string keys
+h = {}
+x = {}
+r = rand.to_s
+h[%W(#{r}).join('')] = :foo
+x[%W(#{r}).join('')] = :foo
+if x.keys[0].equal?(h.keys[0])
+  $CFLAGS << ' -DHASH_ASET_DEDUPE=1 '
+else
+  $CFLAGS << ' -DHASH_ASET_DEDUPE=0 '
+end
+
+
+# checking if String#-@ (str_uminus) dedupes... '
+begin
+  a = -(%w(t e s t).join)
+  b = -(%w(t e s t).join)
+  if a.equal?(b)
+    $CFLAGS << ' -DSTR_UMINUS_DEDUPE=1 '
+  else
+    $CFLAGS += ' -DSTR_UMINUS_DEDUPE=0 '
+  end
+rescue NoMethodError
+  $CFLAGS << ' -DSTR_UMINUS_DEDUPE=0 '
+end
+
+# checking if String#-@ (str_uminus) directly interns frozen strings... '
+begin
+  s = rand.to_s.freeze
+  if (-s).equal?(s) && (-s.dup).equal?(s)
+    $CFLAGS << ' -DSTR_UMINUS_DEDUPE_FROZEN=1 '
+  else
+    $CFLAGS << ' -DSTR_UMINUS_DEDUPE_FROZEN=0 '
+  end
+rescue NoMethodError
+  $CFLAGS << ' -DSTR_UMINUS_DEDUPE_FROZEN=0 '
 end
 
 if warnflags = CONFIG['warnflags']

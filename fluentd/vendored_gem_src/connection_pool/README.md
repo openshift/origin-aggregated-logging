@@ -1,6 +1,6 @@
 connection\_pool
 =================
-[![Build Status](https://travis-ci.org/mperham/connection_pool.svg)](https://travis-ci.org/mperham/connection_pool)
+[![Build Status](https://github.com/mperham/connection_pool/actions/workflows/ci.yml/badge.svg)](https://github.com/mperham/connection_pool/actions/workflows/ci.yml)
 
 Generic connection pooling for Ruby.
 
@@ -30,6 +30,14 @@ end
 If all the objects in the connection pool are in use, `with` will block
 until one becomes available.  If no object is available within `:timeout` seconds,
 `with` will raise a `Timeout::Error`.
+
+You can also use `ConnectionPool#then` to support _both_ a
+connection pool and a raw client (requires Ruby 2.5+).
+
+```ruby
+# Compatible with a raw Redis::Client, and ConnectionPool Redis
+$redis.then { |r| r.set 'foo' 'bar' }
+```
 
 Optionally, you can specify a timeout override using the with-block semantics:
 
@@ -87,6 +95,22 @@ Shutting down a connection pool will block until all connections are checked in 
 **Note that shutting down is completely optional**; Ruby's garbage collector will reclaim
 unreferenced pools under normal circumstances.
 
+## Reload
+
+You can reload a ConnectionPool instance in the case it is desired to close all
+connections to the pool and, unlike `shutdown`, afterwards recreate connections
+so the pool may continue to be used. Reloading may be useful after forking the
+process.
+
+```ruby
+cp = ConnectionPool.new { Redis.new }
+cp.reload { |conn| conn.quit }
+cp.with { |conn| conn.get('some-count') }
+```
+
+Like `shutdown`, this will block until all connections are checked in and
+closed.
+
 ## Current State
 
 There are several methods that return information about a pool.
@@ -107,15 +131,15 @@ Notes
 
 - Connections are lazily created as needed.
 - There is no provision for repairing or checking the health of a connection;
-  connections should be self-repairing.  This is true of the Dalli and Redis
+  connections should be self-repairing. This is true of the Dalli and Redis
   clients.
 - **WARNING**: Don't ever use `Timeout.timeout` in your Ruby code or you will see
-  occasional silent corruption and mysterious errors.  The Timeout API is unsafe
-  and cannot be used correctly, ever.  Use proper socket timeout options as
+  occasional silent corruption and mysterious errors. The Timeout API is unsafe
+  and cannot be used correctly, ever. Use proper socket timeout options as
   exposed by Net::HTTP, Redis, Dalli, etc.
 
 
 Author
 ------
 
-Mike Perham, [@mperham](https://twitter.com/mperham), <http://mikeperham.com>
+Mike Perham, [@getajobmike](https://twitter.com/getajobmike), <https://www.mikeperham.com>

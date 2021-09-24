@@ -16,7 +16,8 @@ class RootAgentTest < ::Test::Unit::TestCase
 
   data(
     'suppress interval' => [{'emit_error_log_interval' => 30}, {:@suppress_emit_error_log_interval => 30}],
-    'without source' => [{'without_source' => true}, {:@without_source => true}]
+    'without source' => [{'without_source' => true}, {:@without_source => true}],
+    'enable input metrics' => [{'enable_input_metrics' => true}, {:@enable_input_metrics => true}],
     )
   def test_initialize_with_opt(data)
     opt, expected = data
@@ -109,6 +110,34 @@ EOC
       end
     end
 
+    test 'raises configuration error for label without name' do
+      conf = <<-EOC
+<label>
+  @type test_out
+</label>
+EOC
+      errmsg = "Missing symbol argument on <label> directive"
+      assert_raise Fluent::ConfigError.new(errmsg) do
+        configure_ra(conf)
+      end
+    end
+
+    test 'raises configuration error for <label @ROOT>' do
+      conf = <<-EOC
+<source>
+  @type test_in
+  @label @ROOT
+</source>
+<label @ROOT>
+  @type test_out
+</label>
+EOC
+      errmsg = "@ROOT for <label> is not permitted, reserved for getting root router"
+      assert_raise Fluent::ConfigError.new(errmsg) do
+        configure_ra(conf)
+      end
+    end
+
     test 'raises configuration error if there are not match sections in label section' do
       conf = <<-EOC
 <source>
@@ -170,7 +199,6 @@ EOC
 
       error_label = ra.labels['@ERROR']
       assert_kind_of Fluent::Plugin::NullOutput, error_label.outputs.first
-      assert_kind_of RootAgent::RootAgentProxyWithoutErrorCollector, error_label.root_agent
     end
   end
 
@@ -853,7 +881,6 @@ EOC
 
       error_label = ra.labels['@ERROR']
       assert_kind_of Fluent::Plugin::NullOutput, error_label.outputs.first
-      assert_kind_of RootAgent::RootAgentProxyWithoutErrorCollector, error_label.root_agent
     end
 
     test 'with plugins but for another worker' do

@@ -1,18 +1,45 @@
-# Licensed to Elasticsearch B.V under one or more agreements.
-# Elasticsearch B.V licenses this file to you under the Apache 2.0 License.
-# See the LICENSE file in the project root for more information
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 require 'spec_helper'
 require 'rest_yaml_tests_helper'
 
 describe 'Rest API YAML tests' do
+  if REST_API_YAML_FILES.empty?
+    logger = Logger.new($stdout)
+    logger.error 'No test files found!'
+    logger.info 'Use rake rake elasticsearch:download_artifacts in the root directory of the project to download the test artifacts.'
+    exit 1
+  end
+
   # Traverse YAML files and create TestFile object:
   REST_API_YAML_FILES.each do |file|
-    test_file = Elasticsearch::RestAPIYAMLTests::TestFile.new(file, REST_API_YAML_SKIP_FEATURES)
+    begin
+      test_file = Elasticsearch::RestAPIYAMLTests::TestFile.new(file, ADMIN_CLIENT, REST_API_YAML_SKIP_FEATURES)
+    rescue SkipTestsException => _e
+      # If the test file has a `skip` at the top level that applies to this
+      # version of Elasticsearch, continue with the next text.
+      logger = Logger.new($stdout)
+      logger.info "Skipping #{file} due to 'skip all'."
+      next
+    end
 
     context "#{file.gsub("#{YAML_FILES_DIRECTORY}/", '')}" do
       test_file.tests.each do |test|
-
         context "#{test.description}" do
           if test.skip_test?(ADMIN_CLIENT)
             skip 'Test contains feature(s) not yet supported or version is not satisfied'
@@ -23,13 +50,13 @@ describe 'Rest API YAML tests' do
 
             # Runs once before each test in a test file
             before(:all) do
-              Elasticsearch::RestAPIYAMLTests::TestFile.clear_data(ADMIN_CLIENT)
-              test_file.setup(ADMIN_CLIENT)
+              Elasticsearch::RestAPIYAMLTests::TestFile.wipe_cluster(ADMIN_CLIENT)
+              test_file.setup
             end
 
             after(:all) do
-              test_file.teardown(ADMIN_CLIENT)
-              Elasticsearch::RestAPIYAMLTests::TestFile.clear_data(ADMIN_CLIENT)
+              test_file.teardown
+              Elasticsearch::RestAPIYAMLTests::TestFile.wipe_cluster(ADMIN_CLIENT)
             end
 
             test.task_groups.each do |task_group|
@@ -52,7 +79,6 @@ describe 'Rest API YAML tests' do
                   end
                 end
               else
-
                 # 'match' is in the task group definition
                 if task_group.has_match_clauses?
                   task_group.match_clauses.each do |match|

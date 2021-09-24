@@ -67,6 +67,7 @@ class ConnectionPool
       end
     end
   end
+  alias then with
 
   def checkout(options = {})
     if ::Thread.current[@key]
@@ -83,6 +84,7 @@ class ConnectionPool
       if ::Thread.current[@key_count] == 1
         @available.push(::Thread.current[@key])
         ::Thread.current[@key] = nil
+        ::Thread.current[@key_count] = nil
       else
         ::Thread.current[@key_count] -= 1
       end
@@ -93,8 +95,22 @@ class ConnectionPool
     nil
   end
 
+  ##
+  # Shuts down the ConnectionPool by passing each connection to +block+ and
+  # then removing it from the pool. Attempting to checkout a connection after
+  # shutdown will raise +ConnectionPool::PoolShuttingDownError+.
+
   def shutdown(&block)
     @available.shutdown(&block)
+  end
+
+  ##
+  # Reloads the ConnectionPool by passing each connection to +block+ and then
+  # removing it the pool. Subsequent checkouts will create new connections as
+  # needed.
+
+  def reload(&block)
+    @available.shutdown(reload: true, &block)
   end
 
   # Size of this connection pool

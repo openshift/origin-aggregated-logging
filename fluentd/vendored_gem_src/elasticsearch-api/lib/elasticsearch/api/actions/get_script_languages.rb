@@ -19,10 +19,14 @@ module Elasticsearch
   module API
     module Actions
       # Returns available script types, languages and contexts
+      # This functionality is Experimental and may be changed or removed
+      # completely in a future release. Elastic will take a best effort approach
+      # to fix any issues, but experimental features are not subject to the
+      # support SLA of official GA features.
       #
       # @option arguments [Hash] :headers Custom HTTP headers
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/modules-scripting.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/modules-scripting.html
       #
       def get_script_languages(arguments = {})
         headers = arguments.delete(:headers) || {}
@@ -37,5 +41,5 @@ module Elasticsearch
         perform_request(method, path, params, body, headers).body
       end
     end
-    end
+  end
 end

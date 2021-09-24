@@ -1,5 +1,5 @@
 # coding: utf-8
-require 'test_helper'
+require_relative '../test_helper'
 require 'fileutils'
 require 'fluent/test/driver/output'
 require 'fluent/test/helpers'
@@ -74,6 +74,143 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal('{"cloudwatch":"logs2"}', events[1].message)
 
       assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+    end
+
+    sub_test_case "formatter" do
+      test "csv" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'csv',
+                                                                      'fields' => ["message","cloudwatch"],
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('"","logs1"', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('"","logs2"', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
+
+      test "ltsv" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'ltsv',
+                                                                      'fields' => ["message","cloudwatch"],
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('cloudwatch:logs1', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('cloudwatch:logs2', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
+
+      test "single_value" do
+        new_log_stream
+
+        config = {'@type' => 'cloudwatch_logs',
+                  'auto_create_stream' => true,
+                  'log_stream_name' => log_stream_name,
+                  'log_group_name' => log_group_name,
+                  '@log_level' => 'debug'}
+        config.merge!(config_elementify(aws_key_id)) if aws_key_id
+        config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+        config.merge!(config_elementify(region)) if region
+        config.merge!(config_elementify(endpoint)) if endpoint
+
+        d = create_driver(
+          Fluent::Config::Element.new('ROOT', '', config, [
+                                        Fluent::Config::Element.new('buffer', 'tag, time', {
+                                                                      '@type' => 'memory',
+                                                                      'timekey' => 3600
+                                                                    }, []),
+                                        Fluent::Config::Element.new('format', '', {
+                                                                      '@type' => 'single_value',
+                                                                      'message_key' => "cloudwatch",
+                                                                    }, []),
+                                      ]))
+
+        time = event_time
+        d.run(default_tag: fluentd_tag, flush: true) do
+          d.feed(time, {'cloudwatch' => 'logs1', 'message' => 'Hi!'})
+          # Addition converts EventTime to seconds
+          d.feed(time + 1, {'cloudwatch' => 'logs2', 'message' => 'Hi!'})
+        end
+
+        sleep 10
+
+        logs = d.logs
+        events = get_log_events
+        assert_equal(2, events.size)
+        assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+        assert_equal('logs1', events[0].message.strip)
+        assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+        assert_equal('logs2', events[1].message.strip)
+
+        assert(logs.any?{|log| log.include?("Called PutLogEvents API") })
+      end
     end
 
     def test_write_utf8
@@ -492,6 +629,47 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal("value2", awstags.fetch("tag2"))
     end
 
+    def test_log_group_aws_tags_with_placeholders
+      clear_log_group
+
+      config = {
+        "@type" => "cloudwatch_logs",
+        "auto_create_stream" => true,
+        "use_tag_as_stream" => true,
+        "log_group_name_key" => "group_name_key",
+        "log_group_aws_tags" => '{"tag1": "${tag}", "tag2": "${namespace_name}"}',
+      }
+      config.merge!(config_elementify(aws_key_id)) if aws_key_id
+      config.merge!(config_elementify(aws_sec_key)) if aws_sec_key
+      config.merge!(config_elementify(region)) if region
+      config.merge!(config_elementify(endpoint)) if endpoint
+
+      d = create_driver(
+        Fluent::Config::Element.new('ROOT', '', config, [
+          Fluent::Config::Element.new('buffer', 'tag, namespace_name', {
+            '@type' => 'memory',
+          }, [])
+        ])
+      )
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+        {'cloudwatch' => 'logs2', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+        {'cloudwatch' => 'logs3', 'message' => 'message1', 'group_name_key' => log_group_name, "namespace_name" => "fluentd"},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      awstags = get_log_group_tags
+      assert_equal(fluentd_tag, awstags.fetch("tag1"))
+      assert_equal("fluentd", awstags.fetch("tag2"))
+    end
+
     def test_retention_in_days
       clear_log_group
 
@@ -544,7 +722,38 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
         end
       end
 
-      assert_match(/failed to set retention policy for Log group/, d.logs[0])
+      assert(d.logs.any?{|log| log.include?("failed to set retention policy for Log group")})
+    end
+
+    def test_remove_retention_in_days_key
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        retention_in_days_key retention_in_days
+        remove_retention_in_days_key true
+      EOC
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'retention_in_days' => '7'},
+        {'cloudwatch' => 'logs2', 'message' => 'message2', 'retention_in_days' => '7'},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
+      assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
     end
 
     def test_log_group_aws_tags_key
@@ -574,6 +783,37 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       awstags = get_log_group_tags
       assert_equal("value1", awstags.fetch("tag1"))
       assert_equal("value2", awstags.fetch("tag2"))
+    end
+
+    def test_remove_log_group_aws_tags_key
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        log_group_aws_tags_key log_group_tags
+        remove_log_group_aws_tags_key true
+      EOC
+
+      records = [
+        {'cloudwatch' => 'logs1', 'message' => 'message1', 'log_group_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+        {'cloudwatch' => 'logs2', 'message' => 'message2', 'log_group_tags' => {"tag1" => "value1", "tag2" => "value2"}},
+      ]
+
+      time = Time.now
+      d.run(default_tag: fluentd_tag) do
+        records.each_with_index do |record, i|
+          d.feed(time.to_i + i, record)
+        end
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal({'cloudwatch' => 'logs1', 'message' => 'message1'}, JSON.parse(events[0].message))
+      assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
     end
 
     def test_log_group_aws_tags_key_same_group_diff_tags
@@ -651,13 +891,42 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       assert_equal({'cloudwatch' => 'logs2', 'message' => 'message2'}, JSON.parse(events[1].message))
     end
 
-    def test_retrying_on_throttling_exception
-      resp = mock()
-      resp.expects(:rejected_log_events_info)
-      resp.expects(:next_sequence_token)
+    def test_retrying_on_throttling_exception_with_put_log_events_retry_limit_as_zero
       client = Aws::CloudWatchLogs::Client.new
-      client.stubs(:put_log_events).
-        raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")).then.returns(resp)
+      @called = false
+      stub(client).put_log_events(anything) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }.once.ordered
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+        @log_level debug
+        put_log_events_retry_limit 0
+      EOC
+      time = event_time
+      d.instance.instance_variable_set(:@logs, client)
+      d.run(default_tag: fluentd_tag) do
+        d.feed(time, {'message' => 'message1'})
+      end
+
+      logs = d.logs
+      assert_equal(0, logs.select {|l| l =~ /Called PutLogEvents API/ }.size)
+      assert_equal(1, logs.select {|l| l =~ /failed to PutLogEvents/ }.size)
+      assert_equal(0, logs.select {|l| l =~ /retry succeeded/ }.size)
+    end
+
+    def test_retrying_on_throttling_exception
+      resp = Object.new
+      mock(resp).rejected_log_events_info {}
+      mock(resp).next_sequence_token {}
+      client = Aws::CloudWatchLogs::Client.new
+      @called = false
+      stub(client).put_log_events(anything) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }.once.ordered
+      stub(client).put_log_events(anything) { resp }.once.ordered
 
       d = create_driver
       time = event_time
@@ -674,8 +943,9 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
 
     def test_retrying_on_throttling_exception_and_throw_away
       client = Aws::CloudWatchLogs::Client.new
-      client.stubs(:put_log_events).
-        raises(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      mock(client).put_log_events(anything).times(any_times) {
+        raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error"))
+      }
       time = Fluent::Engine.now
       d = create_driver(<<-EOC)
         #{default_config}
@@ -708,7 +978,37 @@ class CloudwatchLogsOutputTest < Test::Unit::TestCase
       end
 
       logs = d.logs
-      assert(logs.any?{|log| log.include?("Log event is discarded because it is too large: 262184 bytes exceeds limit of 262144")})
+      assert(logs.any?{|log| log =~ /Log event in .* discarded because it is too large: 262184 bytes exceeds limit of 262144/})
+    end
+
+    def test_do_not_emit_empty_record
+      new_log_stream
+
+      d = create_driver(<<-EOC)
+        #{default_config}
+        message_keys cloudwatch,message
+        log_group_name #{log_group_name}
+        log_stream_name #{log_stream_name}
+      EOC
+
+      time = event_time
+      d.run(default_tag: fluentd_tag) do
+        d.feed(time, {'cloudwatch' => 'logs1', 'message' => ''})
+        d.feed(time + 1, {'cloudwatch' => '', 'message' => 'message2'})
+        d.feed(time + 2, {'cloudwatch' => '', 'message' => ''})
+      end
+
+      sleep 10
+
+      events = get_log_events
+      assert_equal(2, events.size)
+      assert_equal((time.to_f * 1000).floor, events[0].timestamp)
+      assert_equal('logs1', events[0].message)
+      assert_equal((time.to_i + 1) * 1000, events[1].timestamp)
+      assert_equal('message2', events[1].message)
+
+      logs = d.logs
+      assert(logs.any?{|log| log =~ /Within specified message_key\(s\): \(cloudwatch,message\) do not have non-empty record. Skip./})
     end
   end
 

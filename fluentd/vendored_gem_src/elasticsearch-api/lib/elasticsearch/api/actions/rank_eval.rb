@@ -19,20 +19,20 @@ module Elasticsearch
   module API
     module Actions
       # Allows to evaluate the quality of ranked search results over a set of typical search queries
+      # This functionality is Experimental and may be changed or removed
+      # completely in a future release. Elastic will take a best effort approach
+      # to fix any issues, but experimental features are not subject to the
+      # support SLA of official GA features.
       #
       # @option arguments [List] :index A comma-separated list of index names to search; use `_all` or empty string to perform the operation on all indices
       # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
       # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-      # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-      #   (options: open,closed,hidden,none,all)
-
-      # @option arguments [String] :search_type Search operation type
-      #   (options: query_then_fetch,dfs_query_then_fetch)
-
+      # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
+      # @option arguments [String] :search_type Search operation type (options: query_then_fetch, dfs_query_then_fetch)
       # @option arguments [Hash] :headers Custom HTTP headers
       # @option arguments [Hash] :body The ranking evaluation search definition, including search requests, document ratings and ranking metric definition. (*Required*)
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/search-rank-eval.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/search-rank-eval.html
       #
       def rank_eval(arguments = {})
         raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -43,12 +43,12 @@ module Elasticsearch
 
         _index = arguments.delete(:index)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = Elasticsearch::API::HTTP_POST
         path   = if _index
                    "#{Utils.__listify(_index)}/_rank_eval"
                  else
                    "_rank_eval"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
@@ -65,5 +65,5 @@ module Elasticsearch
         :search_type
       ].freeze)
     end
-    end
+  end
 end

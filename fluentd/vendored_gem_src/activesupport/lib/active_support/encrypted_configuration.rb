@@ -38,10 +38,6 @@ module ActiveSupport
         @options ||= ActiveSupport::InheritableOptions.new(config)
       end
 
-      def serialize(config)
-        config.present? ? YAML.dump(config) : ""
-      end
-
       def deserialize(config)
         YAML.load(config).presence || {}
       end

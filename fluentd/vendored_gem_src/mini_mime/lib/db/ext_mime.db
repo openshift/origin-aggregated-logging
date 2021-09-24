@@ -24,7 +24,7 @@ aep         application/vnd.audiograph                                          
 afm         application/x-font-type1                                                  base64          
 afp         application/vnd.ibm.modcap                                                base64          
 ahead       application/vnd.ahead.space                                               base64          
-ai          application/postscript                                                    8bit            
+ai          application/pdf                                                           base64          
 aif         audio/x-aiff                                                              base64          
 aifc        audio/x-aiff                                                              base64          
 aiff        audio/x-aiff                                                              base64          
@@ -38,6 +38,7 @@ appcache    text/cache-manifest                                                 
 application application/x-ms-application                                              base64          
 apr         application/vnd.lotus-approach                                            base64          
 arc         application/x-freearc                                                     base64          
+arw         image/x-sony-arw                                                          base64          
 asc         application/pgp-signature                                                 base64          
 asf         application/vnd.ms-asf                                                    base64          
 asm         text/x-asm                                                                quoted-printable
@@ -50,6 +51,7 @@ atomsvc     application/atomsvc+xml                                             
 atx         application/vnd.antix.game-component                                      base64          
 au          audio/basic                                                               base64          
 avi         video/x-msvideo                                                           base64          
+avif        image/avif                                                                base64          
 aw          application/applixware                                                    base64          
 awb         audio/AMR-WB                                                              base64          
 azf         application/vnd.airzip.filesecure.azf                                     base64          
@@ -142,9 +144,11 @@ cpi         video/MP2T                                                          
 cpio        application/x-cpio                                                        base64          
 cpp         text/plain                                                                quoted-printable
 cpt         application/x-mac-compactpro                                              base64          
+cr2         image/x-canon-cr2                                                         base64          
 crd         application/x-mscardfile                                                  base64          
 crl         application/pkix-crl                                                      base64          
 crt         application/x-x509-ca-cert                                                base64          
+crw         image/x-canon-crw                                                         base64          
 crx         application/x-chrome-extension                                            base64          
 cryptonote  application/vnd.rig.cryptonote                                            base64          
 csh         application/x-csh                                                         8bit            
@@ -192,6 +196,7 @@ dmg         application/x-apple-diskimage                                       
 dmp         application/vnd.tcpdump.pcap                                              base64          
 dms         application/octet-stream                                                  base64          
 dna         application/vnd.dna                                                       base64          
+dng         image/x-adobe-dng                                                         base64          
 doc         application/msword                                                        base64          
 docm        application/vnd.ms-word.document.macroEnabled.12                          base64          
 docx        application/vnd.openxmlformats-officedocument.wordprocessingml.document   base64          
@@ -237,6 +242,7 @@ eol         audio/vnd.digital-winds                                             
 eot         application/vnd.ms-fontobject                                             base64          
 eps         application/postscript                                                    8bit            
 epub        application/epub+zip                                                      base64          
+erf         image/x-epson-erf                                                         base64          
 es          application/ecmascript                                                    base64          
 es3         application/vnd.eszigno3+xml                                              base64          
 esa         application/vnd.osgi.subsystem                                            base64          
@@ -246,7 +252,7 @@ etx         text/x-setext                                                       
 eva         application/x-eva                                                         base64          
 evc         audio/EVRC                                                                base64          
 evy         application/x-envoy                                                       base64          
-exe         application/octet-stream                                                  base64          
+exe         application/x-ms-dos-executable                                           base64          
 exi         application/exi                                                           base64          
 ext         application/vnd.novadigm.EXT                                              base64          
 ez          application/andrew-inset                                                  base64          
@@ -340,8 +346,13 @@ hal         application/vnd.hal+xml                                             
 hbc         application/vnd.hbci                                                      base64          
 hbci        application/vnd.hbci                                                      base64          
 hdf         application/x-hdf                                                         base64          
+heic        image/heic                                                                base64          
+heics       image/heic-sequence                                                       base64          
+heif        image/heif                                                                base64          
+heifs       image/heif-sequence                                                       base64          
 hep         application/x-hep                                                         base64          
 hh          text/plain                                                                quoted-printable
+hif         image/heic                                                                base64          
 hlp         text/plain                                                                quoted-printable
 hpgl        application/vnd.hp-HPGL                                                   base64          
 hpid        application/vnd.hp-hpid                                                   base64          
@@ -414,9 +425,11 @@ jpx         image/jpx                                                           
 js          application/javascript                                                    8bit            
 json        application/json                                                          8bit            
 jsonml      application/jsonml+json                                                   base64          
+k25         image/x-kodak-k25                                                         base64          
 kar         audio/midi                                                                base64          
 karbon      application/vnd.kde.karbon                                                base64          
 kcm         application/vnd.nervana                                                   base64          
+kdc         image/x-kodak-kdc                                                         base64          
 key         application/x-iwork-keynote-sffkey                                        base64          
 kfo         application/vnd.kde.kformula                                              base64          
 kia         application/vnd.kidspiration                                              base64          
@@ -550,6 +563,7 @@ mpy         application/vnd.ibm.MiniPay                                         
 mqy         application/vnd.Mobius.MQY                                                base64          
 mrc         application/marc                                                          base64          
 mrcx        application/marcxml+xml                                                   base64          
+mrw         image/x-minolta-mrw                                                       base64          
 ms          text/troff                                                                8bit            
 mscml       application/mediaservercontrol+xml                                        base64          
 mseed       application/vnd.fdsn.mseed                                                base64          
@@ -577,6 +591,7 @@ nb          application/mathematica                                             
 nbp         application/vnd.wolfram.player                                            base64          
 nc          application/netcdf                                                        base64          
 ncx         application/x-dtbncx+xml                                                  base64          
+nef         image/x-nikon-nef                                                         base64          
 nfo         text/x-nfo                                                                quoted-printable
 ngdat       application/vnd.nokia.n-gage.data                                         base64          
 nim         video/vnd.nokia.interleaved-multimedia                                    base64          
@@ -586,6 +601,7 @@ nml         application/vnd.enliven                                             
 nnd         application/vnd.noblenet-directory                                        base64          
 nns         application/vnd.noblenet-sealer                                           base64          
 nnw         application/vnd.noblenet-web                                              base64          
+notebook    application/x-smarttech-notebook                                          base64          
 npx         image/vnd.net-fpx                                                         base64          
 nsc         application/x-conference                                                  base64          
 nsf         application/vnd.lotus-notes                                               base64          
@@ -621,6 +637,8 @@ onetoc2     application/onenote                                                 
 opf         application/oebps-package+xml                                             base64          
 opml        text/x-opml                                                               quoted-printable
 oprc        application/vnd.palm                                                      base64          
+opus        audio/ogg                                                                 base64          
+orf         image/x-olympus-orf                                                       base64          
 org         application/vnd.lotus-organizer                                           base64          
 osf         application/vnd.yamaha.openscoreformat                                    base64          
 osfpvg      application/vnd.yamaha.openscoreformat.osfpvg+xml                         base64          
@@ -658,6 +676,7 @@ pcurl       application/vnd.curl.pcurl                                          
 pcx         image/x-pcx                                                               base64          
 pdb         application/vnd.palm                                                      base64          
 pdf         application/pdf                                                           base64          
+pef         image/x-pentax-pef                                                        base64          
 pfa         application/x-font-type1                                                  base64          
 pfb         application/x-font-type1                                                  base64          
 pfm         application/x-font-type1                                                  base64          
@@ -736,9 +755,11 @@ qxd         application/vnd.Quark.QuarkXPress                                   
 qxl         application/vnd.Quark.QuarkXPress                                         8bit            
 qxt         application/vnd.Quark.QuarkXPress                                         8bit            
 ra          audio/x-pn-realaudio                                                      base64          
+raf         image/x-fuji-raf                                                          base64          
 ram         audio/x-pn-realaudio                                                      base64          
 rar         application/x-rar-compressed                                              base64          
 ras         image/x-cmu-raster                                                        base64          
+raw         image/x-panasonic-raw                                                     base64          
 rb          application/x-ruby                                                        8bit            
 rbw         application/x-ruby                                                        8bit            
 rcprofile   application/vnd.ipunplugged.rcprofile                                     base64          
@@ -883,7 +904,9 @@ spq         application/scvp-vp-request                                         
 sps         application/x-spss                                                        base64          
 spx         audio/ogg                                                                 base64          
 sql         application/x-sql                                                         base64          
+sr2         image/x-sony-sr2                                                          base64          
 src         application/x-wais-source                                                 base64          
+srf         image/x-sony-srf                                                          base64          
 srt         application/x-subrip                                                      base64          
 sru         application/sru+xml                                                       base64          
 srx         application/sparql-results+xml                                            base64          
@@ -1037,7 +1060,7 @@ vxml        application/voicexml+xml                                            
 w3d         application/x-director                                                    base64          
 wad         application/x-doom                                                        base64          
 wasm        application/wasm                                                          8bit            
-wav         audio/x-wav                                                               base64          
+wav         audio/wav                                                                 base64          
 wax         audio/x-ms-wax                                                            base64          
 wbmp        image/vnd.wap.wbmp                                                        base64          
 wbs         application/vnd.criticaltools.wbs+xml                                     base64          
@@ -1048,6 +1071,7 @@ wdp         image/vnd.ms-photo                                                  
 weba        audio/webm                                                                base64          
 webapp      application/x-web-app-manifest+json                                       base64          
 webm        audio/webm                                                                base64          
+webmanifest application/manifest+json                                                 base64          
 webp        image/webp                                                                base64          
 wg          application/vnd.pmi.widget                                                base64          
 wgt         application/widget                                                        base64          
@@ -1091,6 +1115,7 @@ x3dbz       model/x3d+binary                                                    
 x3dv        model/x3d+vrml                                                            base64          
 x3dvz       model/x3d+vrml                                                            base64          
 x3dz        model/x3d+xml                                                             base64          
+x3f         image/x-sigma-x3f                                                         base64          
 x_b         model/vnd.parasolid.transmit.binary                                       base64          
 x_t         model/vnd.parasolid.transmit.text                                         quoted-printable
 xaml        application/xaml+xml                                                      base64          

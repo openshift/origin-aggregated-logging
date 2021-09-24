@@ -50,6 +50,7 @@ module Fluent
     def to_int
       @sec
     end
+    alias :to_i :to_int
 
     def to_f
       @sec + @nsec / 1_000_000_000.0
@@ -131,13 +132,14 @@ module Fluent
   end
 
   module TimeMixin
-    TIME_TYPES = ['string', 'unixtime', 'float']
+    TIME_TYPES = ['string', 'unixtime', 'float', 'mixed']
 
     TIME_PARAMETERS = [
       [:time_format, :string, {default: nil}],
       [:localtime, :bool, {default: true}],  # UTC if :localtime is false and :timezone is nil
       [:utc,       :bool, {default: false}], # to turn :localtime false
       [:timezone, :string, {default: nil}],
+      [:time_format_fallbacks, :array, {default: []}], # try time_format, then try fallbacks
     ]
     TIME_FULL_PARAMETERS = [
       # To avoid to define :time_type twice (in plugin_helper/inject)
@@ -147,14 +149,12 @@ module Fluent
     module TimeParameters
       include Fluent::Configurable
       TIME_FULL_PARAMETERS.each do |name, type, opts|
-        config_param name, type, opts
+        config_param(name, type, **opts)
       end
 
       def configure(conf)
         if conf.has_key?('localtime') || conf.has_key?('utc')
-          if conf.has_key?('localtime') && conf.has_key?('utc')
-            raise Fluent::ConfigError, "both of utc and localtime are specified, use only one of them"
-          elsif conf.has_key?('localtime')
+          if conf.has_key?('localtime')
             conf['localtime'] = Fluent::Config.bool_value(conf['localtime'])
           elsif conf.has_key?('utc')
             conf['localtime'] = !(Fluent::Config.bool_value(conf['utc']))
@@ -167,6 +167,16 @@ module Fluent
 
         super
 
+        if conf.has_key?('localtime') && conf.has_key?('utc') && !(@localtime ^ @utc)
+          raise Fluent::ConfigError, "both of utc and localtime are specified, use only one of them"
+        end
+
+        if conf.has_key?('time_type') and @time_type == :mixed
+          if @time_format.nil? and @time_format_fallbacks.empty?
+            raise Fluent::ConfigError, "time_type is :mixed but time_format and time_format_fallbacks is empty."
+          end
+        end
+
         Fluent::Timezone.validate!(@timezone) if @timezone
       end
     end
@@ -177,6 +187,7 @@ module Fluent
       end
 
       def time_parser_create(type: @time_type, format: @time_format, timezone: @timezone, force_localtime: false)
+        return MixedTimeParser.new(type, format, @localtime, timezone, @utc, force_localtime, @time_format_fallbacks) if type == :mixed
         return NumericTimeParser.new(type) if type != :string
         return TimeParser.new(format, true, nil) if force_localtime
 
@@ -292,7 +303,7 @@ module Fluent
 
     def parse_unixtime(value)
       unless value.is_a?(String) || value.is_a?(Numeric)
-        raise TimeParseError, "value must be a string or a number: #{value}(value.class)"
+        raise TimeParseError, "value must be a string or a number: #{value}(#{value.class})"
       end
 
       if @cache1_key == value
@@ -323,7 +334,7 @@ module Fluent
     ## parse_by_to_r  (msec): 28.232856 sec
     def parse_float(value)
       unless value.is_a?(String) || value.is_a?(Numeric)
-        raise TimeParseError, "value must be a string or a number: #{value}(value.class)"
+        raise TimeParseError, "value must be a string or a number: #{value}(#{value.class})"
       end
 
       if @cache1_key == value
@@ -449,4 +460,52 @@ module Fluent
       end
     end
   end
+
+  # MixedTimeParser is available when time_type is set to :mixed
+  #
+  # Use Case 1: primary format is specified explicitly in time_format
+  #  time_type mixed
+  #  time_format %iso8601
+  #  time_format_fallbacks unixtime
+  # Use Case 2: time_format is omitted
+  #  time_type mixed
+  #  time_format_fallbacks %iso8601, unixtime
+  #
+  class MixedTimeParser < TimeParser # to include TimeParseError
+    def initialize(type, format = nil, localtime = nil, timezone = nil, utc = nil, force_localtime = nil, fallbacks = [])
+      @parsers = []
+      fallbacks.unshift(format).each do |fallback|
+        next unless fallback
+        case fallback
+        when 'unixtime', 'float'
+          @parsers << NumericTimeParser.new(fallback, localtime, timezone)
+        else
+          if force_localtime
+            @parsers << TimeParser.new(fallback, true, nil)
+          else
+            localtime = localtime && (timezone.nil? && !utc)
+            @parsers << TimeParser.new(fallback, localtime, timezone)
+          end
+        end
+      end
+    end
+
+    def parse(value)
+      @parsers.each do |parser|
+        begin
+          Float(value) if parser.class == Fluent::NumericTimeParser
+        rescue
+          next
+        end
+        begin
+          return parser.parse(value)
+        rescue
+          # skip TimeParseError
+        end
+      end
+      fallback_class = @parsers.collect do |parser| parser.class end.join(",")
+      raise TimeParseError, "invalid time format: value = #{value}, even though fallbacks: #{fallback_class}"
+    end
+  end
+
 end

@@ -23,5 +23,6 @@ void Init_crc24_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC24 = rb_const_get(mDigest, rb_intern("CRC24"));
 
+	rb_undef_method(cCRC24, "update");
 	rb_define_method(cCRC24, "update", Digest_CRC24_update, 1);
 }

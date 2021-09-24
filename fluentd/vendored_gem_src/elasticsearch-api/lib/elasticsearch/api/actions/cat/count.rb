@@ -29,7 +29,7 @@ module Elasticsearch
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-count.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-count.html
         #
         def count(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -43,7 +43,7 @@ module Elasticsearch
                      "_cat/count/#{Utils.__listify(_index)}"
                    else
                      "_cat/count"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
           params[:h] = Utils.__listify(params[:h]) if params[:h]
 
@@ -61,7 +61,7 @@ module Elasticsearch
           :s,
           :v
         ].freeze)
-end
       end
+    end
   end
 end

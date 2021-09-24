@@ -23,9 +23,7 @@ module Elasticsearch
         #
         # @option arguments [List] :node_id A comma-separated list of node IDs or names to limit the returned information
         # @option arguments [String] :format a short version of the Accept header, e.g. json, yaml
-        # @option arguments [String] :bytes The unit in which to display byte values
-        #   (options: b,k,kb,m,mb,g,gb,t,tb,p,pb)
-
+        # @option arguments [String] :bytes The unit in which to display byte values (options: b, k, kb, m, mb, g, gb, t, tb, p, pb)
         # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
         # @option arguments [Time] :master_timeout Explicit operation timeout for connection to master node
         # @option arguments [List] :h Comma-separated list of column names to display
@@ -34,7 +32,7 @@ module Elasticsearch
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-allocation.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-allocation.html
         #
         def allocation(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -48,7 +46,7 @@ module Elasticsearch
                      "_cat/allocation/#{Utils.__listify(_node_id)}"
                    else
                      "_cat/allocation"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
           params[:h] = Utils.__listify(params[:h]) if params[:h]
 
@@ -69,7 +67,7 @@ module Elasticsearch
           :s,
           :v
         ].freeze)
-end
       end
+    end
   end
 end

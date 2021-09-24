@@ -9,7 +9,7 @@ rescue LoadError => _
 end
 
 unless skip
-  class HtttpHelperRouterTest < Test::Unit::TestCase
+  class HttpHelperRouterTest < Test::Unit::TestCase
     sub_test_case '#mount' do
       test 'mount with method and path' do
         router = Fluent::PluginHelper::HttpServer::Router.new
@@ -20,7 +20,7 @@ unless skip
       test 'use default app if path is not found' do
         router = Fluent::PluginHelper::HttpServer::Router.new
         req = flexmock('request', path: 'path/')
-        assert_equal(router.route!(:get, '/path/', req), [404, { 'Content-Type' => 'text/plain' }, "404 Not Found: #{req.path}\n"])
+        assert_equal(router.route!(:get, '/path/', req), [404, { 'Content-Type' => 'text/plain' }, "404 Not Found\n"])
       end
 
       test 'default app is configurable' do

@@ -19,22 +19,24 @@ require 'fluent/plugin/formatter'
 module Fluent
   module Plugin
     class LabeledTSVFormatter < Formatter
+      include Fluent::Plugin::Newline::Mixin
+
       Plugin.register_formatter('ltsv', self)
 
       # http://ltsv.org/
 
-      config_param :delimiter, :string, default: "\t"
-      config_param :label_delimiter, :string, default: ":"
+      config_param :delimiter, :string, default: "\t".freeze
+      config_param :label_delimiter, :string, default: ":".freeze
+      config_param :replacement, :string, default: " ".freeze
       config_param :add_newline, :bool, default: true
 
-      # TODO: escaping for \t in values
       def format(tag, time, record)
         formatted = ""
         record.each do |label, value|
           formatted << @delimiter if formatted.length.nonzero?
-          formatted << "#{label}#{@label_delimiter}#{value}"
+          formatted << "#{label}#{@label_delimiter}#{value.to_s.gsub(@delimiter, @replacement)}"
         end
-        formatted << "\n".freeze if @add_newline
+        formatted << @newline if @add_newline
         formatted
       end
     end

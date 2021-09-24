@@ -23,17 +23,14 @@ module Elasticsearch
         #
         # @option arguments [List] :fields A comma-separated list of fields to return the fielddata size
         # @option arguments [String] :format a short version of the Accept header, e.g. json, yaml
-        # @option arguments [String] :bytes The unit in which to display byte values
-        #   (options: b,k,kb,m,mb,g,gb,t,tb,p,pb)
-
+        # @option arguments [String] :bytes The unit in which to display byte values (options: b, k, kb, m, mb, g, gb, t, tb, p, pb)
         # @option arguments [List] :h Comma-separated list of column names to display
         # @option arguments [Boolean] :help Return help information
         # @option arguments [List] :s Comma-separated list of column names or column aliases to sort by
         # @option arguments [Boolean] :v Verbose mode. Display column headers
-        # @option arguments [List] :fields A comma-separated list of fields to return in the output
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-fielddata.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-fielddata.html
         #
         def fielddata(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -47,7 +44,7 @@ module Elasticsearch
                      "_cat/fielddata/#{Utils.__listify(_fields)}"
                    else
                      "_cat/fielddata"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -66,7 +63,7 @@ module Elasticsearch
           :v,
           :fields
         ].freeze)
-end
       end
+    end
   end
 end

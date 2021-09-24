@@ -1,5 +1,6 @@
 require_relative '../helper'
 require 'fluent/config/section'
+require 'pp'
 
 module Fluent::Config
   class TestSection < ::Test::Unit::TestCase
@@ -40,8 +41,6 @@ module Fluent::Config
             assert_equal("email", s1.send)
             assert_equal("normal", s1.klass)
             assert_equal(5, s1.keys)
-
-            assert_raise(NoMethodError) { s1.dup }
           end
 
           test 'creates object which contains specified hash object itself, including fields with at prefix' do
@@ -177,6 +176,14 @@ module Fluent::Config
           h1 = {name: "s1", num: 10, klass: "A"}
           s1 = Fluent::Config::Section.new(h1)
           assert_equal(expected, s1.respond_to?(method))
+        end
+
+        test '#pretty_print' do
+          q = PP.new
+          h1 = {name: "s1", klass: "A"}
+          s1 = Fluent::Config::Section.new(h1)
+          s1.pretty_print(q)
+          assert_equal s1.inspect, q.output
         end
       end
     end

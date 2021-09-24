@@ -27,7 +27,7 @@ class FluentPluginGenerator
   attr_reader :type, :name
   attr_reader :license_name
 
-  SUPPORTED_TYPES = ["input", "output", "filter", "parser", "formatter"]
+  SUPPORTED_TYPES = ["input", "output", "filter", "parser", "formatter", "storage"]
 
   def initialize(argv = ARGV)
     @argv = argv
@@ -105,7 +105,7 @@ Generate a project skeleton for creating a Fluentd plugin
 
 Arguments:
 \ttype: #{SUPPORTED_TYPES.join(",")}
-\tname: Your plugin name
+\tname: Your plugin name (fluent-plugin- prefix will be added to <name>)
 
 Options:
 BANNER
@@ -149,6 +149,46 @@ BANNER
 
   def plugin_name
     underscore_name
+  end
+
+  def gem_file_path
+    File.expand_path(File.join(File.dirname(__FILE__),
+                               "../../../",
+                               "Gemfile"))
+  end
+
+  def lock_file_path
+    File.expand_path(File.join(File.dirname(__FILE__),
+                               "../../../",
+                               "Gemfile.lock"))
+  end
+
+  def locked_gem_version(gem_name)
+    if File.exist?(lock_file_path)
+      d = Bundler::Definition.build(gem_file_path, lock_file_path, false)
+      d.locked_gems.dependencies[gem_name].requirement.requirements.first.last.version
+    else
+      # fallback even though Fluentd is installed without bundler
+      Gem::Specification.find_by_name(gem_name).version.version
+    end
+  end
+
+  def rake_version
+    locked_gem_version("rake")
+  end
+
+  def test_unit_version
+    locked_gem_version("test-unit")
+  end
+
+  def bundler_version
+    if File.exist?(lock_file_path)
+      d = Bundler::Definition.build(gem_file_path, lock_file_path, false)
+      d.locked_gems.bundler_version.version
+    else
+      # fallback even though Fluentd is installed without bundler
+      Gem::Specification.find_by_name("bundler").version.version
+    end
   end
 
   def class_name
@@ -281,7 +321,8 @@ HELP
       @text = ""
       @preamble_source = ""
       @preamble = nil
-      open(LICENSE_URL) do |io|
+      uri = URI.parse(LICENSE_URL)
+      uri.open do |io|
         @text = io.read
       end
       @preamble_source = @text[/^(\s*Copyright.+)/m, 1]

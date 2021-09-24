@@ -2,7 +2,6 @@
 
 require "tzinfo"
 require "concurrent/map"
-require "active_support/core_ext/object/blank"
 
 module ActiveSupport
   # The TimeZone class serves as a wrapper around TZInfo::Timezone instances.
@@ -183,8 +182,9 @@ module ActiveSupport
       "Samoa"                        => "Pacific/Apia"
     }
 
-    UTC_OFFSET_WITH_COLON = "%s%02d:%02d"
-    UTC_OFFSET_WITHOUT_COLON = UTC_OFFSET_WITH_COLON.tr(":", "")
+    UTC_OFFSET_WITH_COLON = "%s%02d:%02d" # :nodoc:
+    UTC_OFFSET_WITHOUT_COLON = UTC_OFFSET_WITH_COLON.tr(":", "") # :nodoc:
+    private_constant :UTC_OFFSET_WITH_COLON, :UTC_OFFSET_WITHOUT_COLON
 
     @lazy_zones_map = Concurrent::Map.new
     @country_zones  = Concurrent::Map.new
@@ -203,7 +203,7 @@ module ActiveSupport
       end
 
       def find_tzinfo(name)
-        TZInfo::Timezone.new(MAPPING[name] || name)
+        TZInfo::Timezone.get(MAPPING[name] || name)
       end
 
       alias_method :create, :new
@@ -266,16 +266,16 @@ module ActiveSupport
       private
         def load_country_zones(code)
           country = TZInfo::Country.get(code)
-          country.zone_identifiers.map do |tz_id|
+          country.zone_identifiers.flat_map do |tz_id|
             if MAPPING.value?(tz_id)
               MAPPING.inject([]) do |memo, (key, value)|
                 memo << self[key] if value == tz_id
                 memo
               end
             else
-              create(tz_id, nil, TZInfo::Timezone.new(tz_id))
+              create(tz_id, nil, TZInfo::Timezone.get(tz_id))
             end
-          end.flatten(1).sort!
+          end.sort!
         end
 
         def zones_map
@@ -302,11 +302,7 @@ module ActiveSupport
 
     # Returns the offset of this time zone from UTC in seconds.
     def utc_offset
-      if @utc_offset
-        @utc_offset
-      else
-        tzinfo.current_period.utc_offset if tzinfo && tzinfo.current_period
-      end
+      @utc_offset || tzinfo&.current_period&.base_utc_offset
     end
 
     # Returns a formatted string of the offset from UTC, or an alternative
@@ -334,6 +330,13 @@ module ActiveSupport
       re === name || re === MAPPING[name]
     end
 
+    # Compare #name and TZInfo identifier to a supplied regexp, returning +true+
+    # if a match is found.
+    def match?(re)
+      (re == name) || (re == MAPPING[name]) ||
+        ((Regexp === re) && (re.match?(name) || re.match?(MAPPING[name])))
+    end
+
     # Returns a textual representation of this time zone.
     def to_s
       "(GMT#{formatted_offset}) #{name}"
@@ -355,8 +358,13 @@ module ActiveSupport
     #   Time.zone = 'Hawaii'        # => "Hawaii"
     #   Time.utc(2000).to_f         # => 946684800.0
     #   Time.zone.at(946684800.0)   # => Fri, 31 Dec 1999 14:00:00 HST -10:00
-    def at(secs)
-      Time.at(secs).utc.in_time_zone(self)
+    #
+    # A second argument can be supplied to specify sub-second precision.
+    #
+    #   Time.zone = 'Hawaii'                # => "Hawaii"
+    #   Time.at(946684800, 123456.789).nsec # => 123456789
+    def at(*args)
+      Time.at(*args).utc.in_time_zone(self)
     end
 
     # Method for creating new ActiveSupport::TimeWithZone instance in time zone
@@ -495,10 +503,17 @@ module ActiveSupport
     end
 
     # Adjust the given time to the simultaneous time in the time zone
-    # represented by +self+. Returns a Time.utc() instance -- if you want an
-    # ActiveSupport::TimeWithZone instance, use Time#in_time_zone() instead.
+    # represented by +self+. Returns a local time with the appropriate offset
+    # -- if you want an ActiveSupport::TimeWithZone instance, use
+    # Time#in_time_zone() instead.
+    #
+    # As of tzinfo 2, utc_to_local returns a Time with a non-zero utc_offset.
+    # See the +utc_to_local_returns_utc_offset_times+ config for more info.
     def utc_to_local(time)
-      tzinfo.utc_to_local(time)
+      tzinfo.utc_to_local(time).yield_self do |t|
+        ActiveSupport.utc_to_local_returns_utc_offset_times ?
+          t : Time.utc(t.year, t.month, t.day, t.hour, t.min, t.sec, t.sec_fraction)
+      end
     end
 
     # Adjust the given time to the simultaneous time in UTC. Returns a

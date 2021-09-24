@@ -4,12 +4,12 @@ module Rack
   module OAuth2
     module Util
       class << self
-        def rfc3986_encode(text)
-          URI.encode(text, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+        def www_form_url_encode(text)
+          URI.encode_www_form_component(text)
         end
 
-        def www_form_urlencode(text)
-          URI.encode_www_form_component(text)
+        def www_form_url_decode(text)
+          URI.decode_www_form_component(text)
         end
 
         def base64_encode(text)

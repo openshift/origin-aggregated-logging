@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "uri"
+
 if RUBY_VERSION < "2.6.0"
   require "active_support/core_ext/module/redefine_method"
   URI::Parser.class_eval do
@@ -18,7 +19,11 @@ end
 module URI
   class << self
     def parser
-      @parser ||= URI::Parser.new
+      ActiveSupport::Deprecation.warn(<<-MSG.squish)
+        URI.parser is deprecated and will be removed in Rails 6.2.
+        Use `URI::DEFAULT_PARSER` instead.
+      MSG
+      URI::DEFAULT_PARSER
     end
   end
 end

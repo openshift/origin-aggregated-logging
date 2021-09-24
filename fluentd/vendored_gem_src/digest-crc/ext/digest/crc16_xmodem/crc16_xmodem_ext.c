@@ -24,5 +24,6 @@ void Init_crc16_xmodem_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16XModem = rb_const_get(mDigest, rb_intern("CRC16XModem"));
 
+	rb_undef_method(cCRC16XModem, "update");
 	rb_define_method(cCRC16XModem, "update", Digest_CRC16XModem_update, 1);
 }

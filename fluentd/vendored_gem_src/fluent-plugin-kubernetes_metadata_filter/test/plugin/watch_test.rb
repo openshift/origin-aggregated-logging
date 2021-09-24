@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -17,10 +19,8 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'ostruct'
 
 class WatchTest < Test::Unit::TestCase
-
   def thread_current_running?
     true
   end
@@ -37,26 +37,23 @@ class WatchTest < Test::Unit::TestCase
     Thread.current[:namespace_watch_retry_count] = 0
 
     @client = OpenStruct.new
-    def @client.resourceVersion
-      '12345'
-    end
-    def @client.watch_pods(options = {})
+    def @client.watch_pods(_options = {})
       []
-    end
-    def @client.watch_namespaces(options = {})
-      []
-    end
-    def @client.get_namespaces(options = {})
-      self
-    end
-    def @client.get_pods(options = {})
-      self
     end
 
-    @exception_raised = OpenStruct.new
-    def @exception_raised.each
-      raise Exception
+    def @client.watch_namespaces(_options = {})
+      []
     end
+
+    def @client.get_namespaces(_options = {})
+      { items: [], metadata: { resourceVersion: '12345' } }
+    end
+
+    def @client.get_pods(_options = {})
+      { items: [], metadata: { resourceVersion: '12345' } }
+    end
+
+    @exception_raised = :blow_up_when_used
   end
 
   def watcher=(value)
@@ -66,9 +63,13 @@ class WatchTest < Test::Unit::TestCase
     logger = {}
     def logger.debug(message)
     end
+
     def logger.info(message, error)
     end
+
     def logger.error(message, error)
+    end
+    def logger.warn(message)
     end
     logger
   end

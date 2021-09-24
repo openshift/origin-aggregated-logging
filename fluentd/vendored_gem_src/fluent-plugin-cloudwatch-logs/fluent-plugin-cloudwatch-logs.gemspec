@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'fluentd', '>= 0.14.15'
+  spec.add_dependency 'fluentd', '>= 1.8.0'
   spec.add_dependency 'aws-sdk-cloudwatchlogs', '~> 1.0'
 
   spec.add_development_dependency "bundler"
@@ -25,4 +25,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit"
   spec.add_development_dependency "test-unit-rr"
   spec.add_development_dependency "mocha"
+  spec.add_development_dependency "nokogiri"
 end

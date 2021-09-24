@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "kafka/broker_pool"
+require "resolv"
 require "set"
 
 module Kafka
@@ -18,7 +19,8 @@ module Kafka
     # @param seed_brokers [Array<URI>]
     # @param broker_pool [Kafka::BrokerPool]
     # @param logger [Logger]
-    def initialize(seed_brokers:, broker_pool:, logger:)
+    # @param resolve_seed_brokers [Boolean] See {Kafka::Client#initialize}
+    def initialize(seed_brokers:, broker_pool:, logger:, resolve_seed_brokers: false)
       if seed_brokers.empty?
         raise ArgumentError, "At least one seed broker must be configured"
       end
@@ -26,6 +28,7 @@ module Kafka
       @logger = TaggedLogger.new(logger)
       @seed_brokers = seed_brokers
       @broker_pool = broker_pool
+      @resolve_seed_brokers = resolve_seed_brokers
       @cluster_info = nil
       @stale = true
 
@@ -117,7 +120,7 @@ module Kafka
 
     # Finds the broker acting as the coordinator of the given group.
     #
-    # @param group_id: [String]
+    # @param group_id [String]
     # @return [Broker] the broker that's currently coordinator.
     def get_group_coordinator(group_id:)
       @logger.debug "Getting group coordinator for `#{group_id}`"
@@ -127,7 +130,7 @@ module Kafka
 
     # Finds the broker acting as the coordinator of the given transaction.
     #
-    # @param transactional_id: [String]
+    # @param transactional_id [String]
     # @return [Broker] the broker that's currently coordinator.
     def get_transaction_coordinator(transactional_id:)
       @logger.debug "Getting transaction coordinator for `#{transactional_id}`"
@@ -418,32 +421,35 @@ module Kafka
     # @return [Protocol::MetadataResponse] the cluster metadata.
     def fetch_cluster_info
       errors = []
-
       @seed_brokers.shuffle.each do |node|
-        @logger.info "Fetching cluster metadata from #{node}"
+        (@resolve_seed_brokers ? Resolv.getaddresses(node.hostname).shuffle : [node.hostname]).each do |hostname_or_ip|
+          node_info = node.to_s
+          node_info << " (#{hostname_or_ip})" if node.hostname != hostname_or_ip
+          @logger.info "Fetching cluster metadata from #{node_info}"
 
-        begin
-          broker = @broker_pool.connect(node.hostname, node.port)
-          cluster_info = broker.fetch_metadata(topics: @target_topics)
+          begin
+            broker = @broker_pool.connect(hostname_or_ip, node.port)
+            cluster_info = broker.fetch_metadata(topics: @target_topics)
 
-          if cluster_info.brokers.empty?
-            @logger.error "No brokers in cluster"
-          else
-            @logger.info "Discovered cluster metadata; nodes: #{cluster_info.brokers.join(', ')}"
+            if cluster_info.brokers.empty?
+              @logger.error "No brokers in cluster"
+            else
+              @logger.info "Discovered cluster metadata; nodes: #{cluster_info.brokers.join(', ')}"
 
-            @stale = false
+              @stale = false
 
-            return cluster_info
+              return cluster_info
+            end
+          rescue Error => e
+            @logger.error "Failed to fetch metadata from #{node_info}: #{e}"
+            errors << [node_info, e]
+          ensure
+            broker.disconnect unless broker.nil?
           end
-        rescue Error => e
-          @logger.error "Failed to fetch metadata from #{node}: #{e}"
-          errors << [node, e]
-        ensure
-          broker.disconnect unless broker.nil?
         end
       end
 
-      error_description = errors.map {|node, exception| "- #{node}: #{exception}" }.join("\n")
+      error_description = errors.map {|node_info, exception| "- #{node_info}: #{exception}" }.join("\n")
 
       raise ConnectionError, "Could not connect to any of the seed brokers:\n#{error_description}"
     end

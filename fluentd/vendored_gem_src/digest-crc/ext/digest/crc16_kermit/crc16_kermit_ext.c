@@ -24,5 +24,6 @@ void Init_crc16_kermit_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16Kermit = rb_const_get(mDigest, rb_intern("CRC16Kermit"));
 
+	rb_undef_method(cCRC16Kermit, "update");
 	rb_define_method(cCRC16Kermit, "update", Digest_CRC16Kermit_update, 1);
 }

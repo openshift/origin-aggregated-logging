@@ -22,12 +22,10 @@ module Elasticsearch
       #
       # @option arguments [String] :id The document ID
       # @option arguments [String] :index The name of the index
-      # @option arguments [String] :type The type of the document   *Deprecated*
+      # @option arguments [String] :type The type of the document *Deprecated*
       # @option arguments [Boolean] :analyze_wildcard Specify whether wildcards and prefix queries in the query string query should be analyzed (default: false)
       # @option arguments [String] :analyzer The analyzer for the query string query
-      # @option arguments [String] :default_operator The default operator for query string query (AND or OR)
-      #   (options: AND,OR)
-
+      # @option arguments [String] :default_operator The default operator for query string query (AND or OR) (options: AND, OR)
       # @option arguments [String] :df The default field for query string query (default: _all)
       # @option arguments [List] :stored_fields A comma-separated list of stored fields to return in the response
       # @option arguments [Boolean] :lenient Specify whether format-based query failures (such as providing text to a numeric field) should be ignored
@@ -45,7 +43,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/search-explain.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/search-explain.html
       #
       def explain(arguments = {})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
@@ -61,12 +59,17 @@ module Elasticsearch
 
         _type = arguments.delete(:type)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = if arguments[:body]
+                   Elasticsearch::API::HTTP_POST
+                 else
+                   Elasticsearch::API::HTTP_GET
+                 end
+
         path   = if _index && _type && _id
                    "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{Utils.__listify(_id)}/_explain"
                  else
                    "#{Utils.__listify(_index)}/_explain/#{Utils.__listify(_id)}"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
@@ -91,5 +94,5 @@ module Elasticsearch
         :_source_includes
       ].freeze)
     end
-    end
+  end
 end

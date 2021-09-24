@@ -1,14 +1,13 @@
 Fluentd: Open-Source Log Collector
 ===================================
-Travis CI:
+GitHub Actions:
 
-[<img src="https://travis-ci.org/fluent/fluentd.svg" />](https://travis-ci.org/fluent/fluentd) [![Code Climate](https://codeclimate.com/github/fluent/fluentd/badges/gpa.svg)](https://codeclimate.com/github/fluent/fluentd)
+[![Testing on Ubuntu](https://github.com/fluent/fluentd/actions/workflows/linux-test.yaml/badge.svg?branch=master)](https://github.com/fluent/fluentd/actions/workflows/linux-test.yaml)
+[![Testing on Windows](https://github.com/fluent/fluentd/actions/workflows/windows-test.yaml/badge.svg?branch=master)](https://github.com/fluent/fluentd/actions/workflows/windows-test.yaml)
+[![Testing on macOS](https://github.com/fluent/fluentd/actions/workflows/macos-test.yaml/badge.svg?branch=master)](https://github.com/fluent/fluentd/actions/workflows/macos-test.yaml)
+[![Code Climate](https://codeclimate.com/github/fluent/fluentd/badges/gpa.svg)](https://codeclimate.com/github/fluent/fluentd)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1189/badge)](https://bestpractices.coreinfrastructure.org/projects/1189)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Ffluent%2Ffluentd?ref=badge_shield)
-
-GitLab CI:
-
-[![pipeline status](https://gitlab.com/fluent/fluentd/badges/master/pipeline.svg)](https://gitlab.com/fluent/fluentd/commits/master)
 
 Drone CI for Arm64:
 
@@ -17,7 +16,7 @@ Drone CI for Arm64:
 [Fluentd](https://www.fluentd.org/) collects events from various data sources and writes them to files, RDBMS, NoSQL, IaaS, SaaS, Hadoop and so on. Fluentd helps you unify your logging infrastructure (Learn more about the [Unified Logging Layer](https://www.fluentd.org/blog/unified-logging-layer)).
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/fluent/fluentd-docs-gitbook/1.0/images/fluentd-architecture.png" width="500px"/>
+<img src="https://www.fluentd.org/images/fluentd-architecture.png" width="500px"/>
 </p>
 
 An event consists of *tag*, *time* and *record*. Tag is a string separated with '.' (e.g. myapp.access). It is used to categorize events. Time is a UNIX time recorded at occurrence of an event. Record is a JSON object.
@@ -26,9 +25,9 @@ An event consists of *tag*, *time* and *record*. Tag is a string separated with 
 
 Use Case | Description | Diagram
 -------- | ------------|:---------:
-Centralizing Apache/Nginx Server Logs | Fluentd can be used to tail access/error logs and transport them reliably to remote systems. | <img src="https://www.fluentd.org/assets/img/recipes/elasticsearch-s3-fluentd.png" height="150"/>
+Centralizing Apache/Nginx Server Logs | Fluentd can be used to tail access/error logs and transport them reliably to remote systems. | <img src="https://www.fluentd.org/images/recipes/elasticsearch-s3-fluentd.png" height="150"/>
 Syslog Alerting | Fluentd can "grep" for events and send out alerts. | <img src="https://www.fluentd.org/images/syslog-fluentd-alert.png" height="100"/>
-Mobile/Web Application Logging | Fluentd can function as middleware to enable asynchronous, scalable logging for user action events. | <img src="https://www.fluentd.org/assets/img/datasources/asynchronous_logging.png" height="150"/>
+Mobile/Web Application Logging | Fluentd can function as middleware to enable asynchronous, scalable logging for user action events. | <img src="https://www.fluentd.org/images/datasources/asynchronous_logging.png" height="150"/>
 
 ## Quick Start
 
@@ -42,11 +41,11 @@ Mobile/Web Application Logging | Fluentd can function as middleware to enable as
 ### Branch
 
 - master: For v1 development.
-- v0.12: For v0.12. This is security maintenance mode. Only security fix is accepted.
+- v0.12: For v0.12. This is deprecated version. we already stopped supporting (See https://www.fluentd.org/blog/drop-schedule-announcement-in-2019).
 
 ### Prerequisites
 
-- Ruby 2.1 or later
+- Ruby 2.4 or later
 - git
 
 `git` should be in `PATH`. On Windows, you can use `Github for Windows` and `GitShell` for easy setup.
@@ -78,12 +77,16 @@ You can run specified test via `TEST` environment variable:
 - Website: https://www.fluentd.org/
 - Documentation: https://docs.fluentd.org/
 - Project repository: https://github.com/fluent
-- Discussion: https://groups.google.com/group/fluentd
+- Discussion: https://discuss.fluentd.org/
 - Slack / Community: https://slack.fluentd.org
 - Newsletters: https://www.fluentd.org/newsletter
 - Author: [Sadayuki Furuhashi](https://github.com/frsyuki)
-- Copyright: 2011-2019 Fluentd Authors
+- Copyright: 2011-2021 Fluentd Authors
 - License: Apache License, Version 2.0
+
+## Security
+
+A third party security audit was performed by Cure53, you can see the full report [here](docs/SECURITY_AUDIT.pdf).
 
 ## Contributors:
 

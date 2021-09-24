@@ -1,5 +1,19 @@
 = BinData Changelog
 
+== Version 2.4.10 (2021-05-18)
+
+* Improve speed of dynamic object creation.  Reported by Charlie Ablett.
+
+== Version 2.4.9 (2021-04-22)
+
+* Change example from Fixnum to Integer.  Thanks to Tim Chambers.
+* Now works with frozen string literals.  Requested by Jeremy Evans.
+
+== Version 2.4.8 (2020-07-21)
+
+* Bug fix array self assignment.  Thanks to Spencer McIntyre.
+* Bug fix Stringz max_length.  Thanks to cdelafuente-r7.
+
 == Version 2.4.7 (2020-03-31)
 
 * Fix choice assignment inside arrays.  Reported by Spencer McIntyre.

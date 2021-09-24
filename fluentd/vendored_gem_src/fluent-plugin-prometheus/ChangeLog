@@ -1,0 +1,39 @@
+Release 2.0.2 - 2021/08/02
+
+	* in_prometheus_output_monitor: Follow Fluentd's core metrics mechanism
+
+Release 2.0.1 - 2021/04/08
+
+	* out_prometheus: Allow for lookup by symbol as well as string
+
+Release 2.0.0 - 2021/02/18
+
+	* Update prometheus-client dependency to 2.1.0 or later
+
+Release 1.8.5 - 2020/11/24
+
+	* in_prometheus_monitor: Support USR2 reload
+
+Release 1.8.4 - 2020/09/24
+
+	* in_prometheus_output_monitor: Add gauge_all parameter
+
+Release 1.8.3 - 2020/08/24
+
+	* Fix resourcr leak in async-http based server
+
+Release 1.8.2 - 2020/07/17
+
+	* in_prometheus_output_monitor/in_prometheus_tail_monitor: Support USR2 reload
+
+Release 1.8.1 - 2020/07/06
+
+	* Fix aggregate bug with async-http
+
+Release 1.8.0 - 2020/04/17
+
+	* Use http_server helper
+	* Require fluentd v1.9.1 or later
+
+
+For older releases, see commits on github repository.

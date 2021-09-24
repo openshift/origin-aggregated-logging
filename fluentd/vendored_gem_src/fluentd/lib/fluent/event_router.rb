@@ -47,6 +47,8 @@ module Fluent
       @match_cache = MatchCache.new
       @default_collector = default_collector
       @emit_error_handler = emit_error_handler
+      @metric_callbacks = {}
+      @caller_plugin_id = nil
     end
 
     attr_accessor :default_collector
@@ -83,6 +85,22 @@ module Fluent
       @match_rules << Rule.new(pattern, collector)
     end
 
+    def add_metric_callbacks(caller_plugin_id, callback)
+      @metric_callbacks[caller_plugin_id] = callback
+    end
+
+    def caller_plugin_id=(caller_plugin_id)
+      @caller_plugin_id = caller_plugin_id
+    end
+
+    def find_callback
+      if @caller_plugin_id
+        @metric_callbacks[@caller_plugin_id]
+      else
+        nil
+      end
+    end
+
     def emit(tag, time, record)
       unless record.nil?
         emit_stream(tag, OneEventStream.new(time, record))
@@ -95,6 +113,9 @@ module Fluent
 
     def emit_stream(tag, es)
       match(tag).emit_events(tag, es)
+      if callback = find_callback
+        callback.call(es)
+      end
     rescue => e
       @emit_error_handler.handle_emits_error(tag, es, e)
     end
@@ -175,7 +196,11 @@ module Fluent
           if optimizable?
             optimized_filter_stream(tag, es)
           else
-            @filters.reduce(es) { |acc, filter| filter.filter_stream(tag, acc) }
+            @filters.reduce(es) { |acc, filter|
+              filtered_es = filter.filter_stream(tag, acc)
+              filter.measure_metrics(filtered_es)
+              filtered_es
+            }
           end
         end
 
@@ -193,6 +218,7 @@ module Fluent
                   begin
                     filtered_time, filtered_record = filter.filter_with_time(tag, filtered_time, filtered_record)
                     throw :break_loop unless filtered_record && filtered_time
+                    filter.measure_metrics(OneEventStream.new(time, record))
                   rescue => e
                     filter.router.emit_error_event(tag, filtered_time, filtered_record, e)
                   end
@@ -200,6 +226,7 @@ module Fluent
                   begin
                     filtered_record = filter.filter(tag, filtered_time, filtered_record)
                     throw :break_loop unless filtered_record
+                    filter.measure_metrics(OneEventStream.new(time, record))
                   rescue => e
                     filter.router.emit_error_event(tag, filtered_time, filtered_record, e)
                   end

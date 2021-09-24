@@ -22,11 +22,10 @@ module Elasticsearch
         # Performs the analysis process on a text and return the tokens breakdown of the text.
         #
         # @option arguments [String] :index The name of the index to scope the operation
-        # @option arguments [String] :index The name of the index to scope the operation
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body Define analyzer/tokenizer parameters and the text on which the analysis should be performed
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-analyze.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-analyze.html
         #
         def analyze(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -35,12 +34,17 @@ module Elasticsearch
 
           _index = arguments.delete(:index)
 
-          method = Elasticsearch::API::HTTP_GET
+          method = if arguments[:body]
+                     Elasticsearch::API::HTTP_POST
+                   else
+                     Elasticsearch::API::HTTP_GET
+                   end
+
           path   = if _index
                      "#{Utils.__listify(_index)}/_analyze"
                    else
                      "_analyze"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = arguments[:body]
@@ -53,7 +57,7 @@ module Elasticsearch
         ParamsRegistry.register(:analyze, [
           :index
         ].freeze)
-end
       end
+    end
   end
 end

@@ -24,12 +24,15 @@ module Elasticsearch
         # @option arguments [List] :index A comma-separated list of index names; use `_all` or empty string for all indices
         # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
         # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, none, all)
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-synced-flush-api.html
+        # *Deprecation notice*:
+        # Synced flush is deprecated and will be removed in 8.0. Use flush instead.
+        # Deprecated since version 7.6.0
+        #
+        #
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-synced-flush-api.html
         #
         def flush_synced(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -43,7 +46,7 @@ module Elasticsearch
                      "#{Utils.__listify(_index)}/_flush/synced"
                    else
                      "_flush/synced"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -62,7 +65,7 @@ module Elasticsearch
           :allow_no_indices,
           :expand_wildcards
         ].freeze)
-end
       end
+    end
   end
 end

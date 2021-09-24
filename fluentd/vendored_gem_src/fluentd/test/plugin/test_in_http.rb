@@ -19,33 +19,37 @@ class HttpInputTest < Test::Unit::TestCase
 
   def setup
     Fluent::Test.setup
+    @port = unused_port
   end
 
   def teardown
     Timecop.return
+    @port = nil
   end
 
-  PORT = unused_port
-  CONFIG = %[
-    port #{PORT}
-    bind "127.0.0.1"
-    body_size_limit 10m
-    keepalive_timeout 5
-    respond_with_empty_img true
-    use_204_response false
-  ]
+  def config
+    %[
+      port #{@port}
+      bind "127.0.0.1"
+      body_size_limit 10m
+      keepalive_timeout 5
+      respond_with_empty_img true
+     use_204_response false
+    ]
+  end
 
-  def create_driver(conf=CONFIG)
+  def create_driver(conf=config)
     Fluent::Test::Driver::Input.new(Fluent::Plugin::HttpInput).configure(conf)
   end
 
   def test_configure
     d = create_driver
-    assert_equal PORT, d.instance.port
+    assert_equal @port, d.instance.port
     assert_equal '127.0.0.1', d.instance.bind
     assert_equal 10*1024*1024, d.instance.body_size_limit
     assert_equal 5, d.instance.keepalive_timeout
     assert_equal false, d.instance.add_http_headers
+    assert_equal false, d.instance.add_query_params
   end
 
   def test_time
@@ -116,6 +120,36 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[1][1]
   end
 
+  data('json' => ['json', :to_json],
+       'msgpack' => ['msgpack', :to_msgpack])
+  def test_default_with_time_format(data)
+    param, method_name = data
+    d = create_driver(config + %[
+      <parse>
+        keep_time_key
+        time_format %iso8601
+      </parse>
+    ])
+
+    time = event_time("2020-06-10T01:14:27+00:00")
+    events = [
+      ["tag1", time, {"a" => 1, "time" => '2020-06-10T01:14:27+00:00'}],
+      ["tag2", time, {"a" => 2, "time" => '2020-06-10T01:14:27+00:00'}],
+    ]
+    res_codes = []
+
+    d.run(expect_records: 2) do
+      events.each do |tag, t, record|
+        res = post("/#{tag}", {param => record.__send__(method_name)})
+        res_codes << res.code
+      end
+    end
+    assert_equal ["200", "200"], res_codes
+    assert_equal events, d.events
+    assert_equal_event_time time, d.events[0][1]
+    assert_equal_event_time time, d.events[1][1]
+  end
+
   def test_multi_json
     d = create_driver
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -163,8 +197,35 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[1][1]
   end
 
+  data('json' => ['json', :to_json],
+       'msgpack' => ['msgpack', :to_msgpack])
+  def test_default_multi_with_time_format(data)
+    param, method_name = data
+    d = create_driver(config + %[
+      <parse>
+        keep_time_key
+        time_format %iso8601
+      </parse>
+    ])
+    time = event_time("2020-06-10T01:14:27+00:00")
+    events = [
+      ["tag1", time, {'a' => 1, 'time' => "2020-06-10T01:14:27+00:00"}],
+      ["tag1", time, {'a' => 2, 'time' => "2020-06-10T01:14:27+00:00"}],
+    ]
+    tag = "tag1"
+    res_codes = []
+    d.run(expect_records: 2, timeout: 5) do
+      res = post("/#{tag}", {param => events.map { |e| e[2] }.__send__(method_name)})
+      res_codes << res.code
+    end
+    assert_equal ["200"], res_codes
+    assert_equal events, d.events
+    assert_equal_event_time time, d.events[0][1]
+    assert_equal_event_time time, d.events[1][1]
+  end
+
   def test_multi_json_with_nonexistent_time_key
-    d = create_driver(CONFIG + %[
+    d = create_driver(config + %[
       <parse>
         time_key missing
       </parse>
@@ -187,7 +248,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_json_with_add_remote_addr
-    d = create_driver(CONFIG + "add_remote_addr true")
+    d = create_driver(config + "add_remote_addr true")
     time = event_time("2011-01-02 13:14:15 UTC")
     time_i = time.to_i
 
@@ -208,8 +269,40 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[1][1]
   end
 
+  def test_exact_match_for_expect
+    d = create_driver(config)
+    records = [{ "a" => 1}, { "a" => 2 }]
+    tag = "tag1"
+    res_codes = []
+
+    d.run(expect_records: 0, timeout: 5) do
+      res = post("/#{tag}", { "json" => records.to_json }, { 'Expect' => 'something' })
+      res_codes << res.code
+    end
+    assert_equal ["417"], res_codes
+  end
+
+  def test_exact_match_for_expect_with_other_header
+    d = create_driver(config)
+
+    records = [{ "a" => 1}, { "a" => 2 }]
+    tag = "tag1"
+    res_codes = []
+
+    d.run(expect_records: 2, timeout: 5) do
+      res = post("/#{tag}", { "json" => records.to_json, 'x-envoy-expected-rq-timeout-ms' => 4 })
+      res_codes << res.code
+    end
+    assert_equal ["200"], res_codes
+
+    assert_equal "tag1", d.events[0][0]
+    assert_equal 1, d.events[0][2]["a"]
+    assert_equal "tag1", d.events[1][0]
+    assert_equal 2, d.events[1][2]["a"]
+  end
+
   def test_multi_json_with_add_remote_addr
-    d = create_driver(CONFIG + "add_remote_addr true")
+    d = create_driver(config + "add_remote_addr true")
     time = event_time("2011-01-02 13:14:15 UTC")
     time_i = time.to_i
 
@@ -234,7 +327,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_json_with_add_remote_addr_given_x_forwarded_for
-    d = create_driver(CONFIG + "add_remote_addr true")
+    d = create_driver(config + "add_remote_addr true")
     time = event_time("2011-01-02 13:14:15 UTC")
     time_i = time.to_i
 
@@ -262,7 +355,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_multi_json_with_add_remote_addr_given_x_forwarded_for
-    d = create_driver(CONFIG + "add_remote_addr true")
+    d = create_driver(config + "add_remote_addr true")
 
     tag = "tag1"
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -285,7 +378,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_add_remote_addr_given_multi_x_forwarded_for
-    d = create_driver(CONFIG + "add_remote_addr true")
+    d = create_driver(config + "add_remote_addr true")
 
     tag = "tag1"
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -316,7 +409,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_multi_json_with_add_http_headers
-    d = create_driver(CONFIG + "add_http_headers true")
+    d = create_driver(config + "add_http_headers true")
     time = event_time("2011-01-02 13:14:15 UTC")
     time_i = time.to_i
     records = [{"a"=>1},{"a"=>2}]
@@ -342,7 +435,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_json_with_add_http_headers
-    d = create_driver(CONFIG + "add_http_headers true")
+    d = create_driver(config + "add_http_headers true")
     time = event_time("2011-01-02 13:14:15 UTC")
     time_i = time.to_i
     events = [
@@ -372,7 +465,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_multi_json_with_custom_parser
-    d = create_driver(CONFIG + %[
+    d = create_driver(config + %[
         <parse>
           @type json
           keep_time_key true
@@ -446,7 +539,7 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal_event_time time, d.events[0][1]
     assert_equal_event_time time, d.events[1][1]
   end
-  
+
   def test_msgpack
     d = create_driver
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -494,7 +587,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_with_regexp
-    d = create_driver(CONFIG + %[
+    d = create_driver(config + %[
       format /^(?<field_1>\\d+):(?<field_2>\\w+)$/
       types field_1:integer
     ])
@@ -525,7 +618,7 @@ class HttpInputTest < Test::Unit::TestCase
   def test_with_csv
     require 'csv'
 
-    d = create_driver(CONFIG + %[
+    d = create_driver(config + %[
       format csv
       keys foo,bar
     ])
@@ -551,7 +644,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_response_with_empty_img
-    d = create_driver(CONFIG)
+    d = create_driver(config)
     assert_equal true, d.instance.respond_with_empty_img
 
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -579,7 +672,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_response_without_empty_img
-    d = create_driver(CONFIG + "respond_with_empty_img false")
+    d = create_driver(config + "respond_with_empty_img false")
     assert_equal false, d.instance.respond_with_empty_img
 
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -605,7 +698,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_response_use_204_response
-    d = create_driver(CONFIG + %[
+    d = create_driver(config + %[
           respond_with_empty_img false
           use_204_response true
         ])
@@ -634,7 +727,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_cors_allowed
-    d = create_driver(CONFIG + "cors_allow_origins [\"http://foo.com\"]")
+    d = create_driver(config + "cors_allow_origins [\"http://foo.com\"]")
     assert_equal ["http://foo.com"], d.instance.cors_allow_origins
 
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -661,7 +754,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_cors_allowed_wildcard
-    d = create_driver(CONFIG + 'cors_allow_origins ["*"]')
+    d = create_driver(config + 'cors_allow_origins ["*"]')
 
     time = event_time("2011-01-02 13:14:15 UTC")
     events = [
@@ -680,8 +773,17 @@ class HttpInputTest < Test::Unit::TestCase
     end
   end
 
+  def test_get_request
+    d = create_driver(config)
+
+    d.run do
+      res = get("/cors.test", {}, {})
+      assert_equal "200", res.code
+    end
+  end
+
   def test_cors_preflight
-    d = create_driver(CONFIG + 'cors_allow_origins ["*"]')
+    d = create_driver(config + 'cors_allow_origins ["*"]')
 
     d.run do
       header = {
@@ -698,7 +800,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_cors_allowed_wildcard_for_subdomain
-    d = create_driver(CONFIG + 'cors_allow_origins ["http://*.foo.com"]')
+    d = create_driver(config + 'cors_allow_origins ["http://*.foo.com"]')
 
     time = event_time("2011-01-02 13:14:15 UTC")
     events = [
@@ -716,9 +818,9 @@ class HttpInputTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_cors_allowed_exclude_empty_string
-    d = create_driver(CONFIG + 'cors_allow_origins ["", "http://*.foo.com"]')
+    d = create_driver(config + 'cors_allow_origins ["", "http://*.foo.com"]')
 
     time = event_time("2011-01-02 13:14:15 UTC")
     events = [
@@ -736,9 +838,9 @@ class HttpInputTest < Test::Unit::TestCase
       end
     end
   end
-  
+
   def test_cors_allowed_wildcard_preflight_for_subdomain
-    d = create_driver(CONFIG + 'cors_allow_origins ["http://*.foo.com"]')
+    d = create_driver(config + 'cors_allow_origins ["http://*.foo.com"]')
 
     d.run do
       header = {
@@ -751,6 +853,46 @@ class HttpInputTest < Test::Unit::TestCase
       assert_equal "200", res.code
       assert_equal "http://subdomain.foo.com", res["Access-Control-Allow-Origin"]
       assert_equal "POST", res["Access-Control-Allow-Methods"]
+    end
+  end
+
+  def test_cors_allow_credentials
+    d = create_driver(config + %[
+          cors_allow_origins ["http://foo.com"]
+          cors_allow_credentials
+        ])
+    assert_equal true, d.instance.cors_allow_credentials
+
+    time = event_time("2011-01-02 13:14:15 UTC")
+    event = ["tag1", time, {"a"=>1}]
+    res_code = nil
+    res_header = nil
+
+    d.run do
+      res = post("/#{event[0]}", {"json"=>event[2].to_json, "time"=>time.to_i.to_s}, {"Origin"=>"http://foo.com"})
+      res_code = res.code
+      res_header = res["Access-Control-Allow-Credentials"]
+    end
+    assert_equal(
+      {
+        response_code: "200",
+        allow_credentials_header: "true",
+        events: [event]
+      },
+      {
+        response_code: res_code,
+        allow_credentials_header: res_header,
+        events: d.events
+      }
+    )
+  end
+
+  def test_cors_allow_credentials_for_wildcard_origins
+    assert_raise(Fluent::ConfigError) do
+      create_driver(config + %[
+        cors_allow_origins ["*"]
+        cors_allow_credentials
+      ])
     end
   end
 
@@ -801,7 +943,7 @@ class HttpInputTest < Test::Unit::TestCase
   end
 
   def test_cors_disallowed
-    d = create_driver(CONFIG + "cors_allow_origins [\"http://foo.com\"]")
+    d = create_driver(config + "cors_allow_origins [\"http://foo.com\"]")
     assert_equal ["http://foo.com"], d.instance.cors_allow_origins
 
     time = event_time("2011-01-02 13:14:15 UTC")
@@ -816,6 +958,30 @@ class HttpInputTest < Test::Unit::TestCase
       res_codes << res.code
     end
     assert_equal ["403", "403"], res_codes
+  end
+
+  def test_add_query_params 
+    d = create_driver(config + "add_query_params true")
+    assert_equal true, d.instance.add_query_params
+
+    time = event_time("2011-01-02 13:14:15 UTC")
+    time_i = time.to_i
+    events = [
+      ["tag1", time, {"a"=>1, "QUERY_A"=>"b"}],
+      ["tag2", time, {"a"=>2, "QUERY_A"=>"b"}],
+    ]
+    res_codes = []
+    res_bodies = []
+
+    d.run do
+      events.each do |tag, _t, record|
+        res = post("/#{tag}?a=b", {"json"=>record.to_json, "time"=>time_i.to_s})
+        res_codes << res.code
+      end
+    end
+    assert_equal ["200", "200"], res_codes
+    assert_equal [], res_bodies
+    assert_equal events, d.events
   end
 
   $test_in_http_connection_object_ids = []
@@ -855,7 +1021,7 @@ class HttpInputTest < Test::Unit::TestCase
       $test_in_http_content_types_flag = true
       d.run do
         # Send two requests the second one has no Content-Type in Keep-Alive
-        Net::HTTP.start("127.0.0.1", PORT) do |http|
+        Net::HTTP.start("127.0.0.1", @port) do |http|
           req = Net::HTTP::Post.new("/foodb/bartbl", {"connection" => "keepalive", "Content-Type" => "application/json"})
           http.request(req)
           req = Net::HTTP::Get.new("/foodb/bartbl", {"connection" => "keepalive"})
@@ -871,14 +1037,20 @@ class HttpInputTest < Test::Unit::TestCase
     assert_equal $test_in_http_connection_object_ids[0], $test_in_http_connection_object_ids[1]
   end
 
+  def get(path, params, header = {})
+    http = Net::HTTP.new("127.0.0.1", @port)
+    req = Net::HTTP::Get.new(path, header)
+    http.request(req)
+  end
+
   def options(path, params, header = {})
-    http = Net::HTTP.new("127.0.0.1", PORT)
+    http = Net::HTTP.new("127.0.0.1", @port)
     req = Net::HTTP::Options.new(path, header)
     http.request(req)
   end
 
   def post(path, params, header = {}, &block)
-    http = Net::HTTP.new("127.0.0.1", PORT)
+    http = Net::HTTP.new("127.0.0.1", @port)
     req = Net::HTTP::Post.new(path, header)
     block.call(http, req) if block
     if params.is_a?(String)

@@ -1,13 +1,15 @@
 require 'fluent/plugin/output'
+require 'fluent/msgpack_factory'
 require 'thread'
 require 'yajl'
 
 module Fluent::Plugin
   class CloudwatchLogsOutput < Output
-    include Fluent::MessagePackFactory::Mixin
     Fluent::Plugin.register_output('cloudwatch_logs', self)
 
-    helpers :compat_parameters, :inject
+    class TooLargeEventError < Fluent::UnrecoverableError; end
+
+    helpers :compat_parameters, :inject, :formatter
 
     DEFAULT_BUFFER_TYPE = "memory"
 
@@ -17,8 +19,14 @@ module Fluent::Plugin
     config_param :aws_use_sts, :bool, default: false
     config_param :aws_sts_role_arn, :string, default: nil
     config_param :aws_sts_session_name, :string, default: 'fluentd'
+    config_param :aws_sts_external_id, :string, default: nil
+    config_param :aws_sts_policy, :string, default: nil
+    config_param :aws_sts_duration_seconds, :time, default: nil
+    config_param :aws_sts_endpoint_url, :string, default: nil
+    config_param :aws_ecs_authentication, :bool, default: false
     config_param :region, :string, :default => nil
     config_param :endpoint, :string, :default => nil
+    config_param :ssl_verify_peer, :bool, :default => true
     config_param :log_group_name, :string, :default => nil
     config_param :log_stream_name, :string, :default => nil
     config_param :auto_create_stream, :bool, default: false
@@ -41,12 +49,22 @@ module Fluent::Plugin
     config_param :remove_log_group_aws_tags_key, :bool, default: false
     config_param :retention_in_days, :integer, default: nil
     config_param :retention_in_days_key, :string, default: nil
-    config_param :remove_retention_in_days, :bool, default: false
+    config_param :remove_retention_in_days_key, :bool, default: false
     config_param :json_handler, :enum, list: [:yajl, :json], :default => :yajl
     config_param :log_rejected_request, :bool, :default => false
+    config_section :web_identity_credentials, multi: false do
+      config_param :role_arn, :string
+      config_param :role_session_name, :string
+      config_param :web_identity_token_file, :string, default: nil #required
+      config_param :policy, :string, default: nil
+      config_param :duration_seconds, :time, default: nil
+    end
 
     config_section :buffer do
       config_set_default :@type, DEFAULT_BUFFER_TYPE
+    end
+    config_section :format do
+      config_set_default :@type, 'json'
     end
 
     MAX_EVENTS_SIZE = 1_048_576
@@ -78,6 +96,22 @@ module Fluent::Plugin
       if [conf['retention_in_days'], conf['retention_in_days_key']].compact.size > 1
         raise ConfigError, "Set only one of retention_in_days, retention_in_days_key"
       end
+
+      formatter_conf = conf.elements('format').first
+      @formatter_proc = unless formatter_conf
+                          unless @message_keys.empty?
+                            Proc.new { |tag, time, record|
+                              @message_keys.map{|k| record[k].to_s }.reject{|e| e.empty? }.join(' ')
+                            }
+                          else
+                            Proc.new { |tag, time, record|
+                              @json_handler.dump(record)
+                            }
+                          end
+                        else
+                          formatter = formatter_create(usage: 'cloudwatch-logs-plugin', conf: formatter_conf)
+                          formatter.method(:format)
+                        end
     end
 
     def start
@@ -85,17 +119,44 @@ module Fluent::Plugin
 
       options = {}
       options[:logger] = log if log
-      options[:log_level] = ({0 => :trace, 1 => :debug, 2 => :info, 3 => :warn, 4 => :error, 5 => :fatal}[log.level] || :info) if log
+      options[:log_level] = :debug if log
       options[:region] = @region if @region
       options[:endpoint] = @endpoint if @endpoint
+      options[:ssl_verify_peer] = @ssl_verify_peer
       options[:instance_profile_credentials_retries] = @aws_instance_profile_credentials_retries if @aws_instance_profile_credentials_retries
 
       if @aws_use_sts
         Aws.config[:region] = options[:region]
-        options[:credentials] = Aws::AssumeRoleCredentials.new(
+        credentials_options = {
           role_arn: @aws_sts_role_arn,
-          role_session_name: @aws_sts_session_name
-        )
+          role_session_name: @aws_sts_session_name,
+          external_id: @aws_sts_external_id,
+          policy: @aws_sts_policy,
+          duration_seconds: @aws_sts_duration_seconds
+        }
+        credentials_options[:sts_endpoint_url] = @aws_sts_endpoint_url if @aws_sts_endpoint_url
+        if @region and @aws_sts_endpoint_url
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region, endpoint: @aws_sts_endpoint_url)
+        elsif @region
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region)
+        end
+        options[:credentials] = Aws::AssumeRoleCredentials.new(credentials_options)
+      elsif @web_identity_credentials
+        c = @web_identity_credentials
+        credentials_options = {}
+        credentials_options[:role_arn] = c.role_arn
+        credentials_options[:role_session_name] = c.role_session_name
+        credentials_options[:web_identity_token_file] = c.web_identity_token_file
+        credentials_options[:policy] = c.policy if c.policy
+        credentials_options[:duration_seconds] = c.duration_seconds if c.duration_seconds
+        if @region
+          credentials_options[:client] = Aws::STS::Client.new(:region => @region)
+        end
+        options[:credentials] = Aws::AssumeRoleWebIdentityCredentials.new(credentials_options)
+      elsif @aws_ecs_authentication
+        # collect AWS credential from ECS relative uri ENV variable
+        aws_container_credentials_relative_uri = ENV["AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"]
+        options[:credentials] = Aws::ECSCredentials.new({credential_path: aws_container_credentials_relative_uri}).credentials
       else
         options[:credentials] = Aws::Credentials.new(@aws_key_id, @aws_sec_key) if @aws_key_id && @aws_sec_key
       end
@@ -116,7 +177,7 @@ module Fluent::Plugin
 
     def format(tag, time, record)
       record = inject_values_to_record(tag, time, record)
-      msgpack_packer.pack([tag, time, record]).to_s
+      Fluent::MessagePackFactory.msgpack_packer.pack([tag, time, record]).to_s
     end
 
     def formatted_to_msgpack_binary?
@@ -130,6 +191,9 @@ module Fluent::Plugin
     def write(chunk)
       log_group_name = extract_placeholders(@log_group_name, chunk) if @log_group_name
       log_stream_name = extract_placeholders(@log_stream_name, chunk) if @log_stream_name
+      aws_tags = @log_group_aws_tags.each {|k, v|
+        @log_group_aws_tags[extract_placeholders(k, chunk)] = extract_placeholders(v, chunk)
+      } if @log_group_aws_tags
 
       queue = Thread::Queue.new
 
@@ -182,7 +246,7 @@ module Fluent::Plugin
           #as we create log group only once, values from first record will persist
           record = rs[0][2]
 
-          awstags = @log_group_aws_tags
+          awstags = aws_tags
           unless @log_group_aws_tags_key.nil?
             if @remove_log_group_aws_tags_key
               awstags = record.delete(@log_group_aws_tags_key)
@@ -219,13 +283,24 @@ module Fluent::Plugin
 
         events = []
         rs.each do |t, time, record|
+          if @log_group_aws_tags_key && @remove_log_group_aws_tags_key
+            record.delete(@log_group_aws_tags_key)
+          end
+
+          if @retention_in_days_key && @remove_retention_in_days_key
+            record.delete(@retention_in_days_key)
+          end
+
+          record = drop_empty_record(record)
+
           time_ms = (time.to_f * 1000).floor
 
           scrub_record!(record)
-          unless @message_keys.empty?
-            message = @message_keys.map {|k| record[k].to_s }.join(' ')
-          else
-            message = @json_handler.dump(record)
+          message = @formatter_proc.call(t, time, record)
+
+          if message.empty?
+            log.warn "Within specified message_key(s): (#{@message_keys.join(',')}) do not have non-empty record. Skip."
+            next
           end
 
           if @max_message_length
@@ -256,6 +331,17 @@ module Fluent::Plugin
     end
 
     private
+
+    def drop_empty_record(record)
+      new_record = record.dup
+      new_record.each_key do |k|
+        if new_record[k] == ""
+          new_record.delete(k)
+        end
+      end
+      new_record
+    end
+
     def scrub_record!(record)
       case record
       when Hash
@@ -293,8 +379,7 @@ module Fluent::Plugin
       while event = events.shift
         event_bytesize = event[:message].bytesize + EVENT_HEADER_SIZE
         if MAX_EVENT_SIZE < event_bytesize
-          log.warn "Log event in #{group_name} is discarded because it is too large: #{event_bytesize} bytes exceeds limit of #{MAX_EVENT_SIZE}"
-          break
+          raise TooLargeEventError, "Log event in #{group_name} is discarded because it is too large: #{event_bytesize} bytes exceeds limit of #{MAX_EVENT_SIZE}"
         end
 
         new_chunk = chunk + [event]
@@ -351,8 +436,7 @@ module Fluent::Plugin
           end
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
-          log_stream = find_log_stream(group_name, stream_name)
-          store_next_sequence_token(group_name, stream_name, log_stream.upload_sequence_token)
+          store_next_sequence_token(group_name, stream_name, err.expected_sequence_token)
           log.warn "updating upload sequence token forcefully because unrecoverable error occured", {
             "error" => err,
             "log_group" => group_name,
@@ -374,7 +458,13 @@ module Fluent::Plugin
             raise err
           end
         rescue Aws::CloudWatchLogs::Errors::ThrottlingException => err
-          if !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
+          if @put_log_events_retry_limit < 1
+            log.warn "failed to PutLogEvents and discard logs because put_log_events_retry_limit is less than 1", {
+              "error_class" => err.class.to_s,
+              "error" => err.message,
+            }
+            return
+          elsif !@put_log_events_disable_retry_limit && @put_log_events_retry_limit < retry_count
             log.error "failed to PutLogEvents and discard logs because retry count exceeded put_log_events_retry_limit", {
               "error_class" => err.class.to_s,
               "error" => err.message,
@@ -437,12 +527,23 @@ module Fluent::Plugin
     def log_group_exists?(group_name)
       if @sequence_tokens[group_name]
         true
-      elsif @logs.describe_log_groups.any? {|page| page.log_groups.any? {|i| i.log_group_name == group_name } }
+      elsif check_log_group_existence(group_name)
         @sequence_tokens[group_name] = {}
         true
       else
         false
       end
+    end
+
+    def check_log_group_existence(group_name)
+      response = @logs.describe_log_groups(log_group_name_prefix: group_name)
+      response.each {|page|
+        if page.log_groups.find {|i| i.log_group_name == group_name }
+          return true
+        end
+      }
+
+      false
     end
 
     def log_stream_exists?(group_name, stream_name)
@@ -459,19 +560,15 @@ module Fluent::Plugin
     end
 
     def find_log_stream(group_name, stream_name)
-      next_token = nil
-      loop do
-        response = @logs.describe_log_streams(log_group_name: group_name, log_stream_name_prefix: stream_name, next_token: next_token)
-        if (log_stream = response.log_streams.find {|i| i.log_stream_name == stream_name })
+      response = @logs.describe_log_streams(log_group_name: group_name, log_stream_name_prefix: stream_name)
+      response.each {|page|
+        if (log_stream = page.log_streams.find {|i| i.log_stream_name == stream_name })
           return log_stream
         end
-        if response.next_token.nil?
-          break
-        end
-        next_token = response.next_token
         sleep 0.1
-      end
-      nil
+      }
     end
+
+    nil
   end
 end

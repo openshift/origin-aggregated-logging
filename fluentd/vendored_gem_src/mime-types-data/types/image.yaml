@@ -30,6 +30,18 @@
     - image/avcs
   registered: true
 - !ruby/object:MIME::Type
+  content-type: image/avif
+  encoding: base64
+  extensions:
+  - avif
+  xrefs:
+    person:
+    - Alliance_for_Open_Media
+    - Cyril_Concolato
+    template:
+    - image/avif
+  registered: true
+- !ruby/object:MIME::Type
   content-type: image/bmp
   friendly:
     en: Bitmap Image File
@@ -365,8 +377,18 @@
     person:
     - Khronos
     - Mark_Callow
-    uri:
-    - http://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/#mimeregistration
+    template:
+    - image/ktx
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: image/ktx2
+  encoding: base64
+  xrefs:
+    person:
+    - Khronos
+    - Mark_Callow
+    template:
+    - image/ktx2
   registered: true
 - !ruby/object:MIME::Type
   content-type: image/naplps
@@ -445,6 +467,8 @@
     - W3C
     uri:
     - http://www.w3.org/TR/SVG/mimereg.html
+    template:
+    - image/svg+xml
   registered: true
 - !ruby/object:MIME::Type
   content-type: image/t38
@@ -738,6 +762,16 @@
   obsolete: true
   use-instead: image/vnd.net-fpx
   registered: false
+- !ruby/object:MIME::Type
+  content-type: image/vnd.pco.b16
+  encoding: base64
+  xrefs:
+    person:
+    - Jan_Zeman
+    - PCO_AG
+    template:
+    - image/vnd.pco.b16
+  registered: true
 - !ruby/object:MIME::Type
   content-type: image/vnd.radiance
   encoding: base64

@@ -71,7 +71,10 @@ module Elasticsearch
                 Elasticsearch::API::Snapshot,
                 Elasticsearch::API::Tasks,
                 Elasticsearch::API::Cat,
-                Elasticsearch::API::Remote
+                Elasticsearch::API::Remote,
+                Elasticsearch::API::DanglingIndices,
+                Elasticsearch::API::Features,
+                Elasticsearch::API::Shutdown
     end
 
     # The serializer class

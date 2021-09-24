@@ -33,9 +33,7 @@ module Elasticsearch
       # @option arguments [String] :routing Specific routing value. Applies to all returned documents unless otherwise specified in body "params" or "docs".
       # @option arguments [Boolean] :realtime Specifies if requests are real-time as opposed to near-real-time (default: true).
       # @option arguments [Number] :version Explicit version number for concurrency control
-      # @option arguments [String] :version_type Specific version type
-      #   (options: internal,external,external_gte,force)
-
+      # @option arguments [String] :version_type Specific version type (options: internal, external, external_gte, force)
       # @option arguments [Hash] :headers Custom HTTP headers
       # @option arguments [Hash] :body Define ids, documents, parameters or a list of parameters per document here. You must at least provide a list of document ids. See documentation.
       #
@@ -44,7 +42,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/docs-multi-termvectors.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/docs-multi-termvectors.html
       #
       def mtermvectors(arguments = {})
         headers = arguments.delete(:headers) || {}
@@ -56,21 +54,26 @@ module Elasticsearch
 
         _type = arguments.delete(:type)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = if arguments[:body]
+                   Elasticsearch::API::HTTP_POST
+                 else
+                   Elasticsearch::API::HTTP_GET
+                 end
+
         path   = if _index && _type
                    "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/_mtermvectors"
                  elsif _index
                    "#{Utils.__listify(_index)}/_mtermvectors"
                  else
                    "_mtermvectors"
-    end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         if ids
           body = { :ids => ids }
         else
           body = arguments[:body]
-    end
+        end
         perform_request(method, path, params, body, headers).body
       end
 
@@ -92,5 +95,5 @@ module Elasticsearch
         :version_type
       ].freeze)
     end
-    end
+  end
 end

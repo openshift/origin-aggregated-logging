@@ -1,5 +1,25 @@
 # Changes
 
+## Version 2.0.4 - 16-Dec-2020
+
+* Fixed an incorrect InvalidTimezoneIdentifier exception raised when loading a
+  zoneinfo file that includes rules specifying an additional transition to the
+  final defined offset (for example, Africa/Casablanca in version 2018e of the
+  Time Zone Database). #123.
+
+
+## Version 2.0.3 - 8-Nov-2020
+
+* Added support for handling "slim" format zoneinfo files that are produced by
+  default by zic version 2020b and later. The POSIX-style TZ string is now used
+  calculate DST transition times after the final defined transition in the file.
+  #120.
+* Fixed `TimeWithOffset#getlocal` returning a `TimeWithOffset` with the
+  `timezone_offset` still assigned when called with an offset argument on JRuby
+  9.3.
+* Rubinius is no longer supported.
+
+
 ## Version 2.0.2 - 2-Apr-2020
 
 * Fixed 'wrong number of arguments' errors when running on JRuby 9.0. #114.
@@ -162,6 +182,24 @@
   `TZInfo::Country.get('US').zone_identifiers` should be used instead.
 
 
+## Version 1.2.9 - 16-Dec-2020
+
+* Fixed an incorrect InvalidTimezoneIdentifier exception raised when loading a
+  zoneinfo file that includes rules specifying an additional transition to the
+  final defined offset (for example, Africa/Casablanca in version 2018e of the
+  Time Zone Database). #123.
+
+
+## Version 1.2.8 - 8-Nov-2020
+
+* Added support for handling "slim" format zoneinfo files that are produced by
+  default by zic version 2020b and later. The POSIX-style TZ string is now used
+  calculate DST transition times after the final defined transition in the file.
+  The 64-bit section is now always used regardless of whether Time has support
+  for 64-bit times. #120.
+* Rubinius is no longer supported.
+
+
 ## Version 1.2.7 - 2-Apr-2020
 
 * Fixed 'wrong number of arguments' errors when running on JRuby 9.0. #114.
@@ -300,6 +338,30 @@
 * Make the `start_transition`, `end_transition` and `offset` properties of
   `TimezonePeriod` protected. To access properties of the period, callers should
   use other `TimezonePeriod` instance methods instead (issue #7655).
+
+
+## Version 0.3.58 (tzdata v2020d) - 8-Nov-2020
+
+* Updated to tzdata version 2020d
+  (https://mm.icann.org/pipermail/tz-announce/2020-October/000062.html).
+
+
+## Version 0.3.57 (tzdata v2020a) - 17-May-2020
+
+* Updated to tzdata version 2020a
+  (<https://mm.icann.org/pipermail/tz-announce/2020-April/000058.html>).
+
+
+## Version 0.3.56 (tzdata v2019c) - 1-Nov-2019
+
+* Updated to tzdata version 2019c
+  (<https://mm.icann.org/pipermail/tz-announce/2019-September/000057.html>).
+
+
+## Version 0.3.55 (tzdata v2018g) - 27-Oct-2018
+
+* Updated to tzdata version 2018g
+  (<https://mm.icann.org/pipermail/tz-announce/2018-October/000052.html>).
 
 
 ## Version 0.3.54 (tzdata v2018d) - 25-Mar-2018

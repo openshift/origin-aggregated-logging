@@ -7,6 +7,7 @@ jobs:
           LOG_LEVEL: DEBUG
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec
       - run: bundle exec rubocop
@@ -40,6 +41,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -72,6 +74,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -104,6 +107,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -136,6 +140,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -168,6 +173,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -200,6 +206,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -232,6 +239,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -264,6 +272,7 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -296,6 +305,73 @@ jobs:
           KAFKA_DELETE_TOPIC_ENABLE: true
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
+      - run: bundle install --path vendor/bundle
+      - run: bundle exec rspec --profile --tag functional spec/functional
+
+  kafka-2.6:
+    docker:
+      - image: circleci/ruby:2.5.1-node
+        environment:
+          LOG_LEVEL: DEBUG
+      - image: wurstmeister/zookeeper
+      - image: wurstmeister/kafka:2.13-2.6.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9092
+          KAFKA_PORT: 9092
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+      - image: wurstmeister/kafka:2.13-2.6.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9093
+          KAFKA_PORT: 9093
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+      - image: wurstmeister/kafka:2.13-2.6.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9094
+          KAFKA_PORT: 9094
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+    steps:
+      - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
+      - run: bundle install --path vendor/bundle
+      - run: bundle exec rspec --profile --tag functional spec/functional
+
+  kafka-2.7:
+    docker:
+      - image: circleci/ruby:2.5.1-node
+        environment:
+          LOG_LEVEL: DEBUG
+      - image: wurstmeister/zookeeper
+      - image: wurstmeister/kafka:2.13-2.7.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9092
+          KAFKA_PORT: 9092
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+      - image: wurstmeister/kafka:2.13-2.7.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9093
+          KAFKA_PORT: 9093
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+      - image: wurstmeister/kafka:2.13-2.7.0
+        environment:
+          KAFKA_ADVERTISED_HOST_NAME: localhost
+          KAFKA_ADVERTISED_PORT: 9094
+          KAFKA_PORT: 9094
+          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_DELETE_TOPIC_ENABLE: true
+    steps:
+      - checkout
+      - run: sudo apt-get update && sudo apt-get install -y cmake # For installing snappy
       - run: bundle install --path vendor/bundle
       - run: bundle exec rspec --profile --tag functional spec/functional
 
@@ -313,3 +389,5 @@ workflows:
       - kafka-2.3
       - kafka-2.4
       - kafka-2.5
+      - kafka-2.6
+      - kafka-2.7

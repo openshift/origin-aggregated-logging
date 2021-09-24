@@ -56,6 +56,8 @@ DESC
                  :desc => <<-DESC
 Set true to remove topic key from data
 DESC
+    config_param :exclude_fields, :array, :default => [], value_type: :string,
+                 :desc => 'Fields to remove from data where the value is a jsonpath to a record value'
     config_param :headers, :hash, default: {}, symbolize_keys: true, value_type: :string,
                  :desc => 'Kafka message headers'
     config_param :headers_from_record, :hash, default: {}, symbolize_keys: true, value_type: :string,
@@ -73,6 +75,7 @@ The codec the producer uses to compress messages. Used for compression.codec
 Supported codecs: (gzip|snappy)
 DESC
     config_param :max_send_limit_bytes, :size, :default => nil
+    config_param :discard_kafka_delivery_failed, :bool, :default => false
     config_param :rdkafka_buffering_max_ms, :integer, :default => nil, :desc => 'Used for queue.buffering.max.ms'
     config_param :rdkafka_buffering_max_messages, :integer, :default => nil, :desc => 'Used for queue.buffering.max.messages'
     config_param :rdkafka_message_max_bytes, :integer, :default => nil, :desc => 'Used for message.max.bytes'
@@ -109,23 +112,29 @@ DESC
     def configure(conf)
       super
       log.instance_eval {
-        def add(level, &block)
-          return unless block
+        def add(level, message = nil)
+          if message.nil?
+            if block_given?
+              message = yield
+            else
+              return
+            end
+          end
 
           # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb: https://github.com/appsignal/rdkafka-ruby/blob/e5c7261e3f2637554a5c12b924be297d7dca1328/lib/rdkafka/bindings.rb#L117
           case level
           when Logger::FATAL
-            self.fatal(block.call)
+            self.fatal(message)
           when Logger::ERROR
-            self.error(block.call)
+            self.error(message)
           when Logger::WARN
-            self.warn(block.call)
+            self.warn(message)
           when Logger::INFO
-            self.info(block.call)
+            self.info(message)
           when Logger::DEBUG
-            self.debug(block.call)
+            self.debug(message)
           else
-            self.trace(block.call)
+            self.trace(message)
           end
         end
       }
@@ -156,6 +165,10 @@ DESC
       @headers_from_record_accessors = {}
       @headers_from_record.each do |key, value|
         @headers_from_record_accessors[key] = record_accessor_create(value)
+      end
+
+      @exclude_field_accessors = @exclude_fields.map do |field|
+        record_accessor_create(field)
       end
     end
 
@@ -304,6 +317,12 @@ DESC
               headers[key] = header_accessor.call(record)
             end
 
+            unless @exclude_fields.empty?
+              @exclude_field_accessors.each do |exclude_field_acessor|
+                exclude_field_acessor.delete(record)
+              end
+            end
+
             record_buf = @formatter_proc.call(tag, time, record)
             record_buf_bytes = record_buf.bytesize
             if @max_send_limit_bytes && record_buf_bytes > @max_send_limit_bytes
@@ -325,9 +344,13 @@ DESC
         }
       end
     rescue Exception => e
-      log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
-      # Raise exception to retry sendind messages
-      raise e
+      if @discard_kafka_delivery_failed
+        log.warn "Delivery failed. Discard events:", :error => e.to_s, :error_class => e.class.to_s, :tag => tag
+      else
+        log.warn "Send exception occurred: #{e} at #{e.backtrace.first}"
+        # Raise exception to retry sendind messages
+        raise e
+      end
     end
 
     def enqueue_with_retry(producer, topic, record_buf, message_key, partition, headers)

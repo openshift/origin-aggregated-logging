@@ -1,8 +1,28 @@
+<%#
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+%>
+
 <%- if @spec['documentation']['description'] -%>
   <%= '  '*(@namespace_depth+3) %># <%= @spec['documentation']['description'].gsub("\n", "\n#{'  '*(@namespace_depth+3)}# ") -%>
 <%- else %>
   <%= '  '*(@namespace_depth+3) %># TODO: Description
 <%- end %>
+<%= stability_doc_helper(@spec['stability']) -%>
 <%= '  '*(@namespace_depth+3) %>#
 <%- unless @parts.nil? || @parts.empty? %><%# URL parts -%>
   <%- @parts.each do |name, info| -%>
@@ -11,10 +31,20 @@
 <%- end -%><%# Body -%>
 <%# URL parameters -%>
 <%- @params.each do |name, info| -%>
-  <%= docs_helper(name, info) -%>
+  <%= docs_helper(name, info) unless (!@parts.empty? && @parts.keys.include?(name)) -%>
 <%- end -%>
 # @option arguments [Hash] :headers Custom HTTP headers
-<%= '  '*(@namespace_depth+3) + '# @option arguments [Hash] :body ' + (@spec['body']['description'] ? @spec['body']['description'].strip : 'TODO: Description') + (@spec['body']['required'] ? ' (*Required*)' : '') + "\n" if @spec['body'] -%>
+<%- if @spec['body'] -%>
+  <%- if @method_name == 'bulk' -%>
+    <%= bulk_doc_helper(@spec['body']['description']) -%>
+  <%- else -%>
+    <%= '  '*(@namespace_depth+1) +
+    '# @option arguments [Hash] :body ' + (@spec['body']['description'] ?
+                                           @spec['body']['description'].strip : 'TODO: Description') +
+                                           (@spec['body']['required'] ? ' (*Required*)' : '') + "\n"
+    -%>
+  <%- end -%>
+<%- end -%>
 <% if @deprecation_note -%>
   #
   # *Deprecation notice*:

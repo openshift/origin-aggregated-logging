@@ -116,8 +116,8 @@ module FluentOutputTest
         end
       end
 
-      mock(d.instance.log).warn("secondary type should be same with primary one",
-                                { primary: d.instance.class.to_s, secondary: "Fluent::Plugin::Test2Output" })
+      mock(d.instance.log).warn("Use different plugin for secondary. Check the plugin works with primary like secondary_file",
+                                primary: d.instance.class.to_s, secondary: "Fluent::Plugin::Test2Output")
       d.configure(CONFIG + %[
         <secondary>
           type test2
@@ -132,8 +132,8 @@ module FluentOutputTest
       # ObjectBufferedOutput doesn't implement `custom_filter`
       d = Fluent::Test::BufferedOutputTestDriver.new(Fluent::ObjectBufferedOutput)
 
-      mock(d.instance.log).warn("secondary type should be same with primary one",
-                                { primary: d.instance.class.to_s, secondary: "Fluent::Plugin::Test2Output" }).never
+      mock(d.instance.log).warn("Use different plugin for secondary. Check the plugin works with primary like secondary_file",
+                                primary: d.instance.class.to_s, secondary: "Fluent::Plugin::Test2Output").never
       d.configure(CONFIG + %[
         <secondary>
           type test2
@@ -230,6 +230,11 @@ module FluentOutputTest
       setup do
         @time = Time.parse("2011-01-02 13:14:15 UTC")
         Timecop.freeze(@time)
+        @newline = if Fluent.windows?
+                     "\r\n"
+                   else
+                     "\n"
+                   end
       end
 
       teardown do
@@ -265,7 +270,7 @@ module FluentOutputTest
         ])
         time = Time.parse("2016-11-08 12:00:00 UTC").to_i
         d.emit({"a" => 1}, time)
-        d.expect_format %[2016-11-08T12:00:00Z\ttest\t{"a":1,"time":"2016-11-08T12:00:00Z"}\n]
+        d.expect_format %[2016-11-08T12:00:00Z\ttest\t{"a":1,"time":"2016-11-08T12:00:00Z"}#{@newline}]
         d.run
       end
     end

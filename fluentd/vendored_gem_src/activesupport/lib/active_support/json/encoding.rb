@@ -54,9 +54,13 @@ module ActiveSupport
           class EscapedString < String #:nodoc:
             def to_json(*)
               if Encoding.escape_html_entities_in_json
-                super.gsub ESCAPE_REGEX_WITH_HTML_ENTITIES, ESCAPED_CHARS
+                s = super
+                s.gsub! ESCAPE_REGEX_WITH_HTML_ENTITIES, ESCAPED_CHARS
+                s
               else
-                super.gsub ESCAPE_REGEX_WITHOUT_HTML_ENTITIES, ESCAPED_CHARS
+                s = super
+                s.gsub! ESCAPE_REGEX_WITHOUT_HTML_ENTITIES, ESCAPED_CHARS
+                s
               end
             end
 
@@ -89,7 +93,11 @@ module ActiveSupport
             when Numeric, NilClass, TrueClass, FalseClass
               value.as_json
             when Hash
-              Hash[value.map { |k, v| [jsonify(k), jsonify(v)] }]
+              result = {}
+              value.each do |k, v|
+                result[jsonify(k)] = jsonify(v)
+              end
+              result
             when Array
               value.map { |v| jsonify(v) }
             else

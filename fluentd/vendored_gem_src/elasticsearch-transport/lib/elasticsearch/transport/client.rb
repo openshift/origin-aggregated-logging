@@ -16,16 +16,17 @@
 # under the License.
 
 require 'base64'
+require 'elasticsearch/transport/meta_header'
 
 module Elasticsearch
   module Transport
-
     # Handles communication with an Elasticsearch cluster.
     #
     # See {file:README.md README} for usage and code examples.
     #
     class Client
-      DEFAULT_TRANSPORT_CLASS  = Transport::HTTP::Faraday
+      include MetaHeader
+      DEFAULT_TRANSPORT_CLASS = Transport::HTTP::Faraday
 
       DEFAULT_LOGGER = lambda do
         require 'logger'
@@ -49,9 +50,15 @@ module Elasticsearch
       DEFAULT_HOST = 'localhost:9200'.freeze
 
       # The default port to use if connecting using a Cloud ID.
+      # Updated from 9243 to 443 in client version 7.10.1
       #
       # @since 7.2.0
-      DEFAULT_CLOUD_PORT = 9243
+      DEFAULT_CLOUD_PORT = 443
+
+      # The default port to use if not otherwise specified.
+      #
+      # @since 7.2.0
+      DEFAULT_PORT = 9200
 
       # Returns the transport object.
       #
@@ -114,8 +121,11 @@ module Elasticsearch
       #
       # @option api_key [String, Hash] :api_key Use API Key Authentication, either the base64 encoding of `id` and `api_key`
       #                                         joined by a colon as a String, or a hash with the `id` and `api_key` values.
-      # @option opaque_id_prefix [String] :opaque_id_prefix set a prefix for X-Opaque-Id when initializing the client. This
-      # will be prepended to the id you set before each request if you're using X-Opaque-Id
+      # @option opaque_id_prefix [String] :opaque_id_prefix set a prefix for X-Opaque-Id when initializing the client.
+      #                                                     This will be prepended to the id you set before each request
+      #                                                     if you're using X-Opaque-Id
+      # @option enable_meta_header [Boolean] :enable_meta_header Enable sending the meta data header to Cloud.
+      #                                                          (Default: true)
       #
       # @yield [faraday] Access and configure the `Faraday::Connection` instance directly with a block
       #
@@ -130,17 +140,19 @@ module Elasticsearch
         @arguments[:randomize_hosts]    ||= false
         @arguments[:transport_options]  ||= {}
         @arguments[:http]               ||= {}
+        @arguments[:enable_meta_header] = arguments.fetch(:enable_meta_header) { true }
         @options[:http]                 ||= {}
 
         set_api_key if (@api_key = @arguments[:api_key])
+        set_compatibility_header if ENV['ELASTIC_CLIENT_APIVERSIONING']
 
         @seeds = extract_cloud_creds(@arguments)
         @seeds ||= __extract_hosts(@arguments[:hosts] ||
-                                     @arguments[:host] ||
-                                     @arguments[:url] ||
-                                     @arguments[:urls] ||
-                                     ENV['ELASTICSEARCH_URL'] ||
-                                     DEFAULT_HOST)
+                                   @arguments[:host] ||
+                                   @arguments[:url] ||
+                                   @arguments[:urls] ||
+                                   ENV['ELASTICSEARCH_URL'] ||
+                                   DEFAULT_HOST)
 
         @send_get_body_as = @arguments[:send_get_body_as] || 'GET'
         @opaque_id_prefix = @arguments[:opaque_id_prefix] || nil
@@ -152,15 +164,18 @@ module Elasticsearch
         if @arguments[:transport]
           @transport = @arguments[:transport]
         else
-          transport_class  = @arguments[:transport_class] || DEFAULT_TRANSPORT_CLASS
-          if transport_class == Transport::HTTP::Faraday
-            @transport = transport_class.new(hosts: @seeds, options: @arguments) do |faraday|
-              faraday.adapter(@arguments[:adapter] || __auto_detect_adapter)
-              block&.call faraday
-            end
-          else
-            @transport = transport_class.new(hosts: @seeds, options: @arguments)
-          end
+          @transport_class = @arguments[:transport_class] || DEFAULT_TRANSPORT_CLASS
+          @transport = if @transport_class == Transport::HTTP::Faraday
+                         @arguments[:adapter] ||= __auto_detect_adapter
+                         set_meta_header # from include MetaHeader
+                         @transport_class.new(hosts: @seeds, options: @arguments) do |faraday|
+                           faraday.adapter(@arguments[:adapter])
+                           block&.call faraday
+                         end
+                       else
+                         set_meta_header # from include MetaHeader
+                         @transport_class.new(hosts: @seeds, options: @arguments)
+                       end
         end
       end
 
@@ -180,24 +195,52 @@ module Elasticsearch
 
       def set_api_key
         @api_key = __encode(@api_key) if @api_key.is_a? Hash
-        headers = @arguments[:transport_options]&.[](:headers) || {}
-        headers.merge!('Authorization' => "ApiKey #{@api_key}")
-        @arguments[:transport_options].merge!(
-          headers: headers
-        )
+        add_header('Authorization' => "ApiKey #{@api_key}")
         @arguments.delete(:user)
         @arguments.delete(:password)
       end
 
+      def set_compatibility_header
+        return unless ['1', 'true'].include?(ENV['ELASTIC_CLIENT_APIVERSIONING'])
+
+        add_header(
+          {
+            'Accept' => 'application/vnd.elasticsearch+json;compatible-with=7',
+            'Content-Type' => 'application/vnd.elasticsearch+json; compatible-with=7'
+          }
+        )
+      end
+
+      def add_header(header)
+        headers = @arguments[:transport_options]&.[](:headers) || {}
+        headers.merge!(header)
+        @arguments[:transport_options].merge!(
+          headers: headers
+        )
+      end
+
       def extract_cloud_creds(arguments)
-        return unless arguments[:cloud_id]
+        return unless arguments[:cloud_id] && !arguments[:cloud_id].empty?
+
         name = arguments[:cloud_id].split(':')[0]
         cloud_url, elasticsearch_instance = Base64.decode64(arguments[:cloud_id].gsub("#{name}:", '')).split('$')
-        [ { scheme: 'https',
+
+        if cloud_url.include?(':')
+          url, port = cloud_url.split(':')
+          host = "#{elasticsearch_instance}.#{url}"
+        else
+          host = "#{elasticsearch_instance}.#{cloud_url}"
+          port = arguments[:port] || DEFAULT_CLOUD_PORT
+        end
+        [
+          {
+            scheme: 'https',
             user: arguments[:user],
             password: arguments[:password],
-            host: "#{elasticsearch_instance}.#{cloud_url}",
-            port: arguments[:port] || DEFAULT_CLOUD_PORT } ]
+            host: host,
+            port: port.to_i
+          }
+        ]
       end
 
       # Normalizes and returns hosts configuration.
@@ -230,36 +273,38 @@ module Elasticsearch
 
       def __parse_host(host)
         host_parts = case host
-        when String
-          if host =~ /^[a-z]+\:\/\//
-            # Construct a new `URI::Generic` directly from the array returned by URI::split.
-            # This avoids `URI::HTTP` and `URI::HTTPS`, which supply default ports.
-            uri = URI::Generic.new(*URI.split(host))
-
-            { :scheme => uri.scheme,
-              :user => uri.user,
-              :password => uri.password,
-              :host => uri.host,
-              :path => uri.path,
-              :port => uri.port }
-          else
-            host, port = host.split(':')
-            { :host => host,
-              :port => port }
-          end
-        when URI
-          { :scheme => host.scheme,
-            :user => host.user,
-            :password => host.password,
-            :host => host.host,
-            :path => host.path,
-            :port => host.port }
-        when Hash
-          host
-        else
-          raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
-        end
-
+                     when String
+                       if host =~ /^[a-z]+\:\/\//
+                         # Construct a new `URI::Generic` directly from the array returned by URI::split.
+                         # This avoids `URI::HTTP` and `URI::HTTPS`, which supply default ports.
+                         uri = URI::Generic.new(*URI.split(host))
+                         default_port = uri.scheme == 'https' ? 443 : DEFAULT_PORT
+                         {
+                           scheme: uri.scheme,
+                           user: uri.user,
+                           password: uri.password,
+                           host: uri.host,
+                           path: uri.path,
+                           port: uri.port || default_port
+                         }
+                       else
+                         host, port = host.split(':')
+                         { host: host, port: port }
+                       end
+                     when URI
+                       {
+                         scheme: host.scheme,
+                         user: host.user,
+                         password: host.password,
+                         host: host.host,
+                         path: host.path,
+                         port: host.port
+                       }
+                     when Hash
+                       host
+                     else
+                       raise ArgumentError, "Please pass host as a String, URI or Hash -- #{host.class} given."
+                     end
         if @api_key
           # Remove Basic Auth if using API KEY
           host_parts.delete(:user)

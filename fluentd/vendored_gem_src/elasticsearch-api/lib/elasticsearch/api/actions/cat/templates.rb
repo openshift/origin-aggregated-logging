@@ -31,7 +31,7 @@ module Elasticsearch
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-templates.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-templates.html
         #
         def templates(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -45,7 +45,7 @@ module Elasticsearch
                      "_cat/templates/#{Utils.__listify(_name)}"
                    else
                      "_cat/templates"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -64,7 +64,7 @@ module Elasticsearch
           :s,
           :v
         ].freeze)
-end
       end
+    end
   end
 end

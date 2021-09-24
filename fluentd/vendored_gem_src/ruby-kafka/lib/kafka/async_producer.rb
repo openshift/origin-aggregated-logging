@@ -59,8 +59,6 @@ module Kafka
   #     producer.shutdown
   #
   class AsyncProducer
-    THREAD_MUTEX = Mutex.new
-
     # Initializes a new AsyncProducer.
     #
     # @param sync_producer [Kafka::Producer] the synchronous producer that should
@@ -94,6 +92,8 @@ module Kafka
 
       # The timer will no-op if the delivery interval is zero.
       @timer = Timer.new(queue: @queue, interval: delivery_interval)
+
+      @thread_mutex = Mutex.new
     end
 
     # Produces a message to the specified topic.
@@ -131,6 +131,8 @@ module Kafka
     # @see Kafka::Producer#deliver_messages
     # @return [nil]
     def deliver_messages
+      ensure_threads_running!
+
       @queue << [:deliver_messages, nil]
 
       nil
@@ -142,6 +144,8 @@ module Kafka
     # @see Kafka::Producer#shutdown
     # @return [nil]
     def shutdown
+      ensure_threads_running!
+
       @timer_thread && @timer_thread.exit
       @queue << [:shutdown, nil]
       @worker_thread && @worker_thread.join
@@ -152,15 +156,20 @@ module Kafka
     private
 
     def ensure_threads_running!
-      THREAD_MUTEX.synchronize do
-        @worker_thread = nil unless @worker_thread && @worker_thread.alive?
-        @worker_thread ||= Thread.new { @worker.run }
-      end
+      return if worker_thread_alive? && timer_thread_alive?
 
-      THREAD_MUTEX.synchronize do
-        @timer_thread = nil unless @timer_thread && @timer_thread.alive?
-        @timer_thread ||= Thread.new { @timer.run }
+      @thread_mutex.synchronize do
+        @worker_thread = Thread.new { @worker.run } unless worker_thread_alive?
+        @timer_thread = Thread.new { @timer.run } unless timer_thread_alive?
       end
+    end
+
+    def worker_thread_alive?
+      !!@worker_thread && @worker_thread.alive?
+    end
+
+    def timer_thread_alive?
+      !!@timer_thread && @timer_thread.alive?
     end
 
     def buffer_overflow(topic, message)
@@ -203,39 +212,7 @@ module Kafka
         @logger.push_tags(@producer.to_s)
         @logger.info "Starting async producer in the background..."
 
-        loop do
-          operation, payload = @queue.pop
-
-          case operation
-          when :produce
-            produce(*payload)
-            deliver_messages if threshold_reached?
-          when :deliver_messages
-            deliver_messages
-          when :shutdown
-            begin
-              # Deliver any pending messages first.
-              @producer.deliver_messages
-            rescue Error => e
-              @logger.error("Failed to deliver messages during shutdown: #{e.message}")
-
-              @instrumenter.instrument("drop_messages.async_producer", {
-                message_count: @producer.buffer_size + @queue.size,
-              })
-            end
-
-            # Stop the run loop.
-            break
-          else
-            raise "Unknown operation #{operation.inspect}"
-          end
-        end
-      rescue Kafka::Error => e
-        @logger.error "Unexpected Kafka error #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}"
-        @logger.info "Restarting in 10 seconds..."
-
-        sleep 10
-        retry
+        do_loop
       rescue Exception => e
         @logger.error "Unexpected Kafka error #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}"
         @logger.error "Async producer crashed!"
@@ -246,10 +223,48 @@ module Kafka
 
       private
 
-      def produce(*args)
+      def do_loop
+        loop do
+          begin
+            operation, payload = @queue.pop
+
+            case operation
+            when :produce
+              produce(payload[0], **payload[1])
+              deliver_messages if threshold_reached?
+            when :deliver_messages
+              deliver_messages
+            when :shutdown
+              begin
+                # Deliver any pending messages first.
+                @producer.deliver_messages
+              rescue Error => e
+                @logger.error("Failed to deliver messages during shutdown: #{e.message}")
+
+                @instrumenter.instrument("drop_messages.async_producer", {
+                  message_count: @producer.buffer_size + @queue.size,
+                })
+              end
+
+              # Stop the run loop.
+              break
+            else
+              raise "Unknown operation #{operation.inspect}"
+            end
+          end
+        end
+      rescue Kafka::Error => e
+        @logger.error "Unexpected Kafka error #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}"
+        @logger.info "Restarting in 10 seconds..."
+
+        sleep 10
+        retry
+      end
+
+      def produce(value, **kwargs)
         retries = 0
         begin
-          @producer.produce(*args)
+          @producer.produce(value, **kwargs)
         rescue BufferOverflow => e
           deliver_messages
           if @max_retries == -1

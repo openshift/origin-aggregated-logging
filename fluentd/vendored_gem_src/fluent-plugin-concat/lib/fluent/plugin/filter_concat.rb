@@ -34,8 +34,16 @@ module Fluent::Plugin
     config_param :keep_partial_key, :bool, default: false
     desc "Use partial metadata to concatenate multiple records"
     config_param :use_partial_metadata, :bool, default: false
+    desc "Input format of the partial metadata (fluentd or journald docker log driver)"
+    config_param :partial_metadata_format, :enum, list: [:"docker-fluentd", :"docker-journald", :"docker-journald-lowercase"], default: :"docker-fluentd"
     desc "If true, keep partial metadata"
     config_param :keep_partial_metadata, :bool, default: false
+    desc "Use cri log tag to concatenate multiple records"
+    config_param :use_partial_cri_logtag, :bool, default: false
+    desc "The key name that is referred to concatenate records on cri log"
+    config_param :partial_cri_logtag_key, :string, default: nil
+    desc "The key name that is referred to detect stream name on cri log"
+    config_param :partial_cri_stream_key, :string, default: "stream"
 
     class TimeoutError < StandardError
     end
@@ -50,11 +58,18 @@ module Fluent::Plugin
       end
     end
 
+    def required_params
+      params = [@n_lines.nil?, @multiline_start_regexp.nil?, @multiline_end_regexp.nil?, @partial_key.nil?, !@use_partial_metadata, !@use_partial_cri_logtag]
+      names = ["n_lines", "multiline_start_regexp", "multiline_end_regexp", "partial_key", "use_partial_metadata", "use_partial_cri_logtag"]
+      return params, names
+    end
+
     def configure(conf)
       super
 
-      if @n_lines.nil? && @multiline_start_regexp.nil? && @multiline_end_regexp.nil? && @partial_key.nil? && !@use_partial_metadata
-        raise Fluent::ConfigError, "Either n_lines, multiline_start_regexp, multiline_end_regexp, partial_key or use_partial_metadata is required"
+      params, names = required_params
+      if params.all?
+        raise Fluent::ConfigError, "Either #{[names[0..-2].join(", "), names[-1]].join(" or ")} is required"
       end
       if @n_lines && (@multiline_start_regexp || @multiline_end_regexp)
         raise Fluent::ConfigError, "n_lines and multiline_start_regexp/multiline_end_regexp are exclusive"
@@ -69,13 +84,22 @@ module Fluent::Plugin
         raise Fluent::ConfigError, "partial_value is required when partial_key is specified"
       end
       if @use_partial_metadata && @n_lines
-        raise Fluent::ConfigError, "user_partial_metadata and n_lines are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and n_lines are exclusive"
       end
       if @use_partial_metadata && (@multiline_start_regexp || @multiline_end_regexp)
-        raise Fluent::ConfigError, "user_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and multiline_start_regexp/multiline_end_regexp are exclusive"
       end
       if @use_partial_metadata && @partial_key
-        raise Fluent::ConfigError, "user_partial_metadata and partial_key are exclusive"
+        raise Fluent::ConfigError, "use_partial_metadata and partial_key are exclusive"
+      end
+      if @use_partial_cri_logtag && @n_lines
+        raise Fluent::ConfigError, "use_partial_cri_logtag and n_lines are exclusive"
+      end
+      if @use_partial_cri_logtag && (@multiline_start_regexp || @multiline_end_regexp)
+        raise Fluent::ConfigError, "use_partial_cri_logtag and multiline_start_regexp/multiline_end_regexp are exclusive"
+      end
+      if @use_partial_cri_logtag && @partial_key
+        raise Fluent::ConfigError, "use_partial_cri_logtag and partial_key are exclusive"
       end
 
       @mode = nil
@@ -86,6 +110,33 @@ module Fluent::Plugin
         @mode = :partial
       when @use_partial_metadata
         @mode = :partial_metadata
+        case @partial_metadata_format
+        when :"docker-fluentd"
+          @partial_message_field     = "partial_message".freeze
+          @partial_id_field          = "partial_id".freeze
+          @partial_ordinal_field     = "partial_ordinal".freeze
+          @partial_last_field        = "partial_last".freeze
+          @partial_message_indicator = @partial_message_field
+        when :"docker-journald"
+          @partial_message_field     = "CONTAINER_PARTIAL_MESSAGE".freeze
+          @partial_id_field          = "CONTAINER_PARTIAL_ID".freeze
+          @partial_ordinal_field     = "CONTAINER_PARTIAL_ORDINAL".freeze
+          @partial_last_field        = "CONTAINER_PARTIAL_LAST".freeze
+          # the journald log driver does not add CONTAINER_PARTIAL_MESSAGE to the last message
+          # so we help ourself by using another indicator
+          @partial_message_indicator = @partial_id_field
+        when :"docker-journald-lowercase"
+          @partial_message_field     = "container_partial_message".freeze
+          @partial_id_field          = "container_partial_id".freeze
+          @partial_ordinal_field     = "container_partial_ordinal".freeze
+          @partial_last_field        = "container_partial_last".freeze
+          @partial_message_indicator = @partial_id_field
+        end
+      when @use_partial_cri_logtag
+        @mode = :partial_cri
+        @partial_logtag_delimiter = ":".freeze
+        @partial_logtag_continue = "P".freeze
+        @partial_logtag_full = "F".freeze
       when @multiline_start_regexp || @multiline_end_regexp
         @mode = :regexp
         if @multiline_start_regexp
@@ -113,12 +164,12 @@ module Fluent::Plugin
     end
 
     def filter_stream(tag, es)
+      if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
+        return es
+      end
+
       new_es = Fluent::MultiEventStream.new
       es.each do |time, record|
-        if /\Afluent\.(?:trace|debug|info|warn|error|fatal)\z/ =~ tag
-          new_es.add(time, record)
-          next
-        end
         unless record.key?(@key)
           new_es.add(time, record)
           next
@@ -130,7 +181,7 @@ module Fluent::Plugin
           end
         end
         if @mode == :partial_metadata
-          unless record.key?("partial_message")
+          unless record.key?(@partial_message_indicator)
             new_es.add(time, record)
             next
           end
@@ -146,11 +197,14 @@ module Fluent::Plugin
                 merged_record.delete(@partial_key) unless @keep_partial_key
               when :partial_metadata
                 unless @keep_partial_metadata
-                  merged_record.delete("partial_message")
-                  merged_record.delete("partial_id")
-                  merged_record.delete("partial_ordinal")
-                  merged_record.delete("partial_last")
+                  merged_record.delete(@partial_message_field)
+                  merged_record.delete(@partial_id_field)
+                  merged_record.delete(@partial_ordinal_field)
+                  merged_record.delete(@partial_last_field)
                 end
+              when :partial_cri
+                merged_record.delete(@partial_cri_logtag_key) unless @keep_partial_key
+                merged_record.delete(@partial_cri_stream_key)
               end
               new_es.add(time, merged_record)
             end
@@ -175,9 +229,9 @@ module Fluent::Plugin
     def process(tag, time, record)
       if @mode == :partial_metadata
         if @stream_identity_key
-          stream_identity = %Q(#{tag}:#{record[@stream_identity_key]}#{record["partial_id"]})
+          stream_identity = %Q(#{tag}:#{record[@stream_identity_key]}#{record[@partial_id_field]})
         else
-          stream_identity = %Q(#{tag}:#{record["partial_id"]})
+          stream_identity = %Q(#{tag}:#{record[@partial_id_field]})
         end
       else
         if @stream_identity_key
@@ -196,6 +250,8 @@ module Fluent::Plugin
         process_partial(stream_identity, tag, time, record)
       when :partial_metadata
         process_partial_metadata(stream_identity, tag, time, record)
+      when :partial_cri
+        process_partial_cri(stream_identity, tag, time, record)
       when :regexp
         process_regexp(stream_identity, tag, time, record)
       end
@@ -224,10 +280,22 @@ module Fluent::Plugin
       new_es
     end
 
+    def process_partial_cri(stream_identity, tag, time, record)
+      new_es = Fluent::MultiEventStream.new
+      @buffer[stream_identity] << [tag, time, record]
+      if record[@partial_cri_logtag_key].split(@partial_logtag_delimiter)[0] == @partial_logtag_full
+        new_time, new_record = flush_buffer(stream_identity)
+        time = new_time if @use_first_timestamp
+        new_record.delete(@partial_cri_logtag_key)
+        new_es.add(time, new_record)
+      end
+      new_es
+    end
+
     def process_partial_metadata(stream_identity, tag, time, record)
       new_es = Fluent::MultiEventStream.new
       @buffer[stream_identity] << [tag, time, record]
-      if record["partial_last"] == "true"
+      if record[@partial_last_field] == "true"
         new_time, new_record = flush_buffer(stream_identity)
         time = new_time if @use_first_timestamp
         new_record.delete(@partial_key)
@@ -288,16 +356,16 @@ module Fluent::Plugin
     end
 
     def firstline?(text)
-      @multiline_start_regexp && !!@multiline_start_regexp.match(text)
+      @multiline_start_regexp && @multiline_start_regexp.match?(text)
     end
 
     def lastline?(text)
-      @multiline_end_regexp && !!@multiline_end_regexp.match(text)
+      @multiline_end_regexp && @multiline_end_regexp.match?(text)
     end
 
     def continuous_line?(text)
       if @continuous_line_regexp
-        !!@continuous_line_regexp.match(text)
+        @continuous_line_regexp.match?(text)
       else
         true
       end
@@ -306,7 +374,7 @@ module Fluent::Plugin
     def flush_buffer(stream_identity, new_element = nil)
       lines = if @mode == :partial_metadata
                 @buffer[stream_identity]
-                  .sort_by {|_tag, _time, record| record["partial_ordinal"].to_i }
+                  .sort_by {|_tag, _time, record| record[@partial_ordinal_field].to_i }
                   .map {|_tag, _time, record| record[@key] }
               else
                 @buffer[stream_identity].map {|_tag, _time, record| record[@key] }

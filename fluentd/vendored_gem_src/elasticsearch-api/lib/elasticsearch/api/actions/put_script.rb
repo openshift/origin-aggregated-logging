@@ -24,11 +24,10 @@ module Elasticsearch
       # @option arguments [String] :context Script context
       # @option arguments [Time] :timeout Explicit operation timeout
       # @option arguments [Time] :master_timeout Specify timeout for connection to master
-      # @option arguments [String] :context Context name to compile script against
       # @option arguments [Hash] :headers Custom HTTP headers
       # @option arguments [Hash] :body The document (*Required*)
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/modules-scripting.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/modules-scripting.html
       #
       def put_script(arguments = {})
         raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -47,7 +46,7 @@ module Elasticsearch
                    "_scripts/#{Utils.__listify(_id)}/#{Utils.__listify(_context)}"
                  else
                    "_scripts/#{Utils.__listify(_id)}"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = arguments[:body]
@@ -63,5 +62,5 @@ module Elasticsearch
         :context
       ].freeze)
     end
-    end
+  end
 end

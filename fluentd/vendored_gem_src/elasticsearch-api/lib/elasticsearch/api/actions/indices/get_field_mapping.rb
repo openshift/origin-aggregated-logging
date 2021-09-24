@@ -23,14 +23,12 @@ module Elasticsearch
         #
         # @option arguments [List] :fields A comma-separated list of fields
         # @option arguments [List] :index A comma-separated list of index names
-        # @option arguments [List] :type A comma-separated list of document types   *Deprecated*
+        # @option arguments [List] :type A comma-separated list of document types *Deprecated*
         # @option arguments [Boolean] :include_type_name Whether a type should be returned in the body of the mappings.
         # @option arguments [Boolean] :include_defaults Whether the default mapping values should be returned as well
         # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
         # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,hidden,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
         # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
         # @option arguments [Hash] :headers Custom HTTP headers
         #
@@ -39,7 +37,7 @@ module Elasticsearch
         # Deprecated since version 7.0.0
         #
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-get-field-mapping.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-get-field-mapping.html
         #
         def get_field_mapping(arguments = {})
           _fields = arguments.delete(:field) || arguments.delete(:fields)
@@ -62,7 +60,7 @@ module Elasticsearch
                      "_mapping/#{Utils.__listify(_type)}/field/#{Utils.__listify(_fields)}"
                    else
                      "_mapping/field/#{Utils.__listify(_fields)}"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -80,7 +78,7 @@ module Elasticsearch
           :expand_wildcards,
           :local
         ].freeze)
-end
       end
+    end
   end
 end

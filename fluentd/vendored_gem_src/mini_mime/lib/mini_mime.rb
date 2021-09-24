@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require "mini_mime/version"
 require "thread"
 
@@ -55,14 +56,14 @@ module MiniMime
       extension = File.extname(filename)
       return if extension.empty?
       extension = extension[1..-1]
-      extension.downcase!
       lookup_by_extension(extension)
     end
 
     def self.lookup_by_extension(extension)
       LOCK.synchronize do
         @db ||= new
-        @db.lookup_by_extension(extension)
+        @db.lookup_by_extension(extension) ||
+          @db.lookup_by_extension(extension.downcase)
       end
     end
 
@@ -129,7 +130,7 @@ module MiniMime
         result = nil
 
         while from <= to do
-          midpoint = from + (to-from).div(2)
+          midpoint = from + (to - from).div(2)
           current = resolve(midpoint)
           data = current[@sort_order]
           if data > val
@@ -145,7 +146,7 @@ module MiniMime
       end
 
       def resolve(row)
-        @file.seek(row*@row_length)
+        @file.seek(row * @row_length)
         Info.new(@file.readline)
       end
     end

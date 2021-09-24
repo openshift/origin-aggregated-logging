@@ -1,6 +1,6 @@
 # systemd plugin for [Fluentd](http://github.com/fluent/fluentd)
 
-[![Build Status](https://travis-ci.org/reevoo/fluent-plugin-systemd.svg?branch=master)](https://travis-ci.org/reevoo/fluent-plugin-systemd) [![Code Climate GPA](https://codeclimate.com/github/reevoo/fluent-plugin-systemd/badges/gpa.svg)](https://codeclimate.com/github/reevoo/fluent-plugin-systemd) [![Gem Version](https://badge.fury.io/rb/fluent-plugin-systemd.svg)](https://rubygems.org/gems/fluent-plugin-systemd)
+[![Build Status](https://github.com/fluent-plugin-systemd/fluent-plugin-systemd/actions/workflows/ci.yml/badge.svg)](https://github.com/fluent-plugin-systemd/fluent-plugin-systemd/actions/workflows/ci.yml) [![Maintainability](https://api.codeclimate.com/v1/badges/5c773a4c1c6a6964fa4b/maintainability)](https://codeclimate.com/github/fluent-plugin-systemd/fluent-plugin-systemd/maintainability) [![Gem Version](https://badge.fury.io/rb/fluent-plugin-systemd.svg)](https://rubygems.org/gems/fluent-plugin-systemd)
 
 ## Overview
 
@@ -9,10 +9,7 @@
 
 ## Support
 
-[![Fluentd Slack](http://slack.fluentd.org/badge.svg)](http://slack.fluentd.org/)
-
 Join the #plugin-systemd channel on the [Fluentd Slack](http://slack.fluentd.org/)
-
 
 ## Requirements
 
@@ -28,11 +25,11 @@ Join the #plugin-systemd channel on the [Fluentd Slack](http://slack.fluentd.org
 
 Simply use RubyGems:
 
-    gem install fluent-plugin-systemd -v 1.0.1
+    gem install fluent-plugin-systemd -v 1.0.3
 
 or
 
-    td-agent-gem install fluent-plugin-systemd -v 1.0.1
+    td-agent-gem install fluent-plugin-systemd -v 1.0.3
 
 ## Upgrading
 
@@ -47,8 +44,9 @@ If you are upgrading to version 1.0 from a previous version of this plugin take 
       matches [{ "_SYSTEMD_UNIT": "kubelet.service" }]
       read_from_head true
 
-      <storage kubelet-pos>
+      <storage>
         @type local
+        path /var/log/fluentd-journald-kubelet-cursor.json
       </storage>
 
       <entry>
@@ -84,7 +82,7 @@ description of this property and how to use it.
 
 **`storage`**
 
-Configuration for a [storage plugin](http://docs.fluentd.org/v0.14/articles/storage-plugin-overview) used to store the journald cursor.
+Configuration for a [storage plugin](https://docs.fluentd.org/storage) used to store the journald cursor.
 
 **`read_from_head`**
 
@@ -252,14 +250,16 @@ We have adopted the [Contributor Covenant](CODE_OF_CONDUCT.md) and thus expect a
 
 Many thanks to our fantastic contributors
 
-* [Hiroshi Hatake](https://github.com/cosmo0920)
 * [Erik Maciejewski](https://github.com/emacski)
-* [Masahiro Nakagawa](https://github.com/repeatedly)
-* [Richard Megginson](https://github.com/richm)
-* [Mike Kaplinskiy](https://github.com/mikekap)
-* [neko-neko](https://github.com/neko-neko)
-* [Sadayuki Furuhashi](https://github.com/frsyuki)
+* [Ernie Hershey](https://github.com/ehershey)
+* [Hiroshi Hatake](https://github.com/cosmo0920)
 * [Jesus Rafael Carrillo](https://github.com/jescarri)
+* [Joel Gerber](https://github.com/Jitsusama)
 * [John Thomas Wile II](https://github.com/jtwile2)
 * [Kazuhiro Suzuki](https://github.com/ksauzz)
-* [Joel Gerber](https://github.com/Jitsusama)
+* [Marius Grigoriu](https://github.com/mariusgrigoriu)
+* [Masahiro Nakagawa](https://github.com/repeatedly)
+* [Mike Kaplinskiy](https://github.com/mikekap)
+* [Richard Megginson](https://github.com/richm)
+* [Sadayuki Furuhashi](https://github.com/frsyuki)
+* [Seiichi Nishikata](https://github.com/neko-neko)
