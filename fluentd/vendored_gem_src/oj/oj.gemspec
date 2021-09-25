@@ -20,24 +20,19 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--title".freeze, "Oj".freeze, "--main".freeze, "README.md".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 2.4".freeze)
-  s.rubygems_version = "3.0.9".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "A fast JSON parser and serializer.".freeze
   s.test_files = ["test/_test_active.rb".freeze, "test/_test_active_mimic.rb".freeze, "test/_test_mimic_rails.rb".freeze, "test/activerecord/result_test.rb".freeze, "test/activesupport4/decoding_test.rb".freeze, "test/activesupport4/encoding_test.rb".freeze, "test/activesupport4/test_helper.rb".freeze, "test/activesupport5/abstract_unit.rb".freeze, "test/activesupport5/decoding_test.rb".freeze, "test/activesupport5/encoding_test.rb".freeze, "test/activesupport5/encoding_test_cases.rb".freeze, "test/activesupport5/test_helper.rb".freeze, "test/activesupport5/time_zone_test_helpers.rb".freeze, "test/activesupport6/abstract_unit.rb".freeze, "test/activesupport6/decoding_test.rb".freeze, "test/activesupport6/encoding_test.rb".freeze, "test/activesupport6/encoding_test_cases.rb".freeze, "test/activesupport6/test_common.rb".freeze, "test/activesupport6/test_helper.rb".freeze, "test/activesupport6/time_zone_test_helpers.rb".freeze, "test/bar.rb".freeze, "test/baz.rb".freeze, "test/files.rb".freeze, "test/foo.rb".freeze, "test/helper.rb".freeze, "test/isolated/shared.rb".freeze, "test/isolated/test_mimic_after.rb".freeze, "test/isolated/test_mimic_alone.rb".freeze, "test/isolated/test_mimic_as_json.rb".freeze, "test/isolated/test_mimic_before.rb".freeze, "test/isolated/test_mimic_define.rb".freeze, "test/isolated/test_mimic_rails_after.rb".freeze, "test/isolated/test_mimic_rails_before.rb".freeze, "test/isolated/test_mimic_redefine.rb".freeze, "test/json_gem/json_addition_test.rb".freeze, "test/json_gem/json_common_interface_test.rb".freeze, "test/json_gem/json_encoding_test.rb".freeze, "test/json_gem/json_ext_parser_test.rb".freeze, "test/json_gem/json_fixtures_test.rb".freeze, "test/json_gem/json_generator_test.rb".freeze, "test/json_gem/json_generic_object_test.rb".freeze, "test/json_gem/json_parser_test.rb".freeze, "test/json_gem/json_string_matching_test.rb".freeze, "test/json_gem/test_helper.rb".freeze, "test/perf.rb".freeze, "test/perf_compat.rb".freeze, "test/perf_fast.rb".freeze, "test/perf_file.rb".freeze, "test/perf_object.rb".freeze, "test/perf_saj.rb".freeze, "test/perf_scp.rb".freeze, "test/perf_simple.rb".freeze, "test/perf_strict.rb".freeze, "test/perf_wab.rb".freeze, "test/prec.rb".freeze, "test/sample/change.rb".freeze, "test/sample/dir.rb".freeze, "test/sample/doc.rb".freeze, "test/sample/file.rb".freeze, "test/sample/group.rb".freeze, "test/sample/hasprops.rb".freeze, "test/sample/layer.rb".freeze, "test/sample/line.rb".freeze, "test/sample/oval.rb".freeze, "test/sample/rect.rb".freeze, "test/sample/shape.rb".freeze, "test/sample/text.rb".freeze, "test/sample.rb".freeze, "test/sample_json.rb".freeze, "test/test_compat.rb".freeze, "test/test_custom.rb".freeze, "test/test_debian.rb".freeze, "test/test_fast.rb".freeze, "test/test_file.rb".freeze, "test/test_gc.rb".freeze, "test/test_hash.rb".freeze, "test/test_integer_range.rb".freeze, "test/test_null.rb".freeze, "test/test_object.rb".freeze, "test/test_rails.rb".freeze, "test/test_saj.rb".freeze, "test/test_scp.rb".freeze, "test/test_strict.rb".freeze, "test/test_various.rb".freeze, "test/test_wab.rb".freeze, "test/test_writer.rb".freeze, "test/tests.rb".freeze, "test/tests_mimic.rb".freeze, "test/tests_mimic_addition.rb".freeze, "test/zoo.rb".freeze]
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_development_dependency(%q<rake-compiler>.freeze, [">= 0.9", "< 2.0"])
-      s.add_development_dependency(%q<minitest>.freeze, ["~> 5"])
-      s.add_development_dependency(%q<test-unit>.freeze, ["~> 3.0"])
-      s.add_development_dependency(%q<wwtd>.freeze, ["~> 0"])
-    else
-      s.add_dependency(%q<rake-compiler>.freeze, [">= 0.9", "< 2.0"])
-      s.add_dependency(%q<minitest>.freeze, ["~> 5"])
-      s.add_dependency(%q<test-unit>.freeze, ["~> 3.0"])
-      s.add_dependency(%q<wwtd>.freeze, ["~> 0"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_development_dependency(%q<rake-compiler>.freeze, [">= 0.9", "< 2.0"])
+    s.add_development_dependency(%q<minitest>.freeze, ["~> 5"])
+    s.add_development_dependency(%q<test-unit>.freeze, ["~> 3.0"])
+    s.add_development_dependency(%q<wwtd>.freeze, ["~> 0"])
   else
     s.add_dependency(%q<rake-compiler>.freeze, [">= 0.9", "< 2.0"])
     s.add_dependency(%q<minitest>.freeze, ["~> 5"])

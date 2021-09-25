@@ -18,17 +18,15 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT".freeze]
   s.rdoc_options = ["--title".freeze, "TZInfo::Data".freeze, "--main".freeze, "README.md".freeze, "--exclude".freeze, "definitions".freeze, "--exclude".freeze, "indexes".freeze]
   s.required_ruby_version = Gem::Requirement.new(">= 1.8.7".freeze)
-  s.rubygems_version = "3.0.9".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "Timezone Data for TZInfo".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<tzinfo>.freeze, [">= 1.0.0"])
-    else
-      s.add_dependency(%q<tzinfo>.freeze, [">= 1.0.0"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_runtime_dependency(%q<tzinfo>.freeze, [">= 1.0.0"])
   else
     s.add_dependency(%q<tzinfo>.freeze, [">= 1.0.0"])
   end

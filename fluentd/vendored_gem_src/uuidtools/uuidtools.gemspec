@@ -15,23 +15,18 @@ Gem::Specification.new do |s|
   s.files = ["CHANGELOG".freeze, "LICENSE.txt".freeze, "README.md".freeze, "Rakefile".freeze, "lib/compat/securerandom.rb".freeze, "lib/uuidtools.rb".freeze, "lib/uuidtools/version.rb".freeze, "spec/spec.opts".freeze, "spec/spec_helper.rb".freeze, "spec/uuidtools/mac_address_spec.rb".freeze, "spec/uuidtools/utility_spec.rb".freeze, "spec/uuidtools/uuid_creation_spec.rb".freeze, "spec/uuidtools/uuid_parsing_spec.rb".freeze, "tasks/benchmark.rake".freeze, "tasks/gem.rake".freeze, "tasks/git.rake".freeze, "tasks/metrics.rake".freeze, "tasks/rspec.rake".freeze, "tasks/yard.rake".freeze, "website/index.html".freeze]
   s.homepage = "https://github.com/sporkmonger/uuidtools".freeze
   s.rdoc_options = ["--main".freeze, "README.md".freeze]
-  s.rubygems_version = "3.0.9".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "UUID generator".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_development_dependency(%q<rake>.freeze, [">= 0.7.3"])
-      s.add_development_dependency(%q<rspec>.freeze, [">= 2.9.0"])
-      s.add_development_dependency(%q<yard>.freeze, [">= 0.8.2"])
-      s.add_development_dependency(%q<launchy>.freeze, [">= 2.0.0"])
-    else
-      s.add_dependency(%q<rake>.freeze, [">= 0.7.3"])
-      s.add_dependency(%q<rspec>.freeze, [">= 2.9.0"])
-      s.add_dependency(%q<yard>.freeze, [">= 0.8.2"])
-      s.add_dependency(%q<launchy>.freeze, [">= 2.0.0"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_development_dependency(%q<rake>.freeze, [">= 0.7.3"])
+    s.add_development_dependency(%q<rspec>.freeze, [">= 2.9.0"])
+    s.add_development_dependency(%q<yard>.freeze, [">= 0.8.2"])
+    s.add_development_dependency(%q<launchy>.freeze, [">= 2.0.0"])
   else
     s.add_dependency(%q<rake>.freeze, [">= 0.7.3"])
     s.add_dependency(%q<rspec>.freeze, [">= 2.9.0"])

@@ -15,19 +15,16 @@ Gem::Specification.new do |s|
   s.files = ["lib/aws-sdk-cloudwatchlogs.rb".freeze, "lib/aws-sdk-cloudwatchlogs/client.rb".freeze, "lib/aws-sdk-cloudwatchlogs/client_api.rb".freeze, "lib/aws-sdk-cloudwatchlogs/customizations.rb".freeze, "lib/aws-sdk-cloudwatchlogs/errors.rb".freeze, "lib/aws-sdk-cloudwatchlogs/resource.rb".freeze, "lib/aws-sdk-cloudwatchlogs/types.rb".freeze]
   s.homepage = "https://github.com/aws/aws-sdk-ruby".freeze
   s.licenses = ["Apache-2.0".freeze]
-  s.rubygems_version = "3.0.9".freeze
+  s.rubygems_version = "3.1.4".freeze
   s.summary = "AWS SDK for Ruby - Amazon CloudWatch Logs".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
+  end
 
-    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<aws-sdk-core>.freeze, ["~> 3", ">= 3.109.0"])
-      s.add_runtime_dependency(%q<aws-sigv4>.freeze, ["~> 1.1"])
-    else
-      s.add_dependency(%q<aws-sdk-core>.freeze, ["~> 3", ">= 3.109.0"])
-      s.add_dependency(%q<aws-sigv4>.freeze, ["~> 1.1"])
-    end
+  if s.respond_to? :add_runtime_dependency then
+    s.add_runtime_dependency(%q<aws-sdk-core>.freeze, ["~> 3", ">= 3.109.0"])
+    s.add_runtime_dependency(%q<aws-sigv4>.freeze, ["~> 1.1"])
   else
     s.add_dependency(%q<aws-sdk-core>.freeze, ["~> 3", ">= 3.109.0"])
     s.add_dependency(%q<aws-sigv4>.freeze, ["~> 1.1"])

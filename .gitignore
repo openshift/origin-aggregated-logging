@@ -12,3 +12,5 @@ _output/
 *.pyc
 .venv
 venv
+
+**/.vendor

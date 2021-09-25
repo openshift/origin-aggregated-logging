@@ -10,6 +10,7 @@ fluent-config-regexp-type 1.0.0 https://github.com/okkez/fluent-config-regexp-ty
 fluentd 1.7.4 https://www.fluentd.org/
 fluent-plugin-cloudwatch-logs 0.7.6 https://github.com/fluent-plugins-nursery/fluent-plugin-cloudwatch-logs
 fluent-plugin-concat 2.4.0 https://github.com/fluent-plugins-nursery/fluent-plugin-concat
+fluent-plugin-detect-exceptions 0.0.14 https://github.com/GoogleCloudPlatform/fluent-plugin-detect-exceptions
 fluent-plugin-grafana-loki 1.2.7 https://github.com/grafana/loki/
 fluent-plugin-kafka 0.13.1 https://github.com/fluent/fluent-plugin-kafka
 fluent-plugin-label-router 0.2.4 https://github.com/banzaicloud/fluent-plugin-label-router
