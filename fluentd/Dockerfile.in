@@ -1,9 +1,8 @@
 ## EXCLUDE BEGIN ##
-#@follow_tag(ubi8:8-released)
-FROM ubi8:8.2-347 AS builder
+#@follow_tag(registry.redhat.io/ubi8:latest)
+FROM registry.redhat.io/ubi8:8.4-211 AS builder
 
-ARG upstream_code
-ENV upstream_code=upstream_code    
+ARG upstream_code=upstream_code
 ARG upstream_tarball=${upstream_code}.tar.gz
 
 COPY ${CI_ARCHIVE_ORIGIN_AGGREGATED_LOGGING} ${upstream_tarball}
@@ -13,9 +12,11 @@ RUN mkdir -p ${upstream_code} \
         -C ${upstream_code}
 ## EXCLUDE END ##
 
-#@follow_tag(openshift-ose-base:ubi8.ruby.25)
-FROM openshift-ose-base:v4.0-202009120105.6452
-
+#@follow_tag(registry.redhat.io/ubi8/ruby-25:latest)
+FROM registry.redhat.io/ubi8/ruby-25:1-164
+## EXCLUDE BEGIN ##
+ARG upstream_code=upstream_code/fluentd
+## EXCLUDE END ##
 ENV BUILD_VERSION=1.7.4
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
