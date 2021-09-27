@@ -24,6 +24,7 @@ require 'fluent/log'
 require 'fluent/match'
 
 require_relative 'filter_viaq_data_model_systemd'
+require_relative 'viaq_data_model_log_level_normalizer'
 
 begin
   ViaqMatchClass = Fluent::Match
@@ -52,6 +53,10 @@ end
 module Fluent
   class ViaqDataModelFilter < Filter
     include ViaqDataModelFilterSystemd
+    include ViaqDataModel::LogLevelNormalizer
+
+    attr_reader :level_matcher
+
     Fluent::Plugin.register_filter('viaq_data_model', self)
 
     desc 'Default list of comma-delimited fields to keep in each record'
@@ -123,6 +128,18 @@ module Fluent
       config_param :process_kubernetes_events, :bool, default: nil
     end
 
+    # <level>
+    #   name error
+    #   match 'Error|ERROR|E[0-9]+|level=error|Value:error|"level":"error"'
+    # </level>
+    desc "Regex evaluations to do against a kubernetes container record's message. Matches are evaluated in order of declaration and 'level' is set against the first match"
+    config_section :level, param_name: :levels do
+      desc "The value to set record['level'] when regex is matched"
+      config_param :name, :string
+      desc "The regex used to evaluate against record['message']"
+      config_param :match, :string
+    end
+
     desc 'Which part of the pipeline is this - collector, normalizer, etc. for pipeline_metadata'
     config_param :pipeline_type, :enum, list: [:collector, :normalizer], default: :collector
 
@@ -181,6 +198,19 @@ module Fluent
         raise Fluent::ConfigError, "Field [#{@src_time_name}] must be listed in default_keep_fields or extra_keep_fields"
       end
       @undefined_dot_replace_char = nil if @undefined_dot_replace_char == DOT_REPLACE_CHAR_UNUSED
+      
+      if @levels
+        buffer = []
+        @levels.each_with_index do |level,i|
+          if i < 10 
+            buffer.append("(?<l#{i}_#{level.name}>#{level.match})")
+          else
+            log.info("Levels supports a maximum of 10 matches. Ignoring: #{level}")
+          end
+        end
+        @level_matcher = Regexp.new("^.*#{buffer.join('|')}.*$") unless buffer.empty?
+      end
+
       if @formatters
         @formatters.each do |fmtr|
           matcher = ViaqMatchClass.new(fmtr.tag, nil)
@@ -256,64 +286,6 @@ module Fluent
       thing
     end
 
-    # https://github.com/ViaQ/elasticsearch-templates/blob/master/namespaces/_default_.yml#L63
-    NORMAL_LEVELS = {
-      'emerg'    => 'emerg',
-      'panic'    => 'emerg',
-      'alert'    => 'alert',
-      'crit'     => 'crit',
-      'critical' => 'crit',
-      'err'      => 'err',
-      'error'    => 'err',
-      'warning'  => 'warning',
-      'warn'     => 'warning',
-      'notice'   => 'notice',
-      'info'     => 'info',
-      'debug'    => 'debug',
-      'trace'    => 'trace',
-      'unknown'  => 'unknown',
-    }
-    # numeric levels for the PRIORITY field
-    PRIORITY_LEVELS = {
-      0 => 'emerg',
-      1 => 'alert',
-      2 => 'crit',
-      3 => 'err',
-      4 => 'warning',
-      5 => 'notice',
-      6 => 'info',
-      7 => 'debug',
-      8 => 'trace',
-      9 => 'unknown',
-      '0' => 'emerg',
-      '1' => 'alert',
-      '2' => 'crit',
-      '3' => 'err',
-      '4' => 'warning',
-      '5' => 'notice',
-      '6' => 'info',
-      '7' => 'debug',
-      '8' => 'trace',
-      '9' => 'unknown',
-    }
-    def normalize_level(level, newlevel, priority=nil)
-      # if the record already has a level field, and it looks like one of our well
-      # known values, convert it to the canonical normalized form - otherwise,
-      # preserve the value in string format
-      retlevel = nil
-      if !level.nil?
-        unless (retlevel = NORMAL_LEVELS[level]) ||
-               (level.respond_to?(:downcase) && (retlevel = NORMAL_LEVELS[level.downcase]))
-          retlevel = level.to_s # don't know what it is - just convert to string
-        end
-      elsif !priority.nil?
-        retlevel = PRIORITY_LEVELS[priority]
-      else
-        retlevel = NORMAL_LEVELS[newlevel]
-      end
-      retlevel || 'unknown'
-    end
-
     def process_sys_var_log_fields(tag, time, record, fmtr = nil)
       record['systemd'] = {"t" => {"PID" => record['pid']}, "u" => {"SYSLOG_IDENTIFIER" => record['ident']}}
       if record[@dest_time_name].nil? # e.g. already has @timestamp
@@ -333,7 +305,7 @@ module Fluent
 
     def process_k8s_json_file_fields(tag, time, record, fmtr = nil)
       record['message'] = record['message'] || record['log']
-      record['level'] = normalize_level(record['level'], nil)
+      normalize_level!(record)
       if record.key?('kubernetes') && record['kubernetes'].respond_to?(:fetch) && \
          (k8shost = record['kubernetes'].fetch('host', nil))
         record['hostname'] = k8shost
