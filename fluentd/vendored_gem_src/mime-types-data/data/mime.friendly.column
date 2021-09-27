@@ -19,6 +19,9 @@
 -
 -
 -
+-
+-
+-
 en^Andrew Toolkit
 -
 -
@@ -51,6 +54,7 @@ en^Atom Publishing Protocol Service Document
 -
 -
 -
+-
 en^Voice Browser Call Control
 -
 en^Cloud Data Management Interface (CDMI) - Capability
@@ -58,6 +62,7 @@ en^Cloud Data Management Interface (CDMI) - Contaimer
 en^Cloud Data Management Interface (CDMI) - Domain
 en^Cloud Data Management Interface (CDMI) - Object
 en^Cloud Data Management Interface (CDMI) - Queue
+-
 -
 -
 -
@@ -119,6 +124,9 @@ en^ECMAScript
 -
 -
 -
+-
+-
+-
 en^Extensible MultiModal Annotation
 -
 -
@@ -128,6 +136,7 @@ en^Electronic Publication
 -
 -
 en^Efficient XML Interchange
+-
 -
 -
 -
@@ -183,6 +192,7 @@ en^JavaScript
 -
 -
 -
+-
 en^JavaScript Object Notation (JSON)
 -
 -
@@ -206,6 +216,7 @@ en^Compact Pro
 -
 -
 en^Metadata Authority Description Schema
+-
 en^MARC Formats
 en^MARC21 XML Schema
 -
@@ -233,6 +244,7 @@ en^Media Server Control Markup Language
 -
 en^Metalink
 en^Metadata Encoding and Transmission Standard
+-
 -
 -
 -
@@ -269,6 +281,7 @@ en^Material Exchange Format
 -
 -
 -
+-
 en^Binary Data
 en^Office Document Architecture
 -
@@ -277,6 +290,9 @@ en^Open eBook Publication Structure
 en^Ogg
 -
 en^Microsoft OneNote
+-
+-
+-
 -
 -
 -
@@ -319,6 +335,7 @@ en^CU-Writer
 -
 -
 -
+-
 en^Portable Symmetric Key Container
 -
 -
@@ -348,6 +365,8 @@ en^XML Resource Lists
 en^Really Simple Discovery
 en^RSS - Really Simple Syndication
 en^Rich Text Format
+-
+-
 -
 -
 -
@@ -482,9 +501,16 @@ en^Time Stamped Data Envelope
 -
 -
 -
+-
+-
+-
+-
+-
+-
 en^3rd Generation Partnership Project - Pic Large
 en^3rd Generation Partnership Project - Pic Small
 en^3rd Generation Partnership Project - Pic Var
+-
 -
 -
 -
@@ -520,6 +546,8 @@ en^Adobe XML Forms Data Format
 -
 -
 -
+-
+-
 en^Ahead AIR Application
 en^AirZip FileSECURE
 en^AirZip FileSECURE
@@ -535,6 +563,8 @@ en^Android Package Archive
 en^ANSER-WEB Terminal Client - Certificate Issue
 en^ANSER-WEB Terminal Client - Web Funds Transfer
 en^Antix Game Player
+-
+-
 -
 -
 -
@@ -617,6 +647,8 @@ en^CrickSoftware - Clicker - Wordbank
 en^Critical Tools - PERT Chart EXPERT
 -
 -
+-
+-
 en^PosML
 -
 -
@@ -627,6 +659,10 @@ en^Adobe PostScript Printer Description File Format
 -
 en^CURL Applet
 en^CURL Applet
+-
+-
+-
+-
 -
 -
 -
@@ -750,6 +786,10 @@ en^FrameMaker Normal Format
 en^Frogans Player
 en^Frogans Player
 en^Friendly Software Corporation
+-
+-
+-
+-
 en^Fujitsu Oasys
 en^Fujitsu Oasys
 en^Fujitsu Oasys
@@ -771,6 +811,7 @@ en^Genomatix Tuxedo Framework
 -
 -
 en^GeoGebra
+-
 en^GeoGebra
 en^GeoMetry Explorer
 en^GEONExT and JSXGraph
@@ -1002,6 +1043,7 @@ en^Muvee Automatic Video Editing
 -
 -
 -
+-
 en^neuroLanguage
 -
 -
@@ -1118,7 +1160,9 @@ en^OMA Download Agents
 -
 -
 -
+-
 en^Open Office Extension
+-
 -
 -
 -
@@ -1259,6 +1303,7 @@ en^Recordare Applications
 en^Recordare Applications
 -
 -
+-
 en^CryptoNote
 en^Blackberry COD File
 en^RealMedia
@@ -1284,6 +1329,7 @@ en^SailingTracker
 -
 -
 en^SeeMail
+-
 en^Secured eMail
 en^Secured eMail
 en^Secured eMail
@@ -1336,6 +1382,7 @@ en^OpenOffice - Writer Template (Text - HTML)
 en^ScheduleUs
 en^SourceView Document
 -
+-
 en^Symbian Install Package
 en^SyncML
 en^SyncML - Device Management
@@ -1387,6 +1434,7 @@ en^VirtualCatalog
 -
 -
 -
+-
 en^Microsoft Visio
 en^Visionary
 -
@@ -1397,6 +1445,7 @@ en^WAP Binary XML (WBXML)
 en^Compiled Wireless Markup Language (WMLC)
 en^WMLScript
 en^WebTurbo
+-
 -
 -
 -
@@ -1633,6 +1682,7 @@ en^Xfig
 -
 en^XPInstall - Mozilla
 -
+en^Zip Archive
 -
 -
 -
@@ -1794,6 +1844,9 @@ en^Ogg Audio
 -
 -
 -
+-
+-
+-
 en^DECE Audio
 en^Digital Winds Music
 -
@@ -1863,6 +1916,7 @@ en^XYZ File Format
 -
 -
 -
+-
 en^Bitmap Image File
 en^Computer Graphics Metafile
 -
@@ -1896,6 +1950,7 @@ en^JPEG Image
 en^OpenGL Textures (KTX)
 -
 -
+-
 en^Portable Network Graphics (PNG)
 en^BTIF
 -
@@ -1927,6 +1982,7 @@ en^EDMICS 2000
 en^Microsoft Document Imaging Format
 -
 en^FlashPix
+-
 -
 -
 -
@@ -2011,8 +2067,13 @@ en^Email Message
 -
 -
 -
+-
 en^Initial Graphics Exchange Specification (IGES)
 en^Mesh Data Type
+-
+-
+-
+-
 -
 -
 -
@@ -2024,6 +2085,8 @@ en^Geometric Description Language (GDL)
 en^Gen-Trix Studio
 -
 en^Virtue MTS
+-
+-
 -
 -
 -
@@ -2064,8 +2127,13 @@ en^Virtual Reality Modeling Language
 -
 en^iCalendar
 -
+-
+-
+-
 en^Cascading Style Sheets (CSS)
 en^Comma-Separated Values
+-
+-
 -
 -
 -
@@ -2101,6 +2169,8 @@ en^Standard Generalized Markup Language (SGML)
 -
 -
 -
+-
+-
 en^Tab Separated Values
 en^troff
 en^Turtle (Terse RDF Triple Language)
@@ -2124,6 +2194,7 @@ en^mod_fly / fly.cgi
 en^FLEXSTOR
 -
 en^Graphviz
+-
 -
 en^In3D - 3DML
 en^In3D - 3DML
@@ -2176,6 +2247,8 @@ en^3GP2
 -
 -
 -
+-
+-
 en^H.261
 en^H.263
 -
@@ -2188,6 +2261,7 @@ en^H.264
 en^JPGVideo
 -
 en^JPEG 2000 Compound Image File Format
+-
 en^Motion JPEG 2000
 -
 -
@@ -2202,6 +2276,7 @@ en^Ogg Video
 -
 -
 en^Quicktime Video
+-
 -
 -
 -
@@ -2247,6 +2322,7 @@ en^Microsoft PlayReady Ecosystem Video
 -
 en^DECE MP4
 en^Vivo
+-
 -
 -
 en^Open Web Media Project - Video

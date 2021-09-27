@@ -546,6 +546,8 @@
     rfc:
     - rfc4749
     - rfc5459
+    template:
+    - audio/G7291
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/G729D
@@ -810,6 +812,7 @@
   - oga
   - ogg
   - spx
+  - opus
   xrefs:
     rfc:
     - rfc5334
@@ -831,7 +834,9 @@
   encoding: base64
   xrefs:
     rfc:
-    - rfc5109
+    - rfc3009
+    template:
+    - audio/parityfec
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/PCMA
@@ -885,6 +890,8 @@
     rfc:
     - rfc3555
     - rfc3625
+    template:
+    - audio/QCELP
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/raptorfec
@@ -947,6 +954,17 @@
   - s3m
   registered: false
 - !ruby/object:MIME::Type
+  content-type: audio/scip
+  encoding: base64
+  xrefs:
+    person:
+    - Daniel_Hanson
+    - Michael_Faller
+    - SCIP
+    template:
+    - audio/scip
+  registered: true
+- !ruby/object:MIME::Type
   content-type: audio/silk
   encoding: base64
   extensions:
@@ -980,6 +998,16 @@
     - rfc3558
     template:
     - audio/SMV0
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: audio/sofa
+  encoding: base64
+  xrefs:
+    person:
+    - AES
+    - Piotr_Majdak
+    template:
+    - audio/sofa
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/sp-midi
@@ -1055,6 +1083,15 @@
     - rfc4733
     template:
     - audio/tone
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: audio/TSVCIS
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc8817
+    template:
+    - audio/TSVCIS
   registered: true
 - !ruby/object:MIME::Type
   content-type: audio/UEMCLIP

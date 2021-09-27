@@ -44,6 +44,36 @@
   use-instead: text/csv
   registered: false
 - !ruby/object:MIME::Type
+  content-type: text/cql
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Bryn_Rhodes
+    - HL7
+    template:
+    - text/cql
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/cql-expression
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Bryn_Rhodes
+    - HL7
+    template:
+    - text/cql-expression
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/cql-identifier
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Bryn_Rhodes
+    - HL7
+    template:
+    - text/cql-identifier
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/css
   friendly:
     en: Cascading Style Sheets (CSS)
@@ -144,6 +174,16 @@
     - text/example
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/fhirpath
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Bryn_Rhodes
+    - HL7
+    template:
+    - text/fhirpath
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/flexfec
   encoding: quoted-printable
   xrefs:
@@ -160,6 +200,15 @@
     - rfc6354
     template:
     - text/fwdred
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/gff3
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Sequence_Ontology
+    template:
+    - text/gff3
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/grammar-ref-list
@@ -263,7 +312,9 @@
   encoding: quoted-printable
   xrefs:
     rfc:
-    - rfc5109
+    - rfc3009
+    template:
+    - text/parityfec
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/plain
@@ -429,6 +480,26 @@
     - rfc1874
     template:
     - text/SGML
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/shaclc
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Vladimir_Alexiev
+    - W3C_SHACL_Community_Group
+    template:
+    - text/shaclc
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: text/shex
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Eric_Prudhommeaux
+    - W3C
+    template:
+    - text/shex
   registered: true
 - !ruby/object:MIME::Type
   content-type: text/spdx
@@ -707,6 +778,15 @@
     - text/vnd.graphviz
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/vnd.hans
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Hill_Hanxv
+    template:
+    - text/vnd.hans
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/vnd.hgl
   encoding: quoted-printable
   xrefs:
@@ -909,6 +989,8 @@
 - !ruby/object:MIME::Type
   content-type: text/vtt
   encoding: quoted-printable
+  extensions:
+  - vtt
   xrefs:
     person:
     - Silvia_Pfeiffer

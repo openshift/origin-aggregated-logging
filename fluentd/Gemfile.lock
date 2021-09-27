@@ -63,8 +63,8 @@ GEM
       fluentd (>= 0.14.10, < 2)
       ltsv
       ruby-kafka (>= 0.7.8, < 2)
-    fluent-plugin-kubernetes_metadata_filter (2.5.2)
-      fluentd (>= 0.14.0, < 1.12)
+    fluent-plugin-kubernetes_metadata_filter (2.7.1)
+      fluentd (>= 0.14.0, < 1.14)
       kubeclient (< 5)
       lru_redux
     fluent-plugin-label-router (0.2.4)
@@ -107,17 +107,16 @@ GEM
       http-form_data (~> 2.2)
       http-parser (~> 1.2.0)
     http-accept (1.7.0)
-    http-cookie (1.0.3)
+    http-cookie (1.0.4)
       domain_name (~> 0.5)
     http-form_data (2.3.0)
-    http-parser (1.2.1)
+    http-parser (1.2.3)
       ffi-compiler (>= 1.0, < 2.0)
     http_parser.rb (0.6.0)
     jmespath (1.4.0)
-    jsonpath (1.0.5)
+    jsonpath (1.1.0)
       multi_json
-      to_regexp (~> 0.2.1)
-    kubeclient (4.8.0)
+    kubeclient (4.9.2)
       http (>= 3.0, < 5.0)
       jsonpath (~> 1.0)
       recursive-open-struct (~> 1.1, >= 1.1.1)
@@ -126,7 +125,7 @@ GEM
     ltsv (0.1.2)
     mime-types (3.3.1)
       mime-types-data (~> 3.2015)
-    mime-types-data (3.2020.0512)
+    mime-types-data (3.2021.0901)
     msgpack (1.3.3)
     multi_json (1.15.0)
     multipart-post (2.1.1)
@@ -139,7 +138,7 @@ GEM
     public_suffix (4.0.6)
     quantile (0.2.1)
     rake (13.0.1)
-    recursive-open-struct (1.1.2)
+    recursive-open-struct (1.1.3)
     rest-client (2.1.0)
       http-accept (>= 1.7.0, < 2.0)
       http-cookie (>= 1.0.2, < 2.0)
@@ -154,7 +153,6 @@ GEM
     syslog_protocol (0.9.2)
     systemd-journal (1.3.3)
       ffi (~> 1.9)
-    to_regexp (0.2.1)
     typhoeus (1.4.0)
       ethon (>= 0.9.0)
     tzinfo (2.0.2)
@@ -163,7 +161,7 @@ GEM
       tzinfo (>= 1.0.0)
     unf (0.1.4)
       unf_ext
-    unf_ext (0.0.7.7)
+    unf_ext (0.0.8)
     uuidtools (2.1.5)
     yajl-ruby (1.4.1)
 
@@ -182,7 +180,7 @@ DEPENDENCIES
   fluent-plugin-elasticsearch
   fluent-plugin-grafana-loki
   fluent-plugin-kafka
-  fluent-plugin-kubernetes_metadata_filter
+  fluent-plugin-kubernetes_metadata_filter (= 2.7.1)
   fluent-plugin-label-router
   fluent-plugin-multi-format-parser
   fluent-plugin-prometheus

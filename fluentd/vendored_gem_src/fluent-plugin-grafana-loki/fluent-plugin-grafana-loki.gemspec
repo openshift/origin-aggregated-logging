@@ -14,18 +14,23 @@ Gem::Specification.new do |s|
   s.files = ["LICENSE".freeze, "README.md".freeze, "bin/console".freeze, "bin/setup".freeze, "lib/fluent/plugin/out_loki.rb".freeze]
   s.homepage = "https://github.com/grafana/loki/".freeze
   s.licenses = ["Apache-2.0".freeze]
-  s.rubygems_version = "3.1.4".freeze
+  s.rubygems_version = "3.0.9".freeze
   s.summary = "Output plugin to ship logs to a Grafana Loki server".freeze
 
   if s.respond_to? :specification_version then
     s.specification_version = 4
-  end
 
-  if s.respond_to? :add_runtime_dependency then
-    s.add_development_dependency(%q<bundler>.freeze, [">= 0"])
-    s.add_development_dependency(%q<rake>.freeze, ["~> 12.0"])
-    s.add_development_dependency(%q<rspec>.freeze, ["~> 3.0"])
-    s.add_runtime_dependency(%q<fluentd>.freeze, [">= 0.14.10", "< 2"])
+    if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
+      s.add_development_dependency(%q<bundler>.freeze, [">= 0"])
+      s.add_development_dependency(%q<rake>.freeze, ["~> 12.0"])
+      s.add_development_dependency(%q<rspec>.freeze, ["~> 3.0"])
+      s.add_runtime_dependency(%q<fluentd>.freeze, [">= 0.14.10", "< 2"])
+    else
+      s.add_dependency(%q<bundler>.freeze, [">= 0"])
+      s.add_dependency(%q<rake>.freeze, ["~> 12.0"])
+      s.add_dependency(%q<rspec>.freeze, ["~> 3.0"])
+      s.add_dependency(%q<fluentd>.freeze, [">= 0.14.10", "< 2"])
+    end
   else
     s.add_dependency(%q<bundler>.freeze, [">= 0"])
     s.add_dependency(%q<rake>.freeze, ["~> 12.0"])

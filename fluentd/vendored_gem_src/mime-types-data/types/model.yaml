@@ -12,6 +12,15 @@
     - model/3mf
   registered: true
 - !ruby/object:MIME::Type
+  content-type: model/e57
+  encoding: base64
+  xrefs:
+    person:
+    - ASTM
+    template:
+    - model/e57
+  registered: true
+- !ruby/object:MIME::Type
   content-type: model/example
   encoding: base64
   xrefs:
@@ -86,6 +95,46 @@
     - Luiza_Kowalczyk
     template:
     - model/obj
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/step
+  encoding: base64
+  xrefs:
+    person:
+    - Dana_Tripp
+    - ISO-TC_184-SC_4
+    template:
+    - model/step
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/step+xml
+  encoding: base64
+  xrefs:
+    person:
+    - Dana_Tripp
+    - ISO-TC_184-SC_4
+    template:
+    - model/step+xml
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/step+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Dana_Tripp
+    - ISO-TC_184-SC_4
+    template:
+    - model/step+zip
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/step-xml+zip
+  encoding: base64
+  xrefs:
+    person:
+    - Dana_Tripp
+    - ISO-TC_184-SC_4
+    template:
+    - model/step-xml+zip
   registered: true
 - !ruby/object:MIME::Type
   content-type: model/stl
@@ -223,6 +272,15 @@
     - model/vnd.parasolid.transmit.text
   registered: true
 - !ruby/object:MIME::Type
+  content-type: model/vnd.pytha.pyox
+  encoding: base64
+  xrefs:
+    person:
+    - Daniel_Flassig
+    template:
+    - model/vnd.pytha.pyox
+  registered: true
+- !ruby/object:MIME::Type
   content-type: model/vnd.rosette.annotated-data-model
   encoding: base64
   xrefs:
@@ -230,6 +288,16 @@
     - Benson_Margulies
     template:
     - model/vnd.rosette.annotated-data-model
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: model/vnd.sap.vds
+  encoding: base64
+  xrefs:
+    person:
+    - Igor_Afanasyev
+    - SAP_SE
+    template:
+    - model/vnd.sap.vds
   registered: true
 - !ruby/object:MIME::Type
   content-type: model/vnd.usdz+zip

@@ -128,7 +128,7 @@ class HTTP::Cookie
   #     new("name" => "uid", "value" => "a12345", "Domain" => 'www.example.org')
   #
   def initialize(*args)
-    @origin = @domain = @path =
+    @name = @origin = @domain = @path =
       @expires = @max_age = nil
     @for_domain = @secure = @httponly = false
     @session = true
