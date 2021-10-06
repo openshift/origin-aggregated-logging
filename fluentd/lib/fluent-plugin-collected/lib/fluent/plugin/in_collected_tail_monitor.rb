@@ -94,11 +94,11 @@ module Fluent::Plugin
           pe.instance_variable_set(:@_old_inode, pe.read_inode)
           if pe.read_inode == old_inode && pe.read_pos >= old_pos
             # Same file, has not been truncated since last we looked. Add the delta.
-            @log.debug "delta bytes #{pe.read_pos}  #{old_pos}"
+            @log.trace "delta bytes #{pe.read_pos}  #{old_pos}"
             @metrics[:total_bytes_collected].increment(label, pe.read_pos - old_pos)
           else
             # Changed file or truncated the existing file. Add the initial content.
-            @log.debug "delta bytes #{pe.read_pos}"
+            @log.trace "delta bytes #{pe.read_pos}"
             @metrics[:total_bytes_collected].increment(label, pe.read_pos)
           end
         end
@@ -115,7 +115,7 @@ module Fluent::Plugin
         containername = path_match_data['container_name'],
         dockerid = path_match_data['docker_id']
         
-        @log.debug "path #{path}, namespace #{namespace}, podname #{podname[0]},containername #{containername}"
+        @log.trace "path #{path}, namespace #{namespace}, podname #{podname[0]},containername #{containername}"
 
         @base_labels.merge(
         plugin_id: plugin_info["plugin_id"],
