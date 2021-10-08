@@ -44,7 +44,7 @@ SAMPLES = Array.new(N) do
 end
 
 puts "Benchmarking Digest::CRC classes ..."
-Benchmark.bm do |b|
+Benchmark.bm(27) do |b|
   CRCs.each_value do |crc|
     crc_class = Digest.const_get(crc)
     crc = crc_class.new

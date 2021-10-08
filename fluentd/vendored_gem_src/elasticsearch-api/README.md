@@ -13,8 +13,7 @@ It does not provide an Elasticsearch client; see the
 
 The library is compatible with Ruby 1.9 and higher.
 
-It is compatible with Elasticsearch's API versions from 0.90 till current,
-just use a release matching major version of Elasticsearch.
+It is compatible with Elasticsearch's API versions from 0.90 till current, just use a release matching major version of Elasticsearch.
 
 | Ruby          |   | Elasticsearch |
 |:-------------:|:-:| :-----------: |
@@ -56,12 +55,12 @@ the library modules have been already included**, so you just call the API metho
 ```ruby
 require 'elasticsearch'
 
-client = Elasticsearch::Client.new log: true
+client = Elasticsearch::Client.new(log: true)
 
-client.index  index: 'myindex', type: 'mytype', id: 1, body: { title: 'Test' }
+client.index(index: 'myindex', type: 'mytype', id: 1, body: { title: 'Test' })
 # => {"_index"=>"myindex", ... "created"=>true}
 
-client.search index: 'myindex', body: { query: { match: { title: 'test' } } }
+client.search(index: 'myindex', body: { query: { match: { title: 'test' } } })
 # => {"took"=>2, ..., "hits"=>{"total":5, ...}}
 ```
 
@@ -75,12 +74,13 @@ When you want to mix the library into your own client, it must conform to a foll
 * It responds to a `perform_request(method, path, params, body, headers)` method,
 * the method returns an object with `status`, `body` and `headers` methods.
 
-A simple client could look like this:
+A simple client could look like this (_with a dependency on `active_support` to parse the query params_):
 
 ```ruby
 require 'multi_json'
 require 'faraday'
 require 'elasticsearch/api'
+require 'active_support'
 
 class MySimpleClient
   include Elasticsearch::API
@@ -92,9 +92,24 @@ class MySimpleClient
 
     CONNECTION.run_request \
       method.downcase.to_sym,
-      path,
+      path_with_params(path, params),
       ( body ? MultiJson.dump(body): nil ),
       {'Content-Type' => 'application/json'}
+  end
+  
+  private
+  
+  def path_with_params(path, params)
+    return path if params.blank?
+  
+    case params
+    when String
+      "#{path}?#{params}"
+    when Hash
+      "#{path}?#{params.to_query}"
+    else
+      raise ArgumentError, "Cannot parse params: '#{params}'"
+    end
   end
 end
 
@@ -174,19 +189,18 @@ Elasticsearch::API.serializer.dump({foo: 'bar'})
 
 ## Development
 
-To work on the code, clone and bootstrap the main repository first --
-please see instructions in the main [README](../README.md#development).
+To work on the code, clone and bootstrap the main repository first -- please see instructions in the main [README](../README.md#development).
 
-To run tests, launch a testing cluster -- again, see instructions
-in the main [README](../README.md#development) -- and use the Rake tasks:
+To run tests, launch a testing cluster -- again, see instructions in the main [README](../README.md#development) -- and use the Rake tasks:
 
 ```
 time rake test:unit
 time rake test:integration
 ```
 
-Unit tests have to use Ruby 1.8 compatible syntax, integration tests
-can use Ruby 2.x syntax and features.
+We run the test suite for Elasticsearch's Rest API tests. You can read more about this in [the test runner README](https://github.com/elastic/elasticsearch-ruby/tree/master/api-spec-testing#rest-api-yaml-test-runner).
+
+The `rest_api` needs the test files from Elasticsearch. You can run the rake task to download the test artifacts in the root folder of the project. This task needs a running cluster to determine which version and build hash of Elasticsearch to use and test against. `TEST_ES_SERVER=http://localhost:9200 rake elasticsearch:download_artifacts`. This will download the necessary files used for the integration tests to `./tmp`.
 
 ## License
 

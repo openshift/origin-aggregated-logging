@@ -37,15 +37,11 @@ module Fluent
         # path_prefix: path prefix string, ended with '.'
         # path_suffix: path suffix string, like '.log' (or any other user specified)
 
-        include SystemConfig::Mixin
-        include MessagePackFactory::Mixin
-
-        FILE_PERMISSION = 0644
-
         attr_reader :path, :permission
 
-        def initialize(metadata, path, mode, perm: system_config.file_permission || FILE_PERMISSION, compress: :text)
+        def initialize(metadata, path, mode, perm: nil, compress: :text)
           super(metadata, compress: compress)
+          perm ||= Fluent::DEFAULT_FILE_PERMISSION
           @permission = perm.is_a?(String) ? perm.to_i(8) : perm
           @bytesize = @size = @adding_bytes = @adding_size = 0
           @meta = nil
@@ -221,7 +217,7 @@ module Fluent
 
           unless data
             # old type of restore
-            data = msgpack_unpacker(symbolize_keys: true).feed(bindata).read rescue {}
+            data = Fluent::MessagePackFactory.msgpack_unpacker(symbolize_keys: true).feed(bindata).read rescue {}
           end
 
           now = Fluent::Clock.real_now
@@ -234,6 +230,7 @@ module Fluent
           @metadata.timekey = data[:timekey]
           @metadata.tag = data[:tag]
           @metadata.variables = data[:variables]
+          @metadata.seq = data[:seq] || 0
         end
 
         def restore_metadata_partially(chunk)
@@ -245,6 +242,7 @@ module Fluent
           @metadata.timekey = nil
           @metadata.tag = nil
           @metadata.variables = nil
+          @metadata.seq = 0
         end
 
         def write_metadata(update: true)
@@ -403,7 +401,7 @@ module Fluent
           if chunk.slice(0, 2) == BUFFER_HEADER
             size = chunk.slice(2, 4).unpack('N').first
             if size
-              return msgpack_unpacker(symbolize_keys: true).feed(chunk.slice(6, size)).read rescue nil
+              return Fluent::MessagePackFactory.msgpack_unpacker(symbolize_keys: true).feed(chunk.slice(6, size)).read rescue nil
             end
           end
 

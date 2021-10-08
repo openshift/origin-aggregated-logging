@@ -18,7 +18,7 @@ src_dir = File.expand_path('../', __FILE__)
   }
 end
 
-$CFLAGS << " -I#{src_dir}"
+$CFLAGS << " -I\"#{src_dir}\""
 
 dir_config("ruby_http_parser")
 create_makefile("ruby_http_parser")

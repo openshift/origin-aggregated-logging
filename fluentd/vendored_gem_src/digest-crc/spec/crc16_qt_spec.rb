@@ -5,6 +5,6 @@ describe "Digest::CRC16QT" do
   subject { Digest::CRC16QT }
 
   it "should be an alias to Digest::CRC16X25" do
-    expect(subject).to be(Digest::CRC16X25)
+    expect(subject).to be < Digest::CRC16X25
   end
 end

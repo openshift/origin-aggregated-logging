@@ -22,14 +22,12 @@ module Elasticsearch
         # Returns information about nodes in the cluster.
         #
         # @option arguments [List] :node_id A comma-separated list of node IDs or names to limit the returned information; use `_local` to return information from the node you're connecting to, leave empty to get information from all nodes
-        # @option arguments [List] :metric A comma-separated list of metrics you wish returned. Leave empty to return all.
-        #   (options: settings,os,process,jvm,thread_pool,transport,http,plugins,ingest)
-
+        # @option arguments [List] :metric A comma-separated list of metrics you wish returned. Leave empty to return all. (options: settings, os, process, jvm, thread_pool, transport, http, plugins, ingest)
         # @option arguments [Boolean] :flat_settings Return settings in flat format (default: false)
         # @option arguments [Time] :timeout Explicit operation timeout
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cluster-nodes-info.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cluster-nodes-info.html
         #
         def info(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -49,7 +47,7 @@ module Elasticsearch
                      "_nodes/#{Utils.__listify(_metric)}"
                    else
                      "_nodes"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -63,7 +61,7 @@ module Elasticsearch
           :flat_settings,
           :timeout
         ].freeze)
-end
       end
+    end
   end
 end

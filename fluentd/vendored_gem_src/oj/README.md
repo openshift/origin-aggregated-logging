@@ -1,11 +1,14 @@
 # [![{}j](http://www.ohler.com/dev/images/oj_comet_64.svg)](http://www.ohler.com/oj) gem
 
-[![Build Status](https://img.shields.io/travis/ohler55/oj/master.svg?logo=travis)](http://travis-ci.org/ohler55/oj?branch=master) ![Gem](https://img.shields.io/gem/v/oj.svg) ![Gem](https://img.shields.io/gem/dt/oj.svg) [![SemVer compatibility](https://api.dependabot.com/badges/compatibility_score?dependency-name=oj&package-manager=bundler&version-scheme=semver)](https://dependabot.com/compatibility-score.html?dependency-name=oj&package-manager=bundler&version-scheme=semver) [![TideLift](https://tidelift.com/badges/github/ohler55/oj)](https://tidelift.com/subscription/pkg/rubygems-oj?utm_source=rubygems-oj&utm_medium=referral&utm_campaign=readme)
+[![Build Status](https://img.shields.io/github/workflow/status/ohler55/oj/CI?logo=github)](https://github.com/ohler55/oj/actions/workflows/CI.yml)
+![Gem](https://img.shields.io/gem/v/oj.svg)
+![Gem](https://img.shields.io/gem/dt/oj.svg)
+[![SemVer compatibility](https://api.dependabot.com/badges/compatibility_score?dependency-name=oj&package-manager=bundler&version-scheme=semver)](https://dependabot.com/compatibility-score.html?dependency-name=oj&package-manager=bundler&version-scheme=semver)
+[![TideLift](https://tidelift.com/badges/github/ohler55/oj)](https://tidelift.com/subscription/pkg/rubygems-oj?utm_source=rubygems-oj&utm_medium=referral&utm_campaign=readme)
 
 A *fast* JSON parser and Object marshaller as a Ruby gem.
 
-Version 3.0 is out! 3.0 provides better json gem and Rails compatibility. It
-also provides additional optimization options.
+Version 3.13 is out with a much faster parser (`Oj::Parser`) and option isolation.
 
 ## Using
 
@@ -50,7 +53,7 @@ For more details on options, modes, advanced features, and more follow these
 links.
 
  - [{file:Options.md}](pages/Options.md) for parse and dump options.
- - [{file:Modes.md}](pages/Modes.md) for details on modes for strict JSON compliance, mimicing the JSON gem, and mimicing Rails and ActiveSupport behavior.
+ - [{file:Modes.md}](pages/Modes.md) for details on modes for strict JSON compliance, mimicking the JSON gem, and mimicking Rails and ActiveSupport behavior.
  - [{file:JsonGem.md}](pages/JsonGem.md) includes more details on json gem compatibility and use.
  - [{file:Rails.md}](pages/Rails.md) includes more details on Rails and ActiveSupport compatibility and use.
  - [{file:Custom.md}](pages/Custom.md) includes more details on Custom mode.
@@ -61,7 +64,7 @@ links.
 
 ## Releases
 
-See [{file:CHANGELOG.md}](CHANGELOG.md)
+See [{file:CHANGELOG.md}](CHANGELOG.md) and [{file:RELEASE_NOTES.md}](RELEASE_NOTES.md)
 
 ## Links
 
@@ -102,3 +105,4 @@ Follow [@peterohler on Twitter](http://twitter.com/peterohler) for announcements
 + Provide a Pull Request off the `develop` branch.
 + Report a bug
 + Suggest an idea
++ Code is now formatted with the clang-format tool with the configuration file in the root of the repo.

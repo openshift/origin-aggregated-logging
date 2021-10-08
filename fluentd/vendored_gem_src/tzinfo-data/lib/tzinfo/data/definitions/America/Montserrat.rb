@@ -10,7 +10,7 @@ module TZInfo
         module Montserrat
           include TimezoneDefinition
           
-          linked_timezone 'America/Montserrat', 'America/Port_of_Spain'
+          linked_timezone 'America/Montserrat', 'America/Puerto_Rico'
         end
       end
     end

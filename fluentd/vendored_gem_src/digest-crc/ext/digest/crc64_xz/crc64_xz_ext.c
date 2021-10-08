@@ -23,5 +23,6 @@ void Init_crc64_xz_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC64XZ = rb_const_get(mDigest, rb_intern("CRC64XZ"));
 
+	rb_undef_method(cCRC64XZ, "update");
 	rb_define_method(cCRC64XZ, "update", Digest_CRC64XZ_update, 1);
 }

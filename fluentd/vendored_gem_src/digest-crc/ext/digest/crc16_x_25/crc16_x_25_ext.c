@@ -24,5 +24,6 @@ void Init_crc16_x_25_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16X25 = rb_const_get(mDigest, rb_intern("CRC16X25"));
 
+	rb_undef_method(cCRC16X25, "update");
 	rb_define_method(cCRC16X25, "update", Digest_CRC16X25_update, 1);
 }

@@ -1,3 +1,23 @@
+### 0.6.4 / 2021-07-14
+
+* Silence potential method redefinition warnings when loading the C extensions.
+  (@ojab)
+
+### 0.6.3 / 2020-12-19
+
+* Broaden rake dependency to >= 12.0.0, < 14.0.0` for ruby 2.7, which includes
+  rake 13.x.
+
+### 0.6.2 / 2020-12-03
+
+* Lower the rake dependency to `~> 12.0` for ruby 2.6.
+* Fixed a bug in `ext/digest/Rakefile` which prevented digest-crc from being
+  installed on systems where C extensions could not be successfully compiled.
+  * Rake's `ruby` method, which in turn calls rake's `sh` method, raises
+    a `RuntimeError` exception when the ruby command fails, causing rake to
+    exit with an error code. Instead, rescue any `RuntimeError` exceptions and
+    fail gracefully.
+
 ### 0.6.1 / 2020-07-02
 
 * Fix installation issues under bundler by adding rake as an explicit dependency

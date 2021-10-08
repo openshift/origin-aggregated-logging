@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require "bundler/gem_tasks"
 require "rake/testtask"
 
@@ -7,7 +8,7 @@ Rake::TestTask.new(:test) do |t|
   t.test_files = FileList['test/**/*_test.rb']
 end
 
-task :default => :test
+task default: :test
 
 def pad(array)
   max = []
@@ -36,11 +37,11 @@ task :rebuild_db do
   index = {}
 
   MIME::Types.each do |type|
-    type.extensions.each {|ext| (index[ext.downcase] ||= []) << type}
+    type.extensions.each { |ext| (index[ext.downcase] ||= []) << type }
   end
 
-  index.each do |k,list|
-    list.sort!{|a,b| a.priority_compare(b)}
+  index.each do |k, list|
+    list.sort! { |a, b| a.priority_compare(b) }
   end
 
   buffer = []
@@ -54,9 +55,9 @@ task :rebuild_db do
 
   pad(buffer)
 
-  buffer.sort!{|a,b| a[0] <=> b[0]}
+  buffer.sort! { |a, b| a[0] <=> b[0] }
 
-  File.open("lib/db/ext_mime.db", File::CREAT|File::TRUNC|File::RDWR) do |f|
+  File.open("lib/db/ext_mime.db", File::CREAT | File::TRUNC | File::RDWR) do |f|
     buffer.each do |row|
       f.write "#{row[0]} #{row[1]} #{row[2]}\n"
     end
@@ -64,7 +65,7 @@ task :rebuild_db do
 
   puts "#{buffer.count} rows written to lib/db/ext_mime.db"
 
-  buffer.sort!{|a,b| [a[1], a[0]] <=> [b[1], b[0]]}
+  buffer.sort! { |a, b| [a[1], a[0]] <=> [b[1], b[0]] }
 
   # strip cause we are going to re-pad
   buffer.each do |row|
@@ -80,7 +81,7 @@ task :rebuild_db do
 
   pad(buffer)
 
-  File.open("lib/db/content_type_mime.db", File::CREAT|File::TRUNC|File::RDWR) do |f|
+  File.open("lib/db/content_type_mime.db", File::CREAT | File::TRUNC | File::RDWR) do |f|
     last = nil
     count = 0
     buffer.each do |row|

@@ -1,3 +1,173 @@
+1.15.4 / 2021-09-01
+-------------------
+
+Fixed:
+* Fix build for uClibc. #913
+* Correct module lookup when including `ffi-module` gem. #912
+
+Changed:
+* Use ruby code of the ffi gem in JRuby-9.2.20+. #915
+
+
+1.15.3 / 2021-06-16
+-------------------
+
+Fixed:
+* Fix temporary packaging issue with libffi. #904
+
+
+1.15.2 / 2021-06-16
+-------------------
+
+Added:
+* Add support for Windows MINGW-UCRT build. #903
+* Add `/opt/homebrew/lib/` to fallback search paths to improve homebrew support. #880 #882
+
+Changed:
+* Regenerate `types.conf` for FreeBSD12 aarch64. #902
+
+
+1.15.1 / 2021-05-22
+-------------------
+
+Fixed:
+* Append -pthread to linker options. #893
+* Use arm or aarch64 to identify Apple ARM CPU arch. #899
+* Allow overriding `gcc` with the `CC` env var in `const_generator.rb` and `struct_generator.rb`. #897
+
+
+1.15.0 / 2021-03-05
+-------------------
+
+Fixed:
+* Fix MSVC build
+* Fix async callbacks in conjunction with fork(). #884
+
+Added:
+* Allow to pass callbacks in varargs. #885
+* Name the threads for FFI callback dispatcher and async thread calls for easier debugging. #883
+  The name can be retrieved by Thread.name and is shown by Thread.list.inspect etc.
+  Even gdb shows the thread name on supported operating systems.
+* Add types.conf for powerpc64le-linux
+* Add types.conf for riscv64-linux
+* More release automation of ffi gems
+
+Changed:
+* Switch from rubygems-tasks to bundler/gem_helper
+
+Removed:
+* Remove unused VariadicInvoker#init
+
+
+1.14.2 / 2020-12-21
+-------------------
+
+Fixed:
+* Fix builtin libffi on newer Ubuntu caused by an outdated Makefile.in . #863
+
+
+1.14.1 / 2020-12-19
+-------------------
+
+Changed:
+* Revert changes to FFI::Pointer#write_string made in ffi-1.14.0.
+  It breaks compatibilty in a way that can cause hard to find errors. #857
+
+
+1.14.0 / 2020-12-18
+-------------------
+
+Added:
+* Add types.conf for x86_64-msys, x86_64-haiku, aarch64-openbsd and aarch64-darwin (alias arm64-darwin)
+* Add method AbstractMemory#size_limit? . #829
+* Add new extconf option --enable-libffi-alloc which is enabled per default on Apple M1 (arm64-darwin).
+
+Changed:
+* Do NULL pointer check only when array length > 0 . #305
+* Raise an error on an unknown order argument. #830
+* Change FFI::Pointer#write_string to terminate with a NUL byte like other string methods. #805
+* Update bundled libffi to latest master.
+
+Removed:
+* Remove win32/stdint.h and stdbool.h because of copyright issue.  #693
+
+Fixed:
+* Fix possible UTF-8 load error in loader script interpretation. #792
+* Fix segfault on non-array argument to #write_array_of_*
+* Fix memory leak in MethodHandle . #815
+* Fix possible segfault in combination with fiddle or other libffi using gems . #835
+* Fix possibility to use ffi ruby gem with JRuby-9.3 . #763
+* Fix a GC issue, when a callback Proc is used on more than 2 callback signatures. #820
+
+
+1.13.1 / 2020-06-09
+-------------------
+
+Changed:
+* Revert use of `ucrtbase.dll` as default C library on Windows-MINGW.
+  `ucrtbase.dll` is still used on MSWIN target. #790
+* Test for `ffi_prep_closure_loc()` to make sure we can use this function.
+  This fixes incorrect use of system libffi on MacOS Mojave (10.14). #787
+* Update types.conf on x86_64-dragonflybsd
+
+
+1.13.0 / 2020-06-01
+-------------------
+
+Added:
+* Add TruffleRuby support. Almost all specs are running on TruffleRuby and succeed. #768
+* Add ruby source files to the java gem. This allows to ship the Ruby library code per platform java gem and add it as a default gem to JRuby. #763
+* Add FFI::Platform::LONG_DOUBLE_SIZE
+* Add bounds checks for writing to an inline char[] . #756
+* Add long double as callback return value. #771
+* Update type definitions and add types from stdint.h and stddef.h on i386-windows, x86_64-windows, x86_64-darwin, x86_64-linux, arm-linux, powerpc-linux. #749
+* Add new type definitions for powerpc-openbsd and sparcv9-openbsd. #775, #778
+
+Changed:
+* Raise required ruby version to >= 2.3.
+* Lots of cleanups and improvements in library, specs and benchmarks.
+* Fix a lot of compiler warnings at the C-extension
+* Fix several install issues on MacOS:
+  * Look for libffi in SDK paths, since recent versions of macOS removed it from `/usr/include` . #757
+  * Fix error `ld: library not found for -lgcc_s.10.4`
+  * Don't built for i386 architecture as it is deprecated
+* Several fixes for MSVC build on Windows. #779
+* Use `ucrtbase.dll` as default C library on Windows instead of old `msvcrt.dll`. #779
+* Update builtin libffi to fix a Powerpc issue with parameters of type long
+* Allow unmodified sourcing of (the ruby code of) this gem in JRuby and TruffleRuby as a default gem. #747
+* Improve check to detect if a module has a #find_type method suitable for FFI. This fixes compatibility with stdlib `mkmf` . #776
+
+Removed:
+* Reject callback with `:string` return type at definition, because it didn't work so far and is not save to use. #751, #782
+
+
+1.12.2 / 2020-02-01
+-------------------
+
+* Fix possible segfault at FFI::Struct#[] and []= after GC.compact . #742
+
+
+1.12.1 / 2020-01-14
+-------------------
+
+Added:
+* Add binary gem support for ruby-2.7 on Windows
+
+
+1.12.0 / 2020-01-14
+-------------------
+
+Added:
+* FFI::VERSION is defined as part of `require 'ffi'` now.
+  It is no longer necessary to `require 'ffi/version'` .
+
+Changed:
+* Update libffi to latest master.
+
+Deprecated:
+* Overwriting struct layouts is now warned and will be disallowed in ffi-2.0. #734, #735
+
+
 1.11.3 / 2019-11-25
 -------------------
 

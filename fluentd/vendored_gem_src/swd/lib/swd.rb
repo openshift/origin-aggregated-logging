@@ -54,6 +54,11 @@ module SWD
     _http_client_ = HTTPClient.new(
       :agent_name => "SWD (#{VERSION})"
     )
+
+    # NOTE: httpclient gem seems stopped maintaining root certtificate set, use OS default.
+    _http_client_.ssl_config.clear_cert_store
+    _http_client_.ssl_config.cert_store.set_default_paths
+
     _http_client_.request_filter << Debugger::RequestFilter.new if debugging?
     http_config.try(:call, _http_client_)
     _http_client_

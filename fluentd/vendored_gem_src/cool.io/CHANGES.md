@@ -1,3 +1,18 @@
+1.7.1
+-----
+
+* Set fallback local loopback address by default for Windows environment
+
+1.7.0
+-----
+
+* Fix extension build failure for ruby3
+
+1.6.1
+-----
+
+* Fix warning for recent compilers
+
 1.6.0
 -----
 

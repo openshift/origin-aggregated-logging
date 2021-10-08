@@ -48,7 +48,7 @@ Set true to remove partition from data
 DESC
    config_param :exclude_message_key, :bool, :default => false,
                :desc => <<-DESC
-Set true to remove partition key from data
+Set true to remove message key from data
 DESC
    config_param :exclude_topic_key, :bool, :default => false,
                 :desc => <<-DESC
@@ -65,6 +65,7 @@ DESC
 The codec the producer uses to compress messages.
 Supported codecs: (gzip|snappy)
 DESC
+  config_param :use_event_time, :bool, :default => false, :desc => 'Use fluentd event time for rdkafka timestamp'
   config_param :max_send_limit_bytes, :size, :default => nil
   config_param :rdkafka_buffering_max_ms, :integer, :default => nil
   config_param :rdkafka_buffering_max_messages, :integer, :default => nil
@@ -91,23 +92,29 @@ DESC
   def configure(conf)
     super
     log.instance_eval {
-      def add(level, &block)
-        return unless block
+      def add(level, message = nil)
+        if message.nil?
+          if block_given?
+            message = yield
+          else
+            return
+          end
+        end
 
         # Follow rdkakfa's log level. See also rdkafka-ruby's bindings.rb: https://github.com/appsignal/rdkafka-ruby/blob/e5c7261e3f2637554a5c12b924be297d7dca1328/lib/rdkafka/bindings.rb#L117
         case level
         when Logger::FATAL
-          self.fatal(block.call)
+          self.fatal(message)
         when Logger::ERROR
-          self.error(block.call)
+          self.error(message)
         when Logger::WARN
-          self.warn(block.call)
+          self.warn(message)
         when Logger::INFO
-          self.info(block.call)
+          self.info(message)
         when Logger::DEBUG
-          self.debug(block.call)
+          self.debug(message)
         else
-          self.trace(block.call)
+          self.trace(message)
         end
       end
     }
@@ -280,7 +287,7 @@ DESC
         end
 
         producer = get_producer
-        handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+        handler = enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
         handler
       }.each { |handler|
         handler.wait(max_wait_timeout: @rdkafka_delivery_handle_poll_timeout) if @rdkafka_delivery_handle_poll_timeout != 0
@@ -292,11 +299,11 @@ DESC
     raise e
   end
 
-  def enqueue_with_retry(producer, topic, record_buf, message_key, partition)
+  def enqueue_with_retry(producer, topic, record_buf, message_key, partition, time)
     attempt = 0
     loop do
       begin
-        handler = producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition)
+        handler = producer.produce(topic: topic, payload: record_buf, key: message_key, partition: partition, timestamp: @use_event_time ? Time.at(time) : nil)
         return handler
       rescue Exception => e
         if e.respond_to?(:code) && e.code == :queue_full

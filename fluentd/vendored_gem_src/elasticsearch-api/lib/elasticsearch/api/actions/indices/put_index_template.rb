@@ -28,7 +28,7 @@ module Elasticsearch
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body The template definition (*Required*)
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-templates.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-templates.html
         #
         def put_index_template(arguments = {})
           raise ArgumentError, "Required argument 'body' missing" unless arguments[:body]
@@ -56,7 +56,7 @@ module Elasticsearch
           :cause,
           :master_timeout
         ].freeze)
-end
       end
+    end
   end
 end

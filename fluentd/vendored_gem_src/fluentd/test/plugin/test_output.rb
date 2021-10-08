@@ -223,6 +223,22 @@ class OutputTest < Test::Unit::TestCase
       assert @i.terminated?
     end
 
+    test 'can use metrics plugins and fallback methods' do
+      @i.configure(config_element())
+
+      %w[num_errors_metrics emit_count_metrics emit_size_metrics emit_records_metrics
+         write_count_metrics rollback_count_metrics flush_time_count_metrics slow_flush_count_metrics].each do |metric_name|
+        assert_true @i.instance_variable_get(:"@#{metric_name}").is_a?(Fluent::Plugin::Metrics)
+      end
+
+      assert_equal 0, @i.num_errors
+      assert_equal 0, @i.emit_count
+      assert_equal 0, @i.emit_size
+      assert_equal 0, @i.emit_records
+      assert_equal 0, @i.write_count
+      assert_equal 0, @i.rollback_count
+    end
+
     data(:new_api => :chunk,
          :old_api => :metadata)
     test '#extract_placeholders does nothing if chunk key is not specified' do |api|
@@ -376,6 +392,54 @@ class OutputTest < Test::Unit::TestCase
       @i.extract_placeholders(tmpl, m)
       logs = @i.log.out.logs
       assert { logs.any? { |log| log.include?("${chunk_id} is not allowed in this plugin") } }
+    end
+
+    test '#extract_placeholders does not log for ${chunk_id} placeholder' do
+      @i.configure(config_element('ROOT', '', {}, [config_element('buffer', '')]))
+      tmpl = "/mypath/${chunk_id}/tail"
+      t = event_time('2016-04-11 20:30:00 +0900')
+      v = {key1: "value1", key2: "value2"}
+      c = create_chunk(timekey: t, tag: 'fluentd.test.output', variables: v)
+      @i.log.out.logs.clear
+      @i.extract_placeholders(tmpl, c)
+      logs = @i.log.out.logs
+      assert { logs.none? { |log| log.include?("${chunk_id}") } }
+    end
+
+    test '#extract_placeholders does not log for ${chunk_id} placeholder (with @chunk_keys)' do
+      @i.configure(config_element('ROOT', '', {}, [config_element('buffer', 'key1')]))
+      tmpl = "/mypath/${chunk_id}/${key1}/tail"
+      t = event_time('2016-04-11 20:30:00 +0900')
+      v = {key1: "value1", key2: "value2"}
+      c = create_chunk(timekey: t, tag: 'fluentd.test.output', variables: v)
+      @i.log.out.logs.clear
+      @i.extract_placeholders(tmpl, c)
+      logs = @i.log.out.logs
+      assert { logs.none? { |log| log.include?("${chunk_id}") } }
+    end
+
+    test '#extract_placeholders logs warn message with not replaced key' do
+      @i.configure(config_element('ROOT', '', {}, [config_element('buffer', '')]))
+      tmpl = "/mypath/${key1}/test"
+      t = event_time('2016-04-11 20:30:00 +0900')
+      v = { key1: "value1" }
+      m = create_metadata(timekey: t, tag: 'fluentd.test.output', variables: v)
+      @i.extract_placeholders(tmpl, m)
+      logs = @i.log.out.logs
+
+      assert { logs.any? { |log| log.include?("chunk key placeholder 'key1' not replaced. template:#{tmpl}") } }
+    end
+
+    test '#extract_placeholders logs warn message with not replaced key if variables exist and chunk_key is not empty' do
+      @i.configure(config_element('ROOT', '', {}, [config_element('buffer', 'key1')]))
+      tmpl = "/mypath/${key1}/${key2}/test"
+      t = event_time('2016-04-11 20:30:00 +0900')
+      v = { key1: "value1" }
+      m = create_metadata(timekey: t, tag: 'fluentd.test.output', variables: v)
+      @i.extract_placeholders(tmpl, m)
+      logs = @i.log.out.logs
+
+      assert { logs.any? { |log| log.include?("chunk key placeholder 'key2' not replaced. template:#{tmpl}") } }
     end
 
     sub_test_case '#placeholder_validators' do
@@ -831,8 +895,8 @@ class OutputTest < Test::Unit::TestCase
     sub_test_case 'configure secondary' do
       test "Warn if primary type is different from secondary type and either primary or secondary has custom_format" do
         o = create_output(:buffered)
-        mock(o.log).warn("secondary type should be same with primary one",
-                         { primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput" })
+        mock(o.log).warn("Use different plugin for secondary. Check the plugin works with primary like secondary_file",
+                         primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput")
 
         o.configure(config_element('ROOT','',{},[config_element('secondary','',{'@type'=>'test', 'name' => "cool"})]))
         assert_not_nil o.instance_variable_get(:@secondary)
@@ -840,8 +904,8 @@ class OutputTest < Test::Unit::TestCase
 
       test "don't warn if primary type is the same as secondary type" do
         o = Fluent::Plugin::TestOutput.new
-        mock(o.log).warn("secondary type should be same with primary one",
-                         { primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput" }).never
+        mock(o.log).warn("Use different plugin for secondary. Check the plugin works with primary like secondary_file",
+                         primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput" ).never
 
         o.configure(config_element('ROOT','',{'name' => "cool2"},
                                    [config_element('secondary','',{'@type'=>'test', 'name' => "cool"}),
@@ -852,8 +916,8 @@ class OutputTest < Test::Unit::TestCase
 
       test "don't warn if primary type is different from secondary type and both don't have custom_format" do
         o = create_output(:standard)
-        mock(o.log).warn("secondary type should be same with primary one",
-                         { primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput" }).never
+        mock(o.log).warn("Use different plugin for secondary. Check the plugin works with primary like secondary_file",
+                         primary: o.class.to_s, secondary: "Fluent::Plugin::TestOutput").never
 
         o.configure(config_element('ROOT','',{},[config_element('secondary','',{'@type'=>'test', 'name' => "cool"})]))
         assert_not_nil o.instance_variable_get(:@secondary)
@@ -870,7 +934,7 @@ class OutputTest < Test::Unit::TestCase
 
   test 'raises an error if timekey is less than equal 0' do
     i = create_output(:delayed)
-    assert_raise Fluent::ConfigError.new('timekey should be greater than 0. current timekey: 0.0') do
+    assert_raise Fluent::ConfigError.new("<buffer ...> argument includes 'time', but timekey is not configured") do
       i.configure(config_element('ROOT','',{},[config_element('buffer', 'time', { "timekey" => nil })]))
     end
 

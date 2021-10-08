@@ -13,7 +13,7 @@ Gem::Specification.new do |gem|
   gem.summary       = 'Ruby bindings to libsystemd-journal'
   gem.homepage      = 'https://github.com/ledbettj/systemd-journal'
 
-  gem.cert_chain    = Dir['certs/*']
+  gem.cert_chain    = Dir['certs/john@throttle.io.pem']
 
   if $PROGRAM_NAME.end_with?('gem')
     gem.signing_key = ENV['GEM_SIGNING_KEY']
@@ -32,7 +32,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency 'rspec',     '~> 3.4'
   gem.add_development_dependency 'simplecov', '~> 0.9'
   gem.add_development_dependency 'rubocop',   '~> 0.26' unless ENV['RUBOCOP'] == 'false'
-  gem.add_development_dependency 'rake',      '~> 10.3'
+  gem.add_development_dependency 'rake',      '~> 12.3'
   gem.add_development_dependency 'yard',      '~> 0.9'
   gem.add_development_dependency 'pry',       '~> 0.10'
 end

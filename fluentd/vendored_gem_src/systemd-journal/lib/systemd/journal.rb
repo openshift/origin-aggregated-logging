@@ -48,12 +48,20 @@ module Systemd
       open_type, flags = validate_options!(opts)
       ptr = FFI::MemoryPointer.new(:pointer, 1)
 
+      @finalize = (opts.key?(:finalize) ? opts.delete(:finalize) : true)
       rc = open_journal(open_type, ptr, opts, flags)
       raise JournalError, rc if rc < 0
 
       @ptr = ptr.read_pointer
       file_descriptor
-      ObjectSpace.define_finalizer(self, self.class.finalize(@ptr))
+      ObjectSpace.define_finalizer(self, self.class.finalize(@ptr)) if @finalize
+    end
+
+    def self.open(opts = {})
+      j = new(opts.merge(finalize: false))
+      yield j
+    ensure
+      j.close if j
     end
 
     # Iterate over each entry in the journal, respecting the applied
@@ -198,7 +206,7 @@ module Systemd
     def close
       return if @ptr.nil?
 
-      ObjectSpace.undefine_finalizer(self)
+      ObjectSpace.undefine_finalizer(self) if @finalize
       Native.sd_journal_close(@ptr)
 
       @ptr = nil

@@ -1,4 +1,4 @@
-# Systemd::Journal [![Gem Version](https://badge.fury.io/rb/systemd-journal.png)](http://badge.fury.io/rb/systemd-journal)  [![Build Status](https://travis-ci.org/ledbettj/systemd-journal.png?branch=master)](https://travis-ci.org/ledbettj/systemd-journal) [![Code Climate](https://codeclimate.com/github/ledbettj/systemd-journal.png)](https://codeclimate.com/github/ledbettj/systemd-journal)
+# Systemd::Journal [![Gem Version](https://badge.fury.io/rb/systemd-journal.png)](http://badge.fury.io/rb/systemd-journal) [![Code Climate](https://codeclimate.com/github/ledbettj/systemd-journal.png)](https://codeclimate.com/github/ledbettj/systemd-journal)
 
 Ruby bindings for reading from the systemd journal.
 
@@ -10,7 +10,7 @@ Ruby bindings for reading from the systemd journal.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'systemd-journal', '~> 1.3'
+gem 'systemd-journal', '~> 1.4'
 ```
 
 And then execute:
@@ -49,13 +49,14 @@ require 'systemd/journal'
 Print all messages as they occur:
 
 ```ruby
-j = Systemd::Journal.new
-j.seek(:tail)
-j.move_previous
-
-# watch() does not return
-j.watch do |entry|
-  puts entry.message
+Systemd::Journal.open do |j|
+  j.seek(:tail)
+  j.move_previous
+  
+  # watch() does not return
+  j.watch do |entry|
+    puts entry.message
+  end
 end
 ```
 
@@ -69,6 +70,7 @@ j.filter(priority: 6, _exe: '/usr/bin/sshd')
 j.each do |entry|
   puts entry.message
 end
+j.close # close open files
 ```
 
 Moving around the journal:
@@ -99,11 +101,10 @@ j = Systemd::Journal.new
 j.seek(:tail)
 j.move_previous
 # wait up to one second for something to happen
-if j.wait(1_000_000)
-  puts 'something changed!'
+puts 'something changed!' if j.wait(1_000_000)
+  
 # same as above, but can be interrupted with Control+C.
-if j.wait(1_000_000, select: true)
-  puts 'something changed!'
+puts 'something changed!' if j.wait(1_000_000, select: true)
 ```
 
 Accessing the catalog:
@@ -150,6 +151,14 @@ The solution is to always call one of `move`, `move_next`, `move_previous` and
 friends before reading after issuing one of the above calls.  For most functions,
 call `move_next`.  For `seek(:tail)`, call `move_previous`.
 
+### I get a segfault pointing at Native.sd_journal_get_fd
+
+This is caused by a bug in libsystemd v245 (and maybe earlier) which cannot be
+solved in this gem, sadly.  It's fixed upstream in [this commit](https://github.com/systemd/systemd/commit/2b6df46d21abe8a8b7481e420588a9a129699cf9), which you can ask your distribution to backport if
+necessary until v246 is released.
+
+In ArchLinux, this patch is applied in systemd-libs 245.6-2.
+
 ## Issues?
 
 This gem has been tested primarily on MRI and Arch Linux running systemd version
@@ -158,6 +167,8 @@ distributions.
 
 The gem will run under JRuby, although some features which rely on native file
 descriptor support will not work.
+
+The gem will not run under truffleruby due to missing support for some FFI features.
 
 If you run into problems or have questions, please open an
 [Issue](https://github.com/ledbettj/systemd-journal/issues) or Pull Request.

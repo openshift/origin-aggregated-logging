@@ -24,5 +24,6 @@ void Init_crc16_modbus_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16Modbus = rb_const_get(mDigest, rb_intern("CRC16Modbus"));
 
+	rb_undef_method(cCRC16Modbus, "update");
 	rb_define_method(cCRC16Modbus, "update", Digest_CRC16Modbus_update, 1);
 }

@@ -101,13 +101,10 @@ rescue
   usage $!.to_s
 end
 
-
-require 'thread'
-require 'monitor'
 require 'socket'
 require 'yajl'
 require 'msgpack'
-
+require 'fluent/ext_monitor_require'
 
 class Writer
   include MonitorMixin
@@ -155,14 +152,30 @@ class Writer
     super()
   end
 
+  def secondary_record?(record)
+    record.class != Hash &&
+      record.size == 2 &&
+      record.first.class == Fluent::EventTime &&
+      record.last.class == Hash
+  end
+
   def write(record)
-    if record.class != Hash
-      raise ArgumentError, "Input must be a map (got #{record.class})"
+    unless secondary_record?(record)
+      if record.class != Hash
+        raise ArgumentError, "Input must be a map (got #{record.class})"
+      end
     end
 
     time = Fluent::EventTime.now
     time = time.to_i if @time_as_integer
-    entry = [time, record]
+    entry = if secondary_record?(record)
+              # Even though secondary contains Fluent::EventTime in record,
+              # fluent-cat just ignore it and set Fluent::EventTime.now instead.
+              # This specification is adopted to keep consistency.
+              [time, record.last]
+            else
+              [time, record]
+            end
     synchronize {
       unless write_impl([entry])
         # write failed
@@ -315,7 +328,7 @@ when 'msgpack'
   require 'fluent/engine'
 
   begin
-    u = Fluent::Engine.msgpack_factory.unpacker($stdin)
+    u = Fluent::MessagePackFactory.msgpack_unpacker($stdin)
     u.each {|record|
       w.write(record)
     }
@@ -340,4 +353,3 @@ else
   $stderr.puts "Unknown format '#{format}'"
   exit 1
 end
-

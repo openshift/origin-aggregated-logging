@@ -24,16 +24,21 @@ module Elasticsearch
         # @option arguments [Boolean] :include_yes_decisions Return 'YES' decisions in explanation (default: false)
         # @option arguments [Boolean] :include_disk_info Return information about disk usage and shard sizes (default: false)
         # @option arguments [Hash] :headers Custom HTTP headers
-        # @option arguments [Hash] :body The index, shard, and primary flag to explain. Empty means 'explain the first unassigned shard'
+        # @option arguments [Hash] :body The index, shard, and primary flag to explain. Empty means 'explain a randomly-chosen unassigned shard'
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cluster-allocation-explain.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cluster-allocation-explain.html
         #
         def allocation_explain(arguments = {})
           headers = arguments.delete(:headers) || {}
 
           arguments = arguments.clone
 
-          method = Elasticsearch::API::HTTP_GET
+          method = if arguments[:body]
+                     Elasticsearch::API::HTTP_POST
+                   else
+                     Elasticsearch::API::HTTP_GET
+                   end
+
           path   = "_cluster/allocation/explain"
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
@@ -48,7 +53,7 @@ module Elasticsearch
           :include_yes_decisions,
           :include_disk_info
         ].freeze)
-end
       end
+    end
   end
 end

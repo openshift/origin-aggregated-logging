@@ -25,14 +25,12 @@ module Elasticsearch
         # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
         # @option arguments [Boolean] :ignore_unavailable Ignore unavailable indexes (default: false)
         # @option arguments [Boolean] :allow_no_indices Ignore if a wildcard expression resolves to no concrete indices (default: false)
-        # @option arguments [String] :expand_wildcards Whether wildcard expressions should get expanded to open or closed indices (default: open)
-        #   (options: open,closed,hidden,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether wildcard expressions should get expanded to open or closed indices (default: open) (options: open, closed, hidden, none, all)
         # @option arguments [Boolean] :flat_settings Return settings in flat format (default: false)
         # @option arguments [Boolean] :include_defaults Whether to return all default setting for each of the indices.
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-exists.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-exists.html
         #
         def exists(arguments = {})
           raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
@@ -55,6 +53,7 @@ module Elasticsearch
         end
 
         alias_method :exists?, :exists
+
         # Register this action with its valid params when the module is loaded.
         #
         # @since 6.2.0
@@ -66,7 +65,7 @@ module Elasticsearch
           :flat_settings,
           :include_defaults
         ].freeze)
-end
       end
+    end
   end
 end

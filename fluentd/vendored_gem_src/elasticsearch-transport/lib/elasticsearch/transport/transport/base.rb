@@ -47,7 +47,7 @@ module Elasticsearch
         #
         # @see Client#initialize
         #
-        def initialize(arguments={}, &block)
+        def initialize(arguments = {}, &block)
           @state_mutex = Mutex.new
 
           @hosts       = arguments[:hosts]   || []
@@ -234,9 +234,9 @@ module Elasticsearch
         def __full_url(host)
           url  = "#{host[:protocol]}://"
           url += "#{CGI.escape(host[:user])}:#{CGI.escape(host[:password])}@" if host[:user]
-          url += "#{host[:host]}"
+          url += host[:host]
           url += ":#{host[:port]}" if host[:port]
-          url += "#{host[:path]}" if host[:path]
+          url += host[:path] if host[:path]
           url
         end
 
@@ -258,8 +258,9 @@ module Elasticsearch
         # @raise  [ServerError]   If request failed on server
         # @raise  [Error]         If no connection is available
         #
-        def perform_request(method, path, params={}, body=nil, headers=nil, opts={}, &block)
-          raise NoMethodError, "Implement this method in your transport class" unless block_given?
+        def perform_request(method, path, params = {}, body = nil, headers = nil, opts = {}, &block)
+          raise NoMethodError, 'Implement this method in your transport class' unless block_given?
+
           start = Time.now
           tries = 0
           reload_on_failure = opts.fetch(:reload_on_failure, @options[:reload_on_failure])
@@ -271,21 +272,18 @@ module Elasticsearch
           end
 
           params = params.clone
-
           ignore = Array(params.delete(:ignore)).compact.map { |s| s.to_i }
 
           begin
             tries     += 1
-            connection = get_connection or raise Error.new("Cannot get new connection from pool.")
+            connection = get_connection or raise Error.new('Cannot get new connection from pool.')
 
             if connection.connection.respond_to?(:params) && connection.connection.params.respond_to?(:to_hash)
               params = connection.connection.params.merge(params.to_hash)
             end
 
-            url        = connection.full_url(path, params)
-
-            response   = block.call(connection, url)
-
+            url      = connection.full_url(path, params)
+            response = block.call(connection, url)
             connection.healthy! if connection.failures > 0
 
             # Raise an exception so we can catch it for `retry_on_status`
@@ -335,14 +333,10 @@ module Elasticsearch
           duration = Time.now - start
 
           if response.status.to_i >= 300
-            __log_response    method, path, params, body, url, response, nil, 'N/A', duration
-            __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
-
+            __log_response(method, path, params, body, url, response, nil, 'N/A', duration)
+            __trace(method, path, params, connection_headers(connection), body, url, response, nil, 'N/A', duration) if tracer
             # Log the failure only when `ignore` doesn't match the response status
-            unless ignore.include?(response.status.to_i)
-              log_fatal "[#{response.status}] #{response.body}"
-            end
-
+            log_fatal "[#{response.status}] #{response.body}" unless ignore.include?(response.status.to_i)
             __raise_transport_error response unless ignore.include?(response.status.to_i)
           end
 
@@ -353,10 +347,8 @@ module Elasticsearch
             __log_response   method, path, params, body, url, response, json, took, duration
           end
 
-          __trace  method, path, params, connection.connection.headers, body, url, response, nil, 'N/A', duration if tracer
-
+          __trace(method, path, params, connection_headers(connection), body, url, response, nil, 'N/A', duration) if tracer
           warnings(response.headers['warning']) if response.headers&.[]('warning')
-
           Response.new response.status, json || response.body, response.headers
         ensure
           @last_request_at = Time.now
@@ -433,6 +425,14 @@ module Elasticsearch
 
         def warnings(warning)
           warn("warning: #{warning}")
+        end
+
+        def connection_headers(connection)
+          if defined?(Elasticsearch::Transport::Transport::HTTP::Manticore) && self.class == Elasticsearch::Transport::Transport::HTTP::Manticore
+            @request_options[:headers]
+          else
+            connection.connection.headers
+          end
         end
       end
     end

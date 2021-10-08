@@ -105,9 +105,9 @@ We also have a [IRC (gitter)](https://gitter.im/ruby-concurrency/concurrent-ruby
 Collection classes that were originally part of the (deprecated) `thread_safe` gem:
 
 *   [Array](http://ruby-concurrency.github.io/concurrent-ruby/master/Concurrent/Array.html) A thread-safe
-    subclass of Ruby's standard [Array](http://ruby-doc.org/core-2.2.0/Array.html).
+    subclass of Ruby's standard [Array](http://ruby-doc.org/core/Array.html).
 *   [Hash](http://ruby-concurrency.github.io/concurrent-ruby/master/Concurrent/Hash.html) A thread-safe
-    subclass of Ruby's standard [Hash](http://ruby-doc.org/core-2.2.0/Hash.html).
+    subclass of Ruby's standard [Hash](http://ruby-doc.org/core/Hash.html).
 *   [Set](http://ruby-concurrency.github.io/concurrent-ruby/master/Concurrent/Set.html) A thread-safe
     subclass of Ruby's standard [Set](http://ruby-doc.org/stdlib-2.4.0/libdoc/set/rdoc/Set.html).
 *   [Map](http://ruby-concurrency.github.io/concurrent-ruby/master/Concurrent/Map.html) A hash-like object
@@ -122,7 +122,7 @@ Value objects inspired by other languages:
     immutable object representing an optional value, based on 
     [Haskell Data.Maybe](https://hackage.haskell.org/package/base-4.2.0.1/docs/Data-Maybe.html).
 
-Structure classes derived from Ruby's [Struct](http://ruby-doc.org/core-2.2.0/Struct.html):
+Structure classes derived from Ruby's [Struct](http://ruby-doc.org/core/Struct.html):
 
 *   [ImmutableStruct](http://ruby-concurrency.github.io/concurrent-ruby/master/Concurrent/ImmutableStruct.html)
     Immutable struct where values are set at construction and cannot be changed later.
@@ -353,19 +353,43 @@ and load the appropriate C extensions.
 No gems should depend on `concurrent-ruby-ext`. Doing so will force C extensions on your users. The
 best practice is to depend on `concurrent-ruby` and let users to decide if they want C extensions.
 
+## Building the gem
+
+### Requirements
+
+* Recent CRuby
+* JRuby, `rbenv install jruby-9.2.17.0`
+* Set env variable `CONCURRENT_JRUBY_HOME` to point to it, e.g. `/usr/local/opt/rbenv/versions/jruby-9.2.17.0`
+* Install Docker, required for Windows builds
+
+### Publishing the Gem
+
+* Update`version.rb`
+* Update the CHANGELOG
+* Update the Yard documentation
+    - Add the new version to `docs-source/signpost.md`. Needs to be done only if there are visible changes in the
+      documentation.
+    - Run `bundle exec rake yard` to update the master documentation and signpost.
+    - Run `bundle exec rake yard:<new-version>` to add or update the documentation of the new version.
+* Commit (and push) the changes.
+* Use `be rake release` to release the gem. It consists
+  of `['release:checks', 'release:build', 'release:test', 'release:publish']` steps. It will ask at the end before
+  publishing anything. Steps can also be executed individually.
+
 ## Maintainers
 
-*   [Petr Chalupa](https://github.com/pitr-ch) (lead maintainer, point-of-contact)
-*   [Jerry D'Antonio](https://github.com/jdantonio) (creator)
-*   [Chris Seaton](https://github.com/chrisseaton)
+*   [Petr Chalupa](https://github.com/pitr-ch) — Lead maintainer, point-of-contact.
+*   [Chris Seaton](https://github.com/chrisseaton) —
+    If Petr is not available Chris can help or poke Petr to pay attention where it is needed.
 
 ### Special Thanks to
 
+*   [Jerry D'Antonio](https://github.com/jdantonio) for creating the gem
 *   [Brian Durand](https://github.com/bdurand) for the `ref` gem
 *   [Charles Oliver Nutter](https://github.com/headius) for the `atomic` and `thread_safe` gems
 *   [thedarkone](https://github.com/thedarkone) for the `thread_safe` gem
 
-and to the past maintainers
+to the past maintainers
 
 *   [Michele Della Torre](https://github.com/mighe)
 *   [Paweł Obrok](https://github.com/obrok)

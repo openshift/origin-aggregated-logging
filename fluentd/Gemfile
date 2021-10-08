@@ -1,12 +1,12 @@
 source "https://rubygems.org"
-gem 'fluentd', ENV['FLUENTD_VERSION'], :source=>"https://rubygems.org"
+gem 'fluentd', ENV['FLUENTD_VERSION']
 gem 'elasticsearch-transport'
 gem 'elasticsearch-api'
 gem 'elasticsearch'
-gem 'fluent-plugin-kubernetes_metadata_filter', '2.7.1'
+gem 'fluent-plugin-kubernetes_metadata_filter'
 gem 'fluent-plugin-cloudwatch-logs'
 gem 'fluent-plugin-concat'
-gem 'fluent-plugin-detect-exceptions', "0.0.14"
+gem 'fluent-plugin-detect-exceptions'
 gem 'fluent-plugin-elasticsearch'
 gem 'fluent-plugin-kafka'
 gem 'fluent-plugin-grafana-loki'
@@ -25,6 +25,9 @@ gem 'bigdecimal'
 #Below gem(and two of its dependencies) are moved to O_A_L/fluentd/lib, but its dependencies still exist in O_A_L/fluentd/vendored_gem_src/
 #gem 'fluent-plugin-remote_syslog', '1.0.0'
 
-gem 'ffi', '1.11.3'
-gem 'uuidtools', '2.1.5'
+gem 'ffi'
+gem 'uuidtools'
 gem 'rake'
+
+gem 'async'
+gem 'async-http'

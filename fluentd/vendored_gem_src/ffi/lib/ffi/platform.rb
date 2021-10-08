@@ -61,9 +61,9 @@ module FFI
     CPU = RbConfig::CONFIG['host_cpu']
 
     ARCH = case CPU.downcase
-    when /amd64|x86_64/
+    when /amd64|x86_64|x64/
       "x86_64"
-    when /i?86|x86|i86pc/
+    when /i\d86|x86|i86pc/
       "i386"
     when /ppc64|powerpc64/
       "powerpc64"
@@ -71,13 +71,16 @@ module FFI
       "powerpc"
     when /sparcv9|sparc64/
       "sparcv9"
-    else
-      case RbConfig::CONFIG['host_cpu']
-      when /^arm/
-        "arm"
+    when /arm64|aarch64/  # MacOS calls it "arm64", other operating systems "aarch64"
+      "aarch64"
+    when /^arm/
+      if OS == "darwin"   # Ruby before 3.0 reports "arm" instead of "arm64" as host_cpu on darwin
+        "aarch64"
       else
-        RbConfig::CONFIG['host_cpu']
+        "arm"
       end
+    else
+      RbConfig::CONFIG['host_cpu']
     end
 
     private
@@ -129,7 +132,8 @@ module FFI
     end
 
     LIBC = if IS_WINDOWS
-      RbConfig::CONFIG['RUBY_SO_NAME'].split('-')[-2] + '.dll'
+      crtname = RbConfig::CONFIG["RUBY_SO_NAME"][/msvc\w+/] || 'ucrtbase'
+      "#{crtname}.dll"
     elsif IS_GNU
       GNU_LIBC
     elsif OS == 'cygwin'
@@ -139,6 +143,12 @@ module FFI
       "msys-2.0.dll"
     else
       "#{LIBPREFIX}c.#{LIBSUFFIX}"
+    end
+
+    LITTLE_ENDIAN = 1234 unless defined?(LITTLE_ENDIAN)
+    BIG_ENDIAN = 4321 unless defined?(BIG_ENDIAN)
+    unless defined?(BYTE_ORDER)
+      BYTE_ORDER = [0x12345678].pack("I") == [0x12345678].pack("N") ? BIG_ENDIAN : LITTLE_ENDIAN
     end
 
     # Test if current OS is a *BSD (include MAC)

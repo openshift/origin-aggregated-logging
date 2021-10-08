@@ -24,5 +24,6 @@ void Init_crc16_dnp_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16DNP = rb_const_get(mDigest, rb_intern("CRC16DNP"));
 
+	rb_undef_method(cCRC16DNP, "update");
 	rb_define_method(cCRC16DNP, "update", Digest_CRC16DNP_update, 1);
 }

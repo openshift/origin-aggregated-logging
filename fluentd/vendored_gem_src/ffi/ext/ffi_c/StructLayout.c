@@ -32,12 +32,9 @@
 
 #ifndef _MSC_VER
 # include <sys/param.h>
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
 #endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <ruby.h>
 #include "rbffi.h"
 #include "compat.h"
@@ -126,7 +123,6 @@ struct_field_initialize(int argc, VALUE* argv, VALUE self)
 
     switch (field->type->nativeType == NATIVE_MAPPED ? ((MappedType *) field->type)->type->nativeType : field->type->nativeType) {
         case NATIVE_FUNCTION:
-        case NATIVE_CALLBACK:
         case NATIVE_POINTER:
             field->referenceRequired = true;
             break;
@@ -138,7 +134,7 @@ struct_field_initialize(int argc, VALUE* argv, VALUE self)
                         && RTEST(rb_funcall2(rbType, rb_intern("reference_required?"), 0, NULL)));
             break;
     }
-    
+
     return self;
 }
 
@@ -239,7 +235,7 @@ static VALUE
 struct_field_put(VALUE self, VALUE pointer, VALUE value)
 {
     StructField* f;
-    
+
     Data_Get_Struct(self, StructField, f);
     if (f->memoryOp == NULL) {
         rb_raise(rb_eArgError, "put not supported for %s", rb_obj_classname(f->rbType));
@@ -261,7 +257,7 @@ static VALUE
 function_field_get(VALUE self, VALUE pointer)
 {
     StructField* f;
-    
+
     Data_Get_Struct(self, StructField, f);
 
     return rbffi_Function_NewInstance(f->rbType, (*rbffi_AbstractMemoryOps.pointer->get)(MEMORY(pointer), f->offset));
@@ -272,7 +268,7 @@ function_field_get(VALUE self, VALUE pointer)
  * @param [AbstractMemory] pointer pointer to a {Struct}
  * @param [Function, Proc] proc
  * @return [Function]
- * Set a {Function} to memory pointed by +pointer+ as a function. 
+ * Set a {Function} to memory pointed by +pointer+ as a function.
  *
  * If a Proc is submitted as +proc+, it is automatically transformed to a {Function}.
  */
@@ -339,19 +335,24 @@ array_field_put(VALUE self, VALUE pointer, VALUE value)
 {
     StructField* f;
     ArrayType* array;
-    
+
 
     Data_Get_Struct(self, StructField, f);
     Data_Get_Struct(f->rbType, ArrayType, array);
-    
+
     if (isCharArray(array) && rb_obj_is_instance_of(value, rb_cString)) {
         VALUE argv[2];
 
         argv[0] = INT2FIX(f->offset);
         argv[1] = value;
 
-        rb_funcall2(pointer, rb_intern("put_string"), 2, argv);
-
+        if (RSTRING_LEN(value) < array->length) {
+            rb_funcall2(pointer, rb_intern("put_string"), 2, argv);
+        } else if (RSTRING_LEN(value) == array->length) {
+            rb_funcall2(pointer, rb_intern("put_bytes"), 2, argv);
+        } else {
+            rb_raise(rb_eIndexError, "String is longer (%ld bytes) than the char array (%d bytes)", RSTRING_LEN(value), array->length);
+        }
     } else {
 #ifdef notyet
         MemoryOp* op;
@@ -419,7 +420,6 @@ struct_layout_allocate(VALUE klass)
     layout->rbFieldMap = Qnil;
     layout->rbFieldNames = Qnil;
     layout->rbFields = Qnil;
-    layout->fieldSymbolTable = st_init_numtable();
     layout->base.ffiType = xcalloc(1, sizeof(*layout->base.ffiType));
     layout->base.ffiType->size = 0;
     layout->base.ffiType->alignment = 0;
@@ -488,7 +488,6 @@ struct_layout_initialize(VALUE self, VALUE fields, VALUE size, VALUE align)
 
 
         layout->ffiTypes[i] = ftype->size > 0 ? ftype : NULL;
-        st_insert(layout->fieldSymbolTable, rbName, rbField);
         rb_hash_aset(layout->rbFieldMap, rbName, rbField);
         rb_ary_push(layout->rbFields, rbField);
         rb_ary_push(layout->rbFieldNames, rbName);
@@ -501,14 +500,14 @@ struct_layout_initialize(VALUE self, VALUE fields, VALUE size, VALUE align)
     return self;
 }
 
-/* 
+/*
  * call-seq: [](field)
  * @param [Symbol] field
  * @return [StructLayout::Field]
  * Get a field from the layout.
  */
 static VALUE
-struct_layout_union_bang(VALUE self) 
+struct_layout_union_bang(VALUE self)
 {
     const ffi_type *alignment_types[] = { &ffi_type_sint8, &ffi_type_sint16, &ffi_type_sint32, &ffi_type_sint64,
                                           &ffi_type_float, &ffi_type_double, &ffi_type_longdouble, NULL };
@@ -602,6 +601,10 @@ struct_layout_mark(StructLayout *layout)
     rb_gc_mark(layout->rbFieldMap);
     rb_gc_mark(layout->rbFieldNames);
     rb_gc_mark(layout->rbFields);
+    /* Clear the cache, to be safe from changes of fieldName VALUE by GC.compact.
+     * TODO: Move cache clearing to compactation callback provided by Ruby-2.7+.
+     */
+    memset(&layout->cache_row, 0, sizeof(layout->cache_row));
 }
 
 static void
@@ -610,7 +613,6 @@ struct_layout_free(StructLayout *layout)
     xfree(layout->ffiTypes);
     xfree(layout->base.ffiType);
     xfree(layout->fields);
-    st_free_table(layout->fieldSymbolTable);
     xfree(layout);
 }
 
@@ -627,7 +629,7 @@ rbffi_StructLayout_Init(VALUE moduleFFI)
      */
     rbffi_StructLayoutClass = rb_define_class_under(moduleFFI, "StructLayout", ffi_Type);
     rb_global_variable(&rbffi_StructLayoutClass);
-    
+
     /*
      * Document-class: FFI::StructLayout::Field
      * A field in a {StructLayout}.

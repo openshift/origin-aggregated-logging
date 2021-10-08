@@ -14,6 +14,7 @@
 #    limitations under the License.
 #
 
+require 'fluent/env'
 require 'fluent/plugin/base'
 require 'fluent/plugin/owned_by_mixin'
 require 'fluent/time'
@@ -44,6 +45,30 @@ module Fluent
 
       def format(tag, time, record)
         @proc.call(tag, time, record)
+      end
+    end
+
+    module Newline
+      module Mixin
+        include Fluent::Configurable
+
+        DEFAULT_NEWLINE = if Fluent.windows?
+                            :crlf
+                          else
+                            :lf
+                          end
+
+        config_param :newline, :enum, list: [:lf, :crlf], default: DEFAULT_NEWLINE
+
+        def configure(conf)
+          super
+          @newline = case newline
+                     when :lf
+                       "\n".freeze
+                     when :crlf
+                       "\r\n".freeze
+                     end
+        end
       end
     end
   end

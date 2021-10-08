@@ -53,6 +53,11 @@ module FormatterTest
     def setup
       @formatter = Fluent::Test::FormatterTestDriver.new('out_file')
       @time = Engine.now
+      @newline = if Fluent.windows?
+                   "\r\n"
+                 else
+                   "\n"
+                 end
     end
 
     def configure(conf)
@@ -63,28 +68,28 @@ module FormatterTest
       configure({})
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("#{time2str(@time)}\t#{tag}\t#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{time2str(@time)}\t#{tag}\t#{Yajl.dump(record)}#{@newline}", formatted)
     end
 
     def test_format_without_time
       configure('output_time' => 'false')
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("#{tag}\t#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{tag}\t#{Yajl.dump(record)}#{@newline}", formatted)
     end
 
     def test_format_without_tag
       configure('output_tag' => 'false')
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("#{time2str(@time)}\t#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{time2str(@time)}\t#{Yajl.dump(record)}#{@newline}", formatted)
     end
 
     def test_format_without_time_and_tag
       configure('output_tag' => 'false', 'output_time' => 'false')
       formatted = @formatter.format('tag', @time, record)
 
-      assert_equal("#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{Yajl.dump(record)}#{@newline}", formatted)
     end
 
     def test_format_without_time_and_tag_against_string_literal_configure
@@ -95,7 +100,7 @@ module FormatterTest
       ])
       formatted = @formatter.format('tag', @time, record)
 
-      assert_equal("#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{Yajl.dump(record)}#{@newline}", formatted)
     end
   end
 
@@ -105,6 +110,11 @@ module FormatterTest
     def setup
       @formatter = Fluent::Test::FormatterTestDriver.new(TextFormatter::JSONFormatter)
       @time = Engine.now
+      @newline = if Fluent.windows?
+                   "\r\n"
+                 else
+                   "\n"
+                 end
     end
 
     data('oj' => 'oj', 'yajl' => 'yajl')
@@ -112,7 +122,7 @@ module FormatterTest
       @formatter.configure('json_parser' => data)
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("#{Yajl.dump(record)}\n", formatted)
+      assert_equal("#{Yajl.dump(record)}#{@newline}", formatted)
     end
   end
 
@@ -138,6 +148,11 @@ module FormatterTest
     def setup
       @formatter = TextFormatter::LabeledTSVFormatter.new
       @time = Engine.now
+      @newline = if Fluent.windows?
+                   "\r\n"
+                 else
+                   "\n"
+                 end
     end
 
     def test_config_params
@@ -157,7 +172,7 @@ module FormatterTest
       @formatter.configure({})
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("message:awesome\tgreeting:hello\n", formatted)
+      assert_equal("message:awesome\tgreeting:hello#{@newline}", formatted)
     end
 
     def test_format_with_customized_delimiters
@@ -167,7 +182,37 @@ module FormatterTest
       )
       formatted = @formatter.format(tag, @time, record)
 
-      assert_equal("message=awesome,greeting=hello\n", formatted)
+      assert_equal("message=awesome,greeting=hello#{@newline}", formatted)
+    end
+
+    def record_with_tab
+      {'message' => "awe\tsome", 'greeting' => "hello\t"}
+    end
+
+    def test_format_suppresses_tab
+      @formatter.configure({})
+      formatted = @formatter.format(tag, @time, record_with_tab)
+
+      assert_equal("message:awe some\tgreeting:hello #{@newline}", formatted)
+    end
+
+    def test_format_suppresses_tab_custom_replacement
+      @formatter.configure(
+        'replacement'      => 'X',
+      )
+      formatted = @formatter.format(tag, @time, record_with_tab)
+
+      assert_equal("message:aweXsome\tgreeting:helloX#{@newline}", formatted)
+    end
+
+    def test_format_suppresses_custom_delimiter
+      @formatter.configure(
+        'delimiter'       => 'w',
+        'label_delimiter' => '=',
+      )
+      formatted = @formatter.format(tag, @time, record)
+
+      assert_equal("message=a esomewgreeting=hello#{@newline}", formatted)
     end
   end
 
@@ -260,6 +305,14 @@ module FormatterTest
 
   class SingleValueFormatterTest < ::Test::Unit::TestCase
     include FormatterTest
+    def setup
+      @newline = if Fluent.windows?
+                   "\r\n"
+                 else
+                   "\n"
+                 end
+    end
+
 
     def test_config_params
       formatter = TextFormatter::SingleValueFormatter.new
@@ -271,8 +324,9 @@ module FormatterTest
 
     def test_format
       formatter = Fluent::Plugin.new_formatter('single_value')
+      formatter.configure({})
       formatted = formatter.format('tag', Engine.now, {'message' => 'awesome'})
-      assert_equal("awesome\n", formatted)
+      assert_equal("awesome#{@newline}", formatted)
     end
 
     def test_format_without_newline
@@ -287,7 +341,7 @@ module FormatterTest
       formatter.configure('message_key' => 'foobar')
       formatted = formatter.format('tag', Engine.now, {'foobar' => 'foo'})
 
-      assert_equal("foo\n", formatted)
+      assert_equal("foo#{@newline}", formatted)
     end
   end
 

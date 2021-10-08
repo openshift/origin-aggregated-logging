@@ -7,6 +7,11 @@ require_relative 'test_plugin_classes'
 require 'net/http'
 require 'uri'
 require 'fileutils'
+require 'tempfile'
+
+if Fluent.windows?
+  require 'win32/event'
+end
 
 class SupervisorTest < ::Test::Unit::TestCase
   class DummyServer
@@ -30,92 +35,6 @@ class SupervisorTest < ::Test::Unit::TestCase
     File.open(path, "w") {|f| f.write data }
   end
 
-  def test_initialize
-    opts = Fluent::Supervisor.default_options
-    sv = Fluent::Supervisor.new(opts)
-    opts.each { |k, v|
-      assert_equal v, sv.instance_variable_get("@#{k}")
-    }
-  end
-
-  def test_read_config
-    create_info_dummy_logger
-
-    tmp_dir = "#{TMP_DIR}/dir/test_read_config.conf"
-    conf_str = %[
-<source>
-  @type forward
-  @id forward_input
-</source>
-<match debug.**>
-  @type stdout
-  @id stdout_output
-</match>
-]
-    write_config tmp_dir, conf_str
-    opts = Fluent::Supervisor.default_options
-    sv = Fluent::Supervisor.new(opts)
-
-    use_v1_config = {}
-    use_v1_config['use_v1_config'] = true
-
-    sv.instance_variable_set(:@config_path, tmp_dir)
-    sv.instance_variable_set(:@use_v1_config, use_v1_config)
-    sv.send(:read_config)
-
-    conf = sv.instance_variable_get(:@conf)
-
-    elem = conf.elements.find { |e| e.name == 'source' }
-    assert_equal "forward", elem['@type']
-    assert_equal "forward_input", elem['@id']
-
-    elem = conf.elements.find { |e| e.name == 'match' }
-    assert_equal "debug.**", elem.arg
-    assert_equal "stdout", elem['@type']
-    assert_equal "stdout_output", elem['@id']
-
-    $log.out.reset
-  end
-
-  def test_read_config_with_multibyte_string
-    tmp_path = "#{TMP_DIR}/dir/test_multibyte_config.conf"
-    conf_str = %[
-<source>
-  @type forward
-  @id forward_input
-  @label @INPUT
-</source>
-<label @INPUT>
-  <filter>
-    @type record_transformer
-    <record>
-      message こんにちは. ${record["name"]} has made a order of ${record["item"]} just now.
-    </record>
-  </filter>
-  <match>
-    @type stdout
-  </match>
-</label>
-]
-    FileUtils.mkdir_p(File.dirname(tmp_path))
-    File.open(tmp_path, "w:utf-8") {|file| file.write(conf_str) }
-
-    opts = Fluent::Supervisor.default_options
-    sv = Fluent::Supervisor.new(opts)
-
-    use_v1_config = {}
-    use_v1_config['use_v1_config'] = true
-
-    sv.instance_variable_set(:@config_path, tmp_path)
-    sv.instance_variable_set(:@use_v1_config, use_v1_config)
-    sv.send(:read_config)
-
-    conf = sv.instance_variable_get(:@conf)
-    label = conf.elements.detect {|e| e.name == "label" }
-    filter = label.elements.detect {|e| e.name == "filter" }
-    record_transformer = filter.elements.detect {|e| e.name = "record_transformer" }
-    assert_equal(Encoding::UTF_8, record_transformer["message"].encoding)
-  end
 
   def test_system_config
     opts = Fluent::Supervisor.default_options
@@ -148,9 +67,7 @@ class SupervisorTest < ::Test::Unit::TestCase
 </system>
     EOC
     conf = Fluent::Config.parse(conf_data, "(test)", "(test_dir)", true)
-    sv.instance_variable_set(:@conf, conf)
-    sv.send(:set_system_config)
-    sys_conf = sv.instance_variable_get(:@system_config)
+    sys_conf = sv.__send__(:build_system_config, conf)
 
     assert_equal '127.0.0.1:24445', sys_conf.rpc_endpoint
     assert_equal true, sys_conf.suppress_repeated_stacktrace
@@ -195,6 +112,32 @@ class SupervisorTest < ::Test::Unit::TestCase
     $log.out.reset if $log && $log.out && $log.out.respond_to?(:reset)
   end
 
+  def test_main_process_command_handlers
+    omit "Only for Windows, alternative to UNIX signals" unless Fluent.windows?
+
+    create_info_dummy_logger
+
+    opts = Fluent::Supervisor.default_options
+    sv = Fluent::Supervisor.new(opts)
+    r, w = IO.pipe
+    $stdin = r
+    sv.send(:install_main_process_signal_handlers)
+
+    begin
+      w.write("GRACEFUL_RESTART\n")
+      w.flush
+    ensure
+      $stdin = STDIN
+    end
+
+    sleep 1
+
+    info_msg = '[info]: force flushing buffered events' + "\n"
+    assert{ $log.out.logs.first.end_with?(info_msg) }
+  ensure
+    $log.out.reset if $log && $log.out && $log.out.respond_to?(:reset)
+  end
+
   def test_supervisor_signal_handler
     omit "Windows cannot handle signals" if Fluent.windows?
 
@@ -216,6 +159,60 @@ class SupervisorTest < ::Test::Unit::TestCase
     $log.out.reset if $log && $log.out && $log.out.respond_to?(:reset)
   end
 
+  def test_windows_shutdown_event
+    omit "Only for Windows platform" unless Fluent.windows?
+
+    server = DummyServer.new
+    def server.config
+      {:signame => "TestFluentdEvent"}
+    end
+
+    mock(server).stop(true)
+    stub(Process).kill.times(0)
+
+    server.install_windows_event_handler
+    begin
+      sleep 0.1 # Wait for starting windows event thread
+      event = Win32::Event.open("TestFluentdEvent")
+      event.set
+      event.close
+    ensure
+      server.stop_windows_event_thread
+    end
+
+    debug_msg = '[debug]: Got Win32 event "TestFluentdEvent"'
+    logs = $log.out.logs
+    assert{ logs.any?{|log| log.include?(debug_msg) } }
+  ensure
+    $log.out.reset if $log && $log.out && $log.out.respond_to?(:reset)
+  end
+
+  def test_supervisor_event_handler
+    omit "Only for Windows, alternative to UNIX signals" unless Fluent.windows?
+
+    create_debug_dummy_logger
+
+    server = DummyServer.new
+    def server.config
+      {:signame => "TestFluentdEvent"}
+    end
+    server.install_windows_event_handler
+    begin
+      sleep 0.1 # Wait for starting windows event thread
+      event = Win32::Event.open("TestFluentdEvent_USR1")
+      event.set
+      event.close
+    ensure
+      server.stop_windows_event_thread
+    end
+
+    debug_msg = '[debug]: Got Win32 event "TestFluentdEvent_USR1"'
+    logs = $log.out.logs
+    assert{ logs.any?{|log| log.include?(debug_msg) } }
+  ensure
+    $log.out.reset if $log && $log.out && $log.out.respond_to?(:reset)
+  end
+
   def test_rpc_server
     omit "Windows cannot handle signals" if Fluent.windows?
 
@@ -229,9 +226,7 @@ class SupervisorTest < ::Test::Unit::TestCase
   </system>
     EOC
     conf = Fluent::Config.parse(conf_data, "(test)", "(test_dir)", true)
-    sv.instance_variable_set(:@conf, conf)
-    sv.send(:set_system_config)
-    sys_conf = sv.instance_variable_get(:@system_config)
+    sys_conf = sv.__send__(:build_system_config, conf)
 
     server = DummyServer.new
     server.rpc_endpoint = sys_conf.rpc_endpoint
@@ -240,7 +235,7 @@ class SupervisorTest < ::Test::Unit::TestCase
     server.run_rpc_server
 
     sv.send(:install_main_process_signal_handlers)
-    Net::HTTP.get URI.parse('http://0.0.0.0:24447/api/plugins.flushBuffers')
+    response = Net::HTTP.get(URI.parse('http://127.0.0.1:24447/api/plugins.flushBuffers'))
     info_msg = '[info]: force flushing buffered events' + "\n"
 
     server.stop_rpc_server
@@ -249,9 +244,43 @@ class SupervisorTest < ::Test::Unit::TestCase
     # This test will be passed in such environment.
     pend unless $log.out.logs.first
 
+    assert_equal('{"ok":true}', response)
     assert{ $log.out.logs.first.end_with?(info_msg) }
   ensure
-    $log.out.reset
+    $log.out.reset if $log.out.is_a?(Fluent::Test::DummyLogDevice)
+  end
+
+  def test_rpc_server_windows
+    omit "Only for windows platform" unless Fluent.windows?
+
+    create_info_dummy_logger
+
+    opts = Fluent::Supervisor.default_options
+    sv = Fluent::Supervisor.new(opts)
+    conf_data = <<-EOC
+  <system>
+    rpc_endpoint 0.0.0.0:24447
+  </system>
+    EOC
+    conf = Fluent::Config.parse(conf_data, "(test)", "(test_dir)", true)
+    sys_conf = sv.__send__(:build_system_config, conf)
+
+    server = DummyServer.new
+    def server.config
+      {
+        :signame => "TestFluentdEvent",
+        :worker_pid => 5963,
+      }
+    end
+    server.rpc_endpoint = sys_conf.rpc_endpoint
+
+    server.run_rpc_server
+
+    mock(server).restart(true) { nil }
+    response = Net::HTTP.get(URI.parse('http://127.0.0.1:24447/api/plugins.flushBuffers'))
+
+    server.stop_rpc_server
+    assert_equal('{"ok":true}', response)
   end
 
   def test_load_config
@@ -266,6 +295,9 @@ class SupervisorTest < ::Test::Unit::TestCase
   log_level debug
 </system>
 ]
+    now = Time.now
+    Timecop.freeze(now)
+
     write_config tmp_dir, conf_info_str
 
     params = {}
@@ -298,7 +330,7 @@ class SupervisorTest < ::Test::Unit::TestCase
     assert_nil pre_config_mtime
     assert_nil pre_loadtime
 
-    sleep 5
+    Timecop.freeze(now + 5)
 
     # third call after 5 seconds(don't reuse config)
     se_config = load_config_proc.call
@@ -318,6 +350,35 @@ class SupervisorTest < ::Test::Unit::TestCase
     # fifth call after changed conf file(don't reuse config)
     se_config = load_config_proc.call
     assert_equal Fluent::Log::LEVEL_INFO, se_config[:log_level]
+  ensure
+    Timecop.return
+  end
+
+  def test_load_config_for_logger
+    tmp_dir = "#{TMP_DIR}/dir/test_load_config_log.conf"
+    conf_info_str = %[
+<system>
+  <log>
+    format json
+    time_format %FT%T.%L%z
+  </log>
+</system>
+]
+    write_config tmp_dir, conf_info_str
+    params = {
+      'use_v1_config' => true,
+      'conf_encoding' => 'utf8',
+      'log_level' => Fluent::Log::LEVEL_INFO,
+      'log_path' => 'test/tmp/supervisor/log',
+
+      'workers' => 1,
+      'log_format' => :json,
+      'log_time_format' => '%FT%T.%L%z',
+    }
+
+    r = Fluent::Supervisor.load_config(tmp_dir, params)
+    assert_equal :json, r[:logger].format
+    assert_equal '%FT%T.%L%z', r[:logger].time_format
   end
 
   def test_load_config_for_daemonize
@@ -332,6 +393,10 @@ class SupervisorTest < ::Test::Unit::TestCase
   log_level debug
 </system>
 ]
+
+    now = Time.now
+    Timecop.freeze(now)
+
     write_config tmp_dir, conf_info_str
 
     params = {}
@@ -365,9 +430,9 @@ class SupervisorTest < ::Test::Unit::TestCase
     assert_nil pre_config_mtime
     assert_nil pre_loadtime
 
-    sleep 5
+    Timecop.freeze(now + 5)
 
-    # third call after 5 seconds(don't reuse config)
+    # third call after 6 seconds(don't reuse config)
     se_config = load_config_proc.call
     pre_config_mtime = se_config[:windows_daemon_cmdline][5]['pre_config_mtime']
     pre_loadtime = se_config[:windows_daemon_cmdline][5]['pre_loadtime']
@@ -385,46 +450,8 @@ class SupervisorTest < ::Test::Unit::TestCase
     # fifth call after changed conf file(don't reuse config)
     se_config = load_config_proc.call
     assert_equal Fluent::Log::LEVEL_INFO, se_config[:log_level]
-  end
-
-  def test_load_config_with_multibyte_string
-    tmp_path = "#{TMP_DIR}/dir/test_multibyte_config.conf"
-    conf_str = %[
-<source>
-  @type forward
-  @id forward_input
-  @label @INPUT
-</source>
-<label @INPUT>
-  <filter>
-    @type record_transformer
-    <record>
-      message こんにちは. ${record["name"]} has made a order of ${record["item"]} just now.
-    </record>
-  </filter>
-  <match>
-    @type stdout
-  </match>
-</label>
-]
-    FileUtils.mkdir_p(File.dirname(tmp_path))
-    File.open(tmp_path, "w:utf-8") {|file| file.write(conf_str) }
-
-    params = {}
-    params['workers'] = 1
-    params['use_v1_config'] = true
-    params['log_path'] = 'test/tmp/supervisor/log'
-    params['suppress_repeated_stacktrace'] = true
-    params['log_level'] = Fluent::Log::LEVEL_INFO
-    params['conf_encoding'] = 'utf-8'
-    load_config_proc =  Proc.new { Fluent::Supervisor.load_config(tmp_path, params) }
-
-    se_config = load_config_proc.call
-    conf = se_config[:fluentd_conf]
-    label = conf.elements.detect {|e| e.name == "label" }
-    filter = label.elements.detect {|e| e.name == "filter" }
-    record_transformer = filter.elements.detect {|e| e.name = "record_transformer" }
-    assert_equal(Encoding::UTF_8, record_transformer["message"].encoding)
+  ensure
+    Timecop.return
   end
 
   def test_logger
@@ -461,6 +488,99 @@ class SupervisorTest < ::Test::Unit::TestCase
     assert_equal Fluent::LogDeviceIO, $log.out.class
     assert_equal rotate_age, $log.out.instance_variable_get(:@shift_age)
     assert_equal 10, $log.out.instance_variable_get(:@shift_size)
+  end
+
+  sub_test_case "system log rotation" do
+    def parse_text(text)
+      basepath = File.expand_path(File.dirname(__FILE__) + '/../../')
+      Fluent::Config.parse(text, '(test)', basepath, true).elements.find { |e| e.name == 'system' }
+    end
+
+    def test_override_default_log_rotate
+      Tempfile.open do |file|
+        config = parse_text(<<-EOS)
+          <system>
+            <log>
+              rotate_age 3
+              rotate_size 300
+            </log>
+          </system>
+        EOS
+        file.puts(config)
+        file.flush
+        opts = Fluent::Supervisor.default_options.merge(
+          log_path: "#{TMP_DIR}/test.log", config_path: file.path
+        )
+        sv = Fluent::Supervisor.new(opts)
+
+        log = sv.instance_variable_get(:@log)
+        log.init(:standalone, 0)
+        logger = $log.instance_variable_get(:@logger)
+
+        assert_equal([3, 300],
+                     [logger.instance_variable_get(:@rotate_age),
+                      logger.instance_variable_get(:@rotate_size)])
+      end
+    end
+  end
+
+  def test_inline_config
+    omit 'this feature is deprecated. see https://github.com/fluent/fluentd/issues/2711'
+
+    opts = Fluent::Supervisor.default_options
+    opts[:inline_config] = '-'
+    sv = Fluent::Supervisor.new(opts)
+    assert_equal '-', sv.instance_variable_get(:@inline_config)
+
+    inline_config = '<match *>\n@type stdout\n</match>'
+    stub(STDIN).read { inline_config }
+    stub(Fluent::Config).build                                # to skip
+    stub(sv).build_system_config { Fluent::SystemConfig.new } # to skip
+
+    sv.configure
+    assert_equal inline_config, sv.instance_variable_get(:@inline_config)
+  end
+
+  def test_log_level_affects
+    opts = Fluent::Supervisor.default_options
+    sv = Fluent::Supervisor.new(opts)
+
+    c = Fluent::Config::Element.new('system', '', { 'log_level' => 'error' }, [])
+    stub(Fluent::Config).build { config_element('ROOT', '', {}, [c]) }
+
+    sv.configure
+    assert_equal Fluent::Log::LEVEL_ERROR, $log.level
+  end
+
+  def test_enable_shared_socket
+    server = DummyServer.new
+    begin
+      ENV.delete('SERVERENGINE_SOCKETMANAGER_PATH')
+      server.before_run
+      sleep 0.1 if Fluent.windows? # Wait for starting windows event thread
+      assert_not_nil(ENV['SERVERENGINE_SOCKETMANAGER_PATH'])
+    ensure
+      server.after_run
+      ENV.delete('SERVERENGINE_SOCKETMANAGER_PATH')
+    end
+  end
+
+  def test_disable_shared_socket
+    server = DummyServer.new
+    def server.config
+      {
+        :disable_shared_socket => true,
+      }
+    end
+    begin
+      ENV.delete('SERVERENGINE_SOCKETMANAGER_PATH')
+      server.before_run
+      sleep 0.1 if Fluent.windows? # Wait for starting windows event thread
+      assert_nil(ENV['SERVERENGINE_SOCKETMANAGER_PATH'])
+    ensure
+      server.after_run
+      ENV.delete('SERVERENGINE_SOCKETMANAGER_PATH')
+    end
   end
 
   def create_debug_dummy_logger

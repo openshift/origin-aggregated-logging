@@ -21,6 +21,9 @@ require 'fluent/config/error'
 require 'fluent/event'
 require 'fluent/plugin/buffer'
 require 'fluent/plugin/parser_multiline'
+require 'fluent/variable_store'
+require 'fluent/capability'
+require 'fluent/plugin/in_tail/position_file'
 
 if Fluent.windows?
   require_relative 'file_wrapper'
@@ -34,6 +37,9 @@ module Fluent::Plugin
 
     helpers :timer, :event_loop, :parser, :compat_parameters
 
+    RESERVED_CHARS = ['/', '*', '%'].freeze
+    MetricsInfo = Struct.new(:opened, :closed, :rotated)
+
     class WatcherSetupError < StandardError
       def initialize(msg)
         @message = msg
@@ -44,8 +50,6 @@ module Fluent::Plugin
       end
     end
 
-    FILE_PERMISSION = 0644
-
     def initialize
       super
       @paths = []
@@ -53,10 +57,14 @@ module Fluent::Plugin
       @pf_file = nil
       @pf = nil
       @ignore_list = []
+      @shutdown_start_time = nil
+      @metrics = nil
     end
 
     desc 'The paths to read. Multiple paths can be specified, separated by comma.'
     config_param :path, :string
+    desc 'path delimiter used for spliting path config'
+    config_param :path_delimiter, :string, default: ','
     desc 'The tag of the event.'
     config_param :tag, :string
     desc 'The paths to exclude the files from watcher list.'
@@ -65,6 +73,8 @@ module Fluent::Plugin
     config_param :rotate_wait, :time, default: 5
     desc 'Fluentd will record the position it last read into this file.'
     config_param :pos_file, :string, default: nil
+    desc 'The cleanup interval of pos file'
+    config_param :pos_file_compaction_interval, :time, default: nil
     desc 'Start to read the logs from the head of file, not bottom.'
     config_param :read_from_head, :bool, default: false
     # When the program deletes log file and re-creates log file with same filename after passed refresh_interval,
@@ -74,6 +84,8 @@ module Fluent::Plugin
     config_param :refresh_interval, :time, default: 60
     desc 'The number of reading lines at each IO.'
     config_param :read_lines_limit, :integer, default: 1000
+    desc 'The number of reading bytes per second'
+    config_param :read_bytes_limit_per_second, :size, default: -1
     desc 'The interval of flushing the buffer for multiline format'
     config_param :multiline_flush_interval, :time, default: nil
     desc 'Enable the option to emit unmatched lines.'
@@ -96,6 +108,10 @@ module Fluent::Plugin
     config_param :skip_refresh_on_startup, :bool, default: false
     desc 'Ignore repeated permission error logs'
     config_param :ignore_repeated_permission_error, :bool, default: false
+    desc 'Format path with the specified timezone'
+    config_param :path_timezone, :string, default: nil
+    desc 'Follow inodes instead of following file names. Guarantees more stable delivery and allows to use * in path pattern with rotating files'
+    config_param :follow_inodes, :bool, default: false
 
     config_section :parse, required: false, multi: true, init: true, param_name: :parser_configs do
       config_argument :usage, :string, default: 'in_tail_parser'
@@ -103,21 +119,19 @@ module Fluent::Plugin
 
     attr_reader :paths
 
-    @@pos_file_paths = {}
-
     def configure(conf)
+      @variable_store = Fluent::VariableStore.fetch_or_build(:in_tail)
       compat_parameters_convert(conf, :parser)
       parser_config = conf.elements('parse').first
       unless parser_config
         raise Fluent::ConfigError, "<parse> section is required."
       end
-      unless parser_config["@type"]
-        raise Fluent::ConfigError, "parse/@type is required."
-      end
 
       (1..Fluent::Plugin::MultilineParser::FORMAT_MAX_NUM).each do |n|
         parser_config["format#{n}"] = conf["format#{n}"] if conf["format#{n}"]
       end
+
+      parser_config['unmatched_lines'] = conf['emit_unmatched_lines']
 
       super
 
@@ -125,19 +139,32 @@ module Fluent::Plugin
         raise Fluent::ConfigError, "either of enable_watch_timer or enable_stat_watcher must be true"
       end
 
-      @paths = @path.split(',').map {|path| path.strip }
+      if RESERVED_CHARS.include?(@path_delimiter)
+        rc = RESERVED_CHARS.join(', ')
+        raise Fluent::ConfigError, "#{rc} are reserved words: #{@path_delimiter}"
+      end
+
+      @paths = @path.split(@path_delimiter).map(&:strip).uniq
       if @paths.empty?
         raise Fluent::ConfigError, "tail: 'path' parameter is required on tail input"
+      end
+      if @path_timezone
+        Fluent::Timezone.validate!(@path_timezone)
+        @path_formatters = @paths.map{|path| [path, Fluent::Timezone.formatter(@path_timezone, path)]}.to_h
+        @exclude_path_formatters = @exclude_path.map{|path| [path, Fluent::Timezone.formatter(@path_timezone, path)]}.to_h
       end
 
       # TODO: Use plugin_root_dir and storage plugin to store positions if available
       if @pos_file
-        if @@pos_file_paths.has_key?(@pos_file) && !called_in_test?
-          plugin_id_using_this_path = @@pos_file_paths[@pos_file]
+        if @variable_store.key?(@pos_file) && !called_in_test?
+          plugin_id_using_this_path = @variable_store[@pos_file]
           raise Fluent::ConfigError, "Other 'in_tail' plugin already use same pos_file path: plugin_id = #{plugin_id_using_this_path}, pos_file path = #{@pos_file}"
         end
-        @@pos_file_paths[@pos_file] = self.plugin_id
+        @variable_store[@pos_file] = self.plugin_id
       else
+        if @follow_inodes
+          raise Fluent::ConfigError, "Can't follow inodes without pos_file configuration parameter"
+        end
         $log.warn "'pos_file PATH' parameter is not set to a 'tail' source."
         $log.warn "this parameter is highly recommended to save the position to resume tailing."
       end
@@ -151,9 +178,25 @@ module Fluent::Plugin
                          else
                            method(:parse_singleline)
                          end
-      @file_perm = system_config.file_permission || FILE_PERMISSION
+      @file_perm = system_config.file_permission || Fluent::DEFAULT_FILE_PERMISSION
+      @dir_perm = system_config.dir_permission || Fluent::DEFAULT_DIR_PERMISSION
       # parser is already created by parser helper
       @parser = parser_create(usage: parser_config['usage'] || @parser_configs.first.usage)
+      @capability = Fluent::Capability.new(:current_process)
+      if @read_bytes_limit_per_second > 0
+        if !@enable_watch_timer
+          raise Fluent::ConfigError, "Need to enable watch timer when using log throttling feature"
+        end
+        min_bytes = TailWatcher::IOHandler::BYTES_TO_READ
+        if @read_bytes_limit_per_second < min_bytes
+          log.warn "Should specify greater equal than #{min_bytes}. Use #{min_bytes} for read_bytes_limit_per_second"
+          @read_bytes_limit_per_second = min_bytes
+        end
+      end
+      opened_file_metrics = metrics_create(namespace: "fluentd", subsystem: "input", name: "files_opened_total", help_text: "Total number of opened files")
+      closed_file_metrics = metrics_create(namespace: "fluentd", subsystem: "input", name: "files_closed_total", help_text: "Total number of closed files")
+      rotated_file_metrics = metrics_create(namespace: "fluentd", subsystem: "input", name: "files_rotated_total", help_text: "Total number of rotated files")
+      @metrics = MetricsInfo.new(opened_file_metrics, closed_file_metrics, rotated_file_metrics)
     end
 
     def configure_tag
@@ -194,19 +237,35 @@ module Fluent::Plugin
 
       if @pos_file
         pos_file_dir = File.dirname(@pos_file)
-        FileUtils.mkdir_p(pos_file_dir) unless Dir.exist?(pos_file_dir)
+        FileUtils.mkdir_p(pos_file_dir, mode: @dir_perm) unless Dir.exist?(pos_file_dir)
         @pf_file = File.open(@pos_file, File::RDWR|File::CREAT|File::BINARY, @file_perm)
         @pf_file.sync = true
-        @pf = PositionFile.parse(@pf_file)
+        @pf = PositionFile.load(@pf_file, @follow_inodes, expand_paths, logger: log)
+
+        if @pos_file_compaction_interval
+          timer_execute(:in_tail_refresh_compact_pos_file, @pos_file_compaction_interval) do
+            log.info('Clean up the pos file')
+            @pf.try_compact
+          end
+        end
       end
 
       refresh_watchers unless @skip_refresh_on_startup
       timer_execute(:in_tail_refresh_watchers, @refresh_interval, &method(:refresh_watchers))
     end
 
+    def stop
+      if @variable_store
+        @variable_store.delete(@pos_file)
+      end
+
+      super
+    end
+
     def shutdown
+      @shutdown_start_time = Fluent::Clock.now
       # during shutdown phase, don't close io. It should be done in close after all threads are stopped. See close.
-      stop_watchers(@tails.keys, immediate: true, remove_watcher: false)
+      stop_watchers(existence_path, immediate: true, remove_watcher: false)
       @pf_file.close if @pf_file
 
       super
@@ -218,32 +277,40 @@ module Fluent::Plugin
       close_watcher_handles
     end
 
-    def expand_paths
-      date = Time.now
-      paths = []
+    def have_read_capability?
+      @capability.have_capability?(:effective, :dac_read_search) ||
+        @capability.have_capability?(:effective, :dac_override)
+    end
 
+    def expand_paths
+      date = Fluent::EventTime.now
+      paths = []
       @paths.each { |path|
-        path = date.strftime(path)
+        path = if @path_timezone
+                 @path_formatters[path].call(date)
+               else
+                 date.to_time.strftime(path)
+               end
         if path.include?('*')
           paths += Dir.glob(path).select { |p|
             begin
               is_file = !File.directory?(p)
-              if File.readable?(p) && is_file
-                if @limit_recently_modified && File.mtime(p) < (date - @limit_recently_modified)
+              if (File.readable?(p) || have_read_capability?) && is_file
+                if @limit_recently_modified && File.mtime(p) < (date.to_time - @limit_recently_modified)
                   false
                 else
                   true
                 end
               else
                 if is_file
-                  unless @ignore_list.include?(path)
+                  unless @ignore_list.include?(p)
                     log.warn "#{p} unreadable. It is excluded and would be examined next time."
-                    @ignore_list << path if @ignore_repeated_permission_error
+                    @ignore_list << p if @ignore_repeated_permission_error
                   end
                 end
                 false
               end
-            rescue Errno::ENOENT
+            rescue Errno::ENOENT, Errno::EACCES
               log.debug("#{p} is missing after refresh file list")
               false
             end
@@ -253,8 +320,45 @@ module Fluent::Plugin
           paths << path
         end
       }
-      excluded = @exclude_path.map { |path| path = date.strftime(path); path.include?('*') ? Dir.glob(path) : path }.flatten.uniq
-      paths - excluded
+      excluded = @exclude_path.map { |path|
+        path = if @path_timezone
+                 @exclude_path_formatters[path].call(date)
+               else
+                 date.to_time.strftime(path)
+               end
+        path.include?('*') ? Dir.glob(path) : path
+      }.flatten.uniq
+      # filter out non existing files, so in case pattern is without '*' we don't do unnecessary work
+      hash = {}
+      (paths - excluded).select { |path|
+        FileTest.exist?(path)
+      }.each { |path|
+        # Even we just checked for existence, there is a race condition here as
+        # of which stat() might fail with ENOENT. See #3224.
+        begin
+          target_info = TargetInfo.new(path, Fluent::FileWrapper.stat(path).ino)
+          if @follow_inodes
+            hash[target_info.ino] = target_info
+          else
+            hash[target_info.path] = target_info
+          end
+        rescue Errno::ENOENT, Errno::EACCES  => e
+          $log.warn "expand_paths: stat() for #{path} failed with #{e.class.name}. Skip file."
+        end
+      }
+      hash
+    end
+
+    def existence_path
+      hash = {}
+      @tails.each_key {|target_info|
+        if @follow_inodes
+          hash[target_info.ino] = target_info
+        else
+          hash[target_info.path] = target_info
+        end
+      }
+      hash
     end
 
     # in_tail with '*' path doesn't check rotation file equality at refresh phase.
@@ -263,78 +367,110 @@ module Fluent::Plugin
     # In such case, you should separate log directory and specify two paths in path parameter.
     # e.g. path /path/to/dir/*,/path/to/rotated_logs/target_file
     def refresh_watchers
-      target_paths = expand_paths
-      existence_paths = @tails.keys
+      target_paths_hash = expand_paths
+      existence_paths_hash = existence_path
 
       log.debug { "tailing paths: target = #{target_paths.join(",")} | existing = #{existence_paths.join(",")}" }
 
-      unwatched = existence_paths - target_paths
-      added = target_paths - existence_paths
+      unwatched_hash = existence_paths_hash.reject {|key, value| target_paths_hash.key?(key)}
+      added_hash = target_paths_hash.reject {|key, value| existence_paths_hash.key?(key)}
 
-      stop_watchers(unwatched, immediate: false, unwatched: true) unless unwatched.empty?
-      start_watchers(added) unless added.empty?
+      stop_watchers(unwatched_hash, immediate: false, unwatched: true) unless unwatched_hash.empty?
+      start_watchers(added_hash) unless added_hash.empty?
     end
 
-    def setup_watcher(path, pe)
-      line_buffer_timer_flusher = (@multiline_mode && @multiline_flush_interval) ? TailWatcher::LineBufferTimerFlusher.new(log, @multiline_flush_interval, &method(:flush_buffer)) : nil
-      tw = TailWatcher.new(path, @rotate_wait, pe, log, @read_from_head, @enable_watch_timer, @enable_stat_watcher, @read_lines_limit, method(:update_watcher), line_buffer_timer_flusher, @from_encoding, @encoding, open_on_every_update, &method(:receive_lines))
-      tw.attach do |watcher|
-        event_loop_attach(watcher.timer_trigger) if watcher.timer_trigger
-        event_loop_attach(watcher.stat_trigger) if watcher.stat_trigger
+    def setup_watcher(target_info, pe)
+      line_buffer_timer_flusher = @multiline_mode ? TailWatcher::LineBufferTimerFlusher.new(log, @multiline_flush_interval, &method(:flush_buffer)) : nil
+      tw = TailWatcher.new(target_info, pe, log, @read_from_head, @follow_inodes, method(:update_watcher), line_buffer_timer_flusher, method(:io_handler), @metrics)
+
+      if @enable_watch_timer
+        tt = TimerTrigger.new(1, log) { tw.on_notify }
+        tw.register_watcher(tt)
       end
+
+      if @enable_stat_watcher
+        tt = StatWatcher.new(path, log) { tw.on_notify }
+        tw.register_watcher(tt)
+      end
+
+      tw.watchers.each do |watcher|
+        event_loop_attach(watcher)
+      end
+
       tw
     rescue => e
       if tw
-        tw.detach { |watcher|
-          event_loop_detach(watcher.timer_trigger) if watcher.timer_trigger
-          event_loop_detach(watcher.stat_trigger) if watcher.stat_trigger
-        }
+        tw.watchers.each do |watcher|
+          event_loop_detach(watcher)
+        end
+
+        tw.detach(@shutdown_start_time)
         tw.close
       end
       raise e
     end
 
-    def start_watchers(paths)
-      paths.each { |path|
-        pe = nil
-        if @pf
-          pe = @pf[path]
-          if @read_from_head && pe.read_inode.zero?
-            begin
-              pe.update(Fluent::FileWrapper.stat(path).ino, 0)
-            rescue Errno::ENOENT
-              $log.warn "#{path} not found. Continuing without tailing it."
-            end
+    def construct_watcher(target_info)
+      pe = nil
+      if @pf
+        pe = @pf[target_info]
+        if @read_from_head && pe.read_inode.zero?
+          begin
+            pe.update(Fluent::FileWrapper.stat(target_info.path).ino, 0)
+          rescue Errno::ENOENT, Errno::EACCES
+            $log.warn "stat() for #{target_info.path} failed. Continuing without tailing it."
           end
         end
+      end
 
-        begin
-          tw = setup_watcher(path, pe)
-        rescue WatcherSetupError => e
-          log.warn "Skip #{path} because unexpected setup error happens: #{e}"
-          next
-        end
-        @tails[path] = tw
+      begin
+        tw = setup_watcher(target_info, pe)
+      rescue WatcherSetupError => e
+        log.warn "Skip #{target_info.path} because unexpected setup error happens: #{e}"
+        return
+      end
+
+      begin
+        target_info = TargetInfo.new(target_info.path, Fluent::FileWrapper.stat(target_info.path).ino)
+        @tails.delete(target_info)
+        @tails[target_info] = tw
+        tw.on_notify
+      rescue Errno::ENOENT, Errno::EACCES => e
+        $log.warn "stat() for #{target_info.path} failed with #{e.class.name}. Drop tail watcher for now."
+        # explicitly detach and unwatch watcher `tw`.
+        tw.unwatched = true
+        detach_watcher(tw, target_info.ino, false)
+      end
+    end
+
+    def start_watchers(targets_info)
+      targets_info.each_value {|target_info|
+        construct_watcher(target_info)
+        break if before_shutdown?
       }
     end
 
-    def stop_watchers(paths, immediate: false, unwatched: false, remove_watcher: true)
-      paths.each { |path|
-        tw = remove_watcher ? @tails.delete(path) : @tails[path]
+    def stop_watchers(targets_info, immediate: false, unwatched: false, remove_watcher: true)
+      targets_info.each_value { |target_info|
+        if remove_watcher
+          tw = @tails.delete(target_info)
+        else
+          tw = @tails[target_info]
+        end
         if tw
           tw.unwatched = unwatched
           if immediate
-            detach_watcher(tw, false)
+            detach_watcher(tw, target_info.ino, false)
           else
-            detach_watcher_after_rotate_wait(tw)
+            detach_watcher_after_rotate_wait(tw, target_info.ino)
           end
         end
       }
     end
 
     def close_watcher_handles
-      @tails.keys.each do |path|
-        tw = @tails.delete(path)
+      @tails.keys.each do |target_info|
+        tw = @tails.delete(target_info)
         if tw
           tw.close
         end
@@ -342,59 +478,111 @@ module Fluent::Plugin
     end
 
     # refresh_watchers calls @tails.keys so we don't use stop_watcher -> start_watcher sequence for safety.
-    def update_watcher(path, pe)
+    def update_watcher(target_info, pe)
+      log.info("detected rotation of #{target_info.path}; waiting #{@rotate_wait} seconds")
+
       if @pf
-        unless pe.read_inode == @pf[path].read_inode
+        pe_inode = pe.read_inode
+        target_info_from_position_entry = TargetInfo.new(target_info.path, pe_inode)
+        unless pe_inode == @pf[target_info_from_position_entry].read_inode
           log.debug "Skip update_watcher because watcher has been already updated by other inotify event"
           return
         end
       end
-      rotated_tw = @tails[path]
-      @tails[path] = setup_watcher(path, pe)
-      detach_watcher_after_rotate_wait(rotated_tw) if rotated_tw
+
+      rotated_target_info = TargetInfo.new(target_info.path, pe.read_inode)
+      rotated_tw = @tails[rotated_target_info]
+      new_target_info = target_info.dup
+
+      if @follow_inodes
+        new_position_entry = @pf[target_info]
+
+        if new_position_entry.read_inode == 0
+          # When follow_inodes is true, it's not cleaned up by refresh_watcher.
+          # So it should be unwatched here explicitly.
+          rotated_tw.unwatched = true
+          # Make sure to delete old key, it has a different ino while the hash key is same.
+          @tails.delete(rotated_target_info)
+          @tails[new_target_info] = setup_watcher(new_target_info, new_position_entry)
+          @tails[new_target_info].on_notify
+        end
+      else
+        # Make sure to delete old key, it has a different ino while the hash key is same.
+        @tails.delete(rotated_target_info)
+        @tails[new_target_info] = setup_watcher(new_target_info, pe)
+        @tails[new_target_info].on_notify
+      end
+      detach_watcher_after_rotate_wait(rotated_tw, pe.read_inode) if rotated_tw
     end
 
     # TailWatcher#close is called by another thread at shutdown phase.
     # It causes 'can't modify string; temporarily locked' error in IOHandler
     # so adding close_io argument to avoid this problem.
     # At shutdown, IOHandler's io will be released automatically after detached the event loop
-    def detach_watcher(tw, close_io = true)
-      tw.detach { |watcher|
-        event_loop_detach(watcher.timer_trigger) if watcher.timer_trigger
-        event_loop_detach(watcher.stat_trigger) if watcher.stat_trigger
-      }
+    def detach_watcher(tw, ino, close_io = true)
+      tw.watchers.each do |watcher|
+        event_loop_detach(watcher)
+      end
+      tw.detach(@shutdown_start_time)
+
       tw.close if close_io
-      flush_buffer(tw)
+
       if tw.unwatched && @pf
-        @pf[tw.path].update_pos(PositionFile::UNWATCHED_POSITION)
+        target_info = TargetInfo.new(tw.path, ino)
+        @pf.unwatch(target_info)
       end
     end
 
-    def detach_watcher_after_rotate_wait(tw)
+    def detach_watcher_after_rotate_wait(tw, ino)
       # Call event_loop_attach/event_loop_detach is high-cost for short-live object.
       # If this has a problem with large number of files, use @_event_loop directly instead of timer_execute.
-      timer_execute(:in_tail_close_watcher, @rotate_wait, repeat: false) do
-        detach_watcher(tw)
+      if @open_on_every_update
+        # Detach now because it's already closed, waiting it doesn't make sense.
+        detach_watcher(tw, ino)
+      elsif @read_bytes_limit_per_second < 0
+        # throttling isn't enabled, just wait @rotate_wait
+        timer_execute(:in_tail_close_watcher, @rotate_wait, repeat: false) do
+          detach_watcher(tw, ino)
+        end
+      else
+        # When the throttling feature is enabled, it might not reach EOF yet.
+        # Should ensure to read all contents before closing it, with keeping throttling.
+        start_time_to_wait = Fluent::Clock.now
+        timer = timer_execute(:in_tail_close_watcher, 1, repeat: true) do
+          elapsed = Fluent::Clock.now - start_time_to_wait
+          if tw.eof? && elapsed >= @rotate_wait
+            timer.detach
+            detach_watcher(tw, ino)
+          end
+        end
       end
     end
 
-    def flush_buffer(tw)
-      if lb = tw.line_buffer
-        lb.chomp!
-        @parser.parse(lb) { |time, record|
-          if time && record
+    def flush_buffer(tw, buf)
+      buf.chomp!
+      @parser.parse(buf) { |time, record|
+        if time && record
+          tag = if @tag_prefix || @tag_suffix
+                  @tag_prefix + tw.tag + @tag_suffix
+                else
+                  @tag
+                end
+          record[@path_key] ||= tw.path unless @path_key.nil?
+          router.emit(tag, time, record)
+        else
+          if @emit_unmatched_lines
+            record = { 'unmatched_line' => buf }
+            record[@path_key] ||= tail_watcher.path unless @path_key.nil?
             tag = if @tag_prefix || @tag_suffix
                     @tag_prefix + tw.tag + @tag_suffix
                   else
                     @tag
                   end
-            record[@path_key] ||= tw.path unless @path_key.nil?
-            router.emit(tag, time, record)
-          else
-            log.warn "got incomplete line at shutdown from #{tw.path}: #{lb.inspect}"
+            router.emit(tag, Fluent::EventTime.now, record)
           end
-        }
-      end
+          log.warn "got incomplete line at shutdown from #{tw.path}: #{buf.inspect}"
+        end
+      }
     end
 
     # @return true if no error or unrecoverable error happens in emit action. false if got BufferOverflowError
@@ -449,11 +637,12 @@ module Fluent::Plugin
       es
     end
 
+    # No need to check if line_buffer_timer_flusher is nil, since line_buffer_timer_flusher should exist
     def parse_multilines(lines, tail_watcher)
-      lb = tail_watcher.line_buffer
+      lb = tail_watcher.line_buffer_timer_flusher.line_buffer
       es = Fluent::MultiEventStream.new
       if @parser.has_firstline?
-        tail_watcher.line_buffer_timer_flusher.reset_timer if tail_watcher.line_buffer_timer_flusher
+        tail_watcher.line_buffer_timer_flusher.reset_timer
         lines.each { |line|
           if @parser.firstline?(line)
             if lb
@@ -483,59 +672,107 @@ module Fluent::Plugin
           }
         end
       end
-      tail_watcher.line_buffer = lb
+      tail_watcher.line_buffer_timer_flusher.line_buffer = lb
       es
     end
 
-    class TailWatcher
-      def initialize(path, rotate_wait, pe, log, read_from_head, enable_watch_timer, enable_stat_watcher, read_lines_limit, update_watcher, line_buffer_timer_flusher, from_encoding, encoding, open_on_every_update, &receive_lines)
-        @path = path
-        @rotate_wait = rotate_wait
-        @pe = pe || MemoryPositionEntry.new
-        @read_from_head = read_from_head
-        @enable_watch_timer = enable_watch_timer
-        @enable_stat_watcher = enable_stat_watcher
-        @read_lines_limit = read_lines_limit
-        @receive_lines = receive_lines
-        @update_watcher = update_watcher
+    def statistics
+      stats = super
 
-        @stat_trigger = @enable_stat_watcher ? StatWatcher.new(self, &method(:on_notify)) : nil
-        @timer_trigger = @enable_watch_timer ? TimerTrigger.new(1, log, &method(:on_notify)) : nil
+      stats = {
+        'input' => stats["input"].merge({
+          'opened_file_count' => @metrics.opened.get,
+          'closed_file_count' => @metrics.closed.get,
+          'rotated_file_count' => @metrics.rotated.get,
+        })
+      }
+      stats
+    end
 
-        @rotate_handler = RotateHandler.new(self, &method(:on_rotate))
-        @io_handler = nil
+    private
+
+    def io_handler(watcher, path)
+      TailWatcher::IOHandler.new(
+        watcher,
+        path: path,
+        log: log,
+        read_lines_limit: @read_lines_limit,
+        read_bytes_limit_per_second: @read_bytes_limit_per_second,
+        open_on_every_update: @open_on_every_update,
+        from_encoding: @from_encoding,
+        encoding: @encoding,
+        metrics: @metrics,
+        &method(:receive_lines)
+      )
+    end
+
+    class StatWatcher < Coolio::StatWatcher
+      def initialize(path, log, &callback)
+        @callback = callback
         @log = log
-
-        @line_buffer_timer_flusher = line_buffer_timer_flusher
-        @from_encoding = from_encoding
-        @encoding = encoding
-        @open_on_every_update = open_on_every_update
+        super(path)
       end
 
-      attr_reader :path
-      attr_reader :log, :pe, :read_lines_limit, :open_on_every_update
-      attr_reader :from_encoding, :encoding
-      attr_reader :stat_trigger, :enable_watch_timer, :enable_stat_watcher
-      attr_accessor :timer_trigger
-      attr_accessor :line_buffer, :line_buffer_timer_flusher
+      def on_change(prev, cur)
+        @callback.call
+      rescue
+        @log.error $!.to_s
+        @log.error_backtrace
+      end
+    end
+
+    class TimerTrigger < Coolio::TimerWatcher
+      def initialize(interval, log, &callback)
+        @log = log
+        @callback = callback
+        super(interval, true)
+      end
+
+      def on_timer
+        @callback.call
+      rescue => e
+        @log.error e.to_s
+        @log.error_backtrace
+      end
+    end
+
+    class TailWatcher
+      def initialize(target_info, pe, log, read_from_head, follow_inodes, update_watcher, line_buffer_timer_flusher, io_handler_build, metrics)
+        @path = target_info.path
+        @ino = target_info.ino
+        @pe = pe || MemoryPositionEntry.new
+        @read_from_head = read_from_head
+        @follow_inodes = follow_inodes
+        @update_watcher = update_watcher
+        @log = log
+        @rotate_handler = RotateHandler.new(log, &method(:on_rotate))
+        @line_buffer_timer_flusher = line_buffer_timer_flusher
+        @io_handler = nil
+        @io_handler_build = io_handler_build
+        @metrics = metrics
+        @watchers = []
+      end
+
+      attr_reader :path, :ino
+      attr_reader :pe
+      attr_reader :line_buffer_timer_flusher
       attr_accessor :unwatched  # This is used for removing position entry from PositionFile
+      attr_reader :watchers
 
       def tag
         @parsed_tag ||= @path.tr('/', '.').gsub(/\.+/, '.').gsub(/^\./, '')
       end
 
-      def wrap_receive_lines(lines)
-        @receive_lines.call(lines, self)
+      def register_watcher(watcher)
+        @watchers << watcher
       end
 
-      def attach
-        on_notify
-        yield self
-      end
-
-      def detach
-        yield self
-        @io_handler.on_notify if @io_handler
+      def detach(shutdown_start_time = nil)
+        if @io_handler
+          @io_handler.ready_to_shutdown(shutdown_start_time)
+          @io_handler.on_notify
+        end
+        @line_buffer_timer_flusher&.close(self)
       end
 
       def close
@@ -545,10 +782,14 @@ module Fluent::Plugin
         end
       end
 
+      def eof?
+        @io_handler.nil? || @io_handler.eof?
+      end
+
       def on_notify
         begin
           stat = Fluent::FileWrapper.stat(@path)
-        rescue Errno::ENOENT
+        rescue Errno::ENOENT, Errno::EACCES
           # moved or deleted
           stat = nil
         end
@@ -588,7 +829,7 @@ module Fluent::Plugin
               pos = @read_from_head ? 0 : fsize
               @pe.update(inode, pos)
             end
-            @io_handler = IOHandler.new(self, &method(:wrap_receive_lines))
+            @io_handler = io_handler
           else
             @io_handler = NullIOHandler.new
           end
@@ -613,16 +854,34 @@ module Fluent::Plugin
             watcher_needs_update = true
           end
 
-          log_msg = "detected rotation of #{@path}"
-          log_msg << "; waiting #{@rotate_wait} seconds" if watcher_needs_update # wait rotate_time if previous file exists
-          @log.info log_msg
-
           if watcher_needs_update
-            @update_watcher.call(@path, swap_state(@pe))
+            if @follow_inodes
+              # No need to update a watcher if stat is nil (file not present), because moving to inodes will create
+              # new watcher, and old watcher will be closed by stop_watcher in refresh_watchers method
+              # don't want to swap state because we need latest read offset in pos file even after rotate_wait
+              if stat
+                target_info = TargetInfo.new(@path, stat.ino)
+                @update_watcher.call(target_info, @pe)
+              end
+            else
+              # Permit to handle if stat is nil (file not present).
+              # If a file is mv-ed and a new file is created during
+              # calling `#refresh_watchers`s, and `#refresh_watchers` won't run `#start_watchers`
+              # and `#stop_watchers()` for the path because `target_paths_hash`
+              # always contains the path.
+              target_info = TargetInfo.new(@path, stat ? stat.ino : nil)
+              @update_watcher.call(target_info, swap_state(@pe))
+            end
           else
-            @io_handler = IOHandler.new(self, &method(:wrap_receive_lines))
+            @log.info "detected rotation of #{@path}"
+            @io_handler = io_handler
           end
+          @metrics.rotated.inc
         end
+      end
+
+      def io_handler
+        @io_handler_build.call(self, @path)
       end
 
       def swap_state(pe)
@@ -631,37 +890,6 @@ module Fluent::Plugin
         mpe.update(pe.read_inode, pe.read_pos)
         @pe = mpe
         pe # This pe will be updated in on_rotate after TailWatcher is initialized
-      end
-
-      class TimerTrigger < Coolio::TimerWatcher
-        def initialize(interval, log, &callback)
-          @callback = callback
-          @log = log
-          super(interval, true)
-        end
-
-        def on_timer
-          @callback.call
-        rescue => e
-          @log.error e.to_s
-          @log.error_backtrace
-        end
-      end
-
-      class StatWatcher < Coolio::StatWatcher
-        def initialize(watcher, &callback)
-          @watcher = watcher
-          @callback = callback
-          super(watcher.path)
-        end
-
-        def on_change(prev, cur)
-          @callback.call
-        rescue
-          # TODO log?
-          @watcher.log.error $!.to_s
-          @watcher.log.error_backtrace
-        end
       end
 
       class FIFO
@@ -723,22 +951,93 @@ module Fluent::Plugin
       end
 
       class IOHandler
-        def initialize(watcher, &receive_lines)
+        BYTES_TO_READ = 8192
+        SHUTDOWN_TIMEOUT = 5
+
+        attr_accessor :shutdown_timeout
+
+        def initialize(watcher, path:, read_lines_limit:, read_bytes_limit_per_second:, log:, open_on_every_update:, from_encoding: nil, encoding: nil, metrics:, &receive_lines)
           @watcher = watcher
+          @path = path
+          @read_lines_limit = read_lines_limit
+          @read_bytes_limit_per_second = read_bytes_limit_per_second
           @receive_lines = receive_lines
-          @fifo = FIFO.new(@watcher.from_encoding || Encoding::ASCII_8BIT, @watcher.encoding || Encoding::ASCII_8BIT)
+          @open_on_every_update = open_on_every_update
+          @fifo = FIFO.new(from_encoding || Encoding::ASCII_8BIT, encoding || Encoding::ASCII_8BIT)
           @iobuf = ''.force_encoding('ASCII-8BIT')
           @lines = []
           @io = nil
           @notify_mutex = Mutex.new
-          @watcher.log.info "following tail of #{@watcher.path}"
+          @log = log
+          @start_reading_time = nil
+          @number_bytes_read = 0
+          @shutdown_start_time = nil
+          @shutdown_timeout = SHUTDOWN_TIMEOUT
+          @shutdown_mutex = Mutex.new
+          @eof = false
+          @metrics = metrics
+
+          @log.info "following tail of #{@path}"
         end
 
         def on_notify
           @notify_mutex.synchronize { handle_notify }
         end
 
+        def ready_to_shutdown(shutdown_start_time = nil)
+          @shutdown_mutex.synchronize {
+            @shutdown_start_time =
+              shutdown_start_time || Fluent::Clock.now
+          }
+        end
+
+        def close
+          if @io && !@io.closed?
+            @io.close
+            @io = nil
+            @metrics.closed.inc
+          end
+        end
+
+        def opened?
+          !!@io
+        end
+
+        def eof?
+          @eof
+        end
+
+        private
+
+        def limit_bytes_per_second_reached?
+          return false if @read_bytes_limit_per_second < 0 # not enabled by conf
+          return false if @number_bytes_read < @read_bytes_limit_per_second
+
+          @start_reading_time ||= Fluent::Clock.now
+          time_spent_reading = Fluent::Clock.now - @start_reading_time
+          @log.debug("time_spent_reading: #{time_spent_reading} #{ @watcher.path}")
+
+          if time_spent_reading < 1
+            true
+          else
+            @start_reading_time = nil
+            @number_bytes_read = 0
+            false
+          end
+        end
+
+        def should_shutdown_now?
+          # Ensure to read all remaining lines, but abort immediately if it
+          # seems to take too long time.
+          @shutdown_mutex.synchronize {
+            return false if @shutdown_start_time.nil?
+            return Fluent::Clock.now - @shutdown_start_time > @shutdown_timeout
+          }
+        end
+
         def handle_notify
+          return if limit_bytes_per_second_reached?
+
           with_io do |io|
             begin
               read_more = false
@@ -746,20 +1045,31 @@ module Fluent::Plugin
               if !io.nil? && @lines.empty?
                 begin
                   while true
-                    @fifo << io.readpartial(8192, @iobuf)
+                    @start_reading_time ||= Fluent::Clock.now
+                    data = io.readpartial(BYTES_TO_READ, @iobuf)
+                    @eof = false
+                    @number_bytes_read += data.bytesize
+                    @fifo << data
                     @fifo.read_lines(@lines)
-                    if @lines.size >= @watcher.read_lines_limit
+
+                    if limit_bytes_per_second_reached? || should_shutdown_now?
+                      # Just get out from tailing loop.
+                      read_more = false
+                      break
+                    end
+                    if @lines.size >= @read_lines_limit
                       # not to use too much memory in case the file is very large
                       read_more = true
                       break
                     end
                   end
                 rescue EOFError
+                  @eof = true
                 end
               end
 
               unless @lines.empty?
-                if @receive_lines.call(@lines)
+                if @receive_lines.call(@lines, @watcher)
                   @watcher.pe.update_pos(io.pos - @fifo.bytesize)
                   @lines.clear
                 else
@@ -770,49 +1080,43 @@ module Fluent::Plugin
           end
         end
 
-        def close
-          if @io && !@io.closed?
-            @io.close
-            @io = nil
-          end
-        end
-
-        def opened?
-          !!@io
-        end
-
         def open
-          io = Fluent::FileWrapper.open(@watcher.path)
+          io = Fluent::FileWrapper.open(@path)
           io.seek(@watcher.pe.read_pos + @fifo.bytesize)
+          @metrics.opened.inc
           io
         rescue RangeError
           io.close if io
-          raise WatcherSetupError, "seek error with #{@watcher.path}: file position = #{@watcher.pe.read_pos.to_s(16)}, reading bytesize = #{@fifo.bytesize.to_s(16)}"
+          raise WatcherSetupError, "seek error with #{@path}: file position = #{@watcher.pe.read_pos.to_s(16)}, reading bytesize = #{@fifo.bytesize.to_s(16)}"
+        rescue Errno::EACCES => e
+          @log.warn "#{e}"
+          nil
         rescue Errno::ENOENT
           nil
         end
 
         def with_io
-          begin
-            if @watcher.open_on_every_update
-              io = open
-              begin
-                yield io
-              ensure
-                io.close unless io.nil?
-              end
-            else
-              @io ||= open
-              yield @io
+          if @open_on_every_update
+            io = open
+            begin
+              yield io
+            ensure
+              io.close unless io.nil?
             end
-          rescue WatcherSetupError => e
-            close
-            raise e
-          rescue
-            @watcher.log.error $!.to_s
-            @watcher.log.error_backtrace
-            close
+          else
+            @io ||= open
+            yield @io
+            @eof = true if @io.nil?
           end
+        rescue WatcherSetupError => e
+          close
+          @eof = true
+          raise e
+        rescue
+          @log.error $!.to_s
+          @log.error_backtrace
+          close
+          @eof = true
         end
       end
 
@@ -832,11 +1136,15 @@ module Fluent::Plugin
         def opened?
           false
         end
+
+        def eof?
+          true
+        end
       end
 
       class RotateHandler
-        def initialize(watcher, &on_rotate)
-          @watcher = watcher
+        def initialize(log, &on_rotate)
+          @log = log
           @inode = nil
           @fsize = -1  # first
           @on_rotate = on_rotate
@@ -851,175 +1159,52 @@ module Fluent::Plugin
             fsize = stat.size
           end
 
-          begin
-            if @inode != inode || fsize < @fsize
-              @on_rotate.call(stat)
-            end
-            @inode = inode
-            @fsize = fsize
+          if @inode != inode || fsize < @fsize
+            @on_rotate.call(stat)
           end
-
+          @inode = inode
+          @fsize = fsize
         rescue
-          @watcher.log.error $!.to_s
-          @watcher.log.error_backtrace
+          @log.error $!.to_s
+          @log.error_backtrace
         end
       end
 
       class LineBufferTimerFlusher
+        attr_accessor :line_buffer
+
         def initialize(log, flush_interval, &flush_method)
           @log = log
           @flush_interval = flush_interval
           @flush_method = flush_method
           @start = nil
+          @line_buffer = nil
         end
 
         def on_notify(tw)
-          if @start && @flush_interval
-            if Time.now - @start >= @flush_interval
-              @flush_method.call(tw)
-              tw.line_buffer = nil
-              @start = nil
-            end
+          unless @start && @flush_method
+            return
           end
+
+          if Time.now - @start >= @flush_interval
+            @flush_method.call(tw, @line_buffer) if @line_buffer
+            @line_buffer = nil
+            @start = nil
+          end
+        end
+
+        def close(tw)
+          return unless @line_buffer
+
+          @flush_method.call(tw, @line_buffer)
+          @line_buffer = nil
         end
 
         def reset_timer
+          return unless @flush_interval
+
           @start = Time.now
         end
-      end
-    end
-
-    class PositionFile
-      UNWATCHED_POSITION = 0xffffffffffffffff
-
-      def initialize(file, file_mutex, map, last_pos)
-        @file = file
-        @file_mutex = file_mutex
-        @map = map
-        @last_pos = last_pos
-      end
-
-      def [](path)
-        if m = @map[path]
-          return m
-        end
-
-        @file_mutex.synchronize {
-          @file.pos = @last_pos
-          @file.write "#{path}\t0000000000000000\t0000000000000000\n"
-          seek = @last_pos + path.bytesize + 1
-          @last_pos = @file.pos
-          @map[path] = FilePositionEntry.new(@file, @file_mutex, seek, 0, 0)
-        }
-      end
-
-      def self.parse(file)
-        compact(file)
-
-        file_mutex = Mutex.new
-        map = {}
-        file.pos = 0
-        file.each_line {|line|
-          m = /^([^\t]+)\t([0-9a-fA-F]+)\t([0-9a-fA-F]+)/.match(line)
-          unless m
-            $log.warn "Unparsable line in pos_file: #{line}"
-            next
-          end
-          path = m[1]
-          pos = m[2].to_i(16)
-          ino = m[3].to_i(16)
-          seek = file.pos - line.bytesize + path.bytesize + 1
-          map[path] = FilePositionEntry.new(file, file_mutex, seek, pos, ino)
-        }
-        new(file, file_mutex, map, file.pos)
-      end
-
-      # Clean up unwatched file entries
-      def self.compact(file)
-        file.pos = 0
-        existent_entries = file.each_line.map { |line|
-          m = /^([^\t]+)\t([0-9a-fA-F]+)\t([0-9a-fA-F]+)/.match(line)
-          unless m
-            $log.warn "Unparsable line in pos_file: #{line}"
-            next
-          end
-          path = m[1]
-          pos = m[2].to_i(16)
-          ino = m[3].to_i(16)
-          # 32bit inode converted to 64bit at this phase
-          pos == UNWATCHED_POSITION ? nil : ("%s\t%016x\t%016x\n" % [path, pos, ino])
-        }.compact
-
-        file.pos = 0
-        file.truncate(0)
-        file.write(existent_entries.join)
-      end
-    end
-
-    # pos               inode
-    # ffffffffffffffff\tffffffffffffffff\n
-    class FilePositionEntry
-      POS_SIZE = 16
-      INO_OFFSET = 17
-      INO_SIZE = 16
-      LN_OFFSET = 33
-      SIZE = 34
-
-      def initialize(file, file_mutex, seek, pos, inode)
-        @file = file
-        @file_mutex = file_mutex
-        @seek = seek
-        @pos = pos
-        @inode = inode
-      end
-
-      def update(ino, pos)
-        @file_mutex.synchronize {
-          @file.pos = @seek
-          @file.write "%016x\t%016x" % [pos, ino]
-        }
-        @pos = pos
-        @inode = ino
-      end
-
-      def update_pos(pos)
-        @file_mutex.synchronize {
-          @file.pos = @seek
-          @file.write "%016x" % pos
-        }
-        @pos = pos
-      end
-
-      def read_inode
-        @inode
-      end
-
-      def read_pos
-        @pos
-      end
-    end
-
-    class MemoryPositionEntry
-      def initialize
-        @pos = 0
-        @inode = 0
-      end
-
-      def update(ino, pos)
-        @inode = ino
-        @pos = pos
-      end
-
-      def update_pos(pos)
-        @pos = pos
-      end
-
-      def read_pos
-        @pos
-      end
-
-      def read_inode
-        @inode
       end
     end
   end

@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <float.h>
 
-#if defined (__CYGWIN__) || defined(__INTERIX)
+#if defined (__CYGWIN__) || defined(__INTERIX) || defined(_MSC_VER)
 # define strtold(str, endptr)    ((long double) strtod((str), (endptr)))
 #endif /* defined (__CYGWIN__) */
 
@@ -21,7 +21,7 @@ rbffi_longdouble_new(long double ld)
 
     if (RTEST(rb_cBigDecimal) && rb_cBigDecimal != rb_cObject) {
         char buf[128];
-        return rb_funcall(rb_cBigDecimal, rb_intern("new"), 1, rb_str_new(buf, sprintf(buf, "%.35Le", ld)));
+        return rb_funcall(rb_mKernel, rb_intern("BigDecimal"), 1, rb_str_new(buf, sprintf(buf, "%.35Le", ld)));
     }
 
     /* Fall through to handling as a float */
@@ -41,7 +41,9 @@ rbffi_num2longdouble(VALUE value)
 
     if (RTEST(rb_cBigDecimal) && rb_cBigDecimal != rb_cObject && RTEST(rb_obj_is_kind_of(value, rb_cBigDecimal))) {
         VALUE s = rb_funcall(value, rb_intern("to_s"), 1, rb_str_new2("E"));
-        return strtold(RSTRING_PTR(s), NULL);
+        long double ret = strtold(RSTRING_PTR(s), NULL);
+        RB_GC_GUARD(s);
+        return ret;
     }
 
     /* Fall through to handling as a float */

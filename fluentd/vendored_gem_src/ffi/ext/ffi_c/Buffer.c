@@ -28,13 +28,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <ruby.h>
 #include "rbffi.h"
@@ -114,7 +109,7 @@ buffer_initialize(int argc, VALUE* argv, VALUE self)
         }
 
         /* ensure the memory is aligned on at least a 8 byte boundary */
-        p->memory.address = (void *) (((uintptr_t) p->data.storage + 0x7) & (uintptr_t) ~0x7UL);
+        p->memory.address = (void *) (((uintptr_t) p->data.storage + 0x7) & (uintptr_t) ~0x7ULL);
     
         if (p->memory.size > 0 && (nargs < 3 || RTEST(rbClear))) {
             memset(p->memory.address, 0, p->memory.size);
@@ -154,7 +149,7 @@ buffer_initialize_copy(VALUE self, VALUE other)
         return Qnil;
     }
     
-    dst->memory.address = (void *) (((uintptr_t) dst->data.storage + 0x7) & (uintptr_t) ~0x7UL);
+    dst->memory.address = (void *) (((uintptr_t) dst->data.storage + 0x7) & (uintptr_t) ~0x7ULL);
     dst->memory.size = src->size;
     dst->memory.typeSize = src->typeSize;
     

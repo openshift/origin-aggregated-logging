@@ -24,10 +24,6 @@ describe Elasticsearch::Transport::Client do
     end
   end
 
-  it 'is aliased as Elasticsearch::Client' do
-    expect(Elasticsearch::Client.new).to be_a(described_class)
-  end
-
   it 'has a default transport' do
     expect(client.transport).to be_a(Elasticsearch::Transport::Client::DEFAULT_TRANSPORT_CLASS)
   end
@@ -231,13 +227,14 @@ describe Elasticsearch::Transport::Client do
 
   describe 'adapter' do
     context 'when no adapter is specified' do
-      let(:adapter) do
-        client.transport.connections.all.first.connection.builder.adapter
-      end
+      fork do
+        let(:client) { described_class.new }
+        let(:adapter) { client.transport.connections.all.first.connection.builder.adapter }
 
-      it 'uses Faraday NetHttp' do
-        expect(adapter).to eq Faraday::Adapter::NetHttp
-      end
+        it 'uses Faraday NetHttp' do
+          expect(adapter).to eq Faraday::Adapter::NetHttp
+        end
+      end unless jruby?
     end
 
     context 'when the adapter is patron' do
@@ -246,7 +243,7 @@ describe Elasticsearch::Transport::Client do
       end
 
       let(:client) do
-        described_class.new(adapter: :patron)
+        described_class.new(adapter: :patron, enable_meta_header: false)
       end
 
       it 'uses Faraday with the adapter' do
@@ -260,13 +257,13 @@ describe Elasticsearch::Transport::Client do
       end
 
       let(:client) do
-        described_class.new(adapter: :typhoeus)
+        described_class.new(adapter: :typhoeus, enable_meta_header: false)
       end
 
       it 'uses Faraday with the adapter' do
         expect(adapter).to eq Faraday::Adapter::Typhoeus
       end
-    end
+    end unless jruby?
 
     context 'when the adapter is specified as a string key' do
       let(:adapter) do
@@ -274,7 +271,7 @@ describe Elasticsearch::Transport::Client do
       end
 
       let(:client) do
-        described_class.new('adapter' => :patron)
+        described_class.new(adapter: :patron, enable_meta_header: false)
       end
 
       it 'uses Faraday with the adapter' do
@@ -328,7 +325,11 @@ describe Elasticsearch::Transport::Client do
   context 'when cloud credentials are provided' do
 
     let(:client) do
-      described_class.new(cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elastic', password: 'changeme')
+      described_class.new(
+        cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==',
+        user: 'elastic',
+        password: 'changeme'
+      )
     end
 
     let(:hosts) do
@@ -340,17 +341,19 @@ describe Elasticsearch::Transport::Client do
       expect(hosts[0][:protocol]).to eq('https')
       expect(hosts[0][:user]).to eq('elastic')
       expect(hosts[0][:password]).to eq('changeme')
-      expect(hosts[0][:port]).to eq(9243)
+      expect(hosts[0][:port]).to eq(443)
     end
 
     it 'creates the correct full url' do
-      expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elastic:changeme@abcd.localhost:9243')
+      expect(
+        client.transport.__full_url(client.transport.hosts[0])
+      ).to eq('https://elastic:changeme@abcd.localhost:443')
     end
 
     context 'when a port is specified' do
 
       let(:client) do
-        described_class.new(cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elastic', password: 'changeme', port: 9200 )
+        described_class.new(cloud_id: 'name:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elastic', password: 'changeme', port: 9250)
       end
 
       it 'sets the specified port along with the cloud credentials' do
@@ -358,18 +361,22 @@ describe Elasticsearch::Transport::Client do
         expect(hosts[0][:protocol]).to eq('https')
         expect(hosts[0][:user]).to eq('elastic')
         expect(hosts[0][:password]).to eq('changeme')
-        expect(hosts[0][:port]).to eq(9200)
+        expect(hosts[0][:port]).to eq(9250)
       end
 
       it 'creates the correct full url' do
-        expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elastic:changeme@abcd.localhost:9200')
+        expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elastic:changeme@abcd.localhost:9250')
       end
     end
 
     context 'when the cluster has alternate names' do
 
       let(:client) do
-        described_class.new(cloud_id: 'myCluster:bG9jYWxob3N0JGFiY2QkZWZnaA==', user: 'elasticfantastic', password: 'tobechanged')
+        described_class.new(
+          cloud_id: 'myCluster:bG9jYWxob3N0JGFiY2QkZWZnaA==',
+          user: 'elasticfantastic',
+          password: 'tobechanged'
+        )
       end
 
       let(:hosts) do
@@ -381,124 +388,334 @@ describe Elasticsearch::Transport::Client do
         expect(hosts[0][:protocol]).to eq('https')
         expect(hosts[0][:user]).to eq('elasticfantastic')
         expect(hosts[0][:password]).to eq('tobechanged')
-        expect(hosts[0][:port]).to eq(9243)
+        expect(hosts[0][:port]).to eq(443)
       end
 
       it 'creates the correct full url' do
-        expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://elasticfantastic:tobechanged@abcd.localhost:9243')
+        expect(
+          client.transport.__full_url(client.transport.hosts[0])
+        ).to eq('https://elasticfantastic:tobechanged@abcd.localhost:443')
+      end
+    end
+
+    context 'when decoded cloud id has a trailing dollar sign' do
+      let(:client) do
+        described_class.new(
+          cloud_id: 'a_cluster:bG9jYWxob3N0JGFiY2Qk',
+          user: 'elasticfantastic',
+          password: 'changeme'
+        )
       end
 
+      let(:hosts) do
+        client.transport.hosts
+      end
+
+      it 'extracts the cloud credentials' do
+        expect(hosts[0][:host]).to eq('abcd.localhost')
+        expect(hosts[0][:protocol]).to eq('https')
+        expect(hosts[0][:user]).to eq('elasticfantastic')
+        expect(hosts[0][:password]).to eq('changeme')
+        expect(hosts[0][:port]).to eq(443)
+      end
+
+      it 'creates the correct full url' do
+        expect(
+          client.transport.__full_url(client.transport.hosts[0])
+        ).to eq('https://elasticfantastic:changeme@abcd.localhost:443')
+      end
+    end
+
+    context 'when the cloud host provides a port' do
+      let(:client) do
+        described_class.new(
+          cloud_id: 'name:ZWxhc3RpY19zZXJ2ZXI6OTI0MyRlbGFzdGljX2lk',
+          user: 'elastic',
+          password: 'changeme'
+        )
+      end
+
+      let(:hosts) do
+        client.transport.hosts
+      end
+
+      it 'creates the correct full url' do
+        expect(hosts[0][:host]).to eq('elastic_id.elastic_server')
+        expect(hosts[0][:protocol]).to eq('https')
+        expect(hosts[0][:user]).to eq('elastic')
+        expect(hosts[0][:password]).to eq('changeme')
+        expect(hosts[0][:port]).to eq(9243)
+      end
+    end
+
+    context 'when the cloud host provides a port and the port is also specified' do
+      let(:client) do
+        described_class.new(
+          cloud_id: 'name:ZWxhc3RpY19zZXJ2ZXI6OTI0MyRlbGFzdGljX2lk',
+          user: 'elastic',
+          password: 'changeme',
+          port: 9200
+        )
+      end
+
+      let(:hosts) do
+        client.transport.hosts
+      end
+
+      it 'creates the correct full url' do
+        expect(hosts[0][:host]).to eq('elastic_id.elastic_server')
+        expect(hosts[0][:protocol]).to eq('https')
+        expect(hosts[0][:user]).to eq('elastic')
+        expect(hosts[0][:password]).to eq('changeme')
+        expect(hosts[0][:port]).to eq(9243)
+      end
     end
   end
 
   shared_examples_for 'a client that extracts hosts' do
 
-    context 'when the hosts are a String' do
+    context 'when the host is a String' do
 
-      let(:host) do
-        'myhost'
-      end
+      context 'when there is a protocol specified' do
 
-      it 'extracts the host' do
-        expect(hosts[0][:host]).to eq('myhost')
-        expect(hosts[0][:protocol]).to eq('http')
-        expect(hosts[0][:port]).to be(9200)
-      end
+        context 'when credentials are specified \'http://USERNAME:PASSWORD@myhost:8080\'' do
 
-      context 'when IPv6 format is used' do
+          let(:host) do
+            'http://USERNAME:PASSWORD@myhost:8080'
+          end
 
-        around do |example|
-          original_setting = Faraday.ignore_env_proxy
-          Faraday.ignore_env_proxy = true
-          example.run
-          Faraday.ignore_env_proxy = original_setting
+          it 'extracts the credentials' do
+            expect(hosts[0][:user]).to eq('USERNAME')
+            expect(hosts[0][:password]).to eq('PASSWORD')
+          end
+
+          it 'extracts the host' do
+            expect(hosts[0][:host]).to eq('myhost')
+          end
+
+          it 'extracts the port' do
+            expect(hosts[0][:port]).to be(8080)
+          end
         end
+
+        context 'when there is a trailing slash \'http://myhost/\'' do
+
+          let(:host) do
+            'http://myhost/'
+          end
+
+          it 'extracts the host' do
+            expect(hosts[0][:host]).to eq('myhost')
+            expect(hosts[0][:scheme]).to eq('http')
+            expect(hosts[0][:path]).to eq('')
+          end
+
+          it 'extracts the scheme' do
+            expect(hosts[0][:scheme]).to eq('http')
+          end
+
+          it 'extracts the path' do
+            expect(hosts[0][:path]).to eq('')
+          end
+        end
+
+        context 'when there is a trailing slash with a path \'http://myhost/foo/bar/\'' do
+
+          let(:host) do
+            'http://myhost/foo/bar/'
+          end
+
+          it 'extracts the host' do
+            expect(hosts[0][:host]).to eq('myhost')
+            expect(hosts[0][:scheme]).to eq('http')
+            expect(hosts[0][:path]).to eq('/foo/bar')
+          end
+        end
+
+        context 'when the protocol is http' do
+
+          context 'when there is no port specified \'http://myhost\'' do
+
+            let(:host) do
+              'http://myhost'
+            end
+
+            it 'extracts the host' do
+              expect(hosts[0][:host]).to eq('myhost')
+            end
+
+            it 'extracts the protocol' do
+              expect(hosts[0][:protocol]).to eq('http')
+            end
+
+            it 'defaults to port 9200' do
+              expect(hosts[0][:port]).to be(9200)
+            end
+          end
+
+          context 'when there is a port specified \'http://myhost:7101\'' do
+
+            let(:host) do
+              'http://myhost:7101'
+            end
+
+            it 'extracts the host' do
+              expect(hosts[0][:host]).to eq('myhost')
+            end
+
+            it 'extracts the protocol' do
+              expect(hosts[0][:protocol]).to eq('http')
+            end
+
+            it 'extracts the port' do
+              expect(hosts[0][:port]).to be(7101)
+            end
+
+            context 'when there is a path specified \'http://myhost:7101/api\'' do
+
+              let(:host) do
+                'http://myhost:7101/api'
+              end
+
+              it 'sets the path' do
+                expect(hosts[0][:host]).to eq('myhost')
+                expect(hosts[0][:protocol]).to eq('http')
+                expect(hosts[0][:path]).to eq('/api')
+                expect(hosts[0][:port]).to be(7101)
+              end
+
+              it 'extracts the host' do
+                expect(hosts[0][:host]).to eq('myhost')
+              end
+
+              it 'extracts the protocol' do
+                expect(hosts[0][:protocol]).to eq('http')
+              end
+
+              it 'extracts the port' do
+                expect(hosts[0][:port]).to be(7101)
+              end
+
+              it 'extracts the path' do
+                expect(hosts[0][:path]).to eq('/api')
+              end
+            end
+          end
+        end
+
+        context 'when the protocol is https' do
+
+          context 'when there is no port specified \'https://myhost\'' do
+
+            let(:host) do
+              'https://myhost'
+            end
+
+            it 'extracts the host' do
+              expect(hosts[0][:host]).to eq('myhost')
+            end
+
+            it 'extracts the protocol' do
+              expect(hosts[0][:protocol]).to eq('https')
+            end
+
+            it 'defaults to port 443' do
+              expect(hosts[0][:port]).to be(443)
+            end
+          end
+
+          context 'when there is a port specified \'https://myhost:7101\'' do
+
+            let(:host) do
+              'https://myhost:7101'
+            end
+
+            it 'extracts the host' do
+              expect(hosts[0][:host]).to eq('myhost')
+            end
+
+            it 'extracts the protocol' do
+              expect(hosts[0][:protocol]).to eq('https')
+            end
+
+            it 'extracts the port' do
+              expect(hosts[0][:port]).to be(7101)
+            end
+
+            context 'when there is a path specified \'https://myhost:7101/api\'' do
+
+              let(:host) do
+                'https://myhost:7101/api'
+              end
+
+              it 'extracts the host' do
+                expect(hosts[0][:host]).to eq('myhost')
+              end
+
+              it 'extracts the protocol' do
+                expect(hosts[0][:protocol]).to eq('https')
+              end
+
+              it 'extracts the port' do
+                expect(hosts[0][:port]).to be(7101)
+              end
+
+              it 'extracts the path' do
+                expect(hosts[0][:path]).to eq('/api')
+              end
+            end
+          end
+
+          context 'when IPv6 format is used' do
+
+            around do |example|
+              original_setting = Faraday.ignore_env_proxy
+              Faraday.ignore_env_proxy = true
+              example.run
+              Faraday.ignore_env_proxy = original_setting
+            end
+
+            let(:host) do
+              'https://[2090:db8:85a3:9811::1f]:8080'
+            end
+
+            it 'extracts the host' do
+              expect(hosts[0][:host]).to eq('[2090:db8:85a3:9811::1f]')
+            end
+
+            it 'extracts the protocol' do
+              expect(hosts[0][:protocol]).to eq('https')
+            end
+
+            it 'extracts the port' do
+              expect(hosts[0][:port]).to be(8080)
+            end
+
+            it 'creates the correct full url' do
+              expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://[2090:db8:85a3:9811::1f]:8080')
+            end
+          end
+        end
+      end
+
+      context 'when no protocol is specified \'myhost\'' do
 
         let(:host) do
-          'https://[2090:db8:85a3:9811::1f]:8080'
+          'myhost'
         end
 
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('[2090:db8:85a3:9811::1f]')
-          expect(hosts[0][:scheme]).to eq('https')
-          expect(hosts[0][:port]).to be(8080)
-        end
-
-        it 'creates the correct full url' do
-          expect(client.transport.__full_url(client.transport.hosts[0])).to eq('https://[2090:db8:85a3:9811::1f]:8080')
-        end
-      end
-
-      context 'when a path is specified' do
-
-        let(:host) do
-          'https://myhost:8080/api'
-        end
-
-        it 'extracts the host' do
+        it 'defaults to http' do
           expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:scheme]).to eq('https')
-          expect(hosts[0][:path]).to eq('/api')
-          expect(hosts[0][:port]).to be(8080)
-        end
-      end
-
-      context 'when a scheme is specified' do
-
-        let(:host) do
-          'https://myhost:8080'
+          expect(hosts[0][:protocol]).to eq('http')
         end
 
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:scheme]).to eq('https')
-          expect(hosts[0][:port]).to be(8080)
-        end
-      end
-
-      context 'when credentials are specified' do
-
-        let(:host) do
-          'http://USERNAME:PASSWORD@myhost:8080'
-        end
-
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:scheme]).to eq('http')
-          expect(hosts[0][:user]).to eq('USERNAME')
-          expect(hosts[0][:password]).to eq('PASSWORD')
-          expect(hosts[0][:port]).to be(8080)
-        end
-      end
-
-      context 'when there is a trailing slash' do
-
-        let(:host) do
-          'http://myhost/'
-        end
-
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:scheme]).to eq('http')
-          expect(hosts[0][:path]).to eq('')
-        end
-      end
-
-      context 'when there is a trailing slash with a path' do
-
-        let(:host) do
-          'http://myhost/foo/bar/'
-        end
-
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:scheme]).to eq('http')
-          expect(hosts[0][:path]).to eq('/foo/bar')
+        it 'uses port 9200' do
+          expect(hosts[0][:port]).to be(9200)
         end
       end
     end
 
-    context 'when the hosts are a Hash' do
+    context 'when the host is a Hash' do
 
       let(:host) do
         { :host => 'myhost', :scheme => 'https' }
@@ -506,7 +723,13 @@ describe Elasticsearch::Transport::Client do
 
       it 'extracts the host' do
         expect(hosts[0][:host]).to eq('myhost')
-        expect(hosts[0][:scheme]).to eq('https')
+      end
+
+      it 'extracts the protocol' do
+        expect(hosts[0][:protocol]).to eq('https')
+      end
+
+      it 'extracts the port' do
         expect(hosts[0][:port]).to be(9200)
       end
 
@@ -565,7 +788,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
+        end
+
+        it 'extracts the protocol' do
           expect(hosts[0][:scheme]).to eq('https')
+        end
+
+        it 'converts the port to an integer' do
           expect(hosts[0][:port]).to be(443)
         end
       end
@@ -578,7 +807,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
+        end
+
+        it 'extracts the protocol' do
           expect(hosts[0][:scheme]).to eq('https')
+        end
+
+        it 'extracts port as an integer' do
           expect(hosts[0][:port]).to be(443)
         end
       end
@@ -592,7 +827,13 @@ describe Elasticsearch::Transport::Client do
 
       it 'extracts the host' do
         expect(hosts[0][:host]).to eq('myhost')
+      end
+
+      it 'extracts the protocol' do
         expect(hosts[0][:scheme]).to eq('https')
+      end
+
+      it 'converts the port to an integer' do
         expect(hosts[0][:port]).to be(9200)
       end
 
@@ -604,7 +845,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
+        end
+
+        it 'extracts the protocol' do
           expect(hosts[0][:scheme]).to eq('https')
+        end
+
+        it 'converts the port to an integer' do
           expect(hosts[0][:port]).to be(443)
         end
       end
@@ -617,7 +864,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
+        end
+
+        it 'extracts the protocol' do
           expect(hosts[0][:scheme]).to eq('https')
+        end
+
+        it 'extracts port as an integer' do
           expect(hosts[0][:port]).to be(443)
         end
       end
@@ -633,7 +886,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
+        end
+
+        it 'extracts the protocol' do
           expect(hosts[0][:protocol]).to eq('http')
+        end
+
+        it 'defaults to port 9200' do
           expect(hosts[0][:port]).to be(9200)
         end
       end
@@ -646,20 +905,13 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:protocol]).to eq('http')
-          expect(hosts[0][:port]).to be(9200)
-        end
-      end
-
-      context 'when there is one host with a protocol and no port' do
-
-        let(:host) do
-          ['http://myhost']
         end
 
-        it 'extracts the host' do
-          expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:protocol]).to eq('http')
+        it 'extracts the protocol' do
+          expect(hosts[0][:scheme]).to eq('http')
+        end
+
+        it 'defaults to port 9200' do
           expect(hosts[0][:port]).to be(9200)
         end
       end
@@ -684,7 +936,7 @@ describe Elasticsearch::Transport::Client do
         end
       end
 
-      context 'when there is one host with a scheme, protocol and no port' do
+      context 'when there is one host with a protocol and no port' do
 
         let(:host) do
           ['https://myhost']
@@ -692,12 +944,18 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:protocol]).to eq('https')
-          expect(hosts[0][:port]).to be(9200)
+        end
+
+        it 'extracts the protocol' do
+          expect(hosts[0][:scheme]).to eq('https')
+        end
+
+        it 'defaults to port 443' do
+          expect(hosts[0][:port]).to be(443)
         end
       end
 
-      context 'when there is one host with a scheme, protocol, path, and no port' do
+      context 'when there is one host with a protocol, path, and no port' do
 
         let(:host) do
           ['http://myhost/foo/bar']
@@ -705,9 +963,18 @@ describe Elasticsearch::Transport::Client do
 
         it 'extracts the host' do
           expect(hosts[0][:host]).to eq('myhost')
-          expect(hosts[0][:protocol]).to eq('http')
+        end
+
+        it 'extracts the protocol' do
+          expect(hosts[0][:scheme]).to eq('http')
+        end
+
+        it 'defaults to port 9200' do
           expect(hosts[0][:port]).to be(9200)
-          expect(hosts[0][:path]).to eq("/foo/bar")
+        end
+
+        it 'extracts the path' do
+          expect(hosts[0][:path]).to eq('/foo/bar')
         end
       end
 
@@ -717,7 +984,7 @@ describe Elasticsearch::Transport::Client do
           ['host1', 'host2']
         end
 
-        it 'extracts the host' do
+        it 'extracts the hosts' do
           expect(hosts[0][:host]).to eq('host1')
           expect(hosts[0][:protocol]).to eq('http')
           expect(hosts[0][:port]).to be(9200)
@@ -733,7 +1000,7 @@ describe Elasticsearch::Transport::Client do
           ['host1:1000', 'host2:2000']
         end
 
-        it 'extracts the host' do
+        it 'extracts the hosts' do
           expect(hosts[0][:host]).to eq('host1')
           expect(hosts[0][:protocol]).to eq('http')
           expect(hosts[0][:port]).to be(1000)
@@ -1146,15 +1413,55 @@ describe Elasticsearch::Transport::Client do
         let(:client) { described_class.new(host: hosts) }
 
         it 'doesnae raise an ArgumentError' do
-          expect { client.search(opaque_id: 'no_error') }.not_to raise_error
+          expect { client.perform_request('GET', '_search', opaque_id: 'no_error') }.not_to raise_error
         end
 
         it 'uses X-Opaque-Id in the header' do
           allow(client).to receive(:perform_request) { OpenStruct.new(body: '') }
-          expect { client.search(opaque_id: 'opaque_id') }.not_to raise_error
+          expect { client.perform_request('GET', '_search', {}, nil, opaque_id: 'opaque_id') }.not_to raise_error
           expect(client).to have_received(:perform_request)
-            .with('GET', '_search', { opaque_id: 'opaque_id' }, nil, {})
+                              .with('GET', '_search', {}, nil, { opaque_id: 'opaque_id' })
         end
+      end
+    end
+
+    context 'when using the API Compatibility Header' do
+      it 'sets the API compatibility headers' do
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = 'true'
+        client = described_class.new(host: hosts)
+        headers = client.transport.connections.first.connection.headers
+
+        expect(headers['Content-Type']).to eq('application/vnd.elasticsearch+json; compatible-with=7')
+        expect(headers['Accept']).to eq('application/vnd.elasticsearch+json;compatible-with=7')
+
+        response = client.perform_request('GET', '/')
+        expect(response.headers['content-type']).to eq('application/json; charset=UTF-8')
+
+        ENV.delete('ELASTIC_CLIENT_APIVERSIONING')
+      end
+
+      it 'does not use API compatibility headers' do
+        val = ENV.delete('ELASTIC_CLIENT_APIVERSIONING')
+        client = described_class.new(host: hosts)
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = val
+      end
+
+      it 'does not use API compatibility headers when it is set to unsupported values' do
+        val = ENV.delete('ELASTIC_CLIENT_APIVERSIONING')
+
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = 'test'
+        client = described_class.new(host: hosts)
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
+
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = 'false'
+        client = described_class.new(host: hosts)
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
+
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = '3'
+        client = described_class.new(host: hosts)
+        expect(client.transport.connections.first.connection.headers['Content-Type']).to eq('application/json')
+        ENV['ELASTIC_CLIENT_APIVERSIONING'] = val
       end
     end
 
@@ -1190,9 +1497,30 @@ describe Elasticsearch::Transport::Client do
 
       it 'performs the request with the header' do
         allow(client).to receive(:perform_request) { OpenStruct.new(body: '') }
-        expect { client.search(headers: headers) }.not_to raise_error
+        expect { client.perform_request('GET', '_search', {}, nil, headers) }.not_to raise_error
         expect(client).to have_received(:perform_request)
-          .with('GET', '_search', {}, nil, headers)
+                            .with('GET', '_search', {}, nil, headers)
+      end
+    end
+
+    context 'when a header is set on an endpoint request and on initialization' do
+      let!(:client) do
+        described_class.new(
+          host: hosts,
+          transport_options: { headers: instance_headers }
+        )
+      end
+      let(:instance_headers) { { set_in_instantiation: 'header value' } }
+      let(:param_headers) { {'user-agent' => 'My Ruby Tests', 'set-on-method-call' => 'header value'} }
+
+      it 'performs the request with the header' do
+        expected_headers = client.transport.connections.connections.first.connection.headers.merge(param_headers)
+
+        expect_any_instance_of(Faraday::Connection)
+          .to receive(:run_request)
+                .with(:get, "http://#{hosts[0]}/_search", nil, expected_headers) { OpenStruct.new(body: '')}
+
+        client.perform_request('GET', '_search', {}, nil, param_headers)
       end
     end
   end
@@ -1229,7 +1557,6 @@ describe Elasticsearch::Transport::Client do
     end
 
     context 'when a request is made' do
-
       let!(:response) do
         client.perform_request('GET', '_cluster/health')
       end
@@ -1240,9 +1567,7 @@ describe Elasticsearch::Transport::Client do
     end
 
     describe '#initialize' do
-
       context 'when options are specified' do
-
         let(:transport_options) do
           { headers: { accept: 'application/yaml', content_type: 'application/yaml' } }
         end
@@ -1258,9 +1583,8 @@ describe Elasticsearch::Transport::Client do
       end
 
       context 'when a block is provided' do
-
         let(:client) do
-          Elasticsearch::Client.new(host: ELASTICSEARCH_HOSTS.first, logger: logger) do |client|
+          described_class.new(host: ELASTICSEARCH_HOSTS.first, logger: logger) do |client|
             client.headers['Accept'] = 'application/yaml'
           end
         end
@@ -1276,7 +1600,7 @@ describe Elasticsearch::Transport::Client do
 
         context 'when the Faraday adapter is set in the block' do
           let(:client) do
-            Elasticsearch::Client.new(host: ELASTICSEARCH_HOSTS.first, logger: logger) do |client|
+            described_class.new(host: ELASTICSEARCH_HOSTS.first, logger: logger) do |client|
               client.adapter(:net_http_persistent)
             end
           end
@@ -1414,7 +1738,7 @@ describe Elasticsearch::Transport::Client do
           context 'when using the HTTPClient adapter' do
 
             let(:client) do
-              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :httpclient)
+              described_class.new(hosts: ELASTICSEARCH_HOSTS, compression: true, adapter: :httpclient, enable_meta_header: false)
             end
 
             it 'compresses the request and decompresses the response' do
@@ -1485,16 +1809,17 @@ describe Elasticsearch::Transport::Client do
             it 'preserves the other headers' do
               expect(client.transport.connections[0].connection.headers['User-Agent'])
             end
-          end
+          end unless jruby?
         end
       end
 
       context 'when using Curb as the transport', unless: jruby? do
-
         let(:client) do
-          described_class.new(hosts: ELASTICSEARCH_HOSTS,
-                              compression: true,
-                              transport_class: Elasticsearch::Transport::Transport::HTTP::Curb)
+          described_class.new(
+            hosts: ELASTICSEARCH_HOSTS,
+            compression: true,
+            transport_class: Elasticsearch::Transport::Transport::HTTP::Curb
+          )
         end
 
         it 'compresses the request and decompresses the response' do
@@ -1511,7 +1836,6 @@ describe Elasticsearch::Transport::Client do
       end
 
       context 'when using Manticore as the transport', if: jruby? do
-
         let(:client) do
           described_class.new(hosts: ELASTICSEARCH_HOSTS,
                               compression: true,
@@ -1525,9 +1849,7 @@ describe Elasticsearch::Transport::Client do
     end
 
     describe '#perform_request' do
-
       context 'when a request is made' do
-
         before do
           client.perform_request('DELETE', '_all')
           client.perform_request('DELETE', 'myindex') rescue
@@ -1550,7 +1872,6 @@ describe Elasticsearch::Transport::Client do
       end
 
       context 'when an invalid url is specified' do
-
         it 'raises an exception' do
           expect {
             client.perform_request('GET', 'myindex/mydoc/1?routing=FOOBARBAZ')
@@ -1559,7 +1880,6 @@ describe Elasticsearch::Transport::Client do
       end
 
       context 'when the \'ignore\' parameter is specified' do
-
         let(:response) do
           client.perform_request('PUT', '_foobar', ignore: 400)
         end
@@ -1596,7 +1916,7 @@ describe Elasticsearch::Transport::Client do
           end
 
           let(:node_names) do
-            client.nodes.stats['nodes'].collect do |name, stats|
+            client.perform_request('GET', '_nodes/stats').body('nodes').collect do |name, stats|
               stats['name']
             end
           end
@@ -1615,7 +1935,6 @@ describe Elasticsearch::Transport::Client do
       end
 
       context 'when patron is used as an adapter', unless: jruby? do
-
         before do
           require 'patron'
         end

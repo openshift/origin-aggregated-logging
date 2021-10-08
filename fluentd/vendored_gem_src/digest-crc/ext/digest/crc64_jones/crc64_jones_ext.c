@@ -23,5 +23,6 @@ void Init_crc64_jones_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC64Jones = rb_const_get(mDigest, rb_intern("CRC64Jones"));
 
+	rb_undef_method(cCRC64Jones, "update");
 	rb_define_method(cCRC64Jones, "update", Digest_CRC64Jones_update, 1);
 }

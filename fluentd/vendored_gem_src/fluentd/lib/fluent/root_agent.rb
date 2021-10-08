@@ -55,9 +55,11 @@ module Fluent
       @suppress_emit_error_log_interval = 0
       @next_emit_error_log_time = nil
       @without_source = false
+      @enable_input_metrics = false
 
       suppress_interval(system_config.emit_error_log_interval) unless system_config.emit_error_log_interval.nil?
       @without_source = system_config.without_source unless system_config.without_source.nil?
+      @enable_input_metrics = !!system_config.enable_input_metrics
     end
 
     attr_reader :inputs
@@ -89,7 +91,7 @@ module Fluent
               raise Fluent::ConfigError, "worker id #{target_worker_id} specified by <worker> directive is not allowed. Available worker id is between 0 and #{(Fluent::Engine.system_config.workers - 1)}"
             end
             available_worker_ids.delete(target_worker_id) if available_worker_ids.include?(target_worker_id)
-            if used_worker_ids.include?(target_worker_id) && !Fluent::Engine.dry_run_mode
+            if used_worker_ids.include?(target_worker_id)
               raise Fluent::ConfigError, "specified worker_id<#{worker_id}> collisions is detected on <worker> directive. Available worker id(s): #{available_worker_ids}"
             end
             used_worker_ids << target_worker_id
@@ -100,9 +102,6 @@ module Fluent
               end
             end
 
-            # On dry_run mode, all worker sections have to be configured on supervisor (recognized as worker_id = 0).
-            target_worker_ids = [0] if Fluent::Engine.dry_run_mode
-
             unless target_worker_ids.empty?
               e.set_target_worker_ids(target_worker_ids.uniq)
             end
@@ -112,9 +111,6 @@ module Fluent
           if target_worker_id < 0 || target_worker_id > (Fluent::Engine.system_config.workers - 1)
             raise Fluent::ConfigError, "worker id #{target_worker_id} specified by <worker> directive is not allowed. Available worker id is between 0 and #{(Fluent::Engine.system_config.workers - 1)}"
           end
-
-          ## On dry_run mode, all worker sections have to be configured on supervisor (recognized as worker_id = 0).
-          target_worker_id = 0 if Fluent::Engine.dry_run_mode
 
           e.elements.each do |elem|
             unless ['source', 'match', 'filter', 'label'].include?(elem.name)
@@ -132,9 +128,12 @@ module Fluent
       # initialize <label> elements before configuring all plugins to avoid 'label not found' in input, filter and output.
       label_configs = {}
       conf.elements(name: 'label').each { |e|
-        next if e.for_another_worker?
+        if !Fluent::Engine.supervisor_mode && e.for_another_worker?
+          next
+        end
         name = e.arg
         raise ConfigError, "Missing symbol argument on <label> directive" if name.empty?
+        raise ConfigError, "@ROOT for <label> is not permitted, reserved for getting root router" if name == '@ROOT'
 
         if name == ERROR_LABEL
           error_label_config = e
@@ -154,7 +153,9 @@ module Fluent
         log.info :worker0, "'--without-source' is applied. Ignore <source> sections"
       else
         conf.elements(name: 'source').each { |e|
-          next if e.for_another_worker?
+          if !Fluent::Engine.supervisor_mode && e.for_another_worker?
+            next
+          end
           type = e['@type']
           raise ConfigError, "Missing '@type' parameter on <source> directive" unless type
           add_source(type, e)
@@ -165,7 +166,6 @@ module Fluent
     def setup_error_label(e)
       error_label = add_label(ERROR_LABEL)
       error_label.configure(e)
-      error_label.root_agent = RootAgentProxyWithoutErrorCollector.new(self)
       @error_collector = error_label.event_router
     end
 
@@ -318,6 +318,9 @@ module Fluent
       # See also 'fluentd/plugin/input.rb'
       input.context_router = @event_router
       input.configure(conf)
+      if @enable_input_metrics
+        @event_router.add_metric_callbacks(input.plugin_id, Proc.new {|es| input.metric_callback(es) })
+      end
       @inputs << input
 
       input
@@ -363,35 +366,6 @@ module Fluent
           @next_emit_error_log_time = now + @suppress_emit_error_log_interval
         end
         raise error
-      end
-    end
-
-    # <label @ERROR> element use RootAgent wrapped by # this RootAgentProxyWithoutErrorCollector.
-    # So that those elements don't send cause infinite loop.
-    class RootAgentProxyWithoutErrorCollector < SimpleDelegator
-      def initialize(root_agent)
-        super
-
-        @suppress_emit_error_log_interval = 0
-        @next_emit_error_log_time = nil
-
-        interval_time = root_agent.instance_variable_get(:@suppress_emit_error_log_interval)
-        suppress_interval(interval_time) unless interval_time.zero?
-      end
-
-      def emit_error_event(tag, time, record, error)
-        error_info = {error: error, location: (error.backtrace ? error.backtrace.first : nil), tag: tag, time: time, record: record}
-        log.warn "dump an error event in @ERROR:", error_info
-      end
-
-      def handle_emits_error(tag, es, e)
-        now = EventTime.now.to_i
-        if @suppress_emit_error_log_interval.zero? || now > @next_emit_error_log_time
-          log.warn "emit transaction failed in @ERROR:", error: e, tag: tag
-          log.warn_backtrace
-          @next_emit_error_log_time = now + @suppress_emit_error_log_interval
-        end
-        raise e
       end
     end
   end

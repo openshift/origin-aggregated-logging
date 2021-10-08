@@ -15,11 +15,13 @@
 #
 
 require 'fluent/plugin/formatter'
-require 'fluent/env'
+require 'fluent/oj_options'
 
 module Fluent
   module Plugin
     class JSONFormatter < Formatter
+      include Fluent::Plugin::Newline::Mixin
+
       Plugin.register_formatter('json', self)
 
       config_param :json_parser, :string, default: 'oj'
@@ -28,12 +30,14 @@ module Fluent
       def configure(conf)
         super
 
-        begin
-          raise LoadError unless @json_parser == 'oj'
-          require 'oj'
-          Oj.default_options = Fluent::DEFAULT_OJ_OPTIONS
-          @dump_proc = Oj.method(:dump)
-        rescue LoadError
+        if @json_parser == 'oj'
+          if Fluent::OjOptions.available?
+            @dump_proc = Oj.method(:dump)
+          else
+            log.info "Oj isn't installed, fallback to Yajl as json parser"
+            @dump_proc = Yajl.method(:dump)
+          end
+        else
           @dump_proc = Yajl.method(:dump)
         end
 
@@ -44,7 +48,7 @@ module Fluent
       end
 
       def format(tag, time, record)
-        "#{@dump_proc.call(record)}\n"
+        "#{@dump_proc.call(record)}#{@newline}"
       end
 
       def format_without_nl(tag, time, record)

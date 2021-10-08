@@ -498,7 +498,7 @@ proc run-many-tests { testcases extra_flags } {
         if [info exists env(LIBFFI_TEST_OPTIMIZATION)] {
 	  set optimizations [ list $env(LIBFFI_TEST_OPTIMIZATION) ]
         } else { 
-          set optimizations { "-O0" "-O2" "-O2 -fomit-frame-pointer" }
+          set optimizations { "-O0" "-O2" }
         }
       }
       default {
@@ -553,10 +553,13 @@ proc run-many-tests { testcases extra_flags } {
 					   && [string match "*callback*" $testname] ) \
 				  || [string match "*DGTEST=55 *" $common] \
 				  || [string match "*DGTEST=56 *" $common] ) } then {
-		    set has_gccbug true;
+		    if [libffi_feature_test "#if (__GNUC__ < 9) || ((__GNUC__ == 9) && (__GNUC_MINOR__ < 3))"] {
+			set has_gccbug true;
+		    }
 		}
-                verbose "Testing $testname, $options" 1
-                dg-test $test $options ""
+		verbose "Testing $testname, $options" 1
+		verbose "has_gccbug = $has_gccbug" 1
+		dg-test $test $options ""
             }
         }
     }

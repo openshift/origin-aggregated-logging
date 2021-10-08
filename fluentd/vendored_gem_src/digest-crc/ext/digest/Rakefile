@@ -13,14 +13,6 @@ rescue LoadError
   fail_gracefully "mkmf is not installed"
 end
 
-MAKE = $make # set by mkmf
-       
-def make(target=nil)
-  if target then sh(MAKE,target)
-  else           sh(MAKE)
-  end
-end
-
 CRCS  = Dir['crc*']
 DLEXT = MakeMakefile::CONFIG['DLEXT']
 
@@ -29,7 +21,9 @@ CRCS.each do |crc|
 
   file "#{crc}/Makefile" => "#{crc}/extconf.rb" do
     Dir.chdir(crc) do
-      unless ruby('-S', 'extconf.rb')
+      begin
+        ruby '-S', 'extconf.rb'
+      rescue
         fail_gracefully "extconf.rb failed"
       end
     end
@@ -39,9 +33,10 @@ CRCS.each do |crc|
 
   file "#{crc}/#{crc_ext_lib}" => "#{crc}/Makefile" do
     Dir.chdir(crc) do
-      make 'clean'
-
-      unless make
+      begin
+        sh 'make', 'clean'
+        sh 'make'
+      rescue
         fail_gracefully "Unable to build C extensions"
       end
     end

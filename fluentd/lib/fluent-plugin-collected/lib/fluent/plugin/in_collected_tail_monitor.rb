@@ -95,11 +95,11 @@ module Fluent::Plugin
           if pe.read_inode == old_inode && pe.read_pos >= old_pos
             # Same file, has not been truncated since last we looked. Add the delta.
             @log.trace "delta bytes #{pe.read_pos}  #{old_pos}"
-            @metrics[:total_bytes_collected].increment(label, pe.read_pos - old_pos)
+            @metrics[:total_bytes_collected].increment(by: pe.read_pos - old_pos, labels: label)
           else
             # Changed file or truncated the existing file. Add the initial content.
             @log.trace "delta bytes #{pe.read_pos}"
-            @metrics[:total_bytes_collected].increment(label, pe.read_pos)
+            @metrics[:total_bytes_collected].increment(by: pe.read_pos, labels: label)
           end
         end
       end
@@ -141,7 +141,11 @@ module Fluent::Plugin
       if @registry.exist?(name)
         @registry.get(name)
       else
-        @registry.counter(name, docstring)
+        @registry.counter(
+          name,
+          docstring: docstring,
+          labels: [:hostname, :plugin_id, :type, :path, :namespace, :podname, :containername]
+        )
       end
     end
 

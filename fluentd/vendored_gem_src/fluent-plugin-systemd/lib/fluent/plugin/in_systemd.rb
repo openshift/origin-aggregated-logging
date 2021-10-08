@@ -21,7 +21,7 @@ require 'fluent/plugin/systemd/entry_mutator'
 module Fluent
   module Plugin
     # Fluentd plugin for reading from the systemd journal
-    class SystemdInput < Input
+    class SystemdInput < Input # rubocop:disable Metrics/ClassLength
       Fluent::Plugin.register_input('systemd', self)
 
       helpers :timer, :storage
@@ -57,7 +57,17 @@ module Fluent
 
       def start
         super
+        @running = true
         timer_execute(:in_systemd_emit_worker, 1, &method(:run))
+      end
+
+      def shutdown
+        @running = false
+        @journal&.close
+        @journal = nil
+        @pos_storage = nil
+        @mutator = nil
+        super
       end
 
       private
@@ -92,6 +102,7 @@ module Fluent
       def seek_to(pos)
         @journal.seek(pos)
         return if pos == :head
+
         if pos == :tail
           @journal.move(-2)
         else
@@ -105,6 +116,7 @@ module Fluent
 
       def run
         return unless @journal || init_journal
+
         init_journal if @journal.wait(0) == :invalidate
         watch do |entry|
           emit(entry)
@@ -116,6 +128,7 @@ module Fluent
       rescue Fluent::Plugin::Buffer::BufferOverflowError => e
         retries ||= 0
         raise e if retries > 10
+
         retries += 1
         sleep 1.5**retries + rand(0..3)
         retry
@@ -128,7 +141,9 @@ module Fluent
       end
 
       def watch(&block)
-        yield_current_entry(&block) while @journal.move_next
+        yield_current_entry(&block) while @running && @journal.move_next
+      rescue Systemd::JournalError => e
+        log.warn("Error moving to next Journal entry: #{e.class}: #{e.message}")
       end
 
       def yield_current_entry

@@ -20,7 +20,7 @@ module Elasticsearch
     module Actions
       # Returns information and statistics about terms in the fields of a particular document.
       #
-      # @option arguments [String] :index The index in which the document resides.  (*Required*)
+      # @option arguments [String] :index The index in which the document resides. (*Required*)
       # @option arguments [String] :id The id of the document, when not specified a doc param should be supplied.
       # @option arguments [String] :type The type of the document.
       # @option arguments [Boolean] :term_statistics Specifies if total term frequency and document frequency should be returned.
@@ -33,9 +33,7 @@ module Elasticsearch
       # @option arguments [String] :routing Specific routing value.
       # @option arguments [Boolean] :realtime Specifies if request is real-time as opposed to near-real-time (default: true).
       # @option arguments [Number] :version Explicit version number for concurrency control
-      # @option arguments [String] :version_type Specific version type
-      #   (options: internal,external,external_gte,force)
-
+      # @option arguments [String] :version_type Specific version type (options: internal, external, external_gte, force)
       # @option arguments [Hash] :headers Custom HTTP headers
       # @option arguments [Hash] :body Define parameters and or supply a document to get termvectors for. See documentation.
       #
@@ -44,7 +42,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/docs-termvectors.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/docs-termvectors.html
       #
       def termvectors(arguments = {})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
@@ -59,18 +57,22 @@ module Elasticsearch
 
         _type = arguments.delete(:type)
 
-        method = Elasticsearch::API::HTTP_GET
+        method = if arguments[:body]
+                   Elasticsearch::API::HTTP_POST
+                 else
+                   Elasticsearch::API::HTTP_GET
+                 end
 
         endpoint = arguments.delete(:endpoint) || '_termvectors'
-        path = if _index && _type && _id
-                 "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{Utils.__listify(_id)}/#{endpoint}"
-               elsif _index && _type
-                 "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{endpoint}"
-               elsif _index && _id
-                 "#{Utils.__listify(_index)}/#{endpoint}/#{Utils.__listify(_id)}"
-               else
-                 "#{Utils.__listify(_index)}/#{endpoint}"
-  end
+        path   = if _index && _type && _id
+                   "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{Utils.__listify(_id)}/#{endpoint}"
+                 elsif _index && _type
+                   "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{endpoint}"
+                 elsif _index && _id
+                   "#{Utils.__listify(_index)}/#{endpoint}/#{Utils.__listify(_id)}"
+                 else
+                   "#{Utils.__listify(_index)}/#{endpoint}"
+                 end
 
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
@@ -83,6 +85,7 @@ module Elasticsearch
       def termvector(arguments = {})
         termvectors(arguments.merge endpoint: '_termvector')
       end
+
       # Register this action with its valid params when the module is loaded.
       #
       # @since 6.2.0
@@ -100,5 +103,5 @@ module Elasticsearch
         :version_type
       ].freeze)
     end
-    end
+  end
 end

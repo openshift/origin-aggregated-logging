@@ -22,7 +22,7 @@ module Elasticsearch
       #
       # @option arguments [String] :id The document ID
       # @option arguments [String] :index The name of the index
-      # @option arguments [String] :type The type of the document; deprecated and optional starting with 7.0   *Deprecated*
+      # @option arguments [String] :type The type of the document; deprecated and optional starting with 7.0 *Deprecated*
       # @option arguments [String] :preference Specify the node or shard the operation should be performed on (default: random)
       # @option arguments [Boolean] :realtime Specify whether to perform the operation in realtime or search mode
       # @option arguments [Boolean] :refresh Refresh the shard containing the document before performing the operation
@@ -31,9 +31,7 @@ module Elasticsearch
       # @option arguments [List] :_source_excludes A list of fields to exclude from the returned _source field
       # @option arguments [List] :_source_includes A list of fields to extract and return from the _source field
       # @option arguments [Number] :version Explicit version number for concurrency control
-      # @option arguments [String] :version_type Specific version type
-      #   (options: internal,external,external_gte,force)
-
+      # @option arguments [String] :version_type Specific version type (options: internal, external, external_gte, force)
       # @option arguments [Hash] :headers Custom HTTP headers
       #
       # *Deprecation notice*:
@@ -41,7 +39,7 @@ module Elasticsearch
       # Deprecated since version 7.0.0
       #
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/docs-get.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/docs-get.html
       #
       def get_source(arguments = {})
         raise ArgumentError, "Required argument 'index' missing" unless arguments[:index]
@@ -62,7 +60,7 @@ module Elasticsearch
                    "#{Utils.__listify(_index)}/#{Utils.__listify(_type)}/#{Utils.__listify(_id)}/_source"
                  else
                    "#{Utils.__listify(_index)}/_source/#{Utils.__listify(_id)}"
-  end
+                 end
         params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
         body = nil
@@ -84,5 +82,5 @@ module Elasticsearch
         :version_type
       ].freeze)
     end
-    end
+  end
 end

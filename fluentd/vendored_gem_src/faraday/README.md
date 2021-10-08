@@ -1,9 +1,7 @@
 # [![Faraday](./docs/assets/img/repo-card-slim.png)][website]
 
 [![Gem Version](https://badge.fury.io/rb/faraday.svg)](https://rubygems.org/gems/faraday)
-![GitHub Actions CI](https://github.com/lostisland/faraday/workflows/CI/badge.svg)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/f869daab091ceef1da73/test_coverage)](https://codeclimate.com/github/lostisland/faraday/test_coverage)
-[![Maintainability](https://api.codeclimate.com/v1/badges/f869daab091ceef1da73/maintainability)](https://codeclimate.com/github/lostisland/faraday/maintainability)
+[![GitHub Actions CI](https://github.com/lostisland/faraday/workflows/CI/badge.svg)](https://github.com/lostisland/faraday/actions?query=workflow%3ACI)
 [![Gitter](https://badges.gitter.im/lostisland/faraday.svg)](https://gitter.im/lostisland/faraday?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 
@@ -43,12 +41,12 @@ Open the issues page and check for the `help wanted` label!
 But before you start coding, please read our [Contributing Guide][contributing]
 
 ## Copyright
-&copy; 2009 - 2019, the [Faraday Team][faraday_team]. Website and branding design by [Elena Lo Piccolo](https://elelopic.design).
+&copy; 2009 - 2020, the [Faraday Team][faraday_team]. Website and branding design by [Elena Lo Piccolo](https://elelopic.design).
 
 [website]:      https://lostisland.github.io/faraday
 [faraday_team]: https://lostisland.github.io/faraday/team
 [contributing]: https://github.com/lostisland/faraday/blob/master/.github/CONTRIBUTING.md
-[apidoc]:       http://www.rubydoc.info/gems/faraday
+[apidoc]:       https://www.rubydoc.info/github/lostisland/faraday
 [actions]:      https://github.com/lostisland/faraday/actions
 [jruby]:        http://jruby.org/
 [rubinius]:     http://rubini.us/

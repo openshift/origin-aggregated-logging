@@ -1,133 +1,117 @@
-## Rails 5.2.4.3 (May 18, 2020) ##
+## Rails 6.1.4.1 (August 19, 2021) ##
 
 *   No changes.
 
 
-## Rails 5.2.4.1 (December 18, 2019) ##
+## Rails 6.1.4 (June 24, 2021) ##
+
+*   Fix `to_json` for `ActiveModel::Dirty` object.
+
+    Exclude +mutations_from_database+ attribute from json as it lead to recursion.
+
+    *Anil Maurya*
+
+
+## Rails 6.1.3.2 (May 05, 2021) ##
 
 *   No changes.
 
 
-## Rails 5.2.4 (November 27, 2019) ##
+## Rails 6.1.3.1 (March 26, 2021) ##
 
-*   Type cast falsy boolean symbols on boolean attribute as false.
+*   No changes.
 
-    Fixes #35676.
+
+## Rails 6.1.3 (February 17, 2021) ##
+
+*   No changes.
+
+
+## Rails 6.1.2.1 (February 10, 2021) ##
+
+*   No changes.
+
+
+## Rails 6.1.2 (February 09, 2021) ##
+
+*   No changes.
+
+
+## Rails 6.1.1 (January 07, 2021) ##
+
+*   No changes.
+
+
+## Rails 6.1.0 (December 09, 2020) ##
+
+*   Pass in `base` instead of `base_class` to Error.human_attribute_name
+
+    This is useful in cases where the `human_attribute_name` method depends
+    on other attributes' values of the class under validation to derive what the
+    attribute name should be.
+
+    *Filipe Sabella*
+
+*   Deprecate marshalling load from legacy attributes format.
 
     *Ryuta Kamizono*
 
+*   `*_previously_changed?` accepts `:from` and `:to` keyword arguments like `*_changed?`.
 
-## Rails 5.2.3 (March 27, 2019) ##
+        topic.update!(status: :archived)
+        topic.status_previously_changed?(from: "active", to: "archived")
+        # => true
 
-*   Fix date value when casting a multiparameter date hash to not convert
-    from Gregorian date to Julian date.
+    *George Claghorn*
 
-    Before:
+*   Raise FrozenError when trying to write attributes that aren't backed by the database on an object that is frozen:
 
-        Day.new({"day(1i)"=>"1", "day(2i)"=>"1", "day(3i)"=>"1"})
-        => #<Day id: nil, day: "0001-01-03", created_at: nil, updated_at: nil>
+        class Animal
+          include ActiveModel::Attributes
+          attribute :age
+        end
 
-    After:
+        animal = Animal.new
+        animal.freeze
+        animal.age = 25 # => FrozenError, "can't modify a frozen Animal"
 
-        Day.new({"day(1i)"=>"1", "day(2i)"=>"1", "day(3i)"=>"1"})
-        => #<Day id: nil, day: "0001-01-01", created_at: nil, updated_at: nil>
+    *Josh Brody*
 
-    Fixes #28521.
+*   Add `*_previously_was` attribute methods when dirty tracking. Example:
 
-    *Sayan Chakraborty*
+        pirate.update(catchphrase: "Ahoy!")
+        pirate.previous_changes["catchphrase"] # => ["Thar She Blows!", "Ahoy!"]
+        pirate.catchphrase_previously_was # => "Thar She Blows!"
 
-*   Fix numericality equality validation of `BigDecimal` and `Float`
-    by casting to `BigDecimal` on both ends of the validation.
+    *DHH*
 
-    *Gannon McGibbon*
+*   Encapsulate each validation error as an Error object.
 
+    The `ActiveModel`’s `errors` collection is now an array of these Error
+    objects, instead of messages/details hash.
 
-## Rails 5.2.2.1 (March 11, 2019) ##
+    For each of these `Error` object, its `message` and `full_message` methods
+    are for generating error messages. Its `details` method would return error’s
+    extra parameters, found in the original `details` hash.
 
-*   No changes.
+    The change tries its best at maintaining backward compatibility, however
+    some edge cases won’t be covered, like `errors#first` will return `ActiveModel::Error` and manipulating
+    `errors.messages` and `errors.details` hashes directly will have no effect. Moving forward,
+    please convert those direct manipulations to use provided API methods instead.
 
+    The list of deprecated methods and their planned future behavioral changes at the next major release are:
 
-## Rails 5.2.2 (December 04, 2018) ##
+    * `errors#slice!` will be removed.
+    * `errors#each` with the `key, value` two-arguments block will stop working, while the `error` single-argument block would return `Error` object.
+    * `errors#values` will be removed.
+    * `errors#keys` will be removed.
+    * `errors#to_xml` will be removed.
+    * `errors#to_h` will be removed, and can be replaced with `errors#to_hash`.
+    * Manipulating `errors` itself as a hash will have no effect (e.g. `errors[:foo] = 'bar'`).
+    * Manipulating the hash returned by `errors#messages` (e.g. `errors.messages[:foo] = 'bar'`) will have no effect.
+    * Manipulating the hash returned by `errors#details` (e.g. `errors.details[:foo].clear`) will have no effect.
 
-*   Fix numericality validator to still use value before type cast except Active Record.
-
-    Fixes #33651, #33686.
-
-    *Ryuta Kamizono*
-
-
-## Rails 5.2.1.1 (November 27, 2018) ##
-
-*   No changes.
-
-
-## Rails 5.2.1 (August 07, 2018) ##
-
-*   No changes.
-
-
-## Rails 5.2.0 (April 09, 2018) ##
-
-*   Do not lose all multiple `:includes` with options in serialization.
-
-    *Mike Mangino*
-
-*   Models using the attributes API with a proc default can now be marshalled.
-
-    Fixes #31216.
-
-    *Sean Griffin*
-
-*   Fix to working before/after validation callbacks on multiple contexts.
-
-    *Yoshiyuki Hirano*
-
-*   Execute `ConfirmationValidator` validation when `_confirmation`'s value is `false`.
-
-    *bogdanvlviv*
-
-*   Allow passing a Proc or Symbol to length validator options.
-
-    *Matt Rohrer*
-
-*   Add method `#merge!` for `ActiveModel::Errors`.
-
-    *Jahfer Husain*
-
-*   Fix regression in numericality validator when comparing Decimal and Float input
-    values with more scale than the schema.
-
-    *Bradley Priest*
-
-*   Fix methods `#keys`, `#values` in `ActiveModel::Errors`.
-
-    Change `#keys` to only return the keys that don't have empty messages.
-
-    Change `#values` to only return the not empty values.
-
-    Example:
-
-        # Before
-        person = Person.new
-        person.errors.keys     # => []
-        person.errors.values   # => []
-        person.errors.messages # => {}
-        person.errors[:name]   # => []
-        person.errors.messages # => {:name => []}
-        person.errors.keys     # => [:name]
-        person.errors.values   # => [[]]
-
-        # After
-        person = Person.new
-        person.errors.keys     # => []
-        person.errors.values   # => []
-        person.errors.messages # => {}
-        person.errors[:name]   # => []
-        person.errors.messages # => {:name => []}
-        person.errors.keys     # => []
-        person.errors.values   # => []
-
-    *bogdanvlviv*
+    *lulalala*
 
 
-Please check [5-1-stable](https://github.com/rails/rails/blob/5-1-stable/activemodel/CHANGELOG.md) for previous changes.
+Please check [6-0-stable](https://github.com/rails/rails/blob/6-0-stable/activemodel/CHANGELOG.md) for previous changes.

@@ -23,7 +23,7 @@ module Faraday
     #
     # @return [void]
     def autoload_all(prefix, options)
-      if prefix =~ %r{^faraday(/|$)}i
+      if prefix.match? %r{^faraday(/|$)}i
         prefix = File.join(Faraday.root_path, prefix)
       end
 
@@ -58,16 +58,8 @@ module Faraday
   class Adapter
     extend AutoloadHelper
     autoload_all 'faraday/adapter',
-                 NetHttp: 'net_http',
-                 NetHttpPersistent: 'net_http_persistent',
-                 EMSynchrony: 'em_synchrony',
-                 EMHttp: 'em_http',
                  Typhoeus: 'typhoeus',
-                 Patron: 'patron',
-                 Excon: 'excon',
-                 Test: 'test',
-                 Rack: 'rack',
-                 HTTPClient: 'httpclient'
+                 Test: 'test'
   end
 
   # Request represents a single HTTP request for a Faraday adapter to make.

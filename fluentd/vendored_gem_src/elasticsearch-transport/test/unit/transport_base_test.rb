@@ -263,6 +263,15 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       end
     end
 
+    should 'raise TooManyRequestsError on 429' do
+      @transport.expects(:get_connection).returns(stub_everything :failures => 1)
+      assert_raise Elasticsearch::Transport::Transport::Errors::TooManyRequests do
+        @transport.perform_request 'GET', '/' do
+          Elasticsearch::Transport::Transport::Response.new 429, 'ERROR'
+        end
+      end
+    end
+
     should "not raise an error when the :ignore argument has been passed" do
       @transport.stubs(:get_connection).returns(stub_everything :failures => 1)
 
@@ -310,7 +319,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       @transport.perform_request('GET', '/', &@block)
       assert_equal 2, @transport.counter
     end
-  end unless RUBY_1_8
+  end
 
   context "performing a request with retry on connection failures" do
     setup do
@@ -344,7 +353,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
         @transport.perform_request('GET', '/', &@block)
       end
     end
-  end unless RUBY_1_8
+  end
 
   context "performing a request with retry on status" do
     setup do
@@ -391,7 +400,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
         @transport.perform_request('GET', '/', &@block)
       end
     end
-  end  unless RUBY_1_8
+  end
 
   context "logging" do
     setup do
@@ -429,7 +438,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       @transport.stubs(:get_connection).returns(fake_connection)
 
       @transport.logger.expects(:info).with do |message|
-        assert_match /http:\/\/user:\*{1,15}@localhost\:9200/, message
+        assert_match(/http:\/\/user:\*{1,15}@localhost\:9200/, message)
         true
       end
 
@@ -447,7 +456,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       assert_raise Elasticsearch::Transport::Transport::Errors::InternalServerError do
         @transport.perform_request('POST', '_search', &@block)
       end
-    end unless RUBY_1_8
+    end
 
     should "not log a failed Elasticsearch request as fatal" do
       @block = Proc.new { |c, u| puts "ERROR" }
@@ -458,7 +467,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
 
       # No `BadRequest` error
       @transport.perform_request('POST', '_search', :ignore => 500, &@block)
-    end unless RUBY_1_8
+    end
 
     should "log and re-raise a Ruby exception" do
       @block = Proc.new { |c, u| puts "ERROR" }
@@ -468,7 +477,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       @transport.logger.expects(:fatal)
 
       assert_raise(Exception) { @transport.perform_request('POST', '_search', &@block) }
-    end unless RUBY_1_8
+    end
   end
 
   context "tracing" do
@@ -522,7 +531,7 @@ class Elasticsearch::Transport::Transport::BaseTest < Minitest::Test
       assert_raise Elasticsearch::Transport::Transport::Errors::InternalServerError do
         @transport.perform_request('POST', '_search', &@block)
       end
-    end unless RUBY_1_8
+    end
 
   end
 

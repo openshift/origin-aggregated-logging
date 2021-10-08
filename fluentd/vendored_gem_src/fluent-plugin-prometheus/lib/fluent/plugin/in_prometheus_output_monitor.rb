@@ -1,15 +1,16 @@
-require 'fluent/input'
+require 'fluent/plugin/input'
 require 'fluent/plugin/in_monitor_agent'
 require 'fluent/plugin/prometheus'
 
 module Fluent::Plugin
-  class PrometheusOutputMonitorInput < Fluent::Input
+  class PrometheusOutputMonitorInput < Fluent::Plugin::Input
     Fluent::Plugin.register_input('prometheus_output_monitor', self)
     include Fluent::Plugin::PrometheusLabelParser
 
     helpers :timer
 
     config_param :interval, :time, default: 5
+    config_param :gauge_all, :bool, default: true
     attr_reader :registry
 
     MONITOR_IVARS = [
@@ -53,12 +54,9 @@ module Fluent::Plugin
         @base_labels[key] = expander.expand(value)
       end
 
-      if defined?(Fluent::Plugin) && defined?(Fluent::Plugin::MonitorAgentInput)
-        # from v0.14.6
-        @monitor_agent = Fluent::Plugin::MonitorAgentInput.new
-      else
-        @monitor_agent = Fluent::MonitorAgentInput.new
-      end
+      @monitor_agent = Fluent::Plugin::MonitorAgentInput.new
+
+      @gauge_or_counter = @gauge_all ? :gauge : :counter
     end
 
     def start
@@ -66,57 +64,57 @@ module Fluent::Plugin
 
       @metrics = {
         # Buffer metrics
-        buffer_total_queued_size: @registry.gauge(
+        buffer_total_queued_size: get_gauge(
           :fluentd_output_status_buffer_total_bytes,
           'Current total size of stage and queue buffers.'),
-        buffer_stage_length: @registry.gauge(
+        buffer_stage_length: get_gauge(
           :fluentd_output_status_buffer_stage_length,
           'Current length of stage buffers.'),
-        buffer_stage_byte_size: @registry.gauge(
+        buffer_stage_byte_size: get_gauge(
           :fluentd_output_status_buffer_stage_byte_size,
           'Current total size of stage buffers.'),
-        buffer_queue_length: @registry.gauge(
+        buffer_queue_length: get_gauge(
           :fluentd_output_status_buffer_queue_length,
           'Current length of queue buffers.'),
-        buffer_queue_byte_size: @registry.gauge(
+        buffer_queue_byte_size: get_gauge(
           :fluentd_output_status_queue_byte_size,
           'Current total size of queue buffers.'),
-        buffer_available_buffer_space_ratios: @registry.gauge(
+        buffer_available_buffer_space_ratios: get_gauge(
           :fluentd_output_status_buffer_available_space_ratio,
           'Ratio of available space in buffer.'),
-        buffer_newest_timekey: @registry.gauge(
+        buffer_newest_timekey: get_gauge(
           :fluentd_output_status_buffer_newest_timekey,
           'Newest timekey in buffer.'),
-        buffer_oldest_timekey: @registry.gauge(
+        buffer_oldest_timekey: get_gauge(
           :fluentd_output_status_buffer_oldest_timekey,
           'Oldest timekey in buffer.'),
 
         # Output metrics
-        retry_counts: @registry.gauge(
+        retry_counts: get_gauge_or_counter(
           :fluentd_output_status_retry_count,
           'Current retry counts.'),
-        num_errors: @registry.gauge(
+        num_errors: get_gauge_or_counter(
           :fluentd_output_status_num_errors,
           'Current number of errors.'),
-        emit_count: @registry.gauge(
+        emit_count: get_gauge_or_counter(
           :fluentd_output_status_emit_count,
           'Current emit counts.'),
-        emit_records: @registry.gauge(
+        emit_records: get_gauge_or_counter(
           :fluentd_output_status_emit_records,
           'Current emit records.'),
-        write_count: @registry.gauge(
+        write_count: get_gauge_or_counter(
           :fluentd_output_status_write_count,
           'Current write counts.'),
-        rollback_count: @registry.gauge(
+        rollback_count: get_gauge(
           :fluentd_output_status_rollback_count,
           'Current rollback counts.'),
-        flush_time_count: @registry.gauge(
+        flush_time_count: get_gauge_or_counter(
           :fluentd_output_status_flush_time_count,
           'Total flush time.'),
-        slow_flush_count: @registry.gauge(
+        slow_flush_count: get_gauge_or_counter(
           :fluentd_output_status_slow_flush_count,
           'Current slow flush counts.'),
-        retry_wait: @registry.gauge(
+        retry_wait: get_gauge(
           :fluentd_output_status_retry_wait,
           'Current retry wait'),
       }
@@ -146,7 +144,16 @@ module Fluent::Plugin
 
         # output metrics
         'retry_count' => @metrics[:retry_counts],
+        # Needed since Fluentd v1.14 due to metrics extensions.
+        'num_errors' => @metrics[:num_errors],
+        'write_count' => @metrics[:write_count],
+        'emit_count' => @metrics[:emit_count],
+        'emit_records' => @metrics[:emit_records],
+        'rollback_count' => @metrics[:rollback_count],
+        'flush_time_count' => @metrics[:flush_time_count],
+        'slow_flush_count' => @metrics[:slow_flush_count],
       }
+      # No needed for Fluentd v1.14 but leave as-is for backward compatibility.
       instance_vars_info = {
         num_errors: @metrics[:num_errors],
         write_count: @metrics[:write_count],
@@ -162,14 +169,22 @@ module Fluent::Plugin
 
         monitor_info.each do |name, metric|
           if info[name]
-            metric.set(label, info[name])
+            if metric.is_a?(::Prometheus::Client::Gauge)
+              metric.set(info[name], labels: label)
+            elsif metric.is_a?(::Prometheus::Client::Counter)
+              metric.increment(by: info[name] - metric.get(labels: label), labels: label)
+            end
           end
         end
 
         if info['instance_variables']
           instance_vars_info.each do |name, metric|
             if info['instance_variables'][name]
-              metric.set(label, info['instance_variables'][name])
+              if metric.is_a?(::Prometheus::Client::Gauge)
+                metric.set(info['instance_variables'][name], labels: label)
+              elsif metric.is_a?(::Prometheus::Client::Counter)
+                metric.increment(by: info['instance_variables'][name] - metric.get(labels: label), labels: label)
+              end
             end
           end
         end
@@ -187,7 +202,7 @@ module Fluent::Plugin
           if next_time && start_time
             wait = next_time - start_time
           end
-          @metrics[:retry_wait].set(label, wait.to_f)
+          @metrics[:retry_wait].set(wait.to_f, labels: label)
         end
       end
     end
@@ -197,6 +212,22 @@ module Fluent::Plugin
         plugin_id: plugin_info["plugin_id"],
         type: plugin_info["type"],
       )
+    end
+
+    def get_gauge(name, docstring)
+      if @registry.exist?(name)
+        @registry.get(name)
+      else
+        @registry.gauge(name, docstring: docstring, labels: @base_labels.keys + [:plugin_id, :type])
+      end
+    end
+
+    def get_gauge_or_counter(name, docstring)
+      if @registry.exist?(name)
+        @registry.get(name)
+      else
+        @registry.public_send(@gauge_or_counter, name, docstring: docstring, labels: @base_labels.keys + [:plugin_id, :type])
+      end
     end
   end
 end

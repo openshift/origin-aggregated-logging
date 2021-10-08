@@ -115,7 +115,7 @@ module Excon
           # we already have data from a middleware, so bail
           return datum
         else
-          socket(datum)
+          socket(datum).data = datum
           # start with "METHOD /path"
           request = datum[:method].to_s.upcase + ' '
           if datum[:proxy] && datum[:scheme] != HTTPS
@@ -190,6 +190,11 @@ module Excon
         case error
         when Excon::Errors::InvalidHeaderKey, Excon::Errors::InvalidHeaderValue, Excon::Errors::StubNotFound, Excon::Errors::Timeout
           raise(error)
+        when Errno::EPIPE
+          # Read whatever remains in the pipe to aid in debugging
+          response = socket.read
+          error = Excon::Error.new(response + error.message)
+          raise_socket_error(error)
         else
           raise_socket_error(error)
         end

@@ -17,8 +17,19 @@
 require 'net/http'
 require 'uri'
 require 'openssl'
+require 'fluent/tls'
 require 'fluent/plugin/output'
 require 'fluent/plugin_helper/socket'
+
+# patch Net::HTTP to support extra_chain_cert which was added in Ruby feature #9758.
+# see: https://github.com/ruby/ruby/commit/31af0dafba6d3769d2a39617c0dddedb97883712
+unless Net::HTTP::SSL_IVNAMES.include?(:@extra_chain_cert)
+  class Net::HTTP
+    SSL_IVNAMES << :@extra_chain_cert
+    SSL_ATTRIBUTES << :extra_chain_cert
+    attr_accessor :extra_chain_cert
+  end
+end
 
 module Fluent::Plugin
   class HTTPOutput < Output
@@ -36,8 +47,12 @@ module Fluent::Plugin
     config_param :proxy, :string, default: ENV['HTTP_PROXY'] || ENV['http_proxy']
     desc 'Content-Type for HTTP request'
     config_param :content_type, :string, default: nil
+    desc 'JSON array data format for HTTP request body'
+    config_param :json_array, :bool, default: false
     desc 'Additional headers for HTTP request'
     config_param :headers, :hash, default: nil
+    desc 'Additional placeholder based headers for HTTP request'
+    config_param :headers_from_placeholders, :hash, default: nil
 
     desc 'The connection open timeout in seconds'
     config_param :open_timeout, :integer, default: nil
@@ -57,14 +72,14 @@ module Fluent::Plugin
     desc 'The verify mode of TLS'
     config_param :tls_verify_mode, :enum, list: [:none, :peer], default: :peer
     desc 'The default version of TLS'
-    config_param :tls_version, :enum, list: Fluent::PluginHelper::Socket::TLS_SUPPORTED_VERSIONS, default: Fluent::PluginHelper::Socket::TLS_DEFAULT_VERSION
+    config_param :tls_version, :enum, list: Fluent::TLS::SUPPORTED_VERSIONS, default: Fluent::TLS::DEFAULT_VERSION
     desc 'The cipher configuration of TLS'
-    config_param :tls_ciphers, :string, default: Fluent::PluginHelper::Socket::CIPHERS_DEFAULT
+    config_param :tls_ciphers, :string, default: Fluent::TLS::CIPHERS_DEFAULT
 
     desc 'Raise UnrecoverableError when the response is non success, 4xx/5xx'
     config_param :error_response_as_unrecoverable, :bool, default: true
     desc 'The list of retryable response code'
-    config_param :retryable_response_codes, :array, value_type: :integer, default: [503]
+    config_param :retryable_response_codes, :array, value_type: :integer, default: nil
 
     config_section :format do
       config_set_default :@type, 'json'
@@ -90,10 +105,22 @@ module Fluent::Plugin
     def configure(conf)
       super
 
+      if @retryable_response_codes.nil?
+        log.warn('Status code 503 is going to be removed from default `retryable_response_codes` from fluentd v2. Please add it by yourself if you wish')
+        @retryable_response_codes = [503]
+      end
+
       @http_opt = setup_http_option
       @proxy_uri = URI.parse(@proxy) if @proxy
       @formatter = formatter_create
       @content_type = setup_content_type unless @content_type
+
+      if @json_array
+        if @formatter_configs.first[:@type] != "json"
+          raise Fluent::ConfigError, "json_array option could be used with json formatter only"
+        end
+        define_singleton_method(:format, method(:format_json_array))
+      end
     end
 
     def multi_workers_ready?
@@ -106,6 +133,10 @@ module Fluent::Plugin
 
     def format(tag, time, record)
       @formatter.format(tag, time, record)
+    end
+
+    def format_json_array(tag, time, record)
+      @formatter.format(tag, time, record) << ","
     end
 
     def write(chunk)
@@ -122,7 +153,7 @@ module Fluent::Plugin
     def setup_content_type
       case @formatter_configs.first[:@type]
       when 'json'
-        'application/x-ndjson'
+        @json_array ? 'application/json' : 'application/x-ndjson'
       when 'csv'
         'text/csv'
       when 'tsv', 'ltsv'
@@ -152,7 +183,15 @@ module Fluent::Plugin
         end
         if @tls_client_cert_path
           raise Fluent::ConfigError, "tls_client_cert_path is wrong: #{@tls_client_cert_path}" unless File.file?(@tls_client_cert_path)
-          opt[:cert] = OpenSSL::X509::Certificate.new(File.read(@tls_client_cert_path))
+
+          bundle = File.read(@tls_client_cert_path)
+          bundle_certs = bundle.scan(/-----BEGIN CERTIFICATE-----(?:.|\n)+?-----END CERTIFICATE-----/)
+          opt[:cert] = OpenSSL::X509::Certificate.new(bundle_certs[0])
+
+          intermediate_certs = bundle_certs[1..-1]
+          if intermediate_certs
+            opt[:extra_chain_cert] = intermediate_certs.map { |cert| OpenSSL::X509::Certificate.new(cert) }
+          end
         end
         if @tls_private_key_path
           raise Fluent::ConfigError, "tls_private_key_path is wrong: #{@tls_private_key_path}" unless File.file?(@tls_private_key_path)
@@ -172,14 +211,19 @@ module Fluent::Plugin
     end
 
     def parse_endpoint(chunk)
-      endpoint = extract_placeholders(@endpoint, chunk)    
+      endpoint = extract_placeholders(@endpoint, chunk)
       URI.parse(endpoint)
     end
 
-    def set_headers(req)
+    def set_headers(req, chunk)
       if @headers
         @headers.each do |k, v|
           req[k] = v
+        end
+      end
+      if @headers_from_placeholders
+        @headers_from_placeholders.each do |k, v|
+          req[k] = extract_placeholders(v, chunk)
         end
       end
       req['Content-Type'] = @content_type
@@ -195,8 +239,8 @@ module Fluent::Plugin
       if @auth
         req.basic_auth(@auth.username, @auth.password)
       end
-      set_headers(req)
-      req.body = chunk.read
+      set_headers(req, chunk)
+      req.body = @json_array ? "[#{chunk.read.chop}]" : chunk.read
       req
     end
 
@@ -212,9 +256,9 @@ module Fluent::Plugin
             end
 
       if res.is_a?(Net::HTTPSuccess)
-        log.debug { "#{res.code} #{res.message}#{res.body}" }
+        log.debug { "#{res.code} #{res.message.rstrip}#{res.body.lstrip}" }
       else
-        msg = "#{res.code} #{res.message}#{res.body}"
+        msg = "#{res.code} #{res.message.rstrip} #{res.body.lstrip}"
 
         if @retryable_response_codes.include?(res.code.to_i)
           raise RetryableResponse, msg

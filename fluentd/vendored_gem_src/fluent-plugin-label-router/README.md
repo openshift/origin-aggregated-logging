@@ -13,7 +13,7 @@ $ gem install fluent-plugin-label-router
 ### Specific install
 
 ```
-$ gem install specific_install && gem specific_install -l https://github.com/banzaicloud/fluent-plugin-label-router.git
+$ gem install specific_install && gem specific_install -l https://github.com/banzaicloud/fluent-plugin-label-router.git
 ```
 
 ### Bundler
@@ -114,7 +114,7 @@ Configuration to re-tag and re-label all logs from `default` namespace with labe
 ```
 
 ### 2. Exclude specific `labels` and `namespaces`
-Configuration to re-tag and re-label all logs that **not** from `default` namespace **and not** have labels `ap=nginx` and `env=dev`
+Configuration to re-tag and re-label all logs that **not** from `default` namespace **and not** have labels `app=nginx` and `env=dev`
 ```
 <match example.tag**>
   @type label_router

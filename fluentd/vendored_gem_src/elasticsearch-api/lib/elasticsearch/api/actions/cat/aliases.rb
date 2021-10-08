@@ -28,12 +28,10 @@ module Elasticsearch
         # @option arguments [Boolean] :help Return help information
         # @option arguments [List] :s Comma-separated list of column names or column aliases to sort by
         # @option arguments [Boolean] :v Verbose mode. Display column headers
-        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,hidden,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-alias.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-alias.html
         #
         def aliases(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -47,7 +45,7 @@ module Elasticsearch
                      "_cat/aliases/#{Utils.__listify(_name)}"
                    else
                      "_cat/aliases"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
           params[:h] = Utils.__listify(params[:h]) if params[:h]
 
@@ -67,7 +65,7 @@ module Elasticsearch
           :v,
           :expand_wildcards
         ].freeze)
-end
       end
+    end
   end
 end

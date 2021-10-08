@@ -1,9 +1,8 @@
---- systemd-journal/systemd-journal.gemspec.orig	2019-02-21 16:22:08.609602292 -0700
-+++ systemd-journal/systemd-journal.gemspec	2019-02-21 16:22:15.576604622 -0700
-@@ -14,13 +14,8 @@
-   gem.homepage      = 'https://github.com/ledbettj/systemd-journal'
+--- systemd-journal/systemd-journal.gemspec.orig
++++ systemd-journal/systemd-journal.gemspec
+@@ -15,11 +15,6 @@ Gem::Specification.new do |gem|
  
-   gem.cert_chain    = Dir['certs/*']
+   gem.cert_chain    = Dir['certs/john@throttle.io.pem']
  
 -  if $PROGRAM_NAME.end_with?('gem')
 -    gem.signing_key = ENV['GEM_SIGNING_KEY']
@@ -13,4 +12,3 @@
    gem.files         = `git ls-files`.split($/)
    gem.executables   = gem.files.grep(%r{^bin/}).map { |f| File.basename(f) }
    gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
-   gem.require_paths = ['lib']

@@ -18,6 +18,13 @@ shared_examples 'initializer with url' do
     it { expect(subject.path_prefix).to eq('/fish') }
     it { expect(subject.params).to eq('a' => '1') }
   end
+
+  context 'with IPv6 address' do
+    let(:address) { 'http://[::1]:85/' }
+
+    it { expect(subject.host).to eq('[::1]') }
+    it { expect(subject.port).to eq(85) }
+  end
 end
 
 shared_examples 'default connection options' do
@@ -246,6 +253,13 @@ RSpec.describe Faraday::Connection do
       expect(uri.path).to eq('/sake.html')
     end
 
+    it 'always returns new URI instance' do
+      conn.url_prefix = 'http://sushi.com'
+      uri1 = conn.build_exclusive_url(nil)
+      uri2 = conn.build_exclusive_url(nil)
+      expect(uri1).not_to equal(uri2)
+    end
+
     context 'with url_prefixed connection' do
       let(:url) { 'http://sushi.com/sushi/' }
 
@@ -268,6 +282,29 @@ RSpec.describe Faraday::Connection do
       it 'overrides base' do
         uri = conn.build_exclusive_url('/sake/')
         expect(uri.to_s).to eq('http://sushi.com/sake/')
+      end
+    end
+
+    context 'with colon in path' do
+      let(:url) { 'http://service.com' }
+
+      it 'joins url to base when used absolute path' do
+        conn = Faraday.new(url: url)
+        uri = conn.build_exclusive_url('/service:search?limit=400')
+        expect(uri.to_s).to eq('http://service.com/service:search?limit=400')
+      end
+
+      it 'joins url to base when used relative path' do
+        conn = Faraday.new(url: url)
+        uri = conn.build_exclusive_url('service:search?limit=400')
+        expect(uri.to_s).to eq('http://service.com/service%3Asearch?limit=400')
+      end
+
+      it 'joins url to base when used with path prefix' do
+        conn = Faraday.new(url: url)
+        conn.path_prefix = '/api'
+        uri = conn.build_exclusive_url('service:search?limit=400')
+        expect(uri.to_s).to eq('http://service.com/api/service%3Asearch?limit=400')
       end
     end
   end
@@ -408,6 +445,14 @@ RSpec.describe Faraday::Connection do
     it 'allows when url in no proxy list' do
       with_env 'http_proxy' => 'http://proxy.com', 'no_proxy' => 'example.com' do
         conn = Faraday::Connection.new('http://example.com')
+        expect(conn.proxy).to be_nil
+      end
+    end
+
+    it 'allows when url in no proxy list with url_prefix' do
+      with_env 'http_proxy' => 'http://proxy.com', 'no_proxy' => 'example.com' do
+        conn = Faraday::Connection.new
+        conn.url_prefix = 'http://example.com'
         expect(conn.proxy).to be_nil
       end
     end

@@ -27,9 +27,27 @@ require 'json'
 module Fluent::Plugin
   class InHttpParser < Parser
     Fluent::Plugin.register_parser('in_http', self)
+
+    config_set_default :time_key, 'time'
+
+    def configure(conf)
+      super
+
+      # if no time parser related parameters, use in_http's time convert rule
+      @time_parser = if conf.has_key?('time_type') || conf.has_key?('time_format')
+                       time_parser_create
+                     else
+                       nil
+                     end
+    end
+
     def parse(text)
       # this plugin is dummy implementation not to raise error
       yield nil, nil
+    end
+
+    def get_time_parser
+      @time_parser
     end
   end
 
@@ -54,12 +72,18 @@ module Fluent::Plugin
     desc 'Add REMOTE_ADDR header to the record.'
     config_param :add_remote_addr, :bool, default: false
     config_param :blocking_timeout, :time, default: 0.5
-    desc 'Set a white list of domains that can do CORS (Cross-Origin Resource Sharing)'
+    desc 'Set a allow list of domains that can do CORS (Cross-Origin Resource Sharing)'
     config_param :cors_allow_origins, :array, default: nil
+    desc 'Tells browsers whether to expose the response to frontend when the credentials mode is "include".'
+    config_param :cors_allow_credentials, :bool, default: false
     desc 'Respond with empty gif image of 1x1 pixel.'
     config_param :respond_with_empty_img, :bool, default: false
     desc 'Respond status code with 204.'
     config_param :use_204_response, :bool, default: false
+    desc 'Dump error log or not'
+    config_param :dump_error_log, :bool, default: true
+    desc 'Add QUERY_ prefix query params to record'
+    config_param :add_query_params, :bool, default: false
 
     config_section :parse do
       config_set_default :@type, 'in_http'
@@ -67,27 +91,53 @@ module Fluent::Plugin
 
     EVENT_RECORD_PARAMETER = '_event_record'
 
+    def initialize
+      super
+
+      @km = nil
+      @format_name = nil
+      @parser_time_key = nil
+
+      # default parsers
+      @parser_msgpack = nil
+      @parser_json = nil
+      @default_time_parser = nil
+      @default_keep_time_key = nil
+      @float_time_parser = nil
+
+      # <parse> configured parser
+      @custom_parser = nil
+    end
+
     def configure(conf)
       compat_parameters_convert(conf, :parser)
 
       super
 
+      if @cors_allow_credentials
+        if @cors_allow_origins.nil? || @cors_allow_origins.include?('*')
+          raise Fluent::ConfigError, "Cannot enable cors_allow_credentials without specific origins"
+        end
+      end
+
       m = if @parser_configs.first['@type'] == 'in_http'
             @parser_msgpack = parser_create(usage: 'parser_in_http_msgpack', type: 'msgpack')
+            @parser_msgpack.time_key = nil
             @parser_msgpack.estimate_current_event = false
             @parser_json = parser_create(usage: 'parser_in_http_json', type: 'json')
+            @parser_json.time_key = nil
             @parser_json.estimate_current_event = false
+
+            default_parser = parser_create(usage: '')
             @format_name = 'default'
-            @parser_time_key = if parser_config = conf.elements('parse').first
-                                 parser_config['time_key'] || 'time'
-                               else
-                                 'time'
-                               end
+            @parser_time_key = default_parser.time_key
+            @default_time_parser = default_parser.get_time_parser
+            @default_keep_time_key = default_parser.keep_time_key
             method(:parse_params_default)
           else
-            @parser = parser_create
+            @custom_parser = parser_create
             @format_name = @parser_configs.first['@type']
-            @parser_time_key = @parser.time_key
+            @parser_time_key = @custom_parser.time_key
             method(:parse_params_with_parser)
           end
       self.singleton_class.module_eval do
@@ -142,6 +192,13 @@ module Fluent::Plugin
       super
     end
 
+    RES_TEXT_HEADER = {'Content-Type' => 'text/plain'}.freeze
+    RESPONSE_200 = ["200 OK".freeze, RES_TEXT_HEADER, "".freeze].freeze
+    RESPONSE_204 = ["204 No Content".freeze, {}.freeze].freeze
+    RESPONSE_IMG = ["200 OK".freeze, {'Content-Type'=>'image/gif; charset=utf-8'}.freeze, EMPTY_GIF_IMAGE].freeze
+    RES_400_STATUS = "400 Bad Request".freeze
+    RES_500_STATUS = "500 Internal Server Error".freeze
+
     def on_request(path_info, params)
       begin
         path = path_info[1..-1]  # remove /
@@ -152,83 +209,77 @@ module Fluent::Plugin
         if record.nil?
           log.debug { "incoming event is invalid: path=#{path_info} params=#{params.to_json}" }
           if @respond_with_empty_img
-            return ["200 OK", {'Content-Type'=>'image/gif; charset=utf-8'}, EMPTY_GIF_IMAGE]
+            return RESPONSE_IMG
           else
             if @use_204_response
-              return  ["204 No Content", {}]
+              return RESPONSE_204
             else
-              return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+              return RESPONSE_200
             end
           end
         end
 
-        unless record.is_a?(Array)
-          if @add_http_headers
-            params.each_pair { |k,v|
-              if k.start_with?("HTTP_")
-                record[k] = v
-              end
-            }
-          end
-          if @add_remote_addr
-            record['REMOTE_ADDR'] = params['REMOTE_ADDR']
-          end
-        end
-        time = if param_time = params['time']
-                 param_time = param_time.to_f
-                 param_time.zero? ? Fluent::Engine.now : @float_time_parser.parse(param_time)
-               else
-                 record_time.nil? ? Fluent::Engine.now : record_time
-               end
-      rescue
-        return ["400 Bad Request", {'Content-Type'=>'text/plain'}, "400 Bad Request\n#{$!}\n"]
-      end
-
-      # TODO server error
-      begin
+        mes = nil
         # Support batched requests
         if record.is_a?(Array)
           mes = Fluent::MultiEventStream.new
           record.each do |single_record|
-            if @add_http_headers
-              params.each_pair { |k,v|
-                if k.start_with?("HTTP_")
-                  single_record[k] = v
-                end
-              }
-            end
-            if @add_remote_addr
-              single_record['REMOTE_ADDR'] = params['REMOTE_ADDR']
-            end
+            add_params_to_record(single_record, params)
 
-            if defined? @parser
-              single_time = @parser.parse_time(single_record)
-              single_time, single_record = @parser.convert_values(single_time, single_record)
+            if param_time = params['time']
+              param_time = param_time.to_f
+              single_time = param_time.zero? ? Fluent::EventTime.now : @float_time_parser.parse(param_time)
+            elsif @custom_parser
+              single_time = @custom_parser.parse_time(single_record)
+              single_time, single_record = @custom_parser.convert_values(single_time, single_record)
             else
-              single_time = if t = single_record.delete(@parser_time_key)
-                              Fluent::EventTime.from_time(Time.at(t))
-                            else
-                              time
-                            end
+              single_time = convert_time_field(single_record)
             end
 
             mes.add(single_time, single_record)
           end
+        else
+          add_params_to_record(record, params)
+
+          time = if param_time = params['time']
+                   param_time = param_time.to_f
+                   param_time.zero? ? Fluent::EventTime.now : @float_time_parser.parse(param_time)
+                 else
+                   if record_time.nil?
+                     convert_time_field(record)
+                   else
+                     record_time
+                   end
+                 end
+        end
+      rescue => e
+        if @dump_error_log
+          log.error "failed to process request", error: e
+        end
+        return [RES_400_STATUS, RES_TEXT_HEADER, "400 Bad Request\n#{e}\n"]
+      end
+
+      # TODO server error
+      begin
+        if mes
           router.emit_stream(tag, mes)
         else
           router.emit(tag, time, record)
         end
-      rescue
-        return ["500 Internal Server Error", {'Content-Type'=>'text/plain'}, "500 Internal Server Error\n#{$!}\n"]
+      rescue => e
+        if @dump_error_log
+          log.error "failed to emit data", error: e
+        end
+        return [RES_500_STATUS, RES_TEXT_HEADER, "500 Internal Server Error\n#{e}\n"]
       end
 
       if @respond_with_empty_img
-        return ["200 OK", {'Content-Type'=>'image/gif; charset=utf-8'}, EMPTY_GIF_IMAGE]
+        return RESPONSE_IMG
       else
         if @use_204_response
-          return  ["204 No Content", {}]
+          return RESPONSE_204
         else
-          return ["200 OK", {'Content-Type'=>'text/plain'}, ""]
+          return RESPONSE_200
         end
       end
     end
@@ -236,7 +287,10 @@ module Fluent::Plugin
     private
 
     def on_server_connect(conn)
-      handler = Handler.new(conn, @km, method(:on_request), @body_size_limit, @format_name, log, @cors_allow_origins)
+      handler = Handler.new(conn, @km, method(:on_request),
+                            @body_size_limit, @format_name, log,
+                            @cors_allow_origins, @cors_allow_credentials,
+                            @add_query_params)
 
       conn.on(:data) do |data|
         handler.on_read(data)
@@ -267,7 +321,7 @@ module Fluent::Plugin
 
     def parse_params_with_parser(params)
       if content = params[EVENT_RECORD_PARAMETER]
-        @parser.parse(content) { |time, record|
+        @custom_parser.parse(content) { |time, record|
           raise "Received event is not #{@format_name}: #{content}" if record.nil?
           return time, record
         }
@@ -276,10 +330,45 @@ module Fluent::Plugin
       end
     end
 
+    def add_params_to_record(record, params)
+      if @add_http_headers
+        params.each_pair { |k, v|
+          if k.start_with?("HTTP_".freeze)
+            record[k] = v
+          end
+        }
+      end
+
+      if @add_query_params
+        params.each_pair { |k, v|
+          if k.start_with?("QUERY_".freeze)
+            record[k] = v
+          end
+        }
+      end
+
+      if @add_remote_addr
+        record['REMOTE_ADDR'] = params['REMOTE_ADDR']
+      end
+    end
+
+    def convert_time_field(record)
+      if t = @default_keep_time_key ? record[@parser_time_key] : record.delete(@parser_time_key)
+        if @default_time_parser
+          @default_time_parser.parse(t)
+        else
+          Fluent::EventTime.from_time(Time.at(t))
+        end
+      else
+        Fluent::EventTime.now
+      end
+    end
+
     class Handler
       attr_reader :content_type
 
-      def initialize(io, km, callback, body_size_limit, format_name, log, cors_allow_origins)
+      def initialize(io, km, callback, body_size_limit, format_name, log,
+                     cors_allow_origins, cors_allow_credentials, add_query_params)
         @io = io
         @km = km
         @callback = callback
@@ -288,7 +377,9 @@ module Fluent::Plugin
         @format_name = format_name
         @log = log
         @cors_allow_origins = cors_allow_origins
+        @cors_allow_credentials = cors_allow_credentials
         @idle = 0
+        @add_query_params = add_query_params
         @km.add(self)
 
         @remote_port, @remote_addr = io.remote_port, io.remote_addr
@@ -331,34 +422,34 @@ module Fluent::Plugin
         headers.each_pair {|k,v|
           @env["HTTP_#{k.gsub('-','_').upcase}"] = v
           case k
-          when /Expect/i
+          when /\AExpect\z/i
             expect = v
-          when /Content-Length/i
+          when /\AContent-Length\Z/i
             size = v.to_i
-          when /Content-Type/i
+          when /\AContent-Type\Z/i
             @content_type = v
-          when /Content-Encoding/i
+          when /\AContent-Encoding\Z/i
             @content_encoding = v
-          when /Connection/i
+          when /\AConnection\Z/i
             if v =~ /close/i
               @keep_alive = false
             elsif v =~ /Keep-alive/i
               @keep_alive = true
             end
-          when /Origin/i
+          when /\AOrigin\Z/i
             @origin  = v
-          when /X-Forwarded-For/i
+          when /\AX-Forwarded-For\Z/i
             # For multiple X-Forwarded-For headers. Use first header value.
             v = v.first if v.is_a?(Array)
             @remote_addr = v.split(",").first
-          when /Access-Control-Request-Method/i
+          when /\AAccess-Control-Request-Method\Z/i
             @access_control_request_method = v
-          when /Access-Control-Request-Headers/i
+          when /\AAccess-Control-Request-Headers\Z/i
             @access_control_request_headers = v
           end
         }
         if expect
-          if expect == '100-continue'
+          if expect == '100-continue'.freeze
             if !size || size < @body_size_limit
               send_response_nobody("100 Continue", {})
             else
@@ -380,17 +471,26 @@ module Fluent::Plugin
         @body << chunk
       end
 
+      RES_200_STATUS = "200 OK".freeze
+      RES_403_STATUS = "403 Forbidden".freeze
+
+      # Azure App Service sends GET requests for health checking purpose.
+      # Respond with `200 OK` to accommodate it.
+      def handle_get_request
+          return send_response_and_close(RES_200_STATUS, {}, "")
+      end
+
       # Web browsers can send an OPTIONS request before performing POST
       # to check if cross-origin requests are supported.
       def handle_options_request
         # Is CORS enabled in the first place?
         if @cors_allow_origins.nil?
-          return send_response_and_close("403 Forbidden", {}, "")
+          return send_response_and_close(RES_403_STATUS, {}, "")
         end
 
         # in_http does not support HTTP methods except POST
         if @access_control_request_method != 'POST'
-          return send_response_and_close("403 Forbidden", {}, "")
+          return send_response_and_close(RES_403_STATUS, {}, "")
         end
 
         header = {
@@ -401,29 +501,36 @@ module Fluent::Plugin
         # Check the origin and send back a CORS response
         if @cors_allow_origins.include?('*')
           header["Access-Control-Allow-Origin"] = "*"
-          send_response_and_close("200 OK", header, "")
+          send_response_and_close(RES_200_STATUS, header, "")
         elsif include_cors_allow_origin
           header["Access-Control-Allow-Origin"] = @origin
-          send_response_and_close("200 OK", header, "")
+          if @cors_allow_credentials
+            header["Access-Control-Allow-Credentials"] = true
+          end
+          send_response_and_close(RES_200_STATUS, header, "")
         else
-          send_response_and_close("403 Forbidden", {}, "")
+          send_response_and_close(RES_403_STATUS, {}, "")
         end
       end
 
       def on_message_complete
         return if closing?
 
-        if @parser.http_method == 'OPTIONS'
+        if @parser.http_method == 'GET'.freeze
+          return handle_get_request()
+        end
+
+        if @parser.http_method == 'OPTIONS'.freeze
           return handle_options_request()
         end
 
         # CORS check
         # ==========
         # For every incoming request, we check if we have some CORS
-        # restrictions and white listed origins through @cors_allow_origins.
+        # restrictions and allow listed origins through @cors_allow_origins.
         unless @cors_allow_origins.nil?
-          unless @cors_allow_origins.include?('*') or include_cors_allow_origin
-            send_response_and_close("403 Forbidden", {'Connection' => 'close'}, "")
+          unless @cors_allow_origins.include?('*') || include_cors_allow_origin
+            send_response_and_close(RES_403_STATUS, {'Connection' => 'close'}, "")
             return
           end
         end
@@ -433,14 +540,14 @@ module Fluent::Plugin
         # Decode payload according to the "Content-Encoding" header.
         # For now, we only support 'gzip' and 'deflate'.
         begin
-          if @content_encoding == 'gzip'
+          if @content_encoding == 'gzip'.freeze
             @body = Zlib::GzipReader.new(StringIO.new(@body)).read
-          elsif @content_encoding == 'deflate'
+          elsif @content_encoding == 'deflate'.freeze
             @body = Zlib::Inflate.inflate(@body)
           end
         rescue
           @log.warn 'fails to decode payload', error: $!.to_s
-          send_response_and_close("400 Bad Request", {}, "")
+          send_response_and_close(RES_400_STATUS, {}, "")
           return
         end
 
@@ -463,22 +570,36 @@ module Fluent::Plugin
         end
         path_info = uri.path
 
+        if (@add_query_params) 
+
+          query_params = WEBrick::HTTPUtils.parse_query(uri.query)
+
+          query_params.each_pair {|k,v|
+            params["QUERY_#{k.gsub('-','_').upcase}"] = v
+          }
+        end
+
         params.merge!(@env)
+
         @env.clear
 
-        code, header, body = *@callback.call(path_info, params)
+        code, header, body = @callback.call(path_info, params)
         body = body.to_s
+        header = header.dup if header.frozen?
 
         unless @cors_allow_origins.nil?
           if @cors_allow_origins.include?('*')
             header['Access-Control-Allow-Origin'] = '*'
           elsif include_cors_allow_origin
             header['Access-Control-Allow-Origin'] = @origin
+            if @cors_allow_credentials
+              header["Access-Control-Allow-Credentials"] = true
+            end
           end
         end
 
         if @keep_alive
-          header['Connection'] = 'Keep-Alive'
+          header['Connection'] = 'Keep-Alive'.freeze
           send_response(code, header, body)
         else
           send_response_and_close(code, header, body)
@@ -504,13 +625,13 @@ module Fluent::Plugin
 
       def send_response(code, header, body)
         header['Content-Length'] ||= body.bytesize
-        header['Content-Type'] ||= 'text/plain'
+        header['Content-Type'] ||= 'text/plain'.freeze
 
         data = %[HTTP/1.1 #{code}\r\n]
         header.each_pair {|k,v|
           data << "#{k}: #{v}\r\n"
         }
-        data << "\r\n"
+        data << "\r\n".freeze
         @io.write(data)
 
         @io.write(body)
@@ -521,19 +642,25 @@ module Fluent::Plugin
         header.each_pair {|k,v|
           data << "#{k}: #{v}\r\n"
         }
-        data << "\r\n"
+        data << "\r\n".freeze
         @io.write(data)
       end
 
       def include_cors_allow_origin
+        if @origin.nil?
+          return false
+        end
+
         if @cors_allow_origins.include?(@origin)
           return true
         end
         filtered_cors_allow_origins = @cors_allow_origins.select {|origin| origin != ""}
-        return filtered_cors_allow_origins.find do |origin|
-          (start_str,end_str) = origin.split("*",2)
-          @origin.start_with?(start_str) and @origin.end_with?(end_str)
-        end != nil
+        r = filtered_cors_allow_origins.find do |origin|
+          (start_str, end_str) = origin.split("*", 2)
+          @origin.start_with?(start_str) && @origin.end_with?(end_str)
+        end
+
+        !r.nil?
       end
     end
   end

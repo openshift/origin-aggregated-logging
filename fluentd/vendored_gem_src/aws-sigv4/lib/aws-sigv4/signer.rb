@@ -127,7 +127,13 @@ module Aws
         @unsigned_headers << 'x-amzn-trace-id'
         @unsigned_headers << 'expect'
         [:uri_escape_path, :apply_checksum_header].each do |opt|
-          instance_variable_set("@#{opt}", options.key?(opt) ? !!options[:opt] : true)
+          instance_variable_set("@#{opt}", options.key?(opt) ? !!options[opt] : true)
+        end
+
+        if options[:signing_algorithm] == :sigv4a
+          raise ArgumentError, 'You are attempting to sign a' \
+' request with sigv4a which requires aws-crt and version 1.4.0.crt or later of the aws-sigv4 gem.'\
+' Please install the gem or add it to your gemfile.'
         end
       end
 
@@ -391,8 +397,8 @@ module Aws
         params['X-Amz-Credential'] = credential(creds, date)
         params['X-Amz-Date'] = datetime
         params['X-Amz-Expires'] = extract_expires_in(options)
-        params['X-Amz-SignedHeaders'] = signed_headers(headers)
         params['X-Amz-Security-Token'] = creds.session_token if creds.session_token
+        params['X-Amz-SignedHeaders'] = signed_headers(headers)
 
         params = params.map do |key, value|
           "#{uri_escape(key)}=#{uri_escape(value)}"

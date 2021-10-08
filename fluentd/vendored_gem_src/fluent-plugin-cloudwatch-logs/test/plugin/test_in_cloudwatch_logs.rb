@@ -25,6 +25,10 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
         use_log_stream_name_prefix true
         state_file /tmp/state
         use_aws_timestamp true
+        start_time "2019-06-18 00:00:00Z"
+        end_time "2020-01-18 00:00:00Z"
+        time_range_format "%Y-%m-%d %H:%M:%S%z"
+        throttling_retry_seconds 30
       EOC
 
       assert_equal('test_id', d.instance.aws_key_id)
@@ -37,6 +41,30 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal('/tmp/state', d.instance.state_file)
       assert_equal(:yajl, d.instance.json_handler)
       assert_equal(true, d.instance.use_aws_timestamp)
+      assert_equal(1560816000000, d.instance.start_time)
+      assert_equal(1579305600000, d.instance.end_time)
+      assert_equal("%Y-%m-%d %H:%M:%S%z", d.instance.time_range_format)
+      assert_equal(30, d.instance.throttling_retry_seconds)
+    end
+
+    test 'invalid time range' do
+      assert_raise(Fluent::ConfigError) do
+        create_driver(<<-EOC)
+          @type cloudwatch_logs
+          aws_key_id test_id
+          aws_sec_key test_key
+          region us-east-1
+          tag test
+          log_group_name group
+          log_stream_name stream
+          use_log_stream_name_prefix true
+          state_file /tmp/state
+          use_aws_timestamp true
+          start_time "2019-06-18 00:00:00Z"
+          end_time "2019-01-18 00:00:00Z"
+          time_range_format "%Y-%m-%d %H:%M:%S%z"
+        EOC
+      end
     end
   end
 
@@ -71,6 +99,156 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
     end
 
+    sub_test_case "use_log_group_name_prefix true" do
+      test "emit" do
+        set_log_group_name("fluent-plugin-cloudwatch-group-prefix-test-#{Time.now.to_f}")
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        put_log_events([
+          {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+          {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+        ])
+
+        sleep 5
+
+        config = <<-EOC
+          tag test
+          @type cloudwatch_logs
+          log_group_name fluent-plugin-cloudwatch-group-prefix-test
+          use_log_group_name_prefix true
+          log_stream_name #{log_stream_name}
+          state_file /tmp/state
+          fetch_interval 1
+          #{aws_key_id}
+          #{aws_sec_key}
+          #{region}
+          #{endpoint}
+        EOC
+
+        d = create_driver(config)
+        d.run(expect_emits: 2, timeout: 5)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+      end
+
+      test "emit with add_log_group_name" do
+        set_log_group_name("fluent-plugin-cloudwatch-add-log-group-#{Time.now.to_f}")
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        put_log_events([
+          {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+          {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+        ])
+
+        sleep 5
+
+        log_group_name_key = 'log_group_key'
+        config = <<-EOC
+          tag test
+          @type cloudwatch_logs
+          log_group_name fluent-plugin-cloudwatch-add-log-group
+          use_log_group_name_prefix true
+          add_log_group_name true
+          log_group_name_key #{log_group_name_key}
+          log_stream_name #{log_stream_name}
+          state_file /tmp/state
+          fetch_interval 1
+          #{aws_key_id}
+          #{aws_sec_key}
+          #{region}
+          #{endpoint}
+        EOC
+
+        d = create_driver(config)
+        d.run(expect_emits: 2, timeout: 5)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_true emits[0][2].has_key?(log_group_name_key)
+        emits[0][2].delete(log_group_name_key)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+        assert_true emits[1][2].has_key?(log_group_name_key)
+        emits[1][2].delete(log_group_name_key)
+        assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+      end
+
+      test "emit with add_log_group_name and <parse> csv" do
+        cloudwatch_config = {'tag' => "test",
+                             '@type' => 'cloudwatch_logs',
+                             'log_group_name' => "fluent-plugin-cloudwatch-with-csv-format",
+                             'log_stream_name' => "#{log_stream_name}",
+                             'use_log_group_name_prefix' => true,
+                            }
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+        cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+        csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                             config_element('parse', '', {'@type' => 'csv',
+                                                                          'keys' => 'time,message',
+                                                                          'time_key' => 'time'}),
+                                             config_element('storage', '', {'@type' => 'local',
+                                                                            'path' => '/tmp/state'})
+                                           ])
+        log_group_name = "fluent-plugin-cloudwatch-with-csv-format-#{Time.now.to_f}"
+        set_log_group_name(log_group_name)
+        create_log_stream
+
+        time_ms = (Time.now.to_f * 1000).floor
+        log_time_ms = time_ms - 10000
+        put_log_events([
+          {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+          {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+        ])
+
+        sleep 5
+
+        d = create_driver(csv_format_config)
+        d.run(expect_emits: 2, timeout: 5)
+        next_token = d.instance.instance_variable_get(:@next_token_storage)
+        assert_true next_token.get(d.instance.state_key_for(log_stream_name, log_group_name)).is_a?(String)
+
+        emits = d.events
+        assert_equal(2, emits.size)
+        assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+        assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+      end
+    end
+
+    def test_emit_with_metadata
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: '{"cloudwatch":"logs1"}'},
+        {timestamp: time_ms, message: '{"cloudwatch":"logs2"}'},
+      ])
+
+      sleep 5
+
+      d = create_driver(default_config + %[include_metadata true])
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_true(emits[0][2].has_key?("metadata"))
+      assert_true(emits[1][2].has_key?("metadata"))
+      emits[0][2].delete_if {|k, v|
+        k == "metadata"
+      }
+      emits[1][2].delete_if {|k, v|
+        k == "metadata"
+      }
+      assert_equal(2, emits.size)
+      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs1'}], emits[0])
+      assert_equal(['test', (time_ms / 1000).floor, {'cloudwatch' => 'logs2'}], emits[1])
+    end
+
     def test_emit_with_aws_timestamp
       create_log_stream
 
@@ -92,6 +270,33 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(['test', (time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
     end
 
+    def test_emit_with_aws_timestamp_and_time_range
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      before_6h_time_ms = ((Time.now.to_f - 60*60*6) * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: before_6h_time_ms, message: Time.at((before_6h_time_ms - 10000)/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: before_6h_time_ms, message: Time.at((before_6h_time_ms - 10000)/1000.floor).to_s + ",Cloudwatch non json logs2"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs3"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config_aws_timestamp + %[
+        start_time #{Time.at(Time.now.to_f - 60*60*8).to_s}
+        end_time #{Time.at(Time.now.to_f - 60*60*4).to_s}
+        time_range_format "%Y-%m-%d %H:%M:%S %z"
+      ])
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (before_6h_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (before_6h_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
     def test_emit_with_log_timestamp
       create_log_stream
 
@@ -108,6 +313,92 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       d.run(expect_emits: 2, timeout: 5)
 
       emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
+    test "emit with <parse> csv" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                          }
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+      csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'csv',
+                                                                        'keys' => 'time,message',
+                                                                        'time_key' => 'time'}),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
+      assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
+    end
+
+    test "emit with <parse> csv with metadata" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                           'include_metadata' => true,
+                          }
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+      csv_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'csv',
+                                                                        'keys' => 'time,message',
+                                                                        'time_key' => 'time'}),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
+
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      log_time_ms = time_ms - 10000
+      put_log_events([
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs1"},
+        {timestamp: time_ms, message: Time.at(log_time_ms/1000.floor).to_s + ",Cloudwatch non json logs2"},
+      ])
+
+      sleep 5
+
+      d = create_driver(csv_format_config)
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_true(emits[0][2].has_key?("metadata"))
+      assert_true(emits[1][2].has_key?("metadata"))
+      emits[0][2].delete_if {|k, v|
+        k == "metadata"
+      }
+      emits[1][2].delete_if {|k, v|
+        k == "metadata"
+      }
       assert_equal(2, emits.size)
       assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs1"}], emits[0])
       assert_equal(['test', (log_time_ms / 1000).floor, {"message"=>"Cloudwatch non json logs2"}], emits[1])
@@ -136,6 +427,48 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       #{region}
       #{endpoint}
     EOC
+
+      d.run(expect_emits: 2, timeout: 5)
+
+      emits = d.events
+      assert_equal(2, emits.size)
+      assert_equal('test', emits[0][0])
+      assert_in_delta((time_ms / 1000).floor, emits[0][1], 10)
+      assert_equal({'cloudwatch' => 'logs1'}, emits[0][2])
+      assert_equal('test', emits[1][0])
+      assert_in_delta((time_ms / 1000).floor, emits[1][1], 10)
+      assert_equal({'cloudwatch' => 'logs2'}, emits[1][2])
+    end
+
+    test "emit with <parse> regexp" do
+      cloudwatch_config = {'tag' => "test",
+                           '@type' => 'cloudwatch_logs',
+                           'log_group_name' => "#{log_group_name}",
+                           'log_stream_name' => "#{log_stream_name}",
+                          }
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_key_id)) if ENV['aws_key_id']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(aws_sec_key)) if ENV['aws_sec_key']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(region)) if ENV['region']
+      cloudwatch_config = cloudwatch_config.merge!(config_elementify(endpoint)) if ENV['endpoint']
+
+      regex_format_config = config_element('ROOT', '', cloudwatch_config, [
+                                           config_element('parse', '', {'@type' => 'regexp',
+                                                                        'expression' => "/^(?<cloudwatch>[^ ]*)?/",
+                                                                       }),
+                                           config_element('storage', '', {'@type' => 'local',
+                                                                          'path' => '/tmp/state'})
+                                         ])
+      create_log_stream
+
+      time_ms = (Time.now.to_f * 1000).floor
+      put_log_events([
+        {timestamp: time_ms, message: 'logs1'},
+        {timestamp: time_ms, message: 'logs2'},
+      ])
+
+      sleep 5
+
+      d = create_driver(regex_format_config)
 
       d.run(expect_emits: 2, timeout: 5)
 
@@ -419,6 +752,8 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
     end
 
     test "emit with today's log stream" do
+      omit "This testcase is unstable in CI." if ENV["CI"] == "true"
+
       config = <<-CONFIG
         tag test
         @type cloudwatch_logs
@@ -476,6 +811,59 @@ class CloudwatchLogsInputTest < Test::Unit::TestCase
       assert_equal(["test", ((time_ms + 6000) / 1000), { "cloudwatch" => "logs6" }], events[5])
       assert_equal(["test", ((time_ms + 7000) / 1000), { "cloudwatch" => "logs7" }], events[6])
       assert_equal(["test", ((time_ms + 8000) / 1000), { "cloudwatch" => "logs8" }], events[7])
+    end
+
+    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException in get_log_events" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        state_file /tmp/state
+        fetch_interval 0.1
+        throttling_retry_seconds 0.2
+      CONFIG
+
+      # it will raises the error 2 times
+      counter = 0
+      times = 2
+      stub(@client).get_log_events(anything) {
+        counter += 1
+        counter <= times ? raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")) : OpenStruct.new(events: [], next_forward_token: nil)
+      }
+
+      d = create_driver(config)
+
+      # so, it is expected to valid_next_token once
+      mock(d.instance).valid_next_token(nil, nil).once
+
+      d.run
+      assert_equal(2, d.logs.select {|l| l =~ /ThrottlingException get_log_events. Waiting 0.2 seconds to retry/ }.size)
+    end
+
+    test "retry on Aws::CloudWatchLogs::Errors::ThrottlingException in describe_log_streams" do
+      config = <<-CONFIG
+        tag test
+        @type cloudwatch_logs
+        log_group_name #{log_group_name}
+        use_log_stream_name_prefix true
+        state_file /tmp/state
+        fetch_interval 0.1
+        throttling_retry_seconds 0.2
+      CONFIG
+
+      # it will raises the error 2 times
+      log_stream = Aws::CloudWatchLogs::Types::LogStream.new(log_stream_name: "stream_name")
+      counter = 0
+      times = 2
+      stub(@client).describe_log_streams(anything) {
+        counter += 1
+        counter <= times ? raise(Aws::CloudWatchLogs::Errors::ThrottlingException.new(nil, "error")) : OpenStruct.new(log_streams: [log_stream], next_token: nil)
+      }
+
+      d = create_driver(config)
+
+      d.run
+      assert_equal(2, d.logs.select {|l| l =~ /ThrottlingException describe_log_streams. Waiting 0.2 seconds to retry/ }.size)
     end
   end
 

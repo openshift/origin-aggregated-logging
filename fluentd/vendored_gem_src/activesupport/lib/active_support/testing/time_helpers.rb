@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require "active_support/core_ext/module/redefine_method"
-require "active_support/core_ext/string/strip" # for strip_heredoc
 require "active_support/core_ext/time/calculations"
 require "concurrent/map"
 
 module ActiveSupport
   module Testing
+    # Manages stubs for TimeHelpers
     class SimpleStubs # :nodoc:
       Stub = Struct.new(:object, :method_name, :original_method)
 
@@ -14,6 +14,13 @@ module ActiveSupport
         @stubs = Concurrent::Map.new { |h, k| h[k] = {} }
       end
 
+      # Stubs object.method_name with the given block
+      # If the method is already stubbed, remove that stub
+      # so that removing this stub will restore the original implementation.
+      #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
+      #   target = Time.zone.local(2004, 11, 24, 1, 4, 44)
+      #   simple_stubs.stub_object(Time, :now) { at(target.to_i) }
+      #   Time.current # => Wed, 24 Nov 2004 01:04:44 EST -05:00
       def stub_object(object, method_name, &block)
         if stub = stubbing(object, method_name)
           unstub_object(stub)
@@ -23,10 +30,11 @@ module ActiveSupport
 
         @stubs[object.object_id][method_name] = Stub.new(object, method_name, new_name)
 
-        object.singleton_class.send :alias_method, new_name, method_name
+        object.singleton_class.alias_method new_name, method_name
         object.define_singleton_method(method_name, &block)
       end
 
+      # Remove all object-method stubs held by this instance
       def unstub_all!
         @stubs.each_value do |object_stubs|
           object_stubs.each_value do |stub|
@@ -36,17 +44,24 @@ module ActiveSupport
         @stubs.clear
       end
 
+      # Returns the Stub for object#method_name
+      # (nil if it is not stubbed)
       def stubbing(object, method_name)
         @stubs[object.object_id][method_name]
       end
 
-      private
+      # Returns true if any stubs are set, false if there are none
+      def stubbed?
+        !@stubs.empty?
+      end
 
+      private
+        # Restores the original object.method described by the Stub
         def unstub_object(stub)
           singleton_class = stub.object.singleton_class
-          singleton_class.send :silence_redefinition_of_method, stub.method_name
-          singleton_class.send :alias_method, stub.method_name, stub.original_method
-          singleton_class.send :undef_method, stub.original_method
+          singleton_class.silence_redefinition_of_method stub.method_name
+          singleton_class.alias_method stub.method_name, stub.original_method
+          singleton_class.undef_method stub.original_method
         end
     end
 
@@ -84,7 +99,7 @@ module ActiveSupport
       # The stubs are automatically removed at the end of the test.
       #
       #   Time.current     # => Sat, 09 Nov 2013 15:34:49 EST -05:00
-      #   travel_to Time.zone.local(2004, 11, 24, 01, 04, 44)
+      #   travel_to Time.zone.local(2004, 11, 24, 1, 4, 44)
       #   Time.current     # => Wed, 24 Nov 2004 01:04:44 EST -05:00
       #   Date.current     # => Wed, 24 Nov 2004
       #   DateTime.current # => Wed, 24 Nov 2004 01:04:44 -0500
@@ -106,13 +121,13 @@ module ActiveSupport
       # state at the end of the block:
       #
       #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
-      #   travel_to Time.zone.local(2004, 11, 24, 01, 04, 44) do
+      #   travel_to Time.zone.local(2004, 11, 24, 1, 4, 44) do
       #     Time.current # => Wed, 24 Nov 2004 01:04:44 EST -05:00
       #   end
       #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
       def travel_to(date_or_time)
         if block_given? && simple_stubs.stubbing(Time, :now)
-          travel_to_nested_block_call = <<-MSG.strip_heredoc
+          travel_to_nested_block_call = <<~MSG
 
       Calling `travel_to` with a block, when we have previously already made a call to `travel_to`, can lead to confusing time stubbing.
 
@@ -159,16 +174,37 @@ module ActiveSupport
       end
 
       # Returns the current time back to its original state, by removing the stubs added by
-      # +travel+ and +travel_to+.
+      # +travel+, +travel_to+, and +freeze_time+.
       #
       #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
-      #   travel_to Time.zone.local(2004, 11, 24, 01, 04, 44)
+      #
+      #   travel_to Time.zone.local(2004, 11, 24, 1, 4, 44)
       #   Time.current # => Wed, 24 Nov 2004 01:04:44 EST -05:00
+      #
       #   travel_back
       #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
+      #
+      # This method also accepts a block, which brings the stubs back at the end of the block:
+      #
+      #   Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
+      #
+      #   travel_to Time.zone.local(2004, 11, 24, 1, 4, 44)
+      #   Time.current # => Wed, 24 Nov 2004 01:04:44 EST -05:00
+      #
+      #   travel_back do
+      #     Time.current # => Sat, 09 Nov 2013 15:34:49 EST -05:00
+      #   end
+      #
+      #   Time.current # => Wed, 24 Nov 2004 01:04:44 EST -05:00
       def travel_back
+        stubbed_time = Time.current if block_given? && simple_stubs.stubbed?
+
         simple_stubs.unstub_all!
+        yield if block_given?
+      ensure
+        travel_to stubbed_time if stubbed_time
       end
+      alias_method :unfreeze_time, :travel_back
 
       # Calls +travel_to+ with +Time.now+.
       #
@@ -191,7 +227,6 @@ module ActiveSupport
       end
 
       private
-
         def simple_stubs
           @simple_stubs ||= SimpleStubs.new
         end

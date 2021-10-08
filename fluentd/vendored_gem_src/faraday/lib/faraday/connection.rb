@@ -15,6 +15,7 @@ module Faraday
   class Connection
     # A Set of allowed HTTP verbs.
     METHODS = Set.new %i[get post put delete head patch options trace]
+    USER_AGENT = "Faraday v#{VERSION}"
 
     # @return [Hash] URI query unencoded key/value pairs.
     attr_reader :params
@@ -26,7 +27,7 @@ module Faraday
     #   Connection. This includes a default host name, scheme, port, and path.
     attr_reader :url_prefix
 
-    # @return [Faraday::Builder] Builder for this Connection.
+    # @return [Faraday::RackBuilder] Builder for this Connection.
     attr_reader :builder
 
     # @return [Hash] SSL options.
@@ -73,6 +74,7 @@ module Faraday
       @options = options.request
       @ssl = options.ssl
       @default_parallel_manager = options.parallel_manager
+      @manual_proxy = nil
 
       @builder = options.builder || begin
         # pass an empty block to Builder so it doesn't assume default middleware
@@ -88,7 +90,7 @@ module Faraday
 
       yield(self) if block_given?
 
-      @headers[:user_agent] ||= "Faraday v#{VERSION}"
+      @headers[:user_agent] ||= USER_AGENT
     end
 
     def initialize_proxy(url, options)
@@ -295,6 +297,11 @@ module Faraday
     #
     # @return [void]
     def basic_auth(login, pass)
+      warn <<~TEXT
+        WARNING: `Faraday::Connection#basic_auth` is deprecated; it will be removed in version 2.0.
+        While initializing your connection, use `#request(:basic_auth, ...)` instead.
+        See https://lostisland.github.io/faraday/middleware/authentication for more usage info.
+      TEXT
       set_authorization_header(:basic_auth, login, pass)
     end
 
@@ -312,6 +319,11 @@ module Faraday
     #
     # @return [void]
     def token_auth(token, options = nil)
+      warn <<~TEXT
+        WARNING: `Faraday::Connection#token_auth` is deprecated; it will be removed in version 2.0.
+        While initializing your connection, use `#request(:token_auth, ...)` instead.
+        See https://lostisland.github.io/faraday/middleware/authentication for more usage info.
+      TEXT
       set_authorization_header(:token_auth, token, options)
     end
 
@@ -334,6 +346,11 @@ module Faraday
     #
     # @return [void]
     def authorization(type, token)
+      warn <<~TEXT
+        WARNING: `Faraday::Connection#authorization` is deprecated; it will be removed in version 2.0.
+        While initializing your connection, use `#request(:authorization, ...)` instead.
+        See https://lostisland.github.io/faraday/middleware/authentication for more usage info.
+      TEXT
       set_authorization_header(:authorization, type, token)
     end
 
@@ -416,9 +433,16 @@ module Faraday
       uri.query = nil
 
       with_uri_credentials(uri) do |user, password|
-        basic_auth user, password
+        set_basic_auth(user, password)
         uri.user = uri.password = nil
       end
+
+      @proxy = proxy_from_env(url) unless @manual_proxy
+    end
+
+    def set_basic_auth(user, password)
+      header = Faraday::Request::BasicAuthentication.header(user, password)
+      headers[Faraday::Request::Authorization::KEY] = header
     end
 
     # Sets the path prefix and ensures that it always has a leading
@@ -429,7 +453,7 @@ module Faraday
     # @return [String] the new path prefix
     def path_prefix=(value)
       url_prefix.path = if value
-                          value = '/' + value unless value[0, 1] == '/'
+                          value = "/#{value}" unless value[0, 1] == '/'
                           value
                         end
     end
@@ -517,11 +541,11 @@ module Faraday
     # @return [URI]
     def build_exclusive_url(url = nil, params = nil, params_encoder = nil)
       url = nil if url.respond_to?(:empty?) && url.empty?
-      base = url_prefix
+      base = url_prefix.dup
       if url && base.path && base.path !~ %r{/$}
-        base = base.dup
-        base.path = base.path + '/' # ensure trailing slash
+        base.path = "#{base.path}/" # ensure trailing slash
       end
+      url = url && URI.parse(url.to_s).opaque ? url.to_s.gsub(':', '%3A') : url
       uri = url ? base + url : base
       if params
         uri.query = params.to_query(params_encoder || options.params_encoder)
@@ -576,7 +600,11 @@ module Faraday
         case url
         when String
           uri = Utils.URI(url)
-          uri = URI.parse("#{uri.scheme}://#{uri.hostname}").find_proxy
+          uri = if uri.host.nil?
+                  find_default_proxy
+                else
+                  URI.parse("#{uri.scheme}://#{uri.host}").find_proxy
+                end
         when URI
           uri = url.find_proxy
         when nil
@@ -593,7 +621,7 @@ module Faraday
       uri = ENV['http_proxy']
       return unless uri && !uri.empty?
 
-      uri = 'http://' + uri if uri !~ /^http/i
+      uri = "http://#{uri}" unless uri.match?(/^http/i)
       uri
     end
 

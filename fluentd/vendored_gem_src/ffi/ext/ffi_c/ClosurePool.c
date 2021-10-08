@@ -34,13 +34,8 @@
 #  include <sys/mman.h>
 #endif
 #include <stdio.h>
-#ifndef _MSC_VER
-# include <stdint.h>
-# include <stdbool.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdint.h>
+#include <stdbool.h>
 #if defined(__CYGWIN__) || !defined(_WIN32)
 #  include <unistd.h>
 #else
@@ -51,9 +46,6 @@
 #include <errno.h>
 #include <ruby.h>
 
-#if defined(_MSC_VER) && !defined(INT8_MIN)
-#  include "win32/stdint.h"
-#endif
 #include <ffi.h>
 #include "rbffi.h"
 #include "compat.h"
@@ -66,12 +58,8 @@
 
 #include "ClosurePool.h"
 
-
 #ifndef roundup
 #  define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-#endif
-#ifdef _WIN32
-  typedef char* caddr_t;
 #endif
 
 typedef struct Memory {
@@ -96,7 +84,7 @@ static bool freePage(void *);
 static bool protectPage(void *);
 
 ClosurePool*
-rbffi_ClosurePool_New(int closureSize, 
+rbffi_ClosurePool_New(int closureSize,
         bool (*prep)(void* ctx, void *code, Closure* closure, char* errbuf, size_t errbufsize),
         void* ctx)
 {
@@ -107,7 +95,7 @@ rbffi_ClosurePool_New(int closureSize,
     pool->ctx = ctx;
     pool->prep = prep;
     pool->refcnt = 1;
-    
+
     return pool;
 }
 
@@ -115,10 +103,14 @@ void
 cleanup_closure_pool(ClosurePool* pool)
 {
     Memory* memory;
-    
+
     for (memory = pool->blocks; memory != NULL; ) {
         Memory* next = memory->next;
+#if !USE_FFI_ALLOC
         freePage(memory->code);
+#else
+        ffi_closure_free(memory->code);
+#endif
         free(memory->data);
         free(memory);
         memory = next;
@@ -137,12 +129,14 @@ rbffi_ClosurePool_Free(ClosurePool* pool)
     }
 }
 
+#if !USE_FFI_ALLOC
+
 Closure*
 rbffi_Closure_Alloc(ClosurePool* pool)
 {
     Closure *list = NULL;
     Memory* block = NULL;
-    caddr_t code = NULL;
+    void *code = NULL;
     char errmsg[256];
     int nclosures;
     long trampolineSize;
@@ -152,7 +146,7 @@ rbffi_Closure_Alloc(ClosurePool* pool)
         Closure* closure = pool->list;
         pool->list = pool->list->next;
         pool->refcnt++;
-    
+
         return closure;
     }
 
@@ -161,17 +155,18 @@ rbffi_Closure_Alloc(ClosurePool* pool)
     block = calloc(1, sizeof(*block));
     list = calloc(nclosures, sizeof(*list));
     code = allocatePage();
-    
+
     if (block == NULL || list == NULL || code == NULL) {
         snprintf(errmsg, sizeof(errmsg), "failed to allocate a page. errno=%d (%s)", errno, strerror(errno));
         goto error;
     }
-    
+
     for (i = 0; i < nclosures; ++i) {
         Closure* closure = &list[i];
         closure->next = &list[i + 1];
         closure->pool = pool;
-        closure->code = (code + (i * trampolineSize));
+        closure->code = ((char *)code + (i * trampolineSize));
+        closure->pcl  = closure->code;
 
         if (!(*pool->prep)(pool->ctx, closure->code, closure, errmsg, sizeof(errmsg))) {
             goto error;
@@ -202,11 +197,62 @@ error:
     if (code != NULL) {
         freePage(code);
     }
-    
+
 
     rb_raise(rb_eRuntimeError, "%s", errmsg);
     return NULL;
 }
+
+#else
+
+Closure*
+rbffi_Closure_Alloc(ClosurePool* pool)
+{
+    Closure *closure = NULL;
+    Memory* block = NULL;
+    void *code = NULL;
+    void *pcl = NULL;
+    char errmsg[256];
+
+    block = calloc(1, sizeof(*block));
+    closure = calloc(1, sizeof(*closure));
+    pcl = ffi_closure_alloc(sizeof(ffi_closure), &code);
+
+    if (block == NULL || closure == NULL || pcl == NULL) {
+        snprintf(errmsg, sizeof(errmsg), "failed to allocate a page. errno=%d (%s)", errno, strerror(errno));
+        goto error;
+    }
+
+    closure->pool = pool;
+    closure->code = code;
+    closure->pcl = pcl;
+
+    if (!(*pool->prep)(pool->ctx, closure->code, closure, errmsg, sizeof(errmsg))) {
+        goto error;
+    }
+
+    /* Track the allocated page + Closure memory area */
+    block->data = closure;
+    block->code = pcl;
+    pool->blocks = block;
+
+    /* Thread the new block onto the free list, apart from the first one. */
+    pool->refcnt++;
+
+    return closure;
+
+error:
+    free(block);
+    free(closure);
+    if (pcl != NULL) {
+        ffi_closure_free(pcl);
+    }
+
+    rb_raise(rb_eRuntimeError, "%s", errmsg);
+    return NULL;
+}
+
+#endif /* !USE_FFI_ALLOC */
 
 void
 rbffi_Closure_Free(Closure* closure)
@@ -243,14 +289,16 @@ getPageSize()
 #endif
 }
 
+#if !USE_FFI_ALLOC
+
 static void*
 allocatePage(void)
 {
 #if !defined(__CYGWIN__) && (defined(_WIN32) || defined(__WIN32__))
     return VirtualAlloc(NULL, pageSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #else
-    caddr_t page = mmap(NULL, pageSize, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-    return (page != (caddr_t) -1) ? page : NULL;
+    void *page = mmap(NULL, pageSize, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    return (page != (void *) -1) ? page : NULL;
 #endif
 }
 
@@ -274,6 +322,8 @@ protectPage(void* page)
     return mprotect(page, pageSize, PROT_READ | PROT_EXEC) == 0;
 #endif
 }
+
+#endif /* !USE_FFI_ALLOC */
 
 void
 rbffi_ClosurePool_Init(VALUE module)

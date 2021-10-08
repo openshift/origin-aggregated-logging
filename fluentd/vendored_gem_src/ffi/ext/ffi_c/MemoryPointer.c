@@ -28,13 +28,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MSC_VER
-# include <stdbool.h>
-# include <stdint.h>
-#else
-# include "win32/stdbool.h"
-# include "win32/stdint.h"
-#endif
+#include <stdbool.h>
+#include <stdint.h>
 #include <limits.h>
 #include <ruby.h>
 #include "rbffi.h"
@@ -112,7 +107,7 @@ memptr_malloc(VALUE self, long size, long count, bool clear)
     p->memory.typeSize = (int) size;
     p->memory.size = msize;
     /* ensure the memory is aligned on at least a 8 byte boundary */
-    p->memory.address = (char *) (((uintptr_t) p->storage + 0x7) & (uintptr_t) ~0x7UL);;
+    p->memory.address = (char *) (((uintptr_t) p->storage + 0x7) & (uintptr_t) ~0x7ULL);
     p->allocated = true;
 
     if (clear && p->memory.size > 0) {

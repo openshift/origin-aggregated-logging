@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# encoding: UTF-8
+# frozen_string_literal: true
 
 $: << File.dirname(__FILE__)
 
@@ -33,6 +33,17 @@ class DocTest < Minitest::Test
     Oj::Doc.open(json) do |doc|
       assert_equal(NilClass, doc.type)
       assert_nil(doc.fetch())
+    end
+  end
+
+  def test_leaf_of_existing_path
+    json = %{{"foo": 1, "fizz": true}}
+    Oj::Doc.open(json) do |doc|
+      %w(/foo/bar /fizz/bar).each do |path|
+        assert_nil(doc.fetch(path))
+        assert_equal(:default, doc.fetch(path, :default))
+        refute(doc.exists?(path))
+      end
     end
   end
 
@@ -279,10 +290,26 @@ class DocTest < Minitest::Test
        ['/array/1', {'num' => 3, 'string' => 'message', 'hash' => {'h2' => {'a' => [1, 2, 3]}}}],
        ['/array', [{'num' => 3, 'string' => 'message', 'hash' => {'h2' => {'a' => [1, 2, 3]}}}]],
        ['/', {'array' => [{'num' => 3, 'string' => 'message', 'hash' => {'h2' => {'a' => [1, 2, 3]}}}], 'boolean' => true}],
+       ['/nothing', nil],
+       ['/array/10', nil],
       ].each do |path,val|
-        assert_equal(val, doc.fetch(path))
+        if val.nil?
+          assert_nil(doc.fetch(path))
+        else
+          assert_equal(val, doc.fetch(path))
+        end
       end
     end
+    # verify empty hash and arrays return nil when a member is requested
+    Oj::Doc.open('{}') do |doc|
+      assert_nil(doc.fetch('/x'))
+      assert_nil(doc.fetch('/0'))
+    end
+    Oj::Doc.open('[]') do |doc|
+      assert_nil(doc.fetch('/x'))
+      assert_nil(doc.fetch('/0'))
+    end
+
   end
 
   def test_move_fetch_path
@@ -293,6 +320,20 @@ class DocTest < Minitest::Test
       ].each do |path,fetch_path,val|
         doc.move(path)
         assert_equal(val, doc.fetch(fetch_path))
+      end
+    end
+  end
+
+  def test_exists
+    Oj::Doc.open(@json1) do |doc|
+      [['/array/1', true],
+       ['/array/1', true],
+       ['/array/1/hash', true],
+       ['/array/1/dash', false],
+       ['/array/3', false],
+       ['/nothing', false],
+      ].each do |path,val|
+        assert_equal(val, doc.exists?(path), "failed for #{path.inspect}")
       end
     end
   end

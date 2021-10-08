@@ -56,6 +56,32 @@ class TestFluentPluginConfigFormatter < Test::Unit::TestCase
     end
   end
 
+  class FakeStorage < ::Fluent::Plugin::Storage
+    ::Fluent::Plugin.register_storage('fake', self)
+
+    def get(key)
+    end
+
+    def fetch(key, defval)
+    end
+
+    def put(key, value)
+    end
+
+    def delete(key)
+    end
+
+    def update(key, &block)
+    end
+  end
+
+  class FakeServiceDiscovery < ::Fluent::Plugin::ServiceDiscovery
+    ::Fluent::Plugin.register_sd('fake', self)
+
+    desc "hostname"
+    config_param :hostname, :string
+  end
+
   class SimpleInput < ::Fluent::Plugin::Input
     ::Fluent::Plugin.register_input("simple", self)
     helpers :inject, :compat_parameters
@@ -86,6 +112,13 @@ class TestFluentPluginConfigFormatter < Test::Unit::TestCase
 
     def process(tag, es)
     end
+  end
+
+  class SimpleServiceDiscovery < ::Fluent::Plugin::ServiceDiscovery
+    ::Fluent::Plugin.register_sd('simple', self)
+
+    desc "servers"
+    config_param :servers, :array
   end
 
   sub_test_case "json" do
@@ -196,6 +229,52 @@ TEXT
       assert_equal(expected, dumped_config)
     end
 
+    test "input simple (table)" do
+      dumped_config = capture_stdout do
+        FluentPluginConfigFormatter.new(["--format=markdown", "--table", "input", "simple"]).call
+      end
+      expected = <<TEXT
+## Plugin helpers
+
+* [inject](https://docs.fluentd.org/v/1.0/plugin-helper-overview/api-plugin-helper-inject)
+* [compat_parameters](https://docs.fluentd.org/v/1.0/plugin-helper-overview/api-plugin-helper-compat_parameters)
+
+* See also: [Input Plugin Overview](https://docs.fluentd.org/v/1.0/input#overview)
+
+## TestFluentPluginConfigFormatter::SimpleInput
+
+### Configuration
+
+|parameter|type|description|default|
+|---|---|---|---|
+|path|string (required)|path to something||
+
+TEXT
+      assert_equal(expected, dumped_config)
+    end
+
+    data("abbrev" => "sd",
+         "normal" => "service_discovery")
+    test "service_discovery simple" do |data|
+      plugin_type = data
+      dumped_config = capture_stdout do
+        FluentPluginConfigFormatter.new(["--format=markdown", plugin_type, "simple"]).call
+      end
+      expected = <<TEXT
+* See also: [ServiceDiscovery Plugin Overview](https://docs.fluentd.org/v/1.0/servicediscovery#overview)
+
+## TestFluentPluginConfigFormatter::SimpleServiceDiscovery
+
+### servers (array) (required)
+
+servers
+
+
+TEXT
+      assert_equal(expected, dumped_config)
+    end
+
+
     test "output complex" do
       dumped_config = capture_stdout do
         FluentPluginConfigFormatter.new(["--format=markdown", "output", "complex"]).call
@@ -246,12 +325,55 @@ Default value: `normal`.
 TEXT
       assert_equal(expected, dumped_config)
     end
+
+    test "output complex (table)" do
+      dumped_config = capture_stdout do
+        FluentPluginConfigFormatter.new(["--format=markdown", "--table", "output", "complex"]).call
+      end
+      expected = <<TEXT
+## Plugin helpers
+
+* [inject](https://docs.fluentd.org/v/1.0/plugin-helper-overview/api-plugin-helper-inject)
+* [compat_parameters](https://docs.fluentd.org/v/1.0/plugin-helper-overview/api-plugin-helper-compat_parameters)
+
+* See also: [Output Plugin Overview](https://docs.fluentd.org/v/1.0/output#overview)
+
+## TestFluentPluginConfigFormatter::ComplexOutput
+
+
+### \\<authentication\\> section (required) (single)
+
+### Configuration
+
+|parameter|type|description|default|
+|---|---|---|---|
+|username|string (required)|username||
+|password|string (required)|password||
+
+
+### \\<parent\\> section (optional) (multiple)
+
+
+#### \\<child\\> section (optional) (multiple)
+
+### Configuration
+
+|parameter|type|description|default|
+|---|---|---|---|
+|names|array (required)|names||
+|difficulty|enum (optional)|difficulty (`easy`, `normal`, `hard`)|`normal`|
+
+
+
+TEXT
+      assert_equal(expected, dumped_config)
+    end
   end
 
   sub_test_case "arguments" do
     data do
       hash = {}
-      ["input", "output", "filter", "parser", "formatter"].each do |type|
+      ["input", "output", "filter", "parser", "formatter", "storage", "service_discovery"].each do |type|
         ["txt", "json", "markdown"].each do |format|
           argv = ["--format=#{format}"]
           [
@@ -259,7 +381,7 @@ TEXT
             ["--verbose"],
             ["--compact"]
           ].each do |options|
-            hash[(argv + options).join(" ")] = argv + options + [type, "fake"]
+            hash["[#{type}] " + (argv + options).join(" ")] = argv + options + [type, "fake"]
           end
         end
       end

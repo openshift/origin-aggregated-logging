@@ -10,6 +10,7 @@ namespace :gem do
     s.version = PKG_VERSION
     s.summary = PKG_SUMMARY
     s.description = PKG_DESCRIPTION
+    s.licenses = ["Apache-2.0"]
 
     s.files = PKG_FILES.to_a
 
@@ -43,14 +44,8 @@ namespace :gem do
   task :gemspec do
     spec_string = GEM_SPEC.to_ruby
 
-    begin
-      Thread.new { eval("$SAFE = 3\n#{spec_string}", binding) }.join
-    rescue
-      abort "unsafe gemspec: #{$!}"
-    else
-      File.open("#{GEM_SPEC.name}.gemspec", 'w') do |file|
-        file.write spec_string
-      end
+    File.open("#{GEM_SPEC.name}.gemspec", "w") do |file|
+      file.write spec_string
     end
   end
 

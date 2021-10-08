@@ -24,5 +24,6 @@ void Init_crc16_genibus_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC16Genibus = rb_const_get(mDigest, rb_intern("CRC16Genibus"));
 
+	rb_undef_method(cCRC16Genibus, "update");
 	rb_define_method(cCRC16Genibus, "update", Digest_CRC16Genibus_update, 1);
 }

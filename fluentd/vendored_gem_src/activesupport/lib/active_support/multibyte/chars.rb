@@ -3,8 +3,8 @@
 require "active_support/json"
 require "active_support/core_ext/string/access"
 require "active_support/core_ext/string/behavior"
+require "active_support/core_ext/symbol/starts_ends_with"
 require "active_support/core_ext/module/delegation"
-require "active_support/core_ext/regexp"
 
 module ActiveSupport #:nodoc:
   module Multibyte #:nodoc:
@@ -18,7 +18,7 @@ module ActiveSupport #:nodoc:
     # through the +mb_chars+ method. Methods which would normally return a
     # String object now return a Chars object so methods can be chained.
     #
-    #   'The Perfect String  '.mb_chars.downcase.strip.normalize
+    #   'The Perfect String  '.mb_chars.downcase.strip
     #   # => #<ActiveSupport::Multibyte::Chars:0x007fdc434ccc10 @wrapped_string="the perfect string">
     #
     # Chars objects are perfectly interchangeable with String objects as long as
@@ -49,7 +49,7 @@ module ActiveSupport #:nodoc:
       alias to_s wrapped_string
       alias to_str wrapped_string
 
-      delegate :<=>, :=~, :acts_like_string?, to: :wrapped_string
+      delegate :<=>, :=~, :match?, :acts_like_string?, to: :wrapped_string
 
       # Creates a new Chars instance by wrapping _string_.
       def initialize(string)
@@ -60,7 +60,7 @@ module ActiveSupport #:nodoc:
       # Forward all undefined methods to the wrapped string.
       def method_missing(method, *args, &block)
         result = @wrapped_string.__send__(method, *args, &block)
-        if /!$/.match?(method)
+        if method.end_with?("!")
           self if result
         else
           result.kind_of?(String) ? chars(result) : result
@@ -72,12 +72,6 @@ module ActiveSupport #:nodoc:
       # evaluates to +true+.
       def respond_to_missing?(method, include_private)
         @wrapped_string.respond_to?(method, include_private)
-      end
-
-      # Returns +true+ when the proxy class can handle the string. Returns
-      # +false+ otherwise.
-      def self.consumes?(string)
-        string.encoding == Encoding::UTF_8
       end
 
       # Works just like <tt>String#split</tt>, with the exception that the items
@@ -109,7 +103,7 @@ module ActiveSupport #:nodoc:
       #
       #   'Café'.mb_chars.reverse.to_s # => 'éfaC'
       def reverse
-        chars(Unicode.unpack_graphemes(@wrapped_string).reverse.flatten.pack("U*"))
+        chars(@wrapped_string.scan(/\X/).reverse.join)
       end
 
       # Limits the byte size of the string to a number of bytes without breaking
@@ -118,35 +112,7 @@ module ActiveSupport #:nodoc:
       #
       #   'こんにちは'.mb_chars.limit(7).to_s # => "こん"
       def limit(limit)
-        slice(0...translate_offset(limit))
-      end
-
-      # Converts characters in the string to uppercase.
-      #
-      #   'Laurent, où sont les tests ?'.mb_chars.upcase.to_s # => "LAURENT, OÙ SONT LES TESTS ?"
-      def upcase
-        chars Unicode.upcase(@wrapped_string)
-      end
-
-      # Converts characters in the string to lowercase.
-      #
-      #   'VĚDA A VÝZKUM'.mb_chars.downcase.to_s # => "věda a výzkum"
-      def downcase
-        chars Unicode.downcase(@wrapped_string)
-      end
-
-      # Converts characters in the string to the opposite case.
-      #
-      #    'El Cañón'.mb_chars.swapcase.to_s # => "eL cAÑÓN"
-      def swapcase
-        chars Unicode.swapcase(@wrapped_string)
-      end
-
-      # Converts the first character to uppercase and the remainder to lowercase.
-      #
-      #  'über'.mb_chars.capitalize.to_s # => "Über"
-      def capitalize
-        (slice(0) || chars("")).upcase + (slice(1..-1) || chars("")).downcase
+        chars(@wrapped_string.truncate_bytes(limit, omission: nil))
       end
 
       # Capitalizes the first letter of every word, when possible.
@@ -154,20 +120,9 @@ module ActiveSupport #:nodoc:
       #   "ÉL QUE SE ENTERÓ".mb_chars.titleize.to_s    # => "Él Que Se Enteró"
       #   "日本語".mb_chars.titleize.to_s               # => "日本語"
       def titleize
-        chars(downcase.to_s.gsub(/\b('?\S)/u) { Unicode.upcase($1) })
+        chars(downcase.to_s.gsub(/\b('?\S)/u) { $1.upcase })
       end
       alias_method :titlecase, :titleize
-
-      # Returns the KC normalization of the string by default. NFKC is
-      # considered the best normalization form for passing strings to databases
-      # and validations.
-      #
-      # * <tt>form</tt> - The form you want to normalize in. Should be one of the following:
-      #   <tt>:c</tt>, <tt>:kc</tt>, <tt>:d</tt>, or <tt>:kd</tt>. Default is
-      #   ActiveSupport::Multibyte::Unicode.default_normalization_form
-      def normalize(form = nil)
-        chars(Unicode.normalize(@wrapped_string, form))
-      end
 
       # Performs canonical decomposition on all the characters.
       #
@@ -190,7 +145,7 @@ module ActiveSupport #:nodoc:
       #   'क्षि'.mb_chars.length   # => 4
       #   'क्षि'.mb_chars.grapheme_length # => 3
       def grapheme_length
-        Unicode.unpack_graphemes(@wrapped_string).length
+        @wrapped_string.scan(/\X/).length
       end
 
       # Replaces all ISO-8859-1 or CP1252 characters by their UTF-8 equivalent
@@ -206,27 +161,14 @@ module ActiveSupport #:nodoc:
         to_s.as_json(options)
       end
 
-      %w(capitalize downcase reverse tidy_bytes upcase).each do |method|
+      %w(reverse tidy_bytes).each do |method|
         define_method("#{method}!") do |*args|
-          @wrapped_string = send(method, *args).to_s
+          @wrapped_string = public_send(method, *args).to_s
           self
         end
       end
 
       private
-
-        def translate_offset(byte_offset)
-          return nil if byte_offset.nil?
-          return 0   if @wrapped_string == ""
-
-          begin
-            @wrapped_string.byteslice(0...byte_offset).unpack("U*").length
-          rescue ArgumentError
-            byte_offset -= 1
-            retry
-          end
-        end
-
         def chars(string)
           self.class.new(string)
         end

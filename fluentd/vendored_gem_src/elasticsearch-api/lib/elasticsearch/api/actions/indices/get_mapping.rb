@@ -22,15 +22,13 @@ module Elasticsearch
         # Returns mappings for one or more indices.
         #
         # @option arguments [List] :index A comma-separated list of index names
-        # @option arguments [List] :type A comma-separated list of document types   *Deprecated*
+        # @option arguments [List] :type A comma-separated list of document types *Deprecated*
         # @option arguments [Boolean] :include_type_name Whether to add the type name to the response (default: false)
         # @option arguments [Boolean] :ignore_unavailable Whether specified concrete indices should be ignored when unavailable (missing or closed)
         # @option arguments [Boolean] :allow_no_indices Whether to ignore if a wildcard indices expression resolves into no concrete indices. (This includes `_all` string or when no indices have been specified)
-        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both.
-        #   (options: open,closed,hidden,none,all)
-
+        # @option arguments [String] :expand_wildcards Whether to expand wildcard expression to concrete indices that are open, closed or both. (options: open, closed, hidden, none, all)
         # @option arguments [Time] :master_timeout Specify timeout for connection to master
-        # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
+        # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false) *Deprecated*
         # @option arguments [Hash] :headers Custom HTTP headers
         #
         # *Deprecation notice*:
@@ -38,7 +36,7 @@ module Elasticsearch
         # Deprecated since version 7.0.0
         #
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-get-mapping.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-get-mapping.html
         #
         def get_mapping(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -58,7 +56,7 @@ module Elasticsearch
                      "_mapping/#{Utils.__listify(_type)}"
                    else
                      "_mapping"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -76,7 +74,7 @@ module Elasticsearch
           :master_timeout,
           :local
         ].freeze)
-end
       end
+    end
   end
 end

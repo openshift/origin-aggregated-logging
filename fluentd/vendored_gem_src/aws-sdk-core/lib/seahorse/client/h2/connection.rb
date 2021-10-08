@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-if RUBY_VERSION >= '2.1'
-  begin
-    require 'http/2'
-  rescue LoadError; end
-end
+begin
+  require 'http/2'
+rescue LoadError; end
 require 'openssl'
 require 'socket'
 
@@ -75,18 +73,23 @@ module Seahorse
         def connect(endpoint)
           @mutex.synchronize {
             if @status == :ready
-              tcp, addr = _tcp_socket(endpoint) 
+              tcp, addr = _tcp_socket(endpoint)
               debug_output("opening connection to #{endpoint.host}:#{endpoint.port} ...")
               _nonblocking_connect(tcp, addr)
               debug_output('opened')
 
-              @socket = OpenSSL::SSL::SSLSocket.new(tcp, _tls_context)
-              @socket.sync_close = true
-              @socket.hostname = endpoint.host
+              if endpoint.scheme == 'https'
+                @socket = OpenSSL::SSL::SSLSocket.new(tcp, _tls_context)
+                @socket.sync_close = true
+                @socket.hostname = endpoint.host
 
-              debug_output("starting TLS for #{endpoint.host}:#{endpoint.port} ...")
-              @socket.connect
-              debug_output('TLS established')
+                debug_output("starting TLS for #{endpoint.host}:#{endpoint.port} ...")
+                @socket.connect
+                debug_output('TLS established')
+              else
+                @socket = tcp
+              end
+
               _register_h2_callbacks
               @status = :active
             elsif @status == :closed
@@ -245,4 +248,3 @@ module Seahorse
     end
   end
 end
-

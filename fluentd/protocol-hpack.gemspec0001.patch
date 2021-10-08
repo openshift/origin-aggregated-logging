@@ -1,0 +1,11 @@
+--- a/protocol-hpack.gemspec
++++ b/protocol-hpack.gemspec
+@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
+   s.authors = ["Samuel Williams".freeze]
+   s.date = "2020-02-01"
+   s.email = ["samuel.williams@oriontransfer.co.nz".freeze]
+-  s.files = [".editorconfig".freeze, ".gitignore".freeze, ".gitmodules".freeze, ".rspec".freeze, ".travis.yml".freeze, "Gemfile".freeze, "README.md".freeze, "Rakefile".freeze, "http-hpack.gemspec".freeze, "lib/protocol/hpack.rb".freeze, "lib/protocol/hpack/compressor.rb".freeze, "lib/protocol/hpack/context.rb".freeze, "lib/protocol/hpack/decompressor.rb".freeze, "lib/protocol/hpack/error.rb".freeze, "lib/protocol/hpack/huffman.rb".freeze, "lib/protocol/hpack/huffman/machine.rb".freeze, "lib/protocol/hpack/version.rb".freeze, "tasks/huffman.rake".freeze, "tasks/huffman.rb".freeze]
++  s.files = [".editorconfig".freeze, ".gitmodules".freeze, ".rspec".freeze, ".travis.yml".freeze, "Gemfile".freeze, "README.md".freeze, "Rakefile".freeze, "http-hpack.gemspec".freeze, "lib/protocol/hpack.rb".freeze, "lib/protocol/hpack/compressor.rb".freeze, "lib/protocol/hpack/context.rb".freeze, "lib/protocol/hpack/decompressor.rb".freeze, "lib/protocol/hpack/error.rb".freeze, "lib/protocol/hpack/huffman.rb".freeze, "lib/protocol/hpack/huffman/machine.rb".freeze, "lib/protocol/hpack/version.rb".freeze, "tasks/huffman.rake".freeze, "tasks/huffman.rb".freeze]
+   s.homepage = "https://github.com/socketry/http-hpack".freeze
+   s.licenses = ["MIT".freeze]
+   s.rubygems_version = "3.0.9".freeze

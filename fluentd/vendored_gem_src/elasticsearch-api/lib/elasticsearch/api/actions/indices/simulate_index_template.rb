@@ -28,7 +28,7 @@ module Elasticsearch
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body New index template definition, which will be included in the simulation, as if it already exists in the system
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/indices-templates.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/indices-templates.html
         #
         def simulate_index_template(arguments = {})
           raise ArgumentError, "Required argument 'name' missing" unless arguments[:name]
@@ -55,7 +55,7 @@ module Elasticsearch
           :cause,
           :master_timeout
         ].freeze)
-end
       end
+    end
   end
 end

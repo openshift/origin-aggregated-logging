@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
     s.metadata['mailing_list_uri'] = 'http://groups.google.com/group/ruby-ffi'
   end
   s.files = `git ls-files -z`.split("\x0").reject do |f|
-    f =~ /^(bench|gen|libtest|nbproject|spec)/
+    f =~ /^(\.|bench|gen|libtest|nbproject|spec)/
   end
 
   # Add libffi git files
@@ -34,10 +34,9 @@ Gem::Specification.new do |s|
   s.rdoc_options = %w[--exclude=ext/ffi_c/.*\.o$ --exclude=ffi_c\.(bundle|so)$]
   s.license = 'BSD-3-Clause'
   s.require_paths << 'ext/ffi_c'
-  s.required_ruby_version = '>= 2.0'
-  s.add_development_dependency 'rake', '~> 12.1'
+  s.required_ruby_version = '>= 2.3'
+  s.add_development_dependency 'rake', '~> 13.0'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
-  s.add_development_dependency 'rake-compiler-dock', '~> 0.7.0'
+  s.add_development_dependency 'rake-compiler-dock', '~> 1.0'
   s.add_development_dependency 'rspec', '~> 2.14.1'
-  s.add_development_dependency 'rubygems-tasks', "~> 0.2.4"
 end

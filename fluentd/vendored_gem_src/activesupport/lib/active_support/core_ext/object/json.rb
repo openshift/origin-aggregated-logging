@@ -3,6 +3,7 @@
 # Hack to load json gem first so we can overwrite its to_json.
 require "json"
 require "bigdecimal"
+require "ipaddr"
 require "uri/generic"
 require "pathname"
 require "active_support/core_ext/big_decimal/conversions" # for #to_s
@@ -14,6 +15,7 @@ require "active_support/core_ext/time/conversions"
 require "active_support/core_ext/date_time/conversions"
 require "active_support/core_ext/date/conversions"
 
+#--
 # The JSON gem adds a few modules to Ruby core classes containing :to_json definition, overwriting
 # their default behavior. That said, we need to define the basic to_json method in all of them,
 # otherwise they will always use to_json gem implementation, which is backwards incompatible in
@@ -44,7 +46,7 @@ module ActiveSupport
   end
 end
 
-[Object, Array, FalseClass, Float, Hash, Integer, NilClass, String, TrueClass, Enumerable].reverse_each do |klass|
+[Enumerable, Object, Array, FalseClass, Float, Hash, Integer, NilClass, String, TrueClass].reverse_each do |klass|
   klass.prepend(ActiveSupport::ToJsonWithActiveSupportEncoder)
 end
 
@@ -168,7 +170,11 @@ class Hash
       self
     end
 
-    Hash[subset.map { |k, v| [k.to_s, options ? v.as_json(options.dup) : v.as_json] }]
+    result = {}
+    subset.each do |k, v|
+      result[k.to_s] = options ? v.as_json(options.dup) : v.as_json
+    end
+    result
   end
 end
 
@@ -209,6 +215,12 @@ class URI::Generic #:nodoc:
 end
 
 class Pathname #:nodoc:
+  def as_json(options = nil)
+    to_s
+  end
+end
+
+class IPAddr # :nodoc:
   def as_json(options = nil)
     to_s
   end

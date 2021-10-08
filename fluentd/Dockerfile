@@ -2,14 +2,14 @@
 
 #@follow_tag(registry.redhat.io/ubi8/ruby-25:latest)
 FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25
-ENV BUILD_VERSION=1.7.4
+ENV BUILD_VERSION=1.14.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
 ARG DATA_VERSION_VALUE=1.6.0
-ARG FLUENTD_VERSION_VALUE=1.7.4
+ARG FLUENTD_VERSION_VALUE=1.14.1
 ARG HOME_VALUE=/opt/app-root/src
 ARG PATH_VALUE=/opt/app-root/src/bin:/opt/app-root/bin
 ARG LOGGING_FILE_PATH_VALUE=/var/log/fluentd/fluentd.log
@@ -104,5 +104,5 @@ LABEL \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
         io.openshift.build.source-location=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
         io.openshift.build.commit.url=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL}/commit/${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL} \
-        version=v1.7.4
+        version=v1.14.1
 

@@ -31,7 +31,6 @@ module Elasticsearch
       def cat
         @cat ||= CatClient.new(self)
       end
-
     end
   end
 end

@@ -23,5 +23,6 @@ void Init_crc32_mpeg_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC32MPEG = rb_const_get(mDigest, rb_intern("CRC32MPEG"));
 
+	rb_undef_method(cCRC32MPEG, "update");
 	rb_define_method(cCRC32MPEG, "update", Digest_CRC32MPEG_update, 1);
 }

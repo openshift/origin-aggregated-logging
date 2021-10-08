@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-concat"
-  spec.version       = "2.4.0"
+  spec.version       = "2.5.0"
   spec.authors       = ["Kenji Okimoto"]
   spec.email         = ["okimoto@clear-code.com"]
 
@@ -22,4 +22,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", ">= 3.1.0"
   spec.add_development_dependency "test-unit-rr"
   spec.add_development_dependency "appraisal"
+  spec.add_development_dependency "webrick"
 end

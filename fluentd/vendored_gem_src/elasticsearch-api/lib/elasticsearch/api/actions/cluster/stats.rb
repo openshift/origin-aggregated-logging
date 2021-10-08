@@ -26,7 +26,7 @@ module Elasticsearch
         # @option arguments [Time] :timeout Explicit operation timeout
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cluster-stats.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cluster-stats.html
         #
         def stats(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -40,7 +40,7 @@ module Elasticsearch
                      "_cluster/stats/nodes/#{Utils.__listify(_node_id)}"
                    else
                      "_cluster/stats"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -54,7 +54,7 @@ module Elasticsearch
           :flat_settings,
           :timeout
         ].freeze)
-end
       end
+    end
   end
 end

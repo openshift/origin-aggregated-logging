@@ -30,7 +30,7 @@ module Elasticsearch
         # @option arguments [Boolean] :v Verbose mode. Display column headers
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/cat-nodeattrs.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/cat-nodeattrs.html
         #
         def nodeattrs(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -57,7 +57,7 @@ module Elasticsearch
           :s,
           :v
         ].freeze)
-end
       end
+    end
   end
 end

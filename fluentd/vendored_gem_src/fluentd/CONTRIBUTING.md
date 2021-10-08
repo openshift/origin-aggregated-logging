@@ -6,7 +6,7 @@ We'd love your contribution. Here are the guidelines!
 
 RESOURCES of [Official site](https://www.fluentd.org/) and [Fluentd documentation](https://docs.fluentd.org/) may help you.
 
-If you have further questions about Fluentd and plugins, please direct these to [Mailing List](https://groups.google.com/forum/#!forum/fluentd).
+If you have further questions about Fluentd and plugins, please direct these to [Community Forum](https://discuss.fluentd.org/).
 Don't use Github issue for asking questions. Here are examples:
 
 - I installed xxx plugin but it doesn't work. Why?
@@ -16,7 +16,7 @@ Don't use Github issue for asking questions. Here are examples:
 We may close such questions to keep clear repository for developers and users.
 Github issue is mainly for submitting a bug report or feature request. See below.
 
-If you can't judge your case is a bug or not, use mailing list or slack first.
+If you can't judge your case is a bug or not, use community forum or slack first.
 
 ## Found a bug?
 
@@ -24,7 +24,7 @@ If you find a bug of Fluentd or a mistake in the documentation, you can help us 
 submitting an issue to Fluentd. Even better you can submit a Pull Request with a fix.
 
 * **Fluentd**: Use [fluentd](https://github.com/fluent/fluentd) repository. Fill issue template.
-* **Documentation**: Use [fluentd-docs](https://github.com/fluent/fluentd-docs-gitbook) repository.
+* **Documentation**: Use [fluentd documentation](https://github.com/fluent/fluentd-docs-gitbook) repository.
 
 If you find a bug of 3rd party plugins, please submit an issue to each plugin repository.
 And use [omnibus-td-agent](https://github.com/treasure-data/omnibus-td-agent) repository for td-agent related issues.

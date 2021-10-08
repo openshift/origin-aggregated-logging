@@ -50,6 +50,7 @@ module Elasticsearch
       method_option :verbose, type: :boolean, default: false,  desc: 'Output more information'
       method_option :tests,   type: :boolean, default: false,  desc: 'Generate test files'
       method_option :api,     type: :array,   default: %w[oss xpack], desc: 'APIs to generate (oss, x-pack)'
+
       def generate
         self.class.source_root File.expand_path(__dir__)
         @xpack = options[:api].include? 'xpack'
@@ -65,11 +66,10 @@ module Elasticsearch
 
       def __generate_source(api)
         @current_api = api
-        @input = FilesHelper.input_dir(api)
         @output = FilesHelper.output_dir(api)
 
         FilesHelper.files(api).each do |filepath|
-          @path = Pathname(@input.join(filepath))
+          @path = Pathname(filepath)
           @json = MultiJson.load(File.read(@path))
           @spec = @json.values.first
           say_status 'json', @path, :yellow
@@ -113,12 +113,13 @@ module Elasticsearch
         names = @endpoint_name.split('.')
         if @current_api == :xpack
           names = (names.first == 'xpack' ? names : ['xpack', names].flatten)
-          # Return an array with 'ml' renamed to 'machine_learning' and 'ilm' to
-          # 'index_lifecycle_management'
+          # Return an array to expand 'ccr', 'ilm', 'ml' and 'slm'
           names.map do |name|
             name
               .gsub(/^ml$/, 'machine_learning')
               .gsub(/^ilm$/, 'index_lifecycle_management')
+              .gsub(/^ccr/, 'cross_cluster_replication')
+              .gsub(/^slm/, 'snapshot_lifecycle_management')
           end
         else
           names
@@ -146,19 +147,24 @@ module Elasticsearch
       end
 
       def __http_method
-        case @endpoint_name
-        when 'index'
-          '_id ? Elasticsearch::API::HTTP_PUT : Elasticsearch::API::HTTP_POST'
-        when 'count'
-          <<~SRC
-            if arguments[:body]
-              Elasticsearch::API::HTTP_POST
-            else
-              Elasticsearch::API::HTTP_GET
-            end
-          SRC
+        return '_id ? Elasticsearch::API::HTTP_PUT : Elasticsearch::API::HTTP_POST' if @endpoint_name == 'index'
+
+        default_method = @spec['url']['paths'].map { |a| a['methods'] }.flatten.first
+        if @spec['body'] && default_method == 'GET'
+          # When default method is GET and body is required, we should always use POST
+          if @spec['body']['required']
+            'Elasticsearch::API::HTTP_POST'
+          else
+            <<~SRC
+              if arguments[:body]
+                Elasticsearch::API::HTTP_POST
+              else
+                Elasticsearch::API::HTTP_GET
+              end
+            SRC
+          end
         else
-          "Elasticsearch::API::HTTP_#{@spec['url']['paths'].map { |a| a['methods'] }.flatten.first}"
+          "Elasticsearch::API::HTTP_#{default_method}"
         end
       end
 
@@ -220,12 +226,41 @@ module Elasticsearch
 
       def docs_helper(name, info)
         info['type'] = 'String' if info['type'] == 'enum' # Rename 'enums' to 'strings'
+        info['type'] = 'Integer' if info['type'] == 'int' # Rename 'int' to 'Integer'
         tipo = info['type'] ? info['type'].capitalize : 'String'
         description = info['description'] ? info['description'].strip : '[TODO]'
-        options = info['options'] ? "\n    #   (options: #{info['options'].join(', '.strip)})\n" : ''
-        required = info['required'] ? ' (*Required*)' : ''
-        deprecated = info['deprecated'] ? ' *Deprecated*' : ''
-        "# @option arguments [#{tipo}] :#{name} #{description} #{required} #{deprecated} #{options}\n"
+        options = info['options'] ? "(options: #{info['options'].join(', ').strip})" : nil
+        required = info['required'] ? '(*Required*)' : ''
+        deprecated = info['deprecated'] ? '*Deprecated*' : ''
+        optionals = [required, deprecated, options].join(' ').strip
+
+        "# @option arguments [#{tipo}] :#{name} #{description} #{optionals}\n"
+      end
+
+      def stability_doc_helper(stability)
+        return if stability == 'stable'
+
+        if stability == 'experimental'
+          <<~MSG
+            # This functionality is Experimental and may be changed or removed
+            # completely in a future release. Elastic will take a best effort approach
+            # to fix any issues, but experimental features are not subject to the
+            # support SLA of official GA features.
+          MSG
+        elsif stability == 'beta'
+          <<~MSG
+            # This functionality is in Beta and is subject to change. The design and
+            # code is less mature than official GA features and is being provided
+            # as-is with no warranties. Beta features are not subject to the support
+            # SLA of official GA features.
+          MSG
+        else
+          <<~MSG
+            # This functionality is subject to potential breaking changes within a
+            # minor version, meaning that your referencing code may break when this
+            # library is upgraded.
+          MSG
+        end
       end
 
       def generate_tests
@@ -260,7 +295,7 @@ module Elasticsearch
       end
 
       def run_rubocop(api)
-        system("rubocop --format autogenconf -x #{FilesHelper::output_dir(api)}")
+        system("rubocop -c ./thor/.rubocop.yml --format autogenconf -x #{FilesHelper::output_dir(api)}")
       end
     end
   end

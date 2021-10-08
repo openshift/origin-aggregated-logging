@@ -1,71 +1,52 @@
-include:
-  - local: '/.gitlab/cicd-template.yaml'
+.install-template:
+  before_script:
+    - gem update --system
+    - ruby -v
+
+.test-template:
+  before_script:
+    - gem install rake
+    - bundle install
+    - chmod 777 -R ./test
 
 stages:
   - build
   - tests
 
-2-1-10:
-  image: "ruby:2.1.10"
+2-6-6:
+  image: "ruby:2.6.6"
   stage: build
-  allow_failure: true
-  extends: .install-template 
+  extends: .install-template
   script:
     - bundle install --jobs=3 --retry=3
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-1-10"
-    paths:
-      - ./*
-
-2-2-10:
-  image: "ruby:2.2.10"
-  stage: build
-  allow_failure: true
-  extends: .install-template 
-  script:
-    - bundle install --jobs=3 --retry=3
-  cache:
-    key: "$CI_COMMIT_REF_SLUG 2-2-10"
+    key: "$CI_COMMIT_REF_SLUG 2-6-6"
     paths:
 
-2-4-5:
-  image: "ruby:2.4.5"
+2-7-2:
+  image: "ruby:2.7.2"
   stage: build
-  allow_failure: true
-  extends: .install-template 
+  extends: .install-template
   script:
     - bundle install --jobs=3 --retry=3
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-4-5"
+    key: "$CI_COMMIT_REF_SLUG 2-7-2"
     paths:
 
-2-5-5:
-  image: "ruby:2.5.5"
+3-0-0:
+  image: "ruby:3.0.0"
   stage: build
-  allow_failure: true
-  extends: .install-template 
+  extends: .install-template
   script:
     - bundle install --jobs=3 --retry=3
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-5-5"
-    paths:
-
-2-6-3:
-  image: "ruby:2.6.3"
-  stage: build
-  allow_failure: true
-  extends: .install-template 
-  script:
-    - bundle install --jobs=3 --retry=3
-  cache:
-    key: "$CI_COMMIT_REF_SLUG 2-6-3"
+    key: "$CI_COMMIT_REF_SLUG 3-0-0"
     paths:
 
 rubyhead:
   image: "ruby:latest"
   stage: build
-  allow_failure: true
-  extends: .install-template 
+  extends: .install-template
   script:
     - bundle install --jobs=3 --retry=3
   cache:
@@ -73,63 +54,39 @@ rubyhead:
     paths:
       - ./*
 
-2-1-10-test:
-  image: "ruby:2.1.10"
+2-6-6-test:
+  image: "ruby:2.6.6"
   stage: tests
   allow_failure: true
   extends: .test-template
   script:
     - bundle exec rake test
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-1-10"
+    key: "$CI_COMMIT_REF_SLUG 2-6-6"
     paths:
       - ./*
 
-2-2-10-test:
-  image: "ruby:2.2.10"
+2-7-2-test:
+  image: "ruby:2.7.2"
   stage: tests
   allow_failure: true
   extends: .test-template
   script:
     - bundle exec rake test
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-2-10"
+    key: "$CI_COMMIT_REF_SLUG 2-7-2"
     paths:
       - ./*
 
-2-4-5-test:
-  image: "ruby:2.4.5"
+3-0-0-test:
+  image: "ruby:3.0.0"
   stage: tests
   allow_failure: true
   extends: .test-template
   script:
     - bundle exec rake test
   cache:
-    key: "$CI_COMMIT_REF_SLUG 2-4-5"
-    paths:
-      - ./*
-
-2-5-5-test:
-  image: "ruby:2.5.5"
-  stage: tests
-  allow_failure: true
-  extends: .test-template
-  script:
-    - bundle exec rake test
-  cache:
-    key: "$CI_COMMIT_REF_SLUG 2-5-5"
-    paths:
-      - ./*
-
-2-6-3-test:
-  image: "ruby:2.6.3"
-  stage: tests
-  allow_failure: true
-  extends: .test-template
-  script:
-    - bundle exec rake test
-  cache:
-    key: "$CI_COMMIT_REF_SLUG 2-6-3"
+    key: "$CI_COMMIT_REF_SLUG 3-0-0"
     paths:
       - ./*
 
@@ -144,4 +101,3 @@ rubyhead-test:
     key: "$CI_COMMIT_REF_SLUG latest"
     paths:
       - ./*
-    

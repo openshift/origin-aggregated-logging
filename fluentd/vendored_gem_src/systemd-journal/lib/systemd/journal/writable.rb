@@ -66,7 +66,7 @@ module Systemd
         #   severity of the event.
         # @param [String] message the content of the message to write.
         def print(level, message)
-          rc = Native.sd_journal_print(level, message)
+          rc = Native.sd_journal_print(level, message.to_s.gsub('%', '%%'))
           raise JournalError, rc if rc < 0
         end
 

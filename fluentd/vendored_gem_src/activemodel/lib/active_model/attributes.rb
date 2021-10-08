@@ -26,20 +26,31 @@ module ActiveModel
         define_attribute_method(name)
       end
 
+      # Returns an array of attribute names as strings
+      #
+      #   class Person
+      #     include ActiveModel::Attributes
+      #
+      #     attribute :name, :string
+      #     attribute :age, :integer
+      #   end
+      #
+      #   Person.attribute_names
+      #   # => ["name", "age"]
+      def attribute_names
+        attribute_types.keys
+      end
+
       private
-
-        def define_method_attribute=(name)
-          safe_name = name.unpack("h*".freeze).first
-          ActiveModel::AttributeMethods::AttrNames.set_name_cache safe_name, name
-
-          generated_attribute_methods.module_eval <<-STR, __FILE__, __LINE__ + 1
-            def __temp__#{safe_name}=(value)
-              name = ::ActiveModel::AttributeMethods::AttrNames::ATTR_#{safe_name}
-              write_attribute(name, value)
-            end
-            alias_method #{(name + '=').inspect}, :__temp__#{safe_name}=
-            undef_method :__temp__#{safe_name}=
-          STR
+        def define_method_attribute=(name, owner:)
+          ActiveModel::AttributeMethods::AttrNames.define_attribute_accessor_method(
+            owner, name, writer: true,
+          ) do |temp_method_name, attr_name_expr|
+            owner <<
+              "def #{temp_method_name}(value)" <<
+              "  _write_attribute(#{attr_name_expr}, value)" <<
+              "end"
+          end
         end
 
         NO_DEFAULT_PROVIDED = Object.new # :nodoc:
@@ -66,46 +77,56 @@ module ActiveModel
       super
     end
 
+    def initialize_dup(other) # :nodoc:
+      @attributes = @attributes.deep_dup
+      super
+    end
+
+    # Returns a hash of all the attributes with their names as keys and the values of the attributes as values.
+    #
+    #   class Person
+    #     include ActiveModel::Attributes
+    #
+    #     attribute :name, :string
+    #     attribute :age, :integer
+    #   end
+    #
+    #   person = Person.new(name: 'Francesco', age: 22)
+    #   person.attributes
+    #   # => {"name"=>"Francesco", "age"=>22}
     def attributes
       @attributes.to_hash
     end
 
+    # Returns an array of attribute names as strings
+    #
+    #   class Person
+    #     include ActiveModel::Attributes
+    #
+    #     attribute :name, :string
+    #     attribute :age, :integer
+    #   end
+    #
+    #   person = Person.new
+    #   person.attribute_names
+    #   # => ["name", "age"]
+    def attribute_names
+      @attributes.keys
+    end
+
+    def freeze
+      @attributes = @attributes.clone.freeze unless frozen?
+      super
+    end
+
     private
-
-      def write_attribute(attr_name, value)
-        name = if self.class.attribute_alias?(attr_name)
-          self.class.attribute_alias(attr_name).to_s
-        else
-          attr_name.to_s
-        end
-
-        @attributes.write_from_user(name, value)
-        value
+      def _write_attribute(attr_name, value)
+        @attributes.write_from_user(attr_name, value)
       end
+      alias :attribute= :_write_attribute
 
       def attribute(attr_name)
-        name = if self.class.attribute_alias?(attr_name)
-          self.class.attribute_alias(attr_name).to_s
-        else
-          attr_name.to_s
-        end
-        @attributes.fetch_value(name)
+        @attributes.fetch_value(attr_name)
       end
-
-      # Handle *= for method_missing.
-      def attribute=(attribute_name, value)
-        write_attribute(attribute_name, value)
-      end
-  end
-
-  module AttributeMethods #:nodoc:
-    AttrNames = Module.new {
-      def self.set_name_cache(name, value)
-        const_name = "ATTR_#{name}"
-        unless const_defined? const_name
-          const_set const_name, value.dup.freeze
-        end
-      end
-    }
   end
 end

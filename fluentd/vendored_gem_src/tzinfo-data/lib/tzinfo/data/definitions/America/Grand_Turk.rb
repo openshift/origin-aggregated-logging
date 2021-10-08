@@ -91,8 +91,7 @@ module TZInfo
             tz.transition 2013, 11, :o2, 1383458400
             tz.transition 2014, 3, :o3, 1394348400
             tz.transition 2014, 11, :o2, 1414908000
-            tz.transition 2015, 3, :o3, 1425798000
-            tz.transition 2015, 11, :o4, 1446357600
+            tz.transition 2015, 3, :o4, 1425798000
             tz.transition 2018, 3, :o3, 1520751600
             tz.transition 2018, 11, :o2, 1541311200
             tz.transition 2019, 3, :o3, 1552201200
@@ -199,6 +198,8 @@ module TZInfo
             tz.transition 2069, 11, :o2, 3150684000, 9908215, 4
             tz.transition 2070, 3, :o3, 3161574000, 59452315, 24
             tz.transition 2070, 11, :o2, 3182133600, 9909671, 4
+            tz.transition 2071, 3, :o3, 3193023600, 59461051, 24
+            tz.transition 2071, 11, :o2, 3213583200, 9911127, 4
           end
         end
       end

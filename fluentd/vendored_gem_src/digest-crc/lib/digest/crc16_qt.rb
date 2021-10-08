@@ -6,5 +6,6 @@ module Digest
   #
   # @note Is exactly the same as the CRC16 X-25 algorithm.
   #
-  CRC16QT = CRC16X25
+  class CRC16QT < CRC16X25
+  end
 end

@@ -26,6 +26,9 @@ require 'mini_mime'
 MiniMime.lookup_by_filename("a.txt").content_type
 # => "text/plain"
 
+MiniMime.lookup_by_extension("txt").content_type
+# => "text/plain"
+
 MiniMime.lookup_by_content_type("text/plain").extension
 # => "txt"
 

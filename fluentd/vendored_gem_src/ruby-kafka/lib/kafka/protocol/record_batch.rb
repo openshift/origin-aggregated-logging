@@ -77,7 +77,7 @@ module Kafka
         record_batch_encoder.write_int8(MAGIC_BYTE)
 
         body = encode_record_batch_body
-        crc = Digest::CRC32c.checksum(body)
+        crc = ::Digest::CRC32c.checksum(body)
 
         record_batch_encoder.write_int32(crc)
         record_batch_encoder.write(body)
@@ -213,7 +213,7 @@ module Kafka
       end
 
       def mark_control_record
-        if in_transaction && is_control_batch
+        if is_control_batch
           record = @records.first
           record.is_control_record = true unless record.nil?
         end

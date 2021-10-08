@@ -10,7 +10,7 @@ module TZInfo
         module Antigua
           include TimezoneDefinition
           
-          linked_timezone 'America/Antigua', 'America/Port_of_Spain'
+          linked_timezone 'America/Antigua', 'America/Puerto_Rico'
         end
       end
     end

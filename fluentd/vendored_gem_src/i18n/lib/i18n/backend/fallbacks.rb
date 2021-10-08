@@ -16,11 +16,13 @@ module I18n
     # Returns the current fallbacks implementation. Defaults to +I18n::Locale::Fallbacks+.
     def fallbacks
       @@fallbacks ||= I18n::Locale::Fallbacks.new
+      Thread.current[:i18n_fallbacks] || @@fallbacks
     end
 
     # Sets the current fallbacks implementation. Use this to set a different fallbacks implementation.
     def fallbacks=(fallbacks)
-      @@fallbacks = fallbacks
+      @@fallbacks = fallbacks.is_a?(Array) ? I18n::Locale::Fallbacks.new(fallbacks) : fallbacks
+      Thread.current[:i18n_fallbacks] = @@fallbacks
     end
   end
 
@@ -47,7 +49,7 @@ module I18n
             catch(:exception) do
               result = super(fallback, key, fallback_options)
               unless result.nil?
-                on_fallback(locale, fallback, key, options) if locale != fallback
+                on_fallback(locale, fallback, key, options) if locale.to_s != fallback.to_s
                 return result
               end
             end

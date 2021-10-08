@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-prometheus"
-  spec.version       = "1.7.3"
+  spec.version       = "2.0.2"
   spec.authors       = ["Masahiro Sano"]
   spec.email         = ["sabottenda@gmail.com"]
   spec.summary       = %q{A fluent plugin that collects metrics and exposes for Prometheus.}
@@ -13,8 +13,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "fluentd", ">= 0.14.20", "< 2"
-  spec.add_dependency "prometheus-client", "< 0.10"
+  spec.add_dependency "fluentd", ">= 1.9.1", "< 2"
+  spec.add_dependency "prometheus-client", ">= 2.1.0"
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"

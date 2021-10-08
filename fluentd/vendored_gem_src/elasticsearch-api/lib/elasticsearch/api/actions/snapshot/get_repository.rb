@@ -26,7 +26,7 @@ module Elasticsearch
         # @option arguments [Boolean] :local Return local information, do not retrieve the state from master node (default: false)
         # @option arguments [Hash] :headers Custom HTTP headers
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/modules-snapshots.html
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/modules-snapshots.html
         #
         def get_repository(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -40,7 +40,7 @@ module Elasticsearch
                      "_snapshot/#{Utils.__listify(_repository)}"
                    else
                      "_snapshot"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = nil
@@ -58,7 +58,7 @@ module Elasticsearch
           :master_timeout,
           :local
         ].freeze)
-end
       end
+    end
   end
 end

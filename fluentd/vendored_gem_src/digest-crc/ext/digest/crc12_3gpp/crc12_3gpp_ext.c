@@ -23,5 +23,6 @@ void Init_crc12_3gpp_ext()
 	VALUE mDigest = rb_const_get(rb_cObject, rb_intern("Digest"));
 	VALUE cCRC12_3GPP = rb_const_get(mDigest, rb_intern("CRC12_3GPP"));
 
+	rb_undef_method(cCRC12_3GPP, "update");
 	rb_define_method(cCRC12_3GPP, "update", Digest_CRC12_3GPP_update, 1);
 }

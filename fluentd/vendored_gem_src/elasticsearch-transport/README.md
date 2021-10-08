@@ -136,7 +136,7 @@ Please see below for an exception to this when connecting using an Elastic Cloud
 
 If you are using [Elastic Cloud](https://www.elastic.co/cloud), you can provide your cloud id to the client.
 You must supply your username and password separately, and optionally a port. If no port is supplied,
-port 9243 will be used.
+port 443 will be used.
 
 Note: Do not enable sniffing when using Elastic Cloud. The nodes are behind a load balancer so
 Elastic Cloud will take care of everything for you.
@@ -187,18 +187,24 @@ Elasticsearch::Client.new(
 
 ### Logging
 
-To log requests and responses to standard output with the default logger (an instance of Ruby's {::Logger} class),
-set the `log` argument:
+To log requests and responses to standard output with the default logger (an instance of Ruby's {::Logger} class), set the `log` argument to true:
 
 ```ruby
-Elasticsearch::Client.new log: true
+Elasticsearch::Client.new(log: true)
+```
+
+You can also use [ecs-logging](https://github.com/elastic/ecs-logging-ruby). `ecs-logging` is a set of libraries that allows you to transform your application logs to structured logs that comply with the [Elastic Common Schema (ECS)](https://www.elastic.co/guide/en/ecs/current/ecs-reference.html):
+
+```ruby
+logger = EcsLogging::Logger.new($stdout)
+Elasticsearch::Client.new(logger: logger)
 ```
 
 
 To trace requests and responses in the _Curl_ format, set the `trace` argument:
 
 ```ruby
-Elasticsearch::Client.new trace: true
+Elasticsearch::Client.new(trace: true)
 ```
 
 You can customize the default logger or tracer:
@@ -211,7 +217,7 @@ You can customize the default logger or tracer:
 Or, you can use a custom `::Logger` instance:
 
 ```ruby
-Elasticsearch::Client.new logger: Logger.new(STDERR)
+Elasticsearch::Client.new(logger: Logger.new(STDERR))
 ```
 
 You can pass the client any conforming logger implementation:
@@ -223,7 +229,7 @@ log = Logging.logger['elasticsearch']
 log.add_appenders Logging.appenders.stdout
 log.level = :info
 
-client = Elasticsearch::Client.new logger: log
+client = Elasticsearch::Client.new(logger: log)
 ```
 
 ### Custom HTTP Headers
@@ -293,10 +299,15 @@ on a different host:
 
     Elasticsearch::Client.new hosts: ['localhost:9200', 'localhost:9201'], retry_on_failure: true
 
-You can specify how many times should the client retry the request before it raises an exception
-(the default is 3 times):
+By default, the client will retry the request 3 times. You can specify how many times to retry before it raises an exception by passing a number to `retry_on_failure`:
 
     Elasticsearch::Client.new hosts: ['localhost:9200', 'localhost:9201'], retry_on_failure: 5
+
+These two parameters can also be used together:
+
+```ruby
+Elasticsearch::Client.new hosts: ['localhost:9200', 'localhost:9201'], retry_on_status: [502, 503], retry_on_failure: 10
+```
 
 ### Reloading Hosts
 
@@ -413,10 +424,7 @@ To configure the _Faraday_ instance directly, use a block:
       f.adapter  :patron
     end
 
-You can use any standard Faraday middleware and plugins in the configuration block, for example sign the requests for the [AWS Elasticsearch service](https://aws.amazon.com/elasticsearch-service/). See [the AWS documentation](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-request-signing.html#es-request-signing-ruby) for an example.
-
-You can also initialize the transport class yourself, and pass it to the client constructor
-as the `transport` argument:
+You can use any standard Faraday middleware and plugins in the configuration block. You can also initialize the transport class yourself, and pass it to the client constructor as the `transport` argument:
 
 ```ruby
 require 'patron'
@@ -550,16 +558,14 @@ Github's pull requests and issues are used to communicate, send bug reports and 
 To work on the code, clone and bootstrap the main repository first --
 please see instructions in the main [README](../README.md#development).
 
-To run tests, launch a testing cluster -- again, see instructions
-in the main [README](../README.md#development) -- and use the Rake tasks:
+To run tests, launch a testing cluster and use the Rake tasks:
 
 ```
 time rake test:unit
 time rake test:integration
 ```
 
-Unit tests have to use Ruby 1.8 compatible syntax, integration tests
-can use Ruby 2.x syntax and features.
+Use `COVERAGE=true` before running a test task to check coverage with Simplecov.
 
 ## License
 

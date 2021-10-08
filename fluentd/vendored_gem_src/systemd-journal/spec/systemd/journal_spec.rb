@@ -8,6 +8,24 @@ RSpec.describe Systemd::Journal do
     end
   end
 
+  describe 'open' do
+    it 'creates and closes' do
+      expect(Systemd::Journal::Native).to receive(:sd_journal_close)
+        .and_call_original
+
+      result = Systemd::Journal.open { 1 }
+      expect(result).to eq 1
+    end
+
+    it 'raises original exception when creating journal fails' do
+      expect(Systemd::Journal::Native).to_not receive(:sd_journal_close)
+
+      expect do
+        Systemd::Journal.open(file: 1, path: 2, files: 3) { 1 }
+      end.to raise_error(ArgumentError)
+    end
+  end
+
   describe 'initialize' do
     subject(:j) { Systemd::Journal }
 
@@ -418,6 +436,16 @@ RSpec.describe Systemd::Journal do
         .and_return(0)
 
       Systemd::Journal.message(message: 'hello % world %')
+    end
+  end
+
+  describe 'print' do
+    it 'escapes percent signs' do
+      expect(Systemd::Journal::Native).to receive(:sd_journal_print)
+        .with(Systemd::Journal::LOG_DEBUG, 'hello %% world %%')
+        .and_return(0)
+
+      Systemd::Journal.print(Systemd::Journal::LOG_DEBUG, 'hello % world %')
     end
   end
 end

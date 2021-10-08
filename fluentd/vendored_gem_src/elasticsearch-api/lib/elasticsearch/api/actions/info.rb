@@ -22,7 +22,7 @@ module Elasticsearch
       #
       # @option arguments [Hash] :headers Custom HTTP headers
       #
-      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/index.html
+      # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/index.html
       #
       def info(arguments = {})
         headers = arguments.delete(:headers) || {}
@@ -37,5 +37,5 @@ module Elasticsearch
         perform_request(method, path, params, body, headers).body
       end
     end
-    end
+  end
 end

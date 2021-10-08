@@ -10,7 +10,7 @@ module TZInfo
         module Anguilla
           include TimezoneDefinition
           
-          linked_timezone 'America/Anguilla', 'America/Port_of_Spain'
+          linked_timezone 'America/Anguilla', 'America/Puerto_Rico'
         end
       end
     end

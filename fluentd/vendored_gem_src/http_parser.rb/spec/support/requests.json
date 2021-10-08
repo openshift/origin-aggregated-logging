@@ -442,7 +442,7 @@
   {
     "name": "line folding in header value",
     "type": "HTTP_REQUEST",
-    "raw": "GET / HTTP/1.1\r\nLine1:   abc\r\n\tdef\r\n ghi\r\n\t\tjkl\r\n  mno \r\n\t \tqrs\r\nLine2: \t line2\t\r\n\r\n",
+    "raw": "GET / HTTP/1.1\r\nLine1:   abc\r\n\tdef\r\n ghi\r\n\t\tjkl\r\n mno \r\n\t \tqrs\r\nLine2: \t line2\t\r\n\r\n",
     "should_keep_alive": true,
     "message_complete_on_eof": false,
     "http_major": 1,
@@ -454,7 +454,7 @@
     "request_url": "/",
     "num_headers": 2,
     "headers": {
-      "Line1": "abcdefghijklmno qrs",
+      "Line1": "abc\tdef ghi\t\tjkl mno \t \tqrs",
       "Line2": "line2\t"
     },
     "body": "",

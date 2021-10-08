@@ -26,7 +26,7 @@ module Elasticsearch
         # @option arguments [Hash] :headers Custom HTTP headers
         # @option arguments [Hash] :body An object containing the password for the elasticsearch keystore
         #
-        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.8/secure-settings.html#reloadable-secure-settings
+        # @see https://www.elastic.co/guide/en/elasticsearch/reference/7.15/secure-settings.html#reloadable-secure-settings
         #
         def reload_secure_settings(arguments = {})
           headers = arguments.delete(:headers) || {}
@@ -40,7 +40,7 @@ module Elasticsearch
                      "_nodes/#{Utils.__listify(_node_id)}/reload_secure_settings"
                    else
                      "_nodes/reload_secure_settings"
-      end
+                   end
           params = Utils.__validate_and_extract_params arguments, ParamsRegistry.get(__method__)
 
           body = arguments[:body]
@@ -53,7 +53,7 @@ module Elasticsearch
         ParamsRegistry.register(:reload_secure_settings, [
           :timeout
         ].freeze)
-end
       end
+    end
   end
 end
