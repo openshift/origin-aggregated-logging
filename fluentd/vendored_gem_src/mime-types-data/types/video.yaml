@@ -48,6 +48,15 @@
     - video/3gpp2
   registered: true
 - !ruby/object:MIME::Type
+  content-type: video/AV1
+  encoding: base64
+  xrefs:
+    person:
+    - Alliance_for_Open_Media
+    template:
+    - video/AV1
+  registered: true
+- !ruby/object:MIME::Type
   content-type: video/BMPEG
   encoding: base64
   xrefs:
@@ -110,6 +119,15 @@
     - rfc4735
     template:
     - video/example
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: video/FFV1
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc9043
+    template:
+    - video/FFV1
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/flexfec
@@ -255,6 +273,15 @@
   - jpm
   registered: false
 - !ruby/object:MIME::Type
+  content-type: video/jxsv
+  encoding: base64
+  xrefs:
+    draft:
+    - RFC-ietf-payload-rtp-jpegxs-18
+    template:
+    - video/jxsv
+  registered: true
+- !ruby/object:MIME::Type
   content-type: video/MJ2
   friendly:
     en: Motion JPEG 2000
@@ -396,7 +423,9 @@
   encoding: base64
   xrefs:
     rfc:
-    - rfc5109
+    - rfc3009
+    template:
+    - video/parityfec
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/pointer
@@ -438,6 +467,8 @@
   xrefs:
     rfc:
     - rfc4175
+    template:
+    - video/raw
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/rtp-enc-aescm128
@@ -465,6 +496,17 @@
     - rfc4588
     template:
     - video/rtx
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: video/scip
+  encoding: base64
+  xrefs:
+    person:
+    - Daniel_Hanson
+    - Michael_Faller
+    - SCIP
+    template:
+    - video/scip
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/smpte291
@@ -911,6 +953,15 @@
     - rfc7741
     template:
     - video/VP8
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: video/VP9
+  encoding: base64
+  xrefs:
+    draft:
+    - RFC-ietf-payload-vp9-16
+    template:
+    - video/VP9
   registered: true
 - !ruby/object:MIME::Type
   content-type: video/webm

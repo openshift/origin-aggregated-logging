@@ -10,8 +10,8 @@ module HttpParser
         #
         # Returns a new request/response instance variable
         #
-        def self.new_instance &block
-            ::HttpParser::Instance.new &block
+        def self.new_instance(&block)
+            ::HttpParser::Instance.new(&block)
         end
 
 

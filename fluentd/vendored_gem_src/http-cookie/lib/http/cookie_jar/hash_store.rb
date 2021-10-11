@@ -67,10 +67,8 @@ class HTTP::CookieJar
     def each(uri = nil) # :yield: cookie
       now = Time.now
       if uri
-        thost = DomainName.new(uri.host)
         tpath = uri.path
         @jar.each { |domain, paths|
-          next unless thost.cookie_domain?(domain)
           paths.each { |path, hash|
             next unless HTTP::Cookie.path_match?(path, tpath)
             hash.delete_if { |name, cookie|

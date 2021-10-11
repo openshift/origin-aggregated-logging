@@ -3,7 +3,7 @@ gem 'fluentd', ENV['FLUENTD_VERSION'], :source=>"https://rubygems.org"
 gem 'elasticsearch-transport'
 gem 'elasticsearch-api'
 gem 'elasticsearch'
-gem 'fluent-plugin-kubernetes_metadata_filter'
+gem 'fluent-plugin-kubernetes_metadata_filter', '2.7.1'
 gem 'fluent-plugin-cloudwatch-logs'
 gem 'fluent-plugin-concat'
 gem 'fluent-plugin-detect-exceptions', "0.0.14"
