@@ -1,4 +1,12 @@
-## 0.0.7.7 (2019-03-19)
+## 0.0.8
+
+- No functional change in the library code.
+- Include Windows binaries for Ruby 3.0.
+- Drop support for Ruby 2.1 and earlier.
+- Replace Travis CI with Github Actions.
+- Fix cross-build after upgrading rake-compiler/rake-compiler-dock to 1.1.1/1.1.0.
+
+## 0.0.7.7 (2020-03-30)
 
 - Include Windows binaries for Ruby 2.7.
 

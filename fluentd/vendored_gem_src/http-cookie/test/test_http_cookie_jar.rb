@@ -20,11 +20,7 @@ module TestHTTPCookieJar
         assert_raises(NameError) {
           HTTP::CookieJar::ErroneousStore
         }
-        if RUBY_VERSION >= "1.9"
-          assert_includes $LOADED_FEATURES, rb
-        else
-          assert_includes $LOADED_FEATURES, rb[(dir.size + 1)..-1]
-        end
+        assert($LOADED_FEATURES.any? { |file| FileTest.identical?(file, rb) })
       }
     end
 
@@ -45,11 +41,7 @@ module TestHTTPCookieJar
         assert_raises(NameError) {
           HTTP::CookieJar::ErroneousSaver
         }
-        if RUBY_VERSION >= "1.9"
-          assert_includes $LOADED_FEATURES, rb
-        else
-          assert_includes $LOADED_FEATURES, rb[(dir.size + 1)..-1]
-        end
+        assert($LOADED_FEATURES.any? { |file| FileTest.identical?(file, rb) })
       }
     end
   end
@@ -137,6 +129,17 @@ module TestHTTPCookieJar
       assert_equal(1, @jar.cookies(URI('https://RubyForge.org/')).length)
 
       assert_equal(0, @jar.cookies(URI('http://www.rubyforge.org/')).length)
+    end
+
+    def test_host_only_with_unqualified_hostname
+      @jar.add(HTTP::Cookie.new(cookie_values(
+        :origin => 'http://localhost/', :domain => 'localhost', :for_domain => false)))
+
+      assert_equal(1, @jar.cookies(URI('http://localhost/')).length)
+
+      assert_equal(1, @jar.cookies(URI('http://Localhost/')).length)
+
+      assert_equal(1, @jar.cookies(URI('https://Localhost/')).length)
     end
 
     def test_empty_value

@@ -20,17 +20,31 @@ Hoe.spec 'mime-types-data' do
 
   license 'MIT'
 
-  extra_dev_deps << ['nokogiri', '~> 1.6']
-  extra_dev_deps << ['hoe-doofus', '~> 1.0']
-  extra_dev_deps << ['hoe-gemspec2', '~> 1.1']
-  extra_dev_deps << ['hoe-git', '~> 1.6']
-  extra_dev_deps << ['hoe-rubygems', '~> 1.0']
-  extra_dev_deps << ['rake', '~> 10.0']
-  extra_dev_deps << ['mime-types', '>= 3.2.1', '< 4']
+  extra_dev_deps << [ 'nokogiri', '~> 1.6' ]
+  extra_dev_deps << [ 'hoe-doofus', '~> 1.0' ]
+  extra_dev_deps << [ 'hoe-gemspec2', '~> 1.1' ]
+  extra_dev_deps << [ 'hoe-git', '~> 1.6' ]
+  extra_dev_deps << [ 'hoe-rubygems', '~> 1.0' ]
+  extra_dev_deps << [ 'rake', '>= 10.0', '< 14' ]
+  extra_dev_deps << [ 'mime-types', '>= 3.2.1', '< 4' ]
 end
 
 $LOAD_PATH.unshift 'lib'
 $LOAD_PATH.unshift 'support'
+
+def new_version
+  version =
+    IO.read('lib/mime/types/data.rb').scan(/VERSION = '(\d\.\d{4}\.\d{4})'/).flatten.first
+
+  major = Gem::Version.new(version).canonical_segments.first
+  minor = Date.today.strftime('%Y.%m%d')
+
+  "#{major}.#{minor}"
+end
+
+def release_header
+  "#{new_version} / #{Date.today.strftime('%Y-%m-%d')}"
+end
 
 namespace :mime do
   desc 'Download the current MIME type registrations from IANA.'
@@ -43,6 +57,43 @@ namespace :mime do
   task :apache, [ :destination ] do |_, args|
     require 'apache_mime_types'
     ApacheMIMETypes.download(to: args.destination)
+  end
+end
+
+namespace :release do
+  task __pull: %w(mime:apache mime:iana convert)
+  task __prepare: %w(update:version update:history git:manifest)
+  task :__commit do
+    history = IO.read('History.md')
+    message = history.scan(%r{## (#{release_header}.+?)## \d\.\d{4}\.\d{4} /}m).flatten.first
+
+    IO.popen('git commit -a -F -', 'w') { |commit|
+      commit.puts message
+    }
+  end
+
+  desc 'Prepare a new automatic release'
+  task automatic: :__pull do
+    if system('git diff --quiet --exit-code') == false
+      Rake::Task['release:__prepare'].invoke
+      Rake::Task['gemspec'].invoke
+      Rake::Task['release:__commit'].invoke
+    else
+      warn 'No changes detected.'
+    end
+
+#     file = IO.read('History.md')
+#     note = <<-NOTE
+# <!-- automatic-release -->
+
+# ## #{new_version} / #{Date.today.strftime('%Y-%m-%d')}
+
+# - Updated the IANA media registry entries as of release date.
+#     NOTE
+
+#     updated = file.sub(/<!-- automatic-release -->\n/, note)
+
+#     IO.write('History.md', updated)
   end
 end
 
@@ -73,14 +124,29 @@ end
 namespace :update do
   desc 'Update the release version'
   task :version do
-    require 'mime/types'
-
-    major = Gem::Version.new(MIME::Types::VERSION).canonical_segments.first
-    minor = Date.today.strftime("%Y.%m%d")
     file = IO.read('lib/mime/types/data.rb')
-      .sub(/VERSION = '[^']+'/, "VERSION = '#{major}.#{minor}'")
+    updated = file.sub(/VERSION = '[^']+'/, "VERSION = '#{new_version}'")
 
-    IO.write('lib/mime/types/data.rb', file)
+    IO.write('lib/mime/types/data.rb', updated)
+  end
+
+  desc 'Update the history file with automatic release notes'
+  task :history do
+    history = IO.read('History.md')
+
+    if history !~ /^## #{release_header}$/
+      note = <<-NOTE
+<!-- automatic-release -->
+
+## #{release_header}
+
+- Updated the Apache and IANA media registry entries as of release date.
+      NOTE
+
+      updated = history.sub(/<!-- automatic-release -->\n/, note)
+
+      IO.write('History.md', updated)
+    end
   end
 end
 
