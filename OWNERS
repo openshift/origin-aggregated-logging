@@ -5,6 +5,7 @@ filters:
       - jcantrill
       - igor-karpukhin
       - alanconway
+      - periklis
     reviewers:
       - jcantrill
       - lukas-vlcek
