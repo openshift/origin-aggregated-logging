@@ -1,17 +1,13 @@
 {
-  "index_patterns": "*jaeger-service-*",
+  "index_patterns": [ "*jaeger-service-*" ],
   "settings":{
     "index.number_of_shards": $PRIMARY_SHARDS,
     "index.number_of_replicas": $REPLICA_SHARDS,
     "index.mapping.nested_fields.limit":50,
-    "index.requests.cache.enable":true,
-    "index.mapper.dynamic":false
+    "index.requests.cache.enable":true
   },
   "mappings":{
-    "_default_":{
-      "_all":{
-        "enabled":false
-      },
+    "_doc":{
       "dynamic_templates":[
         {
           "span_tags_map":{
@@ -31,9 +27,7 @@
             "path_match":"process.tag.*"
           }
         }
-      ]
-    },
-    "service":{
+      ],
       "properties":{
         "serviceName":{
           "type":"keyword",
