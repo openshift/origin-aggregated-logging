@@ -18,6 +18,7 @@ filters:
       - pmoogi-redhat
       - ajaygupta978
       - shwetaap
+      - cahartma
   "Dockerfile(?:\\.in)?$":
     labels:
       - midstream/Dockerfile
