@@ -60,8 +60,10 @@ module Fluent::Plugin
     def do_merge_json_log(record)
       json_fields.each do |merge_json_log_key|
         if record.has_key?(merge_json_log_key)
-          value = (record[merge_json_log_key] || "").strip
-          if value.start_with?('{') && value.end_with?('}')
+          value = record[merge_json_log_key] || ''
+          value = value.strip if value.respond_to?(:strip)
+          if value.respond_to?(:start_with?) && value.respond_to?(:end_with?) &&
+            (value.start_with?('{') && value.end_with?('}'))
             begin
               record = JSON.parse(value).merge(record)
               unless @preserve_json_log
@@ -80,20 +82,21 @@ module Fluent::Plugin
     def do_replace_json_log(record)
       json_fields.each do |merge_json_log_key|
         if record.has_key?(merge_json_log_key)
-          value = (record[merge_json_log_key] || "").strip
-          if value.start_with?('{') && value.end_with?('}')
+          value = record[merge_json_log_key] || ''
+          value = value.strip if value.respond_to?(:strip)
+          if value.respond_to?(:start_with?) && value.respond_to?(:end_with?) &&
+             (value.start_with?('{') && value.end_with?('}'))
             begin
               parsed_value = JSON.parse(value)
               record[merge_json_log_key] = parsed_value
             rescue JSON::ParserError
               log.debug "parse_json_field could not parse field [#{merge_json_log_key}] as JSON: value [#{value}]"
             end
-          end
+            end
           break
         end
       end
       record
     end
-
   end
 end
