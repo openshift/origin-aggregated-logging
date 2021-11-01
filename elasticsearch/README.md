@@ -60,3 +60,13 @@ Example to find unassigned shards:
 ```
 $ oc exec -c elasticsearch $POD -- shards | grep UNASSIGNED
 ```
+
+## Image Templates
+
+### Updating Openshift Logging Templates
+
+The Logging team directly manages the ViaQ and Kibana templates. To update the ViaQ models, follow the instructions listed in the [elasticsearch-templates](https://github.com/ViaQ/elasticsearch-templates) repository's README. To update the Kibana templates, change the file and create a PR.
+
+### Updating Jaeger Templates
+
+The Jaeger templates are managed by the Jaeger team and can be updated via the same methodology as the Kibana templates.
