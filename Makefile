@@ -5,7 +5,7 @@ KIBANA_IMAGE?="openshift/origin-logging-kibana6"
 ELASTICSEARCH_IMAGE?="openshift/origin-logging-elasticsearch6"
 CURATOR_IMAGE?="openshift/origin-logging-curator5"
 
-export LOGGING_VERSION=5.3
+export LOGGING_VERSION=5.4
 
 # Build the Docker images for Origin Aggregated Logging
 build-images: build-all-images
