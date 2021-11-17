@@ -21,7 +21,7 @@ if [[ "${OPENSHIFT_CI:-}" == "true" ]]; then
     PROMETHEUS_EXPORTER_VER=$(echo $PROMETHEUS_EXPORTER_VER | cut -d'-' -f1)
     # Specific releases of this plugin were not (unfortunately) pushed to upstream but are released in different repo.
     # Versions with non-upstream releases: [6.8.1.1]
-    export PROMETHEUS_EXPORTER_URL=https://github.com/lukas-vlcek/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+    export PROMETHEUS_EXPORTER_URL=https://github.com/viaq/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
     # export PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
 fi
 es_plugins=($OPENDISTRO_URL $PROMETHEUS_EXPORTER_URL $INGEST_PLUGIN_URL)
