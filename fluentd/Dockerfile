@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel8.2.els.ruby.25 AS builder
+FROM registry.ci.openshift.org/ocp/builder:ubi8.ruby.25 AS builder
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 

@@ -161,7 +161,7 @@ switch_to_admin_user() {
 
 MASTER_VERSION=${MASTER_VERSION:-4.6}
 # what namespace to use for operator images?
-EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.svc.ci.openshift.org}
+EXTERNAL_REGISTRY=${EXTERNAL_REGISTRY:-registry.ci.openshift.org}
 EXT_REG_IMAGE_NS=${EXT_REG_IMAGE_NS:-origin}
 # for dev purposes, image builds will typically be pushed to this namespace
 OPENSHIFT_BUILD_NAMESPACE=${OPENSHIFT_BUILD_NAMESPACE:-openshift}
@@ -173,7 +173,7 @@ construct_image_name() {
     local component="$1"
     local tagsuffix="${2:-latest}"
     # if running in CI environment, IMAGE_FORMAT will look like this:
-    # IMAGE_FORMAT=registry.svc.ci.openshift.org/ci-op-xxx/stable:${component}
+    # IMAGE_FORMAT=registry.ci.openshift.org/ci-op-xxx/stable:${component}
     # stable is the imagestream containing the images built for this PR, or
     # otherwise the most recent image
     if [ -n "${IMAGE_FORMAT:-}" ] ; then
