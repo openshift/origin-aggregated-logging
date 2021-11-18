@@ -1,3 +1,3 @@
 from:
 - source: registry-proxy.engineering.redhat.com/rh-osbs/ubi8-nodejs-10:(\d)-(?:[\.0-9\-]*)
-  target: registry.ci.openshift.org/ocp/builder:ubi8.nodejs.10 
+  target: registry.ci.openshift.org/ocp/builder:rhel8.2.els.nodejs.10
