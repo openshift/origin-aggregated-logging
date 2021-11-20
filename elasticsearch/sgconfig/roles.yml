@@ -72,7 +72,8 @@ sg_role_curator:
         - READ
         - MANAGE
         - DELETE
-
+        - "indices:data/write/bulk*"
+        
 sg_role_admin:
   indices:
     '*':
