@@ -63,6 +63,8 @@ COPY  ${upstream_code}/*.patch ${HOME}/vendored_gem_src/
 RUN cd ${HOME}/vendored_gem_src/ && ./install-gems.sh && cd / && rm -rf ${HOME}/vendored_gem_src/
 
 RUN BUILD_PKGS="make gcc-c++ libffi-devel \
+                gcc gcc-gdb-plugin cpp \
+                nodejs \
                 autoconf automake libtool m4 \
                 redhat-rpm-config" && \
     yum remove -y $BUILD_PKGS
