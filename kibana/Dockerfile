@@ -46,6 +46,8 @@ COPY  ${upstream_code}/vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
 COPY  ${upstream_code}/vendored_tar_src/opendistro_security_kibana_plugin-0.10.0.4/ ${HOME}/plugins/opendistro_security_kibana_plugin-0.10.0.4/
 COPY  ${upstream_code}/vendored_tar_src/handlebars/ ${HOME}/node_modules/handlebars/
 COPY  ${upstream_code}/vendored_tar_src/minimist/ ${HOME}/node_modules/minimist/
+COPY  ${upstream_code}/vendored_tar_src/ua-parser-js-1.0.2/ ${HOME}/node_modules/ua-parser/
+COPY  ${upstream_code}/vendored_tar_src/fbjs-0.8.18/ ${HOME}/node_modules/fbjs/
 
 RUN chmod -R og+w ${HOME}/
 COPY  ${upstream_code}/probe/ /usr/share/kibana/probe/

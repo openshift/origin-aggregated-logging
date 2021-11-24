@@ -12,3 +12,7 @@ _output/
 *.pyc
 .venv
 venv
+
+**/.vendor
+*.swo
+*.swp
