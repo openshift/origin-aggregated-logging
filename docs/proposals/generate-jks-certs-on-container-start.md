@@ -19,11 +19,11 @@ Elasticsearch is configured such that it will utilize the keystore and truststor
 ### Container Resource Definition:
 Generated client certificates will be mounted as:
 ```
-/etc/elasticsearch/secrets/client-cert/<ALIAS>/tls.{cert,key}
+/var/run/elasticsearch/secrets/client-cert/<ALIAS>/tls.{cert,key}
 ```
 For example:
 ```
-/etc/elasticsearch/secrets/client-cert
+/var/run/elasticsearch/secrets/client-cert
   |- elasticsearch
   |    |- tls.cert
   |    |- tls.key
@@ -44,11 +44,11 @@ For example:
 
 Generated client CAs will be mounted as:
 ```
-/etc/elasticsearch/secrets/client-ca/<ALIAS>/ca.crt
+/var/run/elasticsearch/secrets/client-ca/<ALIAS>/ca.crt
 ```
 For example:
 ```
-/etc/elasticsearch/secrets/client-ca
+/var/run/elasticsearch/secrets/client-ca
   |- elasticsearch
   |    |- ca.crt
   |

@@ -73,7 +73,7 @@ items:
               name: "transport"
             volumeMounts:
               - name: certs
-                mountPath: /etc/elasticsearch/keys
+                mountPath: /var/run/elasticsearch/keys
                 readOnly: true
               - name: pvc
                 mountPath: /elasticsearch/persistent

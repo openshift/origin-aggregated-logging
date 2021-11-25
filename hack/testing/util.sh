@@ -274,7 +274,7 @@ function curl_es_pod() {
     shift; shift
     local args=( "${@:-}" )
 
-    local secret_dir="/etc/elasticsearch/secret/"
+    local secret_dir="/var/run/elasticsearch/secret/"
     oc -n $LOGGING_NS exec -c elasticsearch "${pod}" -- curl --silent --insecure "${args[@]}" \
                              --key "${secret_dir}admin-key"   \
                              --cert "${secret_dir}admin-cert" \

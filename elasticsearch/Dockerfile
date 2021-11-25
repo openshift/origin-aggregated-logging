@@ -19,7 +19,7 @@ ARG OPENDISTRO_URL
 ARG OPENSHIFT_CI
 
 
-ENV ES_PATH_CONF=/etc/elasticsearch/ \
+ENV ES_PATH_CONF=/var/run/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
     ES_VER=6.8.1.redhat-00011 \
     HOME=/opt/app-root/src \
