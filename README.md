@@ -55,3 +55,4 @@ include as many [details](docs/issues.md) as possible in order to assist in issu
 ## Contributions
 
 To contribute to the development of origin-aggregated-logging, see [REVIEW.md](./docs/REVIEW.md)
+
