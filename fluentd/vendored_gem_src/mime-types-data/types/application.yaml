@@ -254,6 +254,15 @@
   - aw
   registered: false
 - !ruby/object:MIME::Type
+  content-type: application/at+jwt
+  encoding: base64
+  xrefs:
+    rfc:
+    - rfc9068
+    template:
+    - application/at+jwt
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/ATF
   encoding: base64
   xrefs:
@@ -857,6 +866,15 @@
     - application/dash+xml
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/dash-patch+xml
+  encoding: base64
+  xrefs:
+    person:
+    - ISO-IEC_JTC1
+    template:
+    - application/dash-patch+xml
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/dashdelta
   encoding: base64
   xrefs:
@@ -1003,8 +1021,8 @@
   content-type: application/dots+cbor
   encoding: base64
   xrefs:
-    draft:
-    - RFC-ietf-dots-rfc8782-bis-08
+    rfc:
+    - rfc9132
     template:
     - application/dots+cbor
   registered: true
@@ -1590,8 +1608,8 @@
   content-type: application/http
   encoding: base64
   xrefs:
-    rfc:
-    - rfc7230
+    draft:
+    - RFC-ietf-httpbis-messaging-19
     template:
     - application/http
   registered: true
@@ -2708,8 +2726,8 @@
   content-type: application/oauth-authz-req+jwt
   encoding: base64
   xrefs:
-    draft:
-    - RFC-ietf-oauth-jwsreq-34
+    rfc:
+    - rfc9101
     template:
     - application/oauth-authz-req+jwt
   registered: true
@@ -4162,6 +4180,16 @@
     - application/sparql-results+xml
   registered: true
 - !ruby/object:MIME::Type
+  content-type: application/spdx+json
+  encoding: base64
+  xrefs:
+    person:
+    - Linux_Foundation
+    - Rose_Judge
+    template:
+    - application/spdx+json
+  registered: true
+- !ruby/object:MIME::Type
   content-type: application/spirits-event+xml
   encoding: base64
   xrefs:
@@ -4475,6 +4503,15 @@
     - rfc8226
     template:
     - application/tnauthlist
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/token-introspection+jwt
+  encoding: base64
+  xrefs:
+    draft:
+    - RFC-oauth-jwt-introspection-response-12
+    template:
+    - application/token-introspection+jwt
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/toolbook
@@ -5115,7 +5152,7 @@
   encoding: base64
   xrefs:
     person:
-    - Andy_Dryden
+    - AC_Mahendran
     template:
     - application/vnd.3gpp2.bcmcsinfo+xml
   registered: true
@@ -5255,7 +5292,6 @@
   - fxpl
   xrefs:
     person:
-    - Robert_Brambley
     - Steven_Heintz
     template:
     - application/vnd.adobe.fxp
@@ -5420,6 +5456,15 @@
     - Jörg_Palmer
     template:
     - application/vnd.afpc.modca-pagesegment
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.age
+  encoding: base64
+  xrefs:
+    person:
+    - Filippo_Valsorda
+    template:
+    - application/vnd.age
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.ah-barcode
@@ -10705,6 +10750,15 @@
     - Franck_Lefevre
     template:
     - application/vnd.mynfc
+  registered: true
+- !ruby/object:MIME::Type
+  content-type: application/vnd.nacamar.ybrid+json
+  encoding: base64
+  xrefs:
+    person:
+    - Sebastian_A._Weiss
+    template:
+    - application/vnd.nacamar.ybrid+json
   registered: true
 - !ruby/object:MIME::Type
   content-type: application/vnd.ncd.control

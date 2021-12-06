@@ -20,8 +20,8 @@
   content-type: multipart/byteranges
   encoding: base64
   xrefs:
-    rfc:
-    - rfc7233
+    draft:
+    - RFC-ietf-httpbis-semantics-19
     template:
     - multipart/byteranges
   registered: true

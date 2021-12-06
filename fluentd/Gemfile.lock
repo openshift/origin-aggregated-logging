@@ -63,9 +63,9 @@ GEM
       fluentd (>= 0.14.10, < 2)
       ltsv
       ruby-kafka (>= 0.7.8, < 2)
-    fluent-plugin-kubernetes_metadata_filter (2.7.1)
-      fluentd (>= 0.14.0, < 1.14)
-      kubeclient (< 5)
+    fluent-plugin-kubernetes_metadata_filter (2.9.3)
+      fluentd (>= 0.14.0, < 1.15)
+      kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
     fluent-plugin-label-router (0.2.4)
       fluentd (>= 0.14.10, < 2)
@@ -123,9 +123,9 @@ GEM
       rest-client (~> 2.0)
     lru_redux (1.1.0)
     ltsv (0.1.2)
-    mime-types (3.3.1)
+    mime-types (3.4.1)
       mime-types-data (~> 3.2015)
-    mime-types-data (3.2021.0901)
+    mime-types-data (3.2021.1115)
     msgpack (1.3.3)
     multi_json (1.15.0)
     multipart-post (2.1.1)
@@ -180,7 +180,7 @@ DEPENDENCIES
   fluent-plugin-elasticsearch
   fluent-plugin-grafana-loki
   fluent-plugin-kafka
-  fluent-plugin-kubernetes_metadata_filter (= 2.7.1)
+  fluent-plugin-kubernetes_metadata_filter (= 2.9.3)
   fluent-plugin-label-router
   fluent-plugin-multi-format-parser
   fluent-plugin-prometheus

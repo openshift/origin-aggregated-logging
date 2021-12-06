@@ -22,10 +22,12 @@
 -
 -
 -
+-
 en^Andrew Toolkit
 -
 -
 en^Applixware
+-
 -
 -
 en^Atom Syndication Format
@@ -85,7 +87,9 @@ en^Cloud Data Management Interface (CDMI) - Queue
 -
 -
 -
+-
 en^CU-SeeMe
+-
 -
 -
 -
@@ -180,6 +184,7 @@ en^Hyperstudio
 -
 -
 -
+-
 en^Internet Protocol Flow Information Export
 -
 -
@@ -194,6 +199,7 @@ en^JavaScript
 -
 -
 en^JavaScript Object Notation (JSON)
+-
 -
 -
 -
@@ -286,6 +292,7 @@ en^Binary Data
 en^Office Document Architecture
 -
 -
+-
 en^Open eBook Publication Structure
 en^Ogg
 -
@@ -317,6 +324,7 @@ en^PKCS #8 - Private-Key Information Syntax Standard
 en^Attribute Certificate
 en^Internet Public Key Infrastructure - Certificate
 en^Internet Public Key Infrastructure - Certificate Revocation Lists
+-
 en^Internet Public Key Infrastructure - Certification Path
 en^Internet Public Key Infrastructure - Certificate Management Protocole
 en^Pronunciation Lexicon Specification
@@ -348,12 +356,15 @@ en^Relax NG Compact Syntax
 -
 -
 -
+-
 en^XML Resource Lists
 en^XML Resource Lists Diff
 -
 -
 -
+-
 en^XML Resource Lists
+-
 -
 -
 -
@@ -410,6 +421,7 @@ en^S Hexdump Format
 -
 -
 -
+-
 en^Synchronized Multimedia Integration Language
 -
 -
@@ -417,6 +429,7 @@ en^Synchronized Multimedia Integration Language
 -
 en^SPARQL - Query
 en^SPARQL - Results
+-
 -
 -
 en^Speech Recognition Grammar Specification
@@ -507,6 +520,7 @@ en^Time Stamped Data Envelope
 -
 -
 -
+-
 en^3rd Generation Partnership Project - Pic Large
 en^3rd Generation Partnership Project - Pic Small
 en^3rd Generation Partnership Project - Pic Var
@@ -533,6 +547,7 @@ en^Adobe Flex Project
 -
 en^Adobe XML Data Package
 en^Adobe XML Forms Data Format
+-
 -
 -
 -
@@ -1044,6 +1059,7 @@ en^Muvee Automatic Video Editing
 -
 -
 -
+-
 en^neuroLanguage
 -
 -
@@ -1494,8 +1510,10 @@ en^WebAssembly
 -
 -
 -
+-
 en^Widget Packaging and XML Configuration
 en^WinHelp
+-
 -
 -
 -
@@ -1924,6 +1942,7 @@ en^Computer Graphics Metafile
 -
 -
 -
+-
 en^G3 Fax Image
 en^Graphics Interchange Format
 -
@@ -1935,7 +1954,9 @@ en^Graphics Interchange Format
 en^Image Exchange Format
 -
 -
+-
 en^JPEG Image
+-
 -
 -
 -
@@ -2152,6 +2173,7 @@ en^HyperText Markup Language (HTML)
 en^Notation3
 -
 -
+-
 en^Text File
 -
 -
@@ -2184,6 +2206,7 @@ en^Curl - Applet
 en^Curl - Detached Applet
 en^Curl - Manifest File
 en^Curl - Source Code
+-
 -
 -
 -

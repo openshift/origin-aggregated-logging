@@ -715,6 +715,15 @@
     - text/vnd.esmertec.theme-descriptor
   registered: true
 - !ruby/object:MIME::Type
+  content-type: text/vnd.familysearch.gedcom
+  encoding: quoted-printable
+  xrefs:
+    person:
+    - Gordon_Clarke
+    template:
+    - text/vnd.familysearch.gedcom
+  registered: true
+- !ruby/object:MIME::Type
   content-type: text/vnd.ficlab.flt
   encoding: quoted-printable
   xrefs:

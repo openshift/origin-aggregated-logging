@@ -45,8 +45,10 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
-* `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
+* `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for Datadog and ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
+* `de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `false`)
+* `de_slash_separator` - separator to use if `de_slash` is enabled (default: `__`)
 * *DEPRECATED* `use_journal` - If false, messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.  If unset (the default), the plugin will use the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields
 if available, otherwise, will use the tag in the `tag_to_kubernetes_name_regexp` format.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field default: See [code](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L68)
@@ -74,7 +76,7 @@ payload.  The following configuration options are removed:
 
 One way of preserving JSON logs can be through the [parser plugin](https://docs.fluentd.org/filter/parser)
 
-**NOTE** As of this release, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
+**NOTE** As of release v2.1.4, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
 attempt to figure out the source of the metadata fields from the following:
 - If `lookup_from_k8s_field true` (the default) and the following fields are present in the record:
 `docker.container_id`, `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`,

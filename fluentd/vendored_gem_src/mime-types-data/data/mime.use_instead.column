@@ -43,12 +43,16 @@ application/x-msaccess
 -
 -
 -
+-
+-
 application/x-bleeper
 -
 -
 -
 -
 application/cals-1840
+-
+-
 -
 -
 -
@@ -208,6 +212,8 @@ application/x-imagemap
 -
 -
 -
+-
+-
 application/vnd.lotus-1-2-3
 -
 -
@@ -222,6 +228,8 @@ application/x-mac-compactpro
 application/vnd.mcd
 -
 application/x-mathematica-old
+-
+-
 -
 -
 -
@@ -409,7 +417,13 @@ application/remote-printing
 -
 -
 -
+-
+-
+-
+-
 application/smil+xml
+-
+-
 -
 -
 -
@@ -497,6 +511,7 @@ application/x-VMSBACKUP
 -
 -
 application/vnd.3gpp.mcvideo-info+xml
+-
 -
 -
 -
@@ -880,6 +895,7 @@ application/vnd.afpc.modca
 -
 -
 application/vnd.visionary
+-
 -
 -
 -
@@ -1498,6 +1514,8 @@ video/vnd.youtube.yt
 -
 -
 -
+-
+-
 application/vnd.wordperfect
 -
 application/x-wordperfect6.1
@@ -1958,6 +1976,9 @@ image/x-cmu-raster
 -
 -
 -
+-
+-
+-
 image/x-targa
 -
 -
@@ -2146,6 +2167,8 @@ application/ecmascript
 -
 -
 application/javascript
+-
+-
 -
 -
 -

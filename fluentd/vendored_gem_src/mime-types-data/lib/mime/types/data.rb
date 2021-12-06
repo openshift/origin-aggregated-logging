@@ -3,7 +3,7 @@
 module MIME
   class Types
     module Data
-      VERSION = '3.2021.0901'
+      VERSION = "3.2021.1115"
 
       # The path that will be used for loading the MIME::Types data. The
       # default location is __FILE__/../../../../data, which is where the data
@@ -15,7 +15,7 @@ module MIME
       # System maintainer note: this is the constant to change when packaging
       # mime-types for your system. It is recommended that the path be
       # something like /usr/share/ruby/mime-types/.
-      PATH = File.expand_path('../../../../data', __FILE__)
+      PATH = File.expand_path("../../../../data", __FILE__)
     end
   end
 end
