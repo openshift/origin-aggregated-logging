@@ -37,7 +37,7 @@ rubygem-faraday 1.0.1 https://lostisland.github.io/faraday
 rubygem-ffi 1.11.3 https://github.com/ffi/ffi/wiki
 rubygem-fluent-mixin-config-placeholders 0.4.0 https://github.com/tagomoris/fluent-mixin-config-placeholders
 rubygem-fluent-plugin-elasticsearch 5.0.5 https://github.com/uken/fluent-plugin-elasticsearch
-rubygem-fluent-plugin-kubernetes_metadata_filter 2.7.1 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
+rubygem-fluent-plugin-kubernetes_metadata_filter 2.9.3 https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter
 rubygem-fluent-plugin-prometheus 1.7.3 https://github.com/fluent/fluent-plugin-prometheus
 rubygem-fluent-plugin-record-modifier 2.1.0 https://github.com/repeatedly/fluent-plugin-record-modifier
 rubygem-fluent-plugin-remote-syslog 1.1 https://github.com/docebo/fluent-plugin-remote-syslog
@@ -49,8 +49,8 @@ rubygem-http-form_data 2.3.0 https://github.com/httprb/form_data.rb
 rubygem-http_parser.rb 0.6.0 http://github.com/tmm1/http_parser.rb
 rubygem-kubeclient 4.9.2 https://github.com/abonas/kubeclient
 rubygem-lru_redux 1.1.0 https://github.com/SamSaffron/lru_redux
-rubygem-mime-types 3.3.1 https://github.com/mime-types/ruby-mime-types/
-rubygem-mime-types-data 3.2021.0901 https://github.com/mime-types/mime-types-data/
+rubygem-mime-types 3.4.1 https://github.com/mime-types/ruby-mime-types/
+rubygem-mime-types-data 3.2021.1115 https://github.com/mime-types/mime-types-data/
 rubygem-msgpack 1.3.3 http://msgpack.org/
 rubygem-multi_json 1.15.0 https://github.com/intridea/multi_json
 rubygem-multipart-post 2.1.1 https://github.com/nicksieger/multipart-post

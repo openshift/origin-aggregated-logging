@@ -47,6 +47,10 @@ module KubernetesMetadata
         de_dot!(labels) unless @skip_labels
         de_dot!(annotations)
       end
+      if @de_slash
+        de_slash!(labels) unless @skip_labels
+        de_slash!(annotations)
+      end
       kubernetes_metadata = {
         'namespace_id' => namespace_object[:metadata][:uid],
         'creation_timestamp' => namespace_object[:metadata][:creationTimestamp]
@@ -65,14 +69,18 @@ module KubernetesMetadata
         de_dot!(labels) unless @skip_labels
         de_dot!(annotations)
       end
+      if @de_slash
+        de_slash!(labels) unless @skip_labels
+        de_slash!(annotations)
+      end
 
       # collect container information
       container_meta = {}
       begin
         pod_object[:status][:containerStatuses].each do |container_status|
-          # get plain container id (eg. docker://hash -> hash)
-          container_id = container_status[:containerID].sub(%r{^[-_a-zA-Z0-9]+://}, '')
-          container_meta[container_id] = if @skip_container_metadata
+          container_id = (container_status[:containerID]||"").sub(%r{^[-_a-zA-Z0-9]+://}, '')
+          key = container_status[:name]
+          container_meta[key] = if @skip_container_metadata
                                            {
                                              'name' => container_status[:name]
                                            }
@@ -80,12 +88,13 @@ module KubernetesMetadata
                                            {
                                              'name' => container_status[:name],
                                              'image' => container_status[:image],
-                                             'image_id' => container_status[:imageID]
+                                             'image_id' => container_status[:imageID],
+                                             :containerID => container_id
                                            }
                                          end
-        end
-      rescue StandardError
-        log.debug("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]} ")
+        end if pod_object[:status] && pod_object[:status][:containerStatuses]
+      rescue StandardError=>e
+        log.warn("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
       end
 
       kubernetes_metadata = {

@@ -5,6 +5,8 @@ Licence.md
 Manifest.txt
 README.md
 Rakefile
+data/content_type_mime.db
+data/ext_mime.db
 data/mime-types.json
 data/mime.content_type.column
 data/mime.docs.column
@@ -26,6 +28,7 @@ types/image.yaml
 types/message.yaml
 types/model.yaml
 types/multipart.yaml
+types/provisional-standard-types.yaml
 types/text.yaml
 types/video.yaml
 types/world.yaml

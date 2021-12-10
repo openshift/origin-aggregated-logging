@@ -9,6 +9,7 @@ application/access mdf mda mdb mde
 application/ace+cbor
 application/activemessage
 application/activity+json
+application/akn+xml
 application/alto-costmap+json
 application/alto-costmapfilter+json
 application/alto-directory+json
@@ -26,6 +27,7 @@ application/andrew-inset ez
 application/appledouble
 application/applefile
 application/applixware aw
+application/at+jwt
 application/ATF
 application/ATFX
 application/atom+xml atom
@@ -66,6 +68,7 @@ application/cdni
 application/CEA
 application/cea-2018+xml
 application/cellml+xml
+application/cert-chain+cbor
 application/cfw
 application/clariscad
 application/clr
@@ -89,6 +92,7 @@ application/cu-seeme cu
 application/cwt
 application/cybercash
 application/dash+xml
+application/dash-patch+xml
 application/dashdelta
 application/davmount+xml davmount
 application/dca-rft
@@ -179,6 +183,7 @@ application/index.obj
 application/index.response
 application/index.vnd
 application/inkml+xml ink inkml
+application/ion
 application/iotp
 application/ipfix ipfix
 application/ipp
@@ -194,6 +199,7 @@ application/jose+json
 application/jrd+json
 application/jscalendar+json
 application/json json
+application/json-nd
 application/json-patch+json
 application/json-seq
 application/jsonml+json jsonml
@@ -284,6 +290,7 @@ application/ocsp-request
 application/ocsp-response
 application/octet-stream bin dms lha lzh class ani pgp gpg so dll dylib bpk deploy dist distz dump elc lrf mar pkg ipa
 application/oda oda
+application/odm+json
 application/odm+xml
 application/ODX
 application/oebps-package+xml opf
@@ -317,6 +324,7 @@ application/pkcs8-encrypted
 application/pkix-attr-cert ac
 application/pkix-cert cer
 application/pkix-crl crl
+application/pkix-keyinfo
 application/pkix-pkipath pkipath
 application/pkixcmp pki
 application/pls+xml pls
@@ -347,16 +355,19 @@ application/reginfo+xml rif
 application/relax-ng-compact-syntax rnc
 application/remote-printing
 application/remote_printing
+application/reports+json
 application/reputon+json
 application/resource-lists+xml rl
 application/resource-lists-diff+xml rld
 application/rfc+xml
+application/rif+xml
 application/riscos
 application/rlmi+xml
 application/rls-services+xml rs
 application/route-apd+xml
 application/route-s-tsid+xml
 application/route-usd+xml
+application/rpki-checklist
 application/rpki-ghostbusters gbr
 application/rpki-manifest mft
 application/rpki-publication
@@ -403,6 +414,7 @@ application/sgml sgml
 application/sgml-open-catalog soc
 application/shf+xml shf
 application/sieve siv
+application/signed-exchange
 application/simple-filter+xml
 application/simple-message-summary
 application/simpleSymbolContainer
@@ -417,6 +429,7 @@ application/soap+xml
 application/solids
 application/sparql-query rq
 application/sparql-results+xml srx
+application/spdx+json
 application/spirits-event+xml
 application/sql
 application/srgs gram
@@ -449,6 +462,7 @@ application/timestamped-data tsd
 application/tlsrpt+gzip
 application/tlsrpt+json
 application/tnauthlist
+application/token-introspection+jwt
 application/toolbook tbk
 application/trickle-ice-sdpfrag
 application/trig
@@ -547,6 +561,7 @@ application/vnd.afpc.modca-mediummap
 application/vnd.afpc.modca-objectcontainer
 application/vnd.afpc.modca-overlay
 application/vnd.afpc.modca-pagesegment
+application/vnd.age
 application/vnd.ah-barcode
 application/vnd.ahead.space ahead
 application/vnd.airzip.filesecure.azf azf
@@ -1038,6 +1053,7 @@ application/vnd.music-niff
 application/vnd.musician mus
 application/vnd.muvee.style msty
 application/vnd.mynfc taglet
+application/vnd.nacamar.ybrid+json
 application/vnd.ncd.control
 application/vnd.ncd.reference
 application/vnd.nearst.inv+json
@@ -1491,12 +1507,14 @@ application/voucher-cms+json
 application/vq-rtcpxr
 application/wasm wasm
 application/watcherinfo+xml wif
+application/webbundle
 application/webpush-options+json
 application/whoispp-query
 application/whoispp-response
 application/widget wgt
 application/winhlp hlp
 application/wita
+application/won
 application/word doc dot
 application/wordperfect wp
 application/wordperfect5.1 wp5 wp
@@ -1921,6 +1939,7 @@ image/bmp bmp
 image/cgm cgm
 image/cmu-raster
 image/dicom-rle
+image/dpx
 image/emf
 image/example
 image/fits
@@ -1933,6 +1952,7 @@ image/heif-sequence heifs hif
 image/hej2k
 image/hsj2
 image/ief ief
+image/j2is
 image/jls
 image/jp2 jp2 jpg2
 image/jpeg jpeg jpg jpe
@@ -1940,6 +1960,7 @@ image/jph
 image/jphc
 image/jpm jpm jpgm
 image/jpx jpx jpf
+image/jxl
 image/jxr
 image/jxrA
 image/jxrS
@@ -2150,6 +2171,7 @@ text/jcr-cnd
 text/markdown markdown md mkd
 text/mizar
 text/n3 n3
+text/nfo
 text/parameters
 text/parityfec
 text/plain txt asc c cc h hh cpp hpp dat hlp conf def doc in list log rst text textile
@@ -2188,6 +2210,7 @@ text/vnd.debian.copyright
 text/vnd.DMClientScript
 text/vnd.dvb.subtitle sub
 text/vnd.esmertec.theme-descriptor
+text/vnd.familysearch.gedcom
 text/vnd.ficlab.flt
 text/vnd.flatland.3dml
 text/vnd.fly fly

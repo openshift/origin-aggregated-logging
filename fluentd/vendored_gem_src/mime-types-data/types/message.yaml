@@ -92,8 +92,8 @@
   content-type: message/http
   encoding: base64
   xrefs:
-    rfc:
-    - rfc7230
+    draft:
+    - RFC-ietf-httpbis-messaging-19
     template:
     - message/http
   registered: true

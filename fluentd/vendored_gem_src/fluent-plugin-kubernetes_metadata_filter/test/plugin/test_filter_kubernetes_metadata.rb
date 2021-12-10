@@ -28,7 +28,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     @time = Fluent::Engine.now
   end
 
-  DEFAULT_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+  VAR_LOG_CONTAINER_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+  VAR_LOG_POD_TAG = 'var.log.pods.default_fabric8-console-controller-98rqc_c76927af-f563-11e4-b32d-54ee7527188d.fabric8-console-container.0.log'
 
   def create_driver(conf = '')
     Test::Driver::Filter.new(Plugin::KubernetesMetadataFilter).configure(conf)
@@ -44,7 +45,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       d = create_driver('test_api_adapter KubernetesMetadata::TestApiAdapter')
       assert_equal('KubernetesMetadata::TestApiAdapter', d.instance.test_api_adapter)
     end
-
 
     test 'kubernetes url' do
       VCR.use_cassette('valid_kubernetes_api_server') do
@@ -138,7 +138,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           cache_size 1
         ', d: nil)
       d = create_driver(config) if d.nil?
-      d.run(default_tag: DEFAULT_TAG) do
+      d.run(default_tag: VAR_LOG_CONTAINER_TAG) do
         d.feed(@time, msg)
       end
       d.filtered.map(&:last)
@@ -165,6 +165,76 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       plugin.filter_stream('tag', Fluent::MultiEventStream.new)
     end
 
+    sub_test_case 'parsing_pod_metadata when container_status is missing from the pod status' do
+      test 'using the tag_to_kubernetes_name_regexp for /var/log/containers ' do
+        VCR.use_cassettes(
+          [
+            { name: 'valid_kubernetes_api_server' },
+            { name: 'kubernetes_get_api_v1' },
+            { name: 'kubernetes_get_namespace_default' },
+            { name: 'kubernetes_get_pod_container_init' }
+          ]) do
+          filtered = emit({}, "
+            kubernetes_url https://localhost:8443
+            watch false
+            cache_size 1
+          ")
+          expected_kube_metadata = {
+            'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+            },
+            'kubernetes' => {
+              'container_image'=>'fabric8/hawtio-kubernetes:latest',
+              'container_name'=>'fabric8-console-container',
+              'host' => 'jimmi-redhat.localnet',
+              'pod_name' => 'fabric8-console-controller-98rqc',
+              'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+              'namespace_name' => 'default',
+              'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
+              'pod_ip' => '172.17.0.8',
+              'master_url' => 'https://localhost:8443',
+              'labels' => {
+                'component' => 'fabric8Console'
+              }
+            }
+          }
+          assert_equal(expected_kube_metadata, filtered[0])
+        end
+      end
+      test 'using the tag_to_kubernetes_name_regexp for /var/log/pods' do
+        VCR.use_cassettes(
+          [
+            { name: 'valid_kubernetes_api_server' },
+            { name: 'kubernetes_get_api_v1' },
+            { name: 'kubernetes_get_namespace_default' },
+            { name: 'kubernetes_get_pod_container_init' }
+          ]) do
+          filtered = emit_with_tag(VAR_LOG_POD_TAG,{}, "
+            kubernetes_url https://localhost:8443
+            watch false
+            cache_size 1
+          ")
+          expected_kube_metadata = {
+            'kubernetes' => {
+              'container_image'=>'fabric8/hawtio-kubernetes:latest',
+              'container_name'=>'fabric8-console-container',
+              'host' => 'jimmi-redhat.localnet',
+              'pod_name' => 'fabric8-console-controller-98rqc',
+              'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+              'namespace_name' => 'default',
+              'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
+              'pod_ip' => '172.17.0.8',
+              'master_url' => 'https://localhost:8443',
+              'labels' => {
+                'component' => 'fabric8Console'
+              }
+            }
+          }
+          assert_equal(expected_kube_metadata, filtered[0])
+        end
+      end
+    end
+
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }]) do
         driver = create_driver('
@@ -177,8 +247,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         filtered = emit({ 'time' => '2015-05-08T09:22:01Z' }, '', d: driver)
         expected_kube_metadata = {
           'time' => '2015-05-08T09:22:01Z',
-          'docker' => {
-            'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker'=>{
+            'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
           'kubernetes' => {
             'pod_name' => 'fabric8-console-controller-98rqc',
@@ -265,6 +335,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata' do
+
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' }, { name: 'kubernetes_get_namespace_default' }]) do
         filtered = emit({ 'time' => '2015-05-08T09:22:01Z' })
         expected_kube_metadata = {
@@ -361,8 +432,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'with docker & kubernetes metadata but no configured api server' do
       filtered = emit({}, '')
       expected_kube_metadata = {
-        'docker' => {
-          'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+        'docker'=>{
+          'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
         },
         'kubernetes' => {
           'pod_name' => 'fabric8-console-controller-98rqc',
@@ -383,8 +454,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default').to_timeout
       filtered = emit
       expected_kube_metadata = {
-        'docker' => {
-          'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+        'docker'=>{
+          'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
         },
         'kubernetes' => {
           'pod_name' => 'fabric8-console-controller-98rqc',
@@ -406,8 +477,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller.98rqc').to_timeout
       filtered = emit_with_tag('var.log.containers.fabric8-console-controller.98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log', {}, '')
       expected_kube_metadata = {
-        'docker' => {
-          'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+        'docker'=>{
+          'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
         },
         'kubernetes' => {
           'pod_name' => 'fabric8-console-controller.98rqc',
@@ -432,13 +503,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg, filtered[0])
     end
 
-    test 'with kubernetes dotted labels, de_dot enabled' do
+    test 'with kubernetes dotted and slashed labels, de_dot and de_slash enabled' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_labels' }]) do
+                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          de_dot true
+          de_slash true
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -452,14 +525,14 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'namespace_labels' => {
-              'kubernetes_io/namespacetest' => 'somevalue'
+              'kubernetes_io__namespacetest' => 'somevalue'
             },
             'namespace_name' => 'default',
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
             'labels' => {
-              'kubernetes_io/test' => 'somevalue'
+              'kubernetes_io__test' => 'somevalue'
             }
           }
         }
@@ -467,14 +540,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
-    test 'with kubernetes dotted labels, de_dot disabled' do
+    test 'with kubernetes dotted and slashed labels, de_dot and de_slash disabled' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_labels' }]) do
+                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
           de_dot false
+          de_slash false
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -506,7 +580,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'invalid de_dot_separator config' do
       assert_raise Fluent::ConfigError do
         create_driver('
+          de_dot true
           de_dot_separator contains.
+        ')
+      end
+    end
+
+    test 'invalid de_slash_separator config' do
+      assert_raise Fluent::ConfigError do
+        create_driver('
+          de_slash true
+          de_slash_separator contains/
         ')
       end
     end
@@ -686,7 +770,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
     test 'uses metadata from tag if use_journal false and lookup_from_k8s_field false' do
       # with use_journal unset, should still use the journal fields instead of tag fields
-      tag = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
       msg = {
         'CONTAINER_NAME' => 'k8s_journald-container-name.db89db89_journald-pod-name_journald-namespace-name_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
         'CONTAINER_ID_FULL' => '838350c64bacba968d39a30a50789b2795291fceca6ccbff55298671d46b0e3b',
@@ -701,13 +784,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' },
                          { name: 'kubernetes_get_namespace_default', options: { allow_playback_repeats: true } },
                          { name: 'metadata_from_tag_and_journald_fields' }]) do
-        es = emit_with_tag(tag, msg, '
+        es = emit_with_tag(VAR_LOG_CONTAINER_TAG, msg, "
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
           lookup_from_k8s_field false
           use_journal false
-        ')
+        ")
         expected_kube_metadata = {
           'docker' => {
             'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
@@ -941,7 +1024,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'processes all events when reading from MessagePackEventStream' do
-      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
+      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, 
+                         { name: 'kubernetes_get_api_v1' },
                          { name: 'kubernetes_get_pod' },
                          { name: 'kubernetes_get_namespace_default' }]) do
         entries = [[@time, { 'time' => '2015-05-08T09:22:01Z' }], [@time, { 'time' => '2015-05-08T09:22:01Z' }]]
@@ -954,7 +1038,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           cache_size 1
         ')
         d.run do
-          d.feed(DEFAULT_TAG, msgpack_stream)
+          d.feed(VAR_LOG_CONTAINER_TAG, msgpack_stream)
         end
         filtered = d.filtered.map(&:last)
 
@@ -998,8 +1082,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           skip_namespace_metadata true
         ')
         expected_kube_metadata = {
-          'docker' => {
-            'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker'=>{
+            'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
           'kubernetes' => {
             'host' => 'jimmi-redhat.localnet',

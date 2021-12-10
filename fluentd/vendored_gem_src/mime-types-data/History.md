@@ -2,11 +2,22 @@
 
 <!-- automatic-release -->
 
+## 3.2021.1115 / 2021-11-15
+
+- Updated the Apache and IANA media registry entries as of release date.
+
+- Added conversion utilities that support the `mini_mime` data format. These
+  have been ported from the [mini_mime] repository. [#47]
+
+- Added IANA provisional media registries. Added some notes to Contributing.md
+  about the transient nature of the provisional registration data. This was
+  triggered in part by a pull request by Jon Sneyers. Thanks! [#45], [#43]
+
 ## 3.2021.0901 / 2021-09-01
 
 - Updated the Apache and IANA media registry entries as of release date.
 
-- Added file extension for WebVTT text format. [#46].
+- Added file extension for WebVTT text format. [#46]
 
 ## 3.2021.0704 / 2021-07-04
 
@@ -16,7 +27,7 @@
 
 - Updated the Apache and IANA media registry entries as of release date.
 
-- Added file extension for AVIF video format. [#40].
+- Added file extension for AVIF video format. [#40]
 
 ## 3.2021.0212 / 2021-02-12
 
@@ -31,47 +42,47 @@
 
 - Updated the IANA media registry entries as of release date.
 
-- Added `application/x-zip-compressed`. [#36].
+- Added `application/x-zip-compressed`. [#36]
 
 - Updated the contributing guide to include information about the release
-  process as described in [#18].
+  process as described in [#18]
 
-- Corrected a misspelling of Yoran Brondsema’s name. Sorry, Yoran. [#35].
+- Corrected a misspelling of Yoran Brondsema’s name. Sorry, Yoran. [#35]
 
 ## 3.2020.0512 / 2020-05-12
 
 - Updated the IANA media registry entries as of release date.
 
-- Added file extensions for HEIC image types. [#34].
+- Added file extensions for HEIC image types. [#34]
 
 ## 3.2020.0425 / 2020-04-25
 
 - Updated the IANA media registry entries as of release date.
 
 - Added several RAW image types based on data from GNOME RAW Thumbnailer.
-  [#33] fixing [#32].
+  [#33] fixing [#32]
 
-- Added `audio/wav`. [#31].
+- Added `audio/wav`. [#31]
 
-- Added a type for Smarttech notebook files. [#30].
+- Added a type for Smarttech notebook files. [#30]
 
-- Added an alias for audio/m4a files. [#29].
+- Added an alias for audio/m4a files. [#29]
 
-- Added application/x-ms-dos-executable. [#28].
+- Added application/x-ms-dos-executable. [#28]
 
 ## 3.2019.1009 / 2019-10-09
 
 - Updated the IANA media registry entries as of release date.
 
 - Reordered the `.ai` extension so that it is not the preferred extension for
-  `application/pdf` [#24].
+  `application/pdf` [#24]
 
 ## 3.2019.0904 / 2019-09-04
 
 - Updated the IANA media registry entries as of release date.
 
 - Moved the `.ai` extension from `application/postscript` to `application/pdf`.
-  [#23] fixing [#22].
+  [#23] fixing [#22]
 
 ## 3.2019.0331 / 2019-03-31
 
@@ -474,6 +485,10 @@
 [#35]: https://github.com/mime-types/mime-types-data/pull/35
 [#36]: https://github.com/mime-types/mime-types-data/pull/36
 [#40]: https://github.com/mime-types/mime-types-data/pull/40
+[#43]: https://github.com/mime-types/mime-types-data/pull/43
+[#45]: https://github.com/mime-types/mime-types-data/pull/45
 [#46]: https://github.com/mime-types/mime-types-data/pull/46
+[#47]: https://github.com/mime-types/mime-types-data/pull/47
 [rmt]: https://github.com/mime-types/ruby-mime-types
 [code of conduct]: Code-of-Conduct.md
+[mini_mime]: https://github.com/discourse/mini_mime/issues/41

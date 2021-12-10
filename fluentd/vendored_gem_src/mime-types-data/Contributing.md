@@ -1,7 +1,7 @@
 ## Contributing
 
 Contributions to mime-types-data is encouraged in any form: a bug report, new
-MIME type defintions, or additional code to help manage the MIME types. As with
+MIME type definitions, or additional code to help manage the MIME types. As with
 many of my projects, I have a few suggestions for improving the chance of
 acceptance of your code contributions:
 
@@ -26,12 +26,12 @@ other languages.
 The Ruby mime-types gem loads its data from files encoded in the `data`
 directory in this gem by loading `mime-types-data` and reading
 MIME::Types::Data::PATH. These files are compiled files from the collection of
-data in the `types` directory. Pull requests that include changes to these
-files will require amendment to revert these files.
+data in the `types` directory. Pull requests that include changes to these files
+will require amendment to revert these files.
 
 New or modified MIME types should be edited in the appropriate YAML file under
-`types`. The format is as shown below for the `application/xml` MIME type
-in `types/application.yml`.
+`types`. The format is as shown below for the `application/xml` MIME type in
+`types/application.yml`.
 
 ```yaml
 - !ruby/object:MIME::Type
@@ -43,7 +43,7 @@ in `types/application.yml`.
   references:
     - IANA
     - RFC3023
-  xrefs: !ruby/hash:MIME::Types::Container
+  xrefs:
     rfc:
       - rfc3023
   registered: true
@@ -51,10 +51,10 @@ in `types/application.yml`.
 
 There are other fields that can be added, matching the fields discussed in the
 documentation for MIME::Type. Pull requests for MIME types should just contain
-the changes to the YAML files for the new or modified MIME types; I will
-convert the YAML files to JSON prior to a new release. I would rather not have
-to verify that the JSON matches the YAML changes, which is why it is not
-necessary to convert for the pull request.
+the changes to the YAML files for the new or modified MIME types; I will convert
+the YAML files to JSON prior to a new release. I would rather not have to verify
+that the JSON matches the YAML changes, which is why it is not necessary to
+convert for the pull request.
 
 If you are making a change for a private fork, use `rake convert:yaml:json` to
 convert the YAML to JSON, or `rake convert:yaml:columnar` to convert it to the
@@ -69,6 +69,21 @@ types registry used by this gem, you can do this with the rake tasks:
 $ rake mime:iana
 $ rake mime:apache
 ```
+
+##### A Note on Provisional Types
+
+The file `types/provisional-standard-types.yaml` contains the provisionally
+registered types from IANA. Per IANA,
+
+> This registry, unlike some other provisional IANA registries, is only for
+> temporary use. Entries in this registry are either finalized and moved to the
+> main media types registry or are abandoned and deleted. Entries in this
+> registry are suitable for use for development and test purposes only.
+
+The provisional types file is rewritten when updated, so pull requests to
+manually promote or customize provisional types (such as with extensions). It is
+recommended that any updates required to the data be performed in your
+application if you require provisional types.
 
 ### Development Dependencies
 
@@ -132,10 +147,10 @@ Here's the most direct way to get your work merged into the project:
 The release process needs automation; as it includes generating code and
 committing to the repository, it is not clear how this will happen safely.
 
-1. Review any outstanding issues or pull requests to see if anything needs to
-   be addressed. This is necessary because there is currently no automated
-   source for extensions for the thousands of MIME entries. (Suggestions and/or
-   pull requests for same would be deeply appreciated.)
+1. Review any outstanding issues or pull requests to see if anything needs to be
+   addressed. This is necessary because there is currently no automated source
+   for extensions for the thousands of MIME entries. (Suggestions and/or pull
+   requests for same would be deeply appreciated.)
 2. `bundle install`
 3. `bundle exec rake mime:apache`
 4. `bundle exec rake mime:iana`
@@ -145,18 +160,18 @@ committing to the repository, it is not clear how this will happen safely.
    category.)
 6. `bundle exec rake convert`
 7. `bundle exec rake update:version`
-8. Write up the changes in History.md. If any PRs have been merged, these
-   should be noted specifically.
+8. Write up the changes in History.md. If any PRs have been merged, these should
+   be noted specifically.
 9. Commit the changes and push to GitHub.
 10. `bundle exec rake release VERSION=newversion`
 
 ### Automating the Release
 
-If anyone wishes to provide suggestions on automation, this would be a
-two-phase process:
+If anyone wishes to provide suggestions on automation, this would be a two-phase
+process:
 
-1. A system would need to periodically create PRs to the GitHub repository
-   with the output of the following commands (steps 2, 3, and 4):
+1. A system would need to periodically create PRs to the GitHub repository with
+   the output of the following commands (steps 2, 3, and 4):
 
    ```sh
    bundle install
@@ -198,6 +213,7 @@ Thanks to everyone else who has contributed to mime-types:
 - Henrik Hodne
 - Jeremy Evans
 - John Gardner
+- Jon Sneyers
 - Jonas Petersen
 - Juanito Fatas
 - Keerthi Siva

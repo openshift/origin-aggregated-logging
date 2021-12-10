@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-# -*- ruby encoding: utf-8 -*-
-
-require 'logger'
+require "logger"
 
 ##
 module MIME
@@ -14,8 +12,8 @@ module MIME
       attr_accessor :logger
     end
 
-    class WarnLogger < ::Logger #:nodoc:
-      class WarnLogDevice < ::Logger::LogDevice #:nodoc:
+    class WarnLogger < ::Logger # :nodoc:
+      class WarnLogDevice < ::Logger::LogDevice # :nodoc:
         def initialize(*)
         end
 

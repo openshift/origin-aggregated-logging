@@ -276,8 +276,8 @@
   content-type: video/jxsv
   encoding: base64
   xrefs:
-    draft:
-    - RFC-ietf-payload-rtp-jpegxs-18
+    rfc:
+    - rfc9134
     template:
     - video/jxsv
   registered: true

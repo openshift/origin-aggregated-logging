@@ -24,7 +24,7 @@ contributions. It conforms to RFCs 2045 and 2231.
 
 ### Data Formats Supported in this Registry
 
-This registry contains the MIME media types in three formats:
+This registry contains the MIME media types in four formats:
 
 - A YAML format matching the Ruby mime-types library objects (MIME::Type).
   This is the primary user-editable format for developers. It is _not_
@@ -38,6 +38,15 @@ This registry contains the MIME media types in three formats:
   substantially, resulting in a performance improvement at the cost of more
   complex code for loading the data on-demand. This is the default format for
   Ruby mime-types 3.0.
+- An encoded text format for use with [`mini_mime`][] (as of 3.2021.1108). This
+  can be enabled with:
+
+  ```ruby
+  MiniMime::Configuration.ext_db_path =
+    File.join(MIME::Types::Data::PATH, "ext_mime.db")
+  MiniMime::Configuration.content_type_db_path =
+    File.join(MIME::Types::Data::PATH, "content_type_mime.db")
+  ```
 
 ## mime-types-data Modified Semantic Versioning
 
@@ -61,3 +70,4 @@ the date of the data update: `SCHEMA.YEAR.MONTHDAY`.
 
 [registry]: https://www.iana.org/assignments/media-types/media-types.xhtml
 [semantic versioning]: http://semver.org/
+[`mini_mime`]: https://github.com/discourse/mini_mime
