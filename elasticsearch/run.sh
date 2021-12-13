@@ -89,7 +89,10 @@ info Setting heap dump location "$HEAP_DUMP_LOCATION"
 #bz1627086 - These options should be removable after 5.x"
 es5x_java_opts="-Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.type=unpooled"
 
-export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false ${es5x_java_opts:-}"
+#bz2030985 - The following Log4j2 option mitigates CVE-2021-44228
+es5x_log4j2_java_opts="-Dlog4j2.formatMsgNoLookups=true"
+
+export ES_JAVA_OPTS="${ES_JAVA_OPTS:-} -XX:HeapDumpPath=$HEAP_DUMP_LOCATION -Dsg.display_lic_none=false ${es5x_java_opts:-} ${es5x_log4j2_java_opts:-}"
 info "ES_JAVA_OPTS: '${ES_JAVA_OPTS}'"
 
 DHE_TMP_KEY_SIZE=${DHE_TMP_KEY_SIZE:-2048}
