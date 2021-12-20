@@ -703,7 +703,7 @@ Event's unique ID
 
 ==== kubernetes.event.metadata.resourceVersion
 
-type: integer
+type: keyword
 
 example: 311987
 
@@ -779,7 +779,7 @@ type: keyword
 
 example: SuccessfulCreate
 
-Short, machine understandable string that gives the reason for this event being generated 
+Short, machine understandable string that gives the reason for this event being generated
 
 
 ==== kubernetes.event.source_component
