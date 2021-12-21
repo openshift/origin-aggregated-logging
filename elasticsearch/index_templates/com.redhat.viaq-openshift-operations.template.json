@@ -326,7 +326,7 @@
                     "resourceVersion": {
                       "doc_values": true,
                       "index": true,
-                      "type": "integer"
+                      "type": "keyword"
                     },
                     "selfLink": {
                       "doc_values": true,
