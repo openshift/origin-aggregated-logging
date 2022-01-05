@@ -66,7 +66,7 @@ RUN BUILD_PKGS="make gcc-c++ libffi-devel \
                 gcc gcc-gdb-plugin cpp \
                 nodejs \
                 autoconf automake libtool m4 \
-                redhat-rpm-config" && \
+                redhat-rpm-config rubygem-bundler" && \
     yum remove -y $BUILD_PKGS
 
 RUN mkdir -p /etc/fluent/plugin
