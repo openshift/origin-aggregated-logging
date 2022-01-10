@@ -66,13 +66,13 @@ sg_role_curator:
   cluster:
     - CLUSTER_MONITOR
     - MANAGE
+    - DELETE
   indices:
     '*':
       '*':
         - READ
         - MANAGE
         - DELETE
-        - "indices:data/write/bulk*"
         
 sg_role_admin:
   indices:
