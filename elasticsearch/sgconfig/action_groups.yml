@@ -45,6 +45,8 @@ READ:
 
 DELETE:
   - "indices:data/write/delete*"
+  - "indices:data/write/bulk*"
+  - "indices:data/read/scroll*"
 
 CRUD:
   - READ
