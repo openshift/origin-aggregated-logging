@@ -1,4 +1,4 @@
-- nvr: org.elasticsearch-elasticsearch-6.8.1.redhat_00013-1
+- nvr: org.elasticsearch-elasticsearch-6.8.1.redhat_00016-1
 - nvr: com.amazon.opendistroforelasticsearch-opendistro_security-0.10.1.2_redhat_00006-1
 - nvr: org.elasticsearch.plugin.prometheus-prometheus-exporter-6.8.1.2_redhat_00001-1
 - nvr: org.elasticsearch.plugin.ingest-openshift-ingest-plugin-6.8.1.0_redhat_00003-1
