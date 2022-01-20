@@ -35,12 +35,14 @@ RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
 
 ADD jemalloc/ ${HOME}/jemalloc/
 RUN cd ${HOME}/jemalloc && EXTRA_CFLAGS="$( rpm --eval '%{optflags}' )" ./autogen.sh && \
-    make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc && \
-    cd .. && rm -rf jemalloc
+    make install_lib_shared install_bin && cp COPYING ${HOME}/COPYING.jemalloc
+RUN rm -rf ${HOME}/jemalloc
 
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     gem install -N --conservative --minimal-deps --no-ri --no-doc \
      'ffi:<1.13' \
+     'msgpack:1.2.4' \
+     'unf_ext:0.0.7.5' \
      'minitest:5.10.3' \
      'activesupport:4.2.10' \
      'public_suffix:2.0.5' \
