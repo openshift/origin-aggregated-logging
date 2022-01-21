@@ -3,7 +3,41 @@
 set -ex
 set -o nounset
 
+export ES_VER_REDHAT=${ES_VER_REDHAT}
 source ${HOME}/prep-install.${RELEASE_STREAM}
+
+pushd /var/tmp
+    ES_ARCHIVE_URL=${ES_ARCHIVE_URL:-${MAVEN_REPO_URL}/org/elasticsearch/distribution/zip/elasticsearch/${ES_VER_REDHAT}/elasticsearch-${ES_VER_REDHAT}.zip}
+    curl -L -v -s -o es.zip ${ES_ARCHIVE_URL}
+    unzip es.zip
+    pushd elasticsearch-${ES_VER}
+      mkdir -p ${ES_HOME}/bin
+      install -p -m 755 bin/elasticsearch ${ES_HOME}/bin
+      install -p -m 644 bin/elasticsearch.in.sh ${ES_HOME}/bin
+      install -p -m 755 bin/elasticsearch-plugin ${ES_HOME}/bin/plugin
+      install -p -m 755 bin/elasticsearch-keystore ${ES_HOME}/bin/keystore
+      mkdir -p ${ES_HOME}/plugins
+      mkdir -p ${ES_HOME}/lib
+      install -p -m 644 lib/*.jar ${ES_HOME}/lib
+      cp -r modules ${ES_HOME}
+      mkdir -p ${ES_CONF}/scripts
+      install -m 644 config/* ${ES_CONF}
+      sed -i -e 's/^-Xms/#-Xms/' -e 's/^-Xmx/#-Xmx/' ${ES_CONF}/jvm.options
+      cat /etc/elasticsearch/extra-jvm.options >> ${ES_CONF}/jvm.options
+      groupadd -r elasticsearch -g 1000
+      useradd -r -g elasticsearch -d ${ES_HOME} -u 1000 \
+              -s /sbin/nologin -c "You know, for search" elasticsearch
+      mkdir -p ${ES_HOME}/data
+      chown elasticsearch:elasticsearch ${ES_HOME}/data
+      chmod 0777 ${ES_HOME}/data
+      mkdir -p ${ES_HOME}/logs
+      chown elasticsearch:elasticsearch ${ES_HOME}/logs
+      chmod u+rwx,g+rwx ${ES_HOME}/logs
+      mkdir -p /var/run/elasticsearch
+      chmod u+rwx,g+rwx /var/run/elasticsearch
+      mkdir /elasticsearch && chmod a+rwx /elasticsearch
+  popd
+popd
 
 echo "ES plugins: ${es_plugins[@]}"
 for es_plugin in ${es_plugins[@]}
