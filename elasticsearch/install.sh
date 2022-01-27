@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Try to get test_pull_request_origin_aggregated_logging_json_file-release-3.11 to run
+echo ""
 set -euo pipefail
 
 source $(dirname "$0")/ci-env.sh
