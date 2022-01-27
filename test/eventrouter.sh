@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Try out CI
+echo ""
+
 # This is a test suite for the eventrouter
 
 source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
