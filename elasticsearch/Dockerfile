@@ -62,7 +62,7 @@ COPY  ${upstream_code}/extra-jvm.options /var/tmp
 COPY  ${upstream_code}/ci-env.sh /var/tmp
 COPY  ${upstream_code}/install-es.sh /var/tmp
 COPY artifacts /artifacts
-RUN /var/tmp/install-es.sh
+RUN /var/tmp/install-es.sh && rm -rf /var/tmp/*
 
 COPY  ${upstream_code}/sgconfig/ ${HOME}/sgconfig/
 COPY  ${upstream_code}/index_templates/ ${ES_HOME}/index_templates/
