@@ -51,6 +51,7 @@ class CollectedTailMonitorInputTest < Test::Unit::TestCase
     mergedlabels  = d.instance.labels({"plugin_id" => "mypluginid", "type" => "input_plugin"}, path)
     puts "with logfilepath as #{path} post merging base labels set to ...#{mergedlabels}"
 
+    # Test /var/log/containers format
     path = "/var/log/containers/mypodname_mynamespace_mycontainername-34646d7fb38199129ab8d0e6f41833d26e1826cba92571100fd6c53904a5317e.log"
     newmergedlabels  = d.instance.labels({"plugin_id" => "mypluginid", "type" => "input_plugin"}, path)
     puts "with logfilepath as #{path} post merging base labels set to ...#{newmergedlabels}"
@@ -58,8 +59,18 @@ class CollectedTailMonitorInputTest < Test::Unit::TestCase
     assert_equal('mynamespace',newmergedlabels[:namespace])
     assert_equal('mycontainername',newmergedlabels[:containername])
     assert_equal('mypodname',newmergedlabels[:podname])
+
+
+    # Test /var/log/pods format
+    path = "/var/log/pods/mynamespace2_mypodname2_05682f61-8a44-47af-ae0f-41ad3792e20a/mycontainername2/1.log"
+    newmergedlabels  = d.instance.labels({"plugin_id" => "mypluginid", "type" => "input_plugin"}, path)
+    puts "with logfilepath as #{path} post merging base labels set to ...#{newmergedlabels}"
+    assert_equal('mypluginid',newmergedlabels[:plugin_id])
+    assert_equal('mynamespace2',newmergedlabels[:namespace])
+    assert_equal('mycontainername2',newmergedlabels[:containername])
+    assert_equal('mypodname2',newmergedlabels[:podname])
     }
- end 
+ end
 
   def test_invalid_configure
       assert_raise(Fluent::ConfigError) {
