@@ -1,3 +1,0 @@
-[submodule "spec/helpers/json-jwt-nimbus"]
-	path = spec/helpers/json-jwt-nimbus
-	url = git://github.com/nov/json-jwt-nimbus.git

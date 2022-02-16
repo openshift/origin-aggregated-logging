@@ -248,7 +248,6 @@ update_images_in_clo_yaml() {
     sed -e "/name: ELASTICSEARCH_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_ELASTICSEARCH6}," \
         -e "/name: KIBANA_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_KIBANA6}," \
         -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_CURATOR5}," \
-        -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_LOGGING_FLUENTD}," \
         -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${IMAGE_OAUTH_PROXY}," \
         -e "/name: ELASTICSEARCH_PROXY/,/value:/s,value:.*\$,value: ${IMAGE_ELASTICSEARCH_PROXY}," \
         $filearg

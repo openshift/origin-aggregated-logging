@@ -13,5 +13,3 @@ ADD Makefile /go/src/github.com/openshift/origin-aggregated-logging/
 ADD openshift/ /go/src/github.com/openshift/origin-aggregated-logging/openshift/
 ADD hack/ /go/src/github.com/openshift/origin-aggregated-logging/hack/
 ADD test/ /go/src/github.com/openshift/origin-aggregated-logging/test/
-ADD fluentd/ /go/src/github.com/openshift/origin-aggregated-logging/fluentd/
-ADD rsyslog/ /go/src/github.com/openshift/origin-aggregated-logging/rsyslog/
