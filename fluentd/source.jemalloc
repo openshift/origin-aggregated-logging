@@ -1,3 +1,0 @@
-JEMALLOC_VER=5.2.1
-JEMALLOC_SOURCE=https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VER}/jemalloc-${JEMALLOC_VER}.tar.bz2
-JEMALLOC_SHA512SUM=0bbb77564d767cef0c6fe1b97b705d368ddb360d55596945aea8c3ba5889fbce10479d85ad492c91d987caacdbbdccc706aa3688e321460069f00c05814fae02

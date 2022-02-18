@@ -247,7 +247,7 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
-    names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator5"
+    names="elasticsearch${name_suf:-} kibana${name_suf:-} curator5"
     for ii in $(seq 1 10) ; do
         notfound=
         for obj in $names ; do
@@ -276,9 +276,9 @@ fi
 
 # first of pair is name of subdir for component
 # second is base name of image to build
-# e.g. 'fluentd logging-fluentd' means build the image from the fluentd/
-# subdir, and name the image something/logging-fluentd:${tag}
-REPO_IMAGE_LIST="${REPO_IMAGE_LIST:-fluentd logging-fluentd elasticsearch logging-elasticsearch${name_suf:-} \
+# e.g. 'elasticsearch logging-elasticsearch' means build the image from the elasticsearch/
+# subdir, and name the image something/logging-elasticsearch:${tag}
+REPO_IMAGE_LIST="${REPO_IMAGE_LIST:-elasticsearch logging-elasticsearch${name_suf:-} \
     kibana logging-kibana${name_suf:-} curator logging-curator${name_suf:-} \
     logging-ci-test-runner logging-ci-test-runner}"
 
@@ -338,7 +338,7 @@ fi
 
 login_to_registry "127.0.0.1:${LOCAL_PORT}"
 
-for image in "${tag_prefix}logging-fluentd" "${tag_prefix}logging-elasticsearch${name_suf:-}" \
+for image in "${tag_prefix}logging-elasticsearch${name_suf:-}" \
   "${tag_prefix}logging-kibana${name_suf:-}" "${tag_prefix}logging-curator${name_suf:-}" \
   "openshift/logging-ci-test-runner" ; do
   remote_image="127.0.0.1:${REGISTRY_PORT}/$image"

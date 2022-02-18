@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # check dockerfile changes
-for d in "curator" "elasticsearch" "fluentd" "kibana" ; do
+for d in "curator" "elasticsearch" "kibana" ; do
   change=$(./hack/generate-dockerfile-from-midstream $d/Dockerfile.in | md5sum | cut -d ' ' -f1)
   if [ "$change" != "$(md5sum $d/Dockerfile | cut -d ' ' -f1)" ] ; then
       echo "A change was found in CI file $d/Dockerfile that was not sourced from the midstream file $d/Dockerfile.in (or vice versa)."

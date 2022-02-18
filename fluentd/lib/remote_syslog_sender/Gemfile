@@ -1,6 +1,0 @@
-source 'https://rubygems.org'
-
-gemspec
-
-gem "syslog_protocol", path: "../syslog_protocol/"
-

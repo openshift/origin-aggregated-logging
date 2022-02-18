@@ -1,3 +1,0 @@
-from:
-- source: registry.redhat.io/ubi8/ruby-25:(\d)-(?:[\.0-9\-]*)
-  target: registry.ci.openshift.org/ocp/builder:ubi8.ruby.25

@@ -1,7 +1,7 @@
 # OpenShift Logging
 
 
-This repo primary contains only the image definitions for the components of the OpenShift Logging
+This repo primary contains only the image definitions for the logstore components of the OpenShift Logging
 stack for releases 4.x and later. These [components images](#components), abbreviated as the "EFK"
 stack, include: Elasticsearch, Fluentd, Kibana. Please refer to the [cluster-logging-operator](https://github.com/openshift/cluster-logging-operator) and [elasticsearch-operator](https://github.com/openshift/elasticsearch-operator) for information regarding the operators which deploy these images.  
 
@@ -32,7 +32,7 @@ with redundancy and persistent storage for scale and high availability.
 ### Fluentd
 
 Fluentd is responsible for gathering log entries from nodes, enriching
-them with metadata, and forwarding them to the default logstore or other destinations defined by administrators.
+them with metadata, and forwarding them to the default logstore or other destinations defined by administrators. The content for this component has moved to https://github.com/ViaA/logging-fluentd
 
 ### Kibana
 
@@ -48,7 +48,7 @@ start and stop order.
 
 ## Issues
 
-Any issues can be filed at [Red Hat Bugzilla](https://bugzilla.redhat.com).  Please
+Any issues can be filed at [Red Hat JIRA](https://issues.redhat.com).  Please
 include as many [details](docs/issues.md) as possible in order to assist in issue resolution along with attaching a [must gather](https://github.com/openshift/cluster-logging-operator/tree/master/must-gather) output.
 
 
