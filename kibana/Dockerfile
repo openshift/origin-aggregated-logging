@@ -1,7 +1,7 @@
 ### This is a generated file from Dockerfile.in ###
 
 #@follow_tag(registry-proxy.engineering.redhat.com/rh-osbs/ubi8-nodejs-10:latest)
-FROM registry.ci.openshift.org/ocp/builder:rhel8.2.els.nodejs.10
+FROM registry.access.redhat.com/ubi8/nodejs-10
 ENV BUILD_VERSION=6.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
