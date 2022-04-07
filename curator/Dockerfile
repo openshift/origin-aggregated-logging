@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel8.2.els.python.36
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-base-openshift-4.6
 
 MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 
@@ -28,8 +28,11 @@ RUN mkdir -p $(dirname "$CURATOR_CONF_LOCATION") && \
     chmod -R g=u ${HOME}
 
 WORKDIR ${HOME}/vendor
-RUN pip install $(ls . | grep -v curator) -q --no-index --find-links . && \
-    pip install elasticsearch-curator* --no-index -q && \
+RUN yum install -y python3-pip && \
+    yum clean all && \
+    rm -rf /var/cache/yum && \
+    pip3 install $(ls . | grep -v curator) -q --no-index --find-links . && \
+    pip3 install elasticsearch-curator* --no-index -q && \
     rm -rf $HOME/vendor
 
 WORKDIR ${HOME}
