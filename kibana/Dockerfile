@@ -1,7 +1,28 @@
 ### This is a generated file from Dockerfile.in ###
 
-#@follow_tag(registry-proxy.engineering.redhat.com/rh-osbs/ubi8-nodejs-10:latest)
-FROM registry.access.redhat.com/ubi8/nodejs-10
+FROM registry.redhat.io/ubi8:8.5
+
+ENV HOME=/opt/app-root/src
+
+ENV NODEJS_VERSION=10 \
+    NPM_RUN=start \
+    NAME=nodejs \
+    NPM_CONFIG_PREFIX=$HOME/.npm-global \
+    PATH=$HOME/node_modules/.bin/:$HOME/.npm-global/bin/:$PATH
+
+USER 0
+
+WORKDIR ${HOME}
+
+RUN yum -y module enable nodejs:$NODEJS_VERSION && \
+    INSTALL_PKGS="nodejs npm nodejs-nodemon nss_wrapper" && \
+    ln -s /usr/lib/node_modules/nodemon/bin/nodemon.js /usr/bin/nodemon && \
+    ln -s /usr/libexec/platform-python /usr/bin/python3 && \
+    yum remove -y $INSTALL_PKGS && \
+    yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    yum -y clean all --enablerepo='*'
+
 ENV BUILD_VERSION=6.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
@@ -11,7 +32,6 @@ MAINTAINER OpenShift Development <dev@lists.openshift.redhat.com>
 EXPOSE 5601
 
 ENV ELASTICSEARCH_URL=https://elasticsearch.openshift-logging.svc.cluster.local:9200 \
-    HOME=/opt/app-root/src  \
     KIBANA_CONF_DIR=${HOME}/config \
     KIBANA_VERSION=6.8.1 \
     NODE_ENV=production \
@@ -21,8 +41,6 @@ ENV ELASTICSEARCH_URL=https://elasticsearch.openshift-logging.svc.cluster.local:
     NODE_PATH=/usr/bin
 
 ARG LOCAL_REPO
-
-USER 0
 
 ENV upstream_code=${upstream_code:-"."}
 COPY  ${upstream_code}/vendored_tar_src/kibana-oss-6.8.1 ${HOME}/
