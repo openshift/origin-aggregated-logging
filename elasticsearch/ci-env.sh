@@ -2,8 +2,7 @@
 
 set -o xtrace
 
-#PROMETHEUS_EXPORTER_URL=${PROMETHEUS_EXPORTER_URL:-$MAVEN_REPO_URL/org/elasticsearch/plugin/prometheus/prometheus-exporter/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip}
-PROMETHEUS_EXPORTER_URL=file:///prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+PROMETHEUS_EXPORTER_URL=${PROMETHEUS_EXPORTER_URL:-$MAVEN_REPO_URL/org/elasticsearch/plugin/prometheus/prometheus-exporter/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip}
 OPENDISTRO_URL=${OPENDISTRO_URL:-$MAVEN_REPO_URL/com/amazon/opendistroforelasticsearch/opendistro_security/$OPENDISTRO_VER/opendistro_security-$OPENDISTRO_VER.zip}
 
 if [[ "${OPENSHIFT_CI:-}" == "true" ]]; then
