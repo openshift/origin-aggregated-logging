@@ -10,6 +10,6 @@ if [[ "${OPENSHIFT_CI:-}" == "true" ]]; then
     # default to maven.org.
     export ES_ARCHIVE_URL=https://github.com/ViaQ/elasticsearch/releases/download/elasticsearch-oss-$ES_VER/elasticsearch-oss-$ES_VER.zip
     export OPENDISTRO_URL=https://github.com/ViaQ/security/releases/download/opendistro_security-$OPENDISTRO_VER/opendistro_security-$OPENDISTRO_VER.zip
-    export PROMETHEUS_EXPORTER_URL=https://github.com/vvanholl/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
+    export PROMETHEUS_EXPORTER_URL=https://github.com/ViaQ/elasticsearch-prometheus-exporter/releases/download/$PROMETHEUS_EXPORTER_VER/prometheus-exporter-$PROMETHEUS_EXPORTER_VER.zip
 fi
 es_plugins=($OPENDISTRO_URL $PROMETHEUS_EXPORTER_URL)
