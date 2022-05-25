@@ -101,6 +101,13 @@ sg_role_jaeger:
         - READ
         - SEARCH
         - MANAGE
+    '*jaeger-dependencies-*':
+      '*':
+        - CRUD
+        - CREATE_INDEX
+        - READ
+        - SEARCH
+        - MANAGE
     '*jaeger-span-archive':
       '*':
         - CRUD
