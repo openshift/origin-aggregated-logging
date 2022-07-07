@@ -3,12 +3,10 @@ filters:
   ".*":
     approvers:
       - jcantrill
-      - igor-karpukhin
       - alanconway
       - periklis
     reviewers:
       - jcantrill
-      - lukas-vlcek
       - alanconway
       - vimalk78
       - syedriko
@@ -19,6 +17,9 @@ filters:
       - ajaygupta978
       - shwetaap
       - cahartma
+      - xperimental
+      - btaani
+      - aminesnow
   "Dockerfile(?:\\.in)?$":
     labels:
       - midstream/Dockerfile
