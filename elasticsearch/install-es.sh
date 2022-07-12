@@ -32,6 +32,7 @@ install -m 660 config/* ${ES_PATH_CONF}
 popd
 sed -i -e 's/^-Xms/#-Xms/' -e 's/^-Xmx/#-Xmx/' -e '/-Xlog/d' ${ES_PATH_CONF}/jvm.options
 [[ `arch` = x86_64 ]] || sed -i -e '/UseAVX/d' ${ES_PATH_CONF}/jvm.options
+sed -i -e '/-XX:+UseConcMarkSweepGC/s/^\s*/#/' -e '/-XX:CMSInitiatingOccupancyFraction=75/s/^\s*/#/' -e '/-XX:+UseCMSInitiatingOccupancyOnly/s/^\s*/#/' -e '/10-:-XX:+UseG1GC/s/^#*\s*//' -e '/10-:-XX:InitiatingHeapOccupancyPercent=75/s/^#*\s*//' ${ES_PATH_CONF}/jvm.options
 cat extra-jvm.options >> ${ES_PATH_CONF}/jvm.options
 groupadd -r elasticsearch -g 1000
 useradd -r -g elasticsearch -d ${ES_HOME} -u 1000 \

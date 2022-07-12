@@ -1,6 +1,6 @@
 ## EXCLUDE BEGIN ##
 #@follow_tag(registry.redhat.io/ubi8:latest)
-FROM registry.redhat.io/ubi8:8.4-211 AS builder
+FROM registry.redhat.io/ubi8:8.6-855 AS builder
 
 ARG upstream_code=upstream_code
 ARG upstream_tarball=${upstream_code}.tar.gz
@@ -13,7 +13,7 @@ RUN mkdir -p ${upstream_code} \
 ## EXCLUDE END ##
 
 #@follow_tag(registry.redhat.io/ubi8:latest)
-FROM registry.redhat.io/ubi8:8.4-211
+FROM registry.redhat.io/ubi8:8.6-855
 ## EXCLUDE BEGIN ##
 ARG upstream_code=upstream_code/elasticsearch
 ## EXCLUDE END ##
@@ -39,9 +39,8 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_VER=6.8.1.redhat-00020 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
-    JAVA_VER=11 \
+    JAVA_VER=17 \
     JAVA_HOME=/usr/lib/jvm/jre \
-    _JAVA_OPTIONS="-Dcom.redhat.fips=false" \
     NODE_QUORUM=1 \
     PROMETHEUS_EXPORTER_VER=6.8.1.2-redhat-00001 \
     INGEST_PLUGIN_VER=6.8.1.0-redhat-00003 \

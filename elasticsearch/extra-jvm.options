@@ -1,4 +1,1 @@
 -XX:+UnlockExperimentalVMOptions
--XX:MaxRAMFraction=2
--XX:InitialRAMFraction=2
--XX:MinRAMFraction=2

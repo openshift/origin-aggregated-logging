@@ -24,9 +24,8 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_VER=6.8.1.redhat-00020 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
-    JAVA_VER=11 \
+    JAVA_VER=17 \
     JAVA_HOME=/usr/lib/jvm/jre \
-    _JAVA_OPTIONS="-Dcom.redhat.fips=false" \
     NODE_QUORUM=1 \
     PROMETHEUS_EXPORTER_VER=6.8.1.2-redhat-00001 \
     INGEST_PLUGIN_VER=6.8.1.0-redhat-00003 \
