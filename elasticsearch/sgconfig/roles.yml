@@ -161,6 +161,7 @@ admin_user:
     - CLUSTER_MONITOR
     - CLUSTER_COMPOSITE_OPS_RO
     - indices:data/write/bulk  #required for being able to let index mappings update... is this required still with multitenancy?
+    - indices:admin/template/get
   indices:
     '*':
       '*':
