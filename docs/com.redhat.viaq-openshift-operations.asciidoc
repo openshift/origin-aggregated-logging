@@ -585,57 +585,25 @@ type: text
 The name of the container in Kubernetes.
 
 
+==== kubernetes.annotations
 
-'''
-[[exported-fields-kubernetes.annotations]]
-=== [big]*kubernetes.annotations Fields*
+type: nested
 
 Annotations associated with the OpenShift object
 
 
+==== kubernetes.labels
 
-'''
-[[exported-fields-kubernetes.labels]]
-=== [big]*kubernetes.labels Fields*
+type: nested
 
-Labels attached to the OpenShift object Each label name is a subfield of labels field. Each label name is de-dotted: dots in the name are replaced with underscores.
-
+Labels attached to the OpenShift object Each label name is a subfield of labels field.
 
 
-==== kubernetes.labels.deployment
+==== kubernetes.namespace_labels
 
-type: keyword
+type: nested
 
-example: logging-kibana-3
-
-The deployment associated with this Kubernetes object
-
-
-==== kubernetes.labels.deploymentconfig
-
-type: keyword
-
-example: logging-kibana
-
-The deploymentconfig associated with this Kubernetes object
-
-
-==== kubernetes.labels.component
-
-type: keyword
-
-example: kibana
-
-The component associated with this Kubernetes object
-
-
-==== kubernetes.labels.provider
-
-type: keyword
-
-example: openshift
-
-The provider associated with this Kubernetes object
+Labels attached to the namespace in which the openshift object is deployed Each label name is a subfield of labels field.
 
 
 

@@ -249,6 +249,9 @@
         },
         "kubernetes": {
           "properties": {
+            "annotations": {
+              "type": "nested"
+            },
             "container_name": {
               "doc_values": false,
               "fields": {
@@ -374,36 +377,7 @@
               "type": "keyword"
             },
             "labels": {
-              "properties": {
-                "component": {
-                  "doc_values": true,
-                  "index": true,
-                  "type": "keyword"
-                },
-                "deployment": {
-                  "doc_values": true,
-                  "index": true,
-                  "type": "keyword"
-                },
-                "deploymentconfig": {
-                  "doc_values": true,
-                  "fields": {
-                    "raw": {
-                      "doc_values": true,
-                      "ignore_above": 64,
-                      "index": true,
-                      "type": "keyword"
-                    }
-                  },
-                  "index": true,
-                  "type": "keyword"
-                },
-                "provider": {
-                  "doc_values": true,
-                  "index": true,
-                  "type": "keyword"
-                }
-              }
+              "type": "nested"
             },
             "master_url": {
               "doc_values": true,
@@ -415,6 +389,9 @@
               "index": true,
               "norms": true,
               "type": "keyword"
+            },
+            "namespace_labels": {
+              "type": "nested"
             },
             "namespace_name": {
               "doc_values": true,
