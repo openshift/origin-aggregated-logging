@@ -60,7 +60,7 @@ ADD extra-jvm.options install-es.sh ci-env.sh /var/tmp
 RUN mkdir /artifacts
 # In an OSBS build, this will COPY artifacts from fetch-artifacts-koji.yaml. In a CI build, it will just
 # copy the README.MD.
-COPY artifacts/* /artifacts/
+COPY artifacts /artifacts/
 COPY *.zip /
 RUN /var/tmp/install-es.sh
 
