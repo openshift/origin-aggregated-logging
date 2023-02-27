@@ -32,7 +32,7 @@ with redundancy and persistent storage for scale and high availability.
 ### Fluentd
 
 Fluentd is responsible for gathering log entries from nodes, enriching
-them with metadata, and forwarding them to the default logstore or other destinations defined by administrators. The content for this component has moved to https://github.com/ViaA/logging-fluentd
+them with metadata, and forwarding them to the default logstore or other destinations defined by administrators. The content for this component has moved to [https://github.com/viaq/logging-fluentd](https://github.com/viaq/logging-fluentd)
 
 ### Kibana
 
