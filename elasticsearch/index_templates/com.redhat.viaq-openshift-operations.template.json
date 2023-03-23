@@ -250,9 +250,6 @@
         },
         "kubernetes": {
           "properties": {
-            "annotations": {
-              "type": "nested"
-            },
             "container_name": {
               "doc_values": false,
               "fields": {
@@ -377,9 +374,6 @@
               "norms": true,
               "type": "keyword"
             },
-            "labels": {
-              "type": "nested"
-            },
             "master_url": {
               "doc_values": true,
               "index": true,
@@ -390,9 +384,6 @@
               "index": true,
               "norms": true,
               "type": "keyword"
-            },
-            "namespace_labels": {
-              "type": "nested"
             },
             "namespace_name": {
               "doc_values": true,
