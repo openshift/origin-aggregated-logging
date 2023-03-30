@@ -585,25 +585,12 @@ type: text
 The name of the container in Kubernetes.
 
 
-==== kubernetes.annotations
 
-type: nested
+'''
+[[exported-fields-kubernetes.annotations]]
+=== [big]*kubernetes.annotations Fields*
 
 Annotations associated with the OpenShift object
-
-
-==== kubernetes.labels
-
-type: nested
-
-Labels attached to the OpenShift object Each label name is a subfield of labels field.
-
-
-==== kubernetes.namespace_labels
-
-type: nested
-
-Labels attached to the namespace in which the openshift object is deployed Each label name is a subfield of labels field.
 
 
 
