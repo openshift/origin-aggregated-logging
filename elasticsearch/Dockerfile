@@ -1,7 +1,7 @@
 ### This is a generated file from Dockerfile.in ###
 
-#@follow_tag(registry.redhat.io/ubi8:latest)
-FROM registry.access.redhat.com/ubi8
+#@follow_tag(registry.redhat.io/ubi9:latest)
+FROM registry.access.redhat.com/ubi9
 ENV BUILD_VERSION=6.8.1
 ENV SOURCE_GIT_COMMIT=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT:-}
 ENV SOURCE_GIT_URL=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_URL:-}
@@ -44,7 +44,8 @@ ENV ES_PATH_CONF=/etc/elasticsearch/ \
 # WORKDIR $REMOTE_SOURCE_DIR/app/elasticsearch
 
 RUN packages="java-${JAVA_VER}-openjdk-headless \
-              python36 \
+              python-unversioned-command \
+              python3 \
               python3-pyyaml \
               hostname \
               openssl \
@@ -52,7 +53,6 @@ RUN packages="java-${JAVA_VER}-openjdk-headless \
               unzip" && \
     yum install -y ${packages} && \
     rpm -V ${packages} && \
-    alternatives --set python /usr/bin/python3 && \
     yum clean all
 
 ARG MAVEN_REPO_URL=${MAVEN_REPO_URL:-file:///artifacts/}
@@ -89,7 +89,7 @@ LABEL \
         io.k8s.display-name="Elasticsearch 6" \
         io.openshift.tags="logging,elk,elasticsearch" \
         vendor="Red Hat" \
-        name="openshift-logging/elasticsearch6-rhel8" \
+        name="openshift-logging/elasticsearch6-rhel9" \
         com.redhat.component="logging-elasticsearch6-container" \
         io.openshift.maintainer.product="OpenShift Container Platform" \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \

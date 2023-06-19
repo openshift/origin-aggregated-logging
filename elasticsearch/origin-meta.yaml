@@ -1,3 +1,3 @@
 from:
-- source: registry.redhat.io/ubi8:(\d).(\d)-(?:[\.0-9\-]*)
-  target: registry.access.redhat.com/ubi8
+- source: registry.redhat.io/ubi9:(\d).(\d)-(?:[\.0-9\-]*)
+  target: registry.access.redhat.com/ubi9
