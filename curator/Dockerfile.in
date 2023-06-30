@@ -1,6 +1,6 @@
 ## EXCLUDE BEGIN ##
-#@follow_tag(registry.redhat.io/ubi8:latest)
-FROM registry.redhat.io/ubi8:8.4-211 AS builder
+#@follow_tag(registry.redhat.io/ubi9:latest)
+FROM registry.redhat.io/ubi9:9.2-489 AS builder
 
 ARG upstream_code=upstream_code
 ARG upstream_tarball=${upstream_code}.tar.gz
@@ -12,8 +12,8 @@ RUN mkdir -p ${upstream_code} \
         -C ${upstream_code}
 ## EXCLUDE END ##
 
-#@follow_tag(registry.redhat.io/ubi8/python-36:latest)
-FROM registry.redhat.io/ubi8/python-36:1-155
+#@follow_tag(registry.redhat.io/ubi9/python-39:latest)
+FROM registry.ci.openshift.org/ocp/ubi-python-39:9
 
 ## EXCLUDE BEGIN ##
 ARG upstream_code=upstream_code/curator
@@ -66,7 +66,7 @@ LABEL \
         io.k8s.display-name="Curator 5" \
         io.openshift.tags="logging,elk,elasticsearch,curator" \
         vendor="Red Hat" \
-        name="openshift-logging/logging-curator5-rhel8" \
+        name="openshift-logging/logging-curator5-rhel9" \
         com.redhat.component="logging-curator5-container" \
         io.openshift.maintainer.product="OpenShift Container Platform" \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \

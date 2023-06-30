@@ -1,7 +1,7 @@
 ### This is a generated file from Dockerfile.in ###
 
-#@follow_tag(registry.redhat.io/ubi8/python-36:latest)
-FROM registry.ci.openshift.org/ocp/builder:ubi8.python.36
+#@follow_tag(registry.redhat.io/ubi9/python-39:latest)
+FROM registry.ci.openshift.org/ocp/ubi-python-39:9
 
 
 ENV BUILD_VERSION=5.8.1
@@ -51,7 +51,7 @@ LABEL \
         io.k8s.display-name="Curator 5" \
         io.openshift.tags="logging,elk,elasticsearch,curator" \
         vendor="Red Hat" \
-        name="openshift-logging/logging-curator5-rhel8" \
+        name="openshift-logging/logging-curator5-rhel9" \
         com.redhat.component="logging-curator5-container" \
         io.openshift.maintainer.product="OpenShift Container Platform" \
         io.openshift.build.commit.id=${CI_ORIGIN_AGGREGATED_LOGGING_UPSTREAM_COMMIT} \
