@@ -12,11 +12,7 @@ OC_BINARY=$( type -p oc )
 # and I'm hoping request-timeout will help, and maybe increasing the loglevel
 # will give us some clues
 oc() {
-    local oclogdir=${OC_LOG_DIR:-${ARTIFACT_DIR:-/tmp}/oclogs}
-    if [ ! -d $oclogdir ] ; then
-        mkdir -p $oclogdir
-    fi
-    $OC_BINARY --request-timeout=15s --logtostderr=false --loglevel=2 --log_dir=$oclogdir "$@"
+    $OC_BINARY --request-timeout=15s --loglevel=2 "$@"
 }
 
 if [ $(id -u) = 0 ] ; then
