@@ -21,7 +21,7 @@ ARG OPENSHIFT_CI
 
 ENV ES_PATH_CONF=/etc/elasticsearch/ \
     ES_HOME=/usr/share/elasticsearch \
-    ES_VER=6.8.1.redhat-00029 \
+    ES_VER=6.8.1.redhat-00031 \
     HOME=/opt/app-root/src \
     INSTANCE_RAM=512G \
     JAVA_VER=11 \
