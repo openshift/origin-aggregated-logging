@@ -13,7 +13,7 @@ pip install elasticsearch-curator.tar.gz
 
 * Download each dependency to the vendor directory
 ```
- pip download -r requirements.txt -d vendor
+pip download -r requirements.txt -d vendor
 ```
 
 * Update manifest
