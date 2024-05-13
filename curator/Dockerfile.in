@@ -1,6 +1,6 @@
 ## EXCLUDE BEGIN ##
 #@follow_tag(registry.redhat.io/ubi9:latest)
-FROM registry.redhat.io/ubi9:9.2-489 AS builder
+FROM registry.redhat.io/ubi9:9.4-947.1714667021 AS builder
 
 ARG upstream_code=upstream_code
 ARG upstream_tarball=${upstream_code}.tar.gz
@@ -13,7 +13,7 @@ RUN mkdir -p ${upstream_code} \
 ## EXCLUDE END ##
 
 #@follow_tag(registry.redhat.io/ubi9/python-39:latest)
-FROM registry.ci.openshift.org/ocp/ubi-python-39:9
+FROM registry.redhat.io/ubi9/python-39:1-182.1714671018
 
 ## EXCLUDE BEGIN ##
 ARG upstream_code=upstream_code/curator

@@ -1,3 +1,5 @@
 elasticsearch-curator==5.8.1
 ruamel.yaml==0.15.100
 elasticsearch-dsl==7.4.0
+setuptools==53.0.0
+wheel==0.37.1
